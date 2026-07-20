@@ -1312,13 +1312,23 @@ export default function GovernanceWorkspace({
                   </span>
                   <span className="is-mono">{item.assetFqn || item.assetName}</span>
                   <span>{workItemAssigned(item)}</span>
+                  {/* Chip labels wrapped in .gh-governance-ns-chip-label so long
+                      values ellipsize inside the pill instead of wrapping into a
+                      multi-line blob in narrow queue columns; full text stays
+                      reachable via the title attribute. Visual-only change. */}
                   <span
                     className={`gh-governance-ns-sla tone-${slaTone(item)}`}
-                    title={slaPolicyNote(item) || undefined}
+                    title={slaPolicyNote(item) || slaLabel(item) || undefined}
                   >
-                    <GovernanceGlyph icon="clock" />{slaLabel(item)}
+                    <GovernanceGlyph icon="clock" />
+                    <span className="gh-governance-ns-chip-label">{slaLabel(item)}</span>
                   </span>
-                  <span className={`gh-governance-ns-priority tone-${priorityTone(item.priority)}`}>{priorityShortLabel(item.priority)}</span>
+                  <span
+                    className={`gh-governance-ns-priority tone-${priorityTone(item.priority)}`}
+                    title={priorityShortLabel(item.priority) || undefined}
+                  >
+                    <span className="gh-governance-ns-chip-label">{priorityShortLabel(item.priority)}</span>
+                  </span>
                 </button>
               ))
             ) : (
@@ -1330,7 +1340,10 @@ export default function GovernanceWorkspace({
                 </span>
                 <span className="is-mono">{focusedAssetFqn || "Workspace scope"}</span>
                 <span>Assignee unavailable</span>
-                <span className="gh-governance-ns-sla tone-muted"><GovernanceGlyph icon="clock" />Evidence unavailable</span>
+                <span className="gh-governance-ns-sla tone-muted" title="Evidence unavailable">
+                  <GovernanceGlyph icon="clock" />
+                  <span className="gh-governance-ns-chip-label">Evidence unavailable</span>
+                </span>
                 <span className="gh-governance-ns-priority">--</span>
               </div>
             )}

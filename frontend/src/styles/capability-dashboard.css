@@ -1,7 +1,6 @@
 /* Capability dashboard — operator diagnostics at /capabilities.
-   Uses existing color/spacing tokens so the surface inherits the
-   cream shell; cards stand out via subtle borders rather than
-   alternate backgrounds. */
+   2026-07: swapped the undefined --gh-color-* vars (their cream-shell
+   fallbacks rendered dark-on-dark) for the real --ga-* dark tokens. */
 
 .gh-capability-dashboard {
   padding: var(--gh-space-6, 24px);
@@ -33,12 +32,12 @@
   font-size: 1rem;
   font-weight: 600;
   margin: 0;
-  color: var(--gh-color-text, #1a1a1a);
+  color: var(--ga-text);
 }
 
 .gh-capability-section-description {
   margin: 4px 0 0 0;
-  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.65));
+  color: var(--ga-text-muted);
   font-size: 0.86rem;
 }
 
@@ -57,32 +56,32 @@
   flex-direction: column;
   gap: 4px;
   padding: var(--gh-space-2, 8px) 0;
-  border-bottom: 1px dashed var(--gh-color-border-subtle, rgba(20, 20, 20, 0.06));
+  border-bottom: 1px dashed var(--ga-border-muted);
 }
 
 .gh-capability-kv-label {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.7));
+  color: var(--ga-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .gh-capability-kv-value {
   font-size: 0.92rem;
-  color: var(--gh-color-text, #1a1a1a);
+  color: var(--ga-text);
   word-break: break-word;
 }
 
 .gh-capability-kv-hint {
   font-size: 0.82rem;
-  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.6));
+  color: var(--ga-text-muted);
   font-style: italic;
 }
 
 .gh-capability-table-wrapper {
   overflow-x: auto;
-  border: 1px solid var(--gh-color-border-subtle, rgba(20, 20, 20, 0.08));
+  border: 1px solid var(--ga-border-muted);
   border-radius: var(--gh-radius-md, 8px);
 }
 
@@ -97,16 +96,16 @@
   text-align: left;
   padding: var(--gh-space-2, 8px) var(--gh-space-3, 12px);
   vertical-align: top;
-  border-bottom: 1px solid var(--gh-color-border-subtle, rgba(20, 20, 20, 0.06));
+  border-bottom: 1px solid var(--ga-border-muted);
 }
 
 .gh-capability-table thead th {
-  background-color: var(--gh-color-surface-sunken, rgba(20, 20, 20, 0.03));
+  background-color: var(--ga-surface-soft);
   font-weight: 600;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.7));
+  color: var(--ga-text-muted);
 }
 
 .gh-capability-table tbody tr:last-child th,
@@ -116,13 +115,13 @@
 
 .gh-capability-row-label {
   font-weight: 600;
-  color: var(--gh-color-text, #1a1a1a);
+  color: var(--ga-text);
   white-space: nowrap;
 }
 
 .gh-capability-row-reason {
   max-width: 32ch;
-  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.7));
+  color: var(--ga-text-muted);
 }
 
 .gh-capability-header-actions {
@@ -133,6 +132,6 @@
 
 .gh-capability-refreshed {
   margin-top: 4px;
-  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.6));
+  color: var(--ga-text-muted);
   font-size: 0.82rem;
 }

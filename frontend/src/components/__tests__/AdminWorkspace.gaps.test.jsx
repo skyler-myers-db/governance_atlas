@@ -192,7 +192,9 @@ describe("AdminWorkspace gap fixes", () => {
     expect(screen.getByText("Runtime summary")).toBeDefined();
     expect(screen.getByText("12 users")).toBeDefined();
     expect(screen.getByText("3 roles")).toBeDefined();
-    expect(screen.getByText("96%")).toBeDefined();
+    // App-wide percent convention: fractional values keep one decimal
+    // (95.5 renders as "95.5%", matching the topbar badge — not rounded to 96%).
+    expect(screen.getByText("95.5%")).toBeDefined();
     expect(screen.getByText("datapact.atlas")).toBeDefined();
     expect(screen.getByText("Platform Admin")).toBeDefined();
   });

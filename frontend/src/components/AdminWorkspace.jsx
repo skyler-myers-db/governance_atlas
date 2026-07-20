@@ -43,7 +43,11 @@ function numberOrNull(value) {
 
 function percentValue(value) {
   const numeric = numberOrNull(value);
-  return numeric == null ? "Unavailable" : `${Math.round(numeric)}%`;
+  if (numeric == null) return "Unavailable";
+  // App-wide percent convention (matches topbar badge + Command Center):
+  // integers stay whole, fractional values keep one decimal — never round
+  // 95.5% up to 96% or the same value diverges across surfaces.
+  return Number.isInteger(numeric) ? `${numeric.toFixed(0)}%` : `${numeric.toFixed(1)}%`;
 }
 
 /**

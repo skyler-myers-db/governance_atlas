@@ -1,7 +1,8 @@
 /* ==========================================================================
-   Lineage Atlas — V2 canvas styles (rebuilt from scratch)
-   Scoped to .ga-lineage-v2-* selectors so the legacy lineage chrome stays
-   intact while the v2 canvas is feature-flagged behind ?canvas=v2.
+   Lineage Atlas — V2 canvas styles (the primary lineage surface).
+   Scoped to .ga-lineage-v2-* selectors. Palette comes exclusively from the
+   --ga-* design tokens (src/design/tokens/colors.css); translucent rgba()
+   derivations of those token values are allowed, raw palette hex is not.
    ========================================================================== */
 
 /* ---------- Node card ---------- */
@@ -14,7 +15,7 @@
   border-radius: 8px;
   border: 1px solid rgba(61, 132, 173, 0.32);
   background: linear-gradient(180deg, rgba(17, 44, 72, 0.96), rgba(8, 23, 42, 0.96));
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   font-size: 12px;
   line-height: 1.32;
@@ -31,13 +32,21 @@
   cursor: pointer;
 }
 
-.ga-lineage-v2-card[data-navigable="true"]:hover,
-.ga-lineage-v2-card[data-navigable="true"]:focus-visible {
+.ga-lineage-v2-card[data-navigable="true"]:hover {
   border-color: rgba(102, 197, 255, 0.55);
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.45),
     0 0 0 3px rgba(102, 197, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Keyboard focus gets an explicit 2px ring so it never reads as a mere hover. */
+.ga-lineage-v2-card[data-navigable="true"]:focus-visible {
   outline: none;
+  border-color: rgba(102, 197, 255, 0.55);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 2px var(--ga-focus);
   transform: translateY(-1px);
 }
 
@@ -117,7 +126,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #66c5ff;
+  color: var(--ga-bright-blue);
   line-height: 1;
   margin-bottom: 1px;
 }
@@ -125,7 +134,7 @@
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,7 +142,7 @@
 }
 .ga-lineage-v2-card-path {
   font-size: 10.5px;
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -155,7 +164,7 @@
   border-radius: 4px;
   background: rgba(244, 113, 116, 0.16);
   border: 1px solid rgba(244, 113, 116, 0.4);
-  color: #f47174;
+  color: var(--ga-danger);
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -171,10 +180,10 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.ga-lineage-v2-card-class.tone-crit { background: rgba(244, 113, 116, 0.16); color: #f47174; border: 1px solid rgba(244, 113, 116, 0.40); }
-.ga-lineage-v2-card-class.tone-warn { background: rgba(244, 183, 64, 0.16); color: #f4b740; border: 1px solid rgba(244, 183, 64, 0.40); }
-.ga-lineage-v2-card-class.tone-info { background: rgba(102, 197, 255, 0.12); color: #a8d3e8; border: 1px solid rgba(102, 197, 255, 0.32); }
-.ga-lineage-v2-card-class.tone-neutral { background: rgba(178, 189, 194, 0.12); color: #b2bdc2; border: 1px solid rgba(178, 189, 194, 0.32); }
+.ga-lineage-v2-card-class.tone-crit { background: rgba(244, 113, 116, 0.16); color: var(--ga-danger); border: 1px solid rgba(244, 113, 116, 0.40); }
+.ga-lineage-v2-card-class.tone-warn { background: rgba(244, 183, 64, 0.16); color: var(--ga-warning); border: 1px solid rgba(244, 183, 64, 0.40); }
+.ga-lineage-v2-card-class.tone-info { background: rgba(102, 197, 255, 0.12); color: var(--ga-bright-blue); border: 1px solid rgba(102, 197, 255, 0.32); }
+.ga-lineage-v2-card-class.tone-neutral { background: rgba(178, 189, 194, 0.12); color: var(--ga-gray); border: 1px solid rgba(178, 189, 194, 0.32); }
 
 .ga-lineage-v2-card-chiprow {
   display: flex;
@@ -204,15 +213,21 @@
   text-align: left;
   cursor: pointer;
 }
-.ga-lineage-v2-card-col:hover,
-.ga-lineage-v2-card-col:focus-visible,
+/* hover (subtle blue) / keyboard focus (ring) / selected (teal) are distinct
+   so a selected column stays identifiable while scrubbing other rows. */
+.ga-lineage-v2-card-col:hover {
+  background: rgba(102, 197, 255, 0.10);
+}
+.ga-lineage-v2-card-col:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
+}
 .ga-lineage-v2-card-col.is-selected {
   background: rgba(92, 225, 230, 0.12);
-  outline: none;
 }
 .ga-lineage-v2-card-col-name {
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -221,14 +236,14 @@
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 9.5px;
   font-weight: 600;
-  color: #66c5ff;
+  color: var(--ga-bright-blue);
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
 .ga-lineage-v2-card-col-more {
   margin-top: 2px;
   font-size: 10px;
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-style: italic;
 }
 
@@ -241,21 +256,21 @@
   padding-top: 6px;
   border-top: 1px solid rgba(20, 44, 70, 0.7);
   font-size: 10.5px;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
 }
 .ga-lineage-v2-card-footstat {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
 }
 .ga-lineage-v2-card-footstat svg {
   display: block;
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
 }
 .ga-lineage-v2-card-footstat.is-empty {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-style: italic;
 }
 
@@ -327,7 +342,7 @@
   border-radius: 999px;
   background: rgba(8, 23, 42, 0.92);
   border: 1px solid rgba(102, 197, 255, 0.45);
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -339,7 +354,7 @@
   height: 10px;
   border-radius: 999px;
   border: 1.5px solid rgba(102, 197, 255, 0.35);
-  border-top-color: #66c5ff;
+  border-top-color: var(--ga-bright-blue);
   animation: ga-lineage-v2-spin 0.9s linear infinite;
 }
 @keyframes ga-lineage-v2-spin {
@@ -356,7 +371,7 @@
   gap: 8px;
   padding: 80px 32px;
   text-align: center;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font-size: 13px;
   line-height: 1.5;
   min-height: clamp(360px, calc(100dvh - 360px), 640px);
@@ -367,7 +382,7 @@
   border-radius: 16px;
 }
 .ga-lineage-v2-canvas-state strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-family: var(--ga-font-heading, "Hanken Grotesk", sans-serif);
   font-size: 16px;
   font-weight: 700;
@@ -381,7 +396,7 @@
   border-color: rgba(244, 113, 116, 0.4);
 }
 .ga-lineage-v2-canvas-state-error strong {
-  color: #f47174;
+  color: var(--ga-danger);
 }
 
 /* React Flow Controls — re-tone to brand palette */
@@ -396,7 +411,7 @@
   background: transparent !important;
   border: 0 !important;
   border-bottom: 1px solid rgba(20, 44, 70, 0.85) !important;
-  color: var(--ga-text, #dce6ed) !important;
+  color: var(--ga-text) !important;
   width: 30px !important;
   height: 30px !important;
 }
@@ -405,7 +420,7 @@
 }
 .ga-lineage-v2-canvas .react-flow__controls button:hover {
   background: rgba(61, 132, 173, 0.20) !important;
-  color: var(--ga-text-strong, #ffffff) !important;
+  color: var(--ga-white) !important;
 }
 .ga-lineage-v2-canvas .react-flow__controls button svg {
   fill: currentColor !important;
@@ -443,7 +458,7 @@
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: clamp(1.4rem, 1.8vw, 1.8rem);
   font-weight: 700;
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   letter-spacing: -0.005em;
   line-height: 1.18;
   word-break: break-all;
@@ -451,7 +466,7 @@
 .ga-lineage-v2-hero p {
   margin: 0;
   max-width: 72ch;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font-size: 0.92rem;
   line-height: 1.5;
 }
@@ -471,13 +486,13 @@
   letter-spacing: 0.02em;
   border: 1px solid rgba(20, 44, 70, 0.85);
   background: rgba(8, 23, 42, 0.78);
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   white-space: nowrap;
 }
-.ga-lineage-v2-chip.tone-good   { background: rgba(52, 211, 153, 0.10); color: #34d399; border-color: rgba(52, 211, 153, 0.32); }
-.ga-lineage-v2-chip.tone-info   { background: rgba(102, 197, 255, 0.10); color: #66c5ff; border-color: rgba(102, 197, 255, 0.32); }
-.ga-lineage-v2-chip.tone-warn   { background: rgba(244, 183, 64, 0.10); color: #f4b740; border-color: rgba(244, 183, 64, 0.32); }
-.ga-lineage-v2-chip.tone-crit   { background: rgba(244, 113, 116, 0.10); color: #f47174; border-color: rgba(244, 113, 116, 0.32); }
+.ga-lineage-v2-chip.tone-good   { background: rgba(52, 211, 153, 0.10); color: var(--ga-success); border-color: rgba(52, 211, 153, 0.32); }
+.ga-lineage-v2-chip.tone-info   { background: rgba(102, 197, 255, 0.10); color: var(--ga-bright-blue); border-color: rgba(102, 197, 255, 0.32); }
+.ga-lineage-v2-chip.tone-warn   { background: rgba(244, 183, 64, 0.10); color: var(--ga-warning); border-color: rgba(244, 183, 64, 0.32); }
+.ga-lineage-v2-chip.tone-crit   { background: rgba(244, 113, 116, 0.10); color: var(--ga-danger); border-color: rgba(244, 113, 116, 0.32); }
 
 /* ---------- Workbench layout ---------- */
 .ga-lineage-v2-workbench {
@@ -505,12 +520,12 @@
   border: 1px solid rgba(20, 44, 70, 0.85);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92));
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   overflow-y: auto;
 }
 .ga-lineage-v2-rail-head h2 {
   margin: 4px 0 2px;
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 16px;
   font-weight: 700;
@@ -518,7 +533,7 @@
   word-break: break-all;
 }
 .ga-lineage-v2-rail-head small {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-size: 11.5px;
 }
 
@@ -531,7 +546,7 @@
   border-radius: 999px;
   border: 1px solid rgba(92, 225, 230, 0.45);
   background: rgba(92, 225, 230, 0.10);
-  color: var(--ga-bright-blue, #66c5ff);
+  color: var(--ga-bright-blue);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -541,7 +556,11 @@
 .ga-lineage-v2-rail-reanchor:hover {
   background: rgba(92, 225, 230, 0.18);
   border-color: rgba(92, 225, 230, 0.7);
-  color: #ffffff;
+  color: var(--ga-white);
+}
+.ga-lineage-v2-rail-reanchor:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
 }
 
 .ga-lineage-v2-rail-stats {
@@ -559,10 +578,10 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
 }
 .ga-lineage-v2-rail-stats strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -589,18 +608,26 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font: inherit;
   font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
 }
-.ga-lineage-v2-rail-tabs button:hover,
-.ga-lineage-v2-rail-tabs button:focus-visible,
-.ga-lineage-v2-rail-tabs button.is-active {
-  background: rgba(102, 197, 255, 0.14);
-  color: var(--ga-text-strong, #ffffff);
+/* hover = subtle surface shift, focus-visible = ring, active = solid pill —
+   three distinguishable states instead of one shared treatment. */
+.ga-lineage-v2-rail-tabs button:hover {
+  background: rgba(102, 197, 255, 0.08);
+  color: var(--ga-text);
+}
+.ga-lineage-v2-rail-tabs button:focus-visible {
   outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
+  color: var(--ga-text);
+}
+.ga-lineage-v2-rail-tabs button.is-active {
+  background: rgba(102, 197, 255, 0.16);
+  color: var(--ga-white);
 }
 .ga-lineage-v2-rail-section header {
   display: flex;
@@ -614,7 +641,7 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
 }
 .ga-lineage-v2-rail-count {
   display: inline-grid;
@@ -624,7 +651,7 @@
   height: 18px;
   border-radius: 999px;
   background: rgba(102, 197, 255, 0.18);
-  color: #66c5ff;
+  color: var(--ga-bright-blue);
   font-size: 10.5px;
   font-weight: 700;
 }
@@ -643,24 +670,31 @@
   border-radius: 8px;
   border: 1px solid rgba(20, 44, 70, 0.7);
   background: rgba(8, 23, 42, 0.6);
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* Scoped transition (not `all`) so box-shadow focus rings appear instantly. */
+  transition:
+    background 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.ga-lineage-v2-rail-row:hover:not(:disabled),
+.ga-lineage-v2-rail-row:hover:not(:disabled) {
+  background: rgba(61, 132, 173, 0.18);
+  border-color: rgba(102, 197, 255, 0.45);
+}
 .ga-lineage-v2-rail-row:focus-visible:not(:disabled) {
   background: rgba(61, 132, 173, 0.18);
   border-color: rgba(102, 197, 255, 0.45);
   outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
 }
 .ga-lineage-v2-rail-row:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 .ga-lineage-v2-rail-row strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 12.5px;
   font-weight: 600;
@@ -669,7 +703,7 @@
   text-overflow: ellipsis;
 }
 .ga-lineage-v2-rail-row span {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-size: 10.5px;
   white-space: nowrap;
   overflow: hidden;
@@ -677,7 +711,7 @@
 }
 .ga-lineage-v2-rail-empty {
   margin: 0;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font-size: 12px;
   font-style: italic;
 }
@@ -704,12 +738,12 @@
 }
 .ga-lineage-zero-state strong {
   display: block;
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-size: 15px;
 }
 .ga-lineage-zero-state p {
   margin: 6px 0 0;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   line-height: 1.45;
   font-size: 12.5px;
 }
@@ -721,14 +755,14 @@
   gap: 12px;
 }
 .ga-lineage-v2-section-title span {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .ga-lineage-v2-section-title small {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-size: 11px;
 }
 
@@ -746,16 +780,20 @@
   border-radius: 8px;
   border: 1px solid rgba(61, 132, 173, 0.28);
   background: rgba(8, 23, 42, 0.72);
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.ga-lineage-recommendation-row:hover,
+.ga-lineage-recommendation-row:hover {
+  border-color: rgba(92, 225, 230, 0.55);
+  background: rgba(61, 132, 173, 0.18);
+}
 .ga-lineage-recommendation-row:focus-visible {
   border-color: rgba(92, 225, 230, 0.55);
   background: rgba(61, 132, 173, 0.18);
   outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
 }
 .ga-lineage-recommendation-row span,
 .ga-lineage-recommendation-row em {
@@ -765,7 +803,7 @@
   font-style: normal;
 }
 .ga-lineage-recommendation-row strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 12px;
   white-space: nowrap;
@@ -773,14 +811,14 @@
   text-overflow: ellipsis;
 }
 .ga-lineage-recommendation-row small {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-size: 10.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .ga-lineage-recommendation-row em {
-  color: #f4b740;
+  color: var(--ga-warning);
   font-size: 11px;
   text-align: right;
 }
@@ -806,7 +844,7 @@
 }
 .ga-lineage-impact-fact span,
 .ga-lineage-impact-fact small {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -818,12 +856,12 @@
   font-weight: 500;
 }
 .ga-lineage-impact-fact strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-size: 18px;
 }
-.ga-lineage-impact-fact.tone-info strong { color: #66c5ff; }
-.ga-lineage-impact-fact.tone-warn strong { color: #f4b740; }
-.ga-lineage-impact-fact.tone-crit strong { color: #f47174; }
+.ga-lineage-impact-fact.tone-info strong { color: var(--ga-bright-blue); }
+.ga-lineage-impact-fact.tone-warn strong { color: var(--ga-warning); }
+.ga-lineage-impact-fact.tone-crit strong { color: var(--ga-danger); }
 .ga-lineage-impact-list {
   display: grid;
   gap: 6px;
@@ -837,23 +875,23 @@
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(8, 23, 42, 0.54);
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font-size: 12px;
 }
 .ga-lineage-impact-list li strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
 }
 .ga-lineage-impact-list li span {
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   font-size: 11px;
 }
 .ga-lineage-request-status {
   margin: 0;
-  color: #34d399;
+  color: var(--ga-success);
   font-size: 12px;
 }
 .ga-lineage-request-status.tone-error {
-  color: #f47174;
+  color: var(--ga-danger);
 }
 
 .ga-lineage-column-trace-card,
@@ -870,7 +908,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-size: 12px;
   font-weight: 700;
 }
@@ -887,19 +925,19 @@
   background: rgba(61, 132, 173, 0.12);
 }
 .ga-lineage-column-path-list strong {
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-white);
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 12px;
 }
 .ga-lineage-column-path-list span,
 .ga-lineage-column-path-list p,
 .ga-lineage-sql-placeholder span {
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
 .ga-lineage-sql-placeholder strong {
-  color: #f4b740;
+  color: var(--ga-warning);
   font-size: 12px;
 }
 .ga-lineage-sql-snippets {
@@ -913,7 +951,7 @@
   border-radius: 6px;
   border: 1px solid rgba(92, 225, 230, 0.18);
   background: rgba(2, 10, 22, 0.82);
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   font: 11px/1.45 var(--ga-font-mono, "JetBrains Mono", monospace);
   padding: 8px;
   white-space: pre-wrap;
@@ -936,6 +974,6 @@
 .ga-lineage-empty-search-status {
   padding: 8px 10px;
   font-size: 12px;
-  color: var(--ga-text-muted, #b2bdc2);
+  color: var(--ga-text-muted);
   font-style: italic;
 }

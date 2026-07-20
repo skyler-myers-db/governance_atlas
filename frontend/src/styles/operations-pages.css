@@ -57,7 +57,7 @@
 
 .gh-audit-hero h1 {
   margin: 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: clamp(1.85rem, 2.3vw, 2.25rem);
   line-height: 1.05;
 }
@@ -72,7 +72,7 @@
 .gh-admin-control-eyebrow {
   display: block;
   margin-bottom: 8px;
-  color: #45b9ee;
+  color: var(--ga-bright-blue);
   font-size: 0.68rem;
   font-weight: 760;
   letter-spacing: 0.22em;
@@ -111,7 +111,7 @@
   border: 1px solid rgba(74, 156, 206, 0.28);
   border-radius: 6px;
   background: rgba(15, 50, 76, 0.9);
-  color: #dcefff;
+  color: var(--ga-text-soft);
   font: inherit;
   font-size: 0.78rem;
   padding: 0 11px;
@@ -120,11 +120,11 @@
 
 .gh-audit-prototype-actions svg {
   flex: 0 0 auto;
-  color: #88cdf4;
+  color: var(--ga-bright-blue);
 }
 
 .gh-audit-prototype-actions button.is-primary svg {
-  color: #021422;
+  color: var(--ga-navy-950);
 }
 
 .gh-audit-prototype-actions button span {
@@ -133,8 +133,8 @@
 
 .gh-audit-prototype-actions button.is-primary {
   border-color: rgba(92, 198, 242, 0.68);
-  color: #021422;
-  background: linear-gradient(180deg, #6ec7f3, #3f9dcf);
+  color: var(--ga-navy-950);
+  background: linear-gradient(180deg, var(--ga-bright-blue), var(--ga-highlight-blue));
 }
 
 .gh-audit-prototype-kpis .gh-audit-kpi {
@@ -159,7 +159,7 @@
 .gh-audit-prototype-tabs button.is-active {
   border-color: rgba(92, 198, 242, 0.72);
   background: linear-gradient(180deg, rgba(87, 178, 220, 0.95), rgba(38, 117, 158, 0.95));
-  color: #041422;
+  color: var(--ga-navy-950);
 }
 
 .gh-audit-prototype-tabs button span {
@@ -185,7 +185,7 @@
   place-items: center;
   border: 1px solid rgba(91, 174, 255, 0.34);
   border-radius: 7px;
-  color: #78cfff;
+  color: var(--ga-bright-blue);
   background: rgba(43, 151, 218, 0.12);
 }
 
@@ -222,7 +222,7 @@
   place-items: center;
   border: 1px solid rgba(60, 192, 255, 0.35);
   border-radius: 6px;
-  color: #4bd2ff;
+  color: var(--ga-bright-blue);
   background: rgba(36, 165, 236, 0.12);
 }
 
@@ -238,7 +238,7 @@
 .gh-audit-kpi strong {
   display: block;
   margin-top: 10px;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 1.45rem;
   line-height: 1;
 }
@@ -262,7 +262,7 @@
   padding: 0 8px;
   border-radius: 999px;
   background: rgba(22, 105, 113, 0.42);
-  color: #3fe6a2;
+  color: var(--ga-success);
   font-weight: 760;
   white-space: nowrap;
 }
@@ -337,7 +337,7 @@
 .gh-audit-filter-actions button.is-primary {
   border-color: rgba(40, 169, 255, 0.52);
   background: rgba(24, 109, 203, 0.72);
-  color: #f5fbff;
+  color: var(--ga-text);
 }
 
 .gh-audit-menu-wrap {
@@ -380,7 +380,7 @@
 }
 
 .gh-audit-menu button span {
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-weight: 760;
 }
 
@@ -417,8 +417,12 @@
   padding: 0 12px;
   border-bottom: 1px solid rgba(75, 163, 215, 0.24);
   color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-weight: 700;
+  /* Muted uppercase header treatment — matches gh-admin-control-job-head and
+     gh-governance-ns-table-row.is-head so tables read as one system. */
+  font-size: 0.64rem;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .gh-audit-table-body {
@@ -461,8 +465,8 @@
 .gh-audit-row:focus-visible,
 .gh-audit-row.is-selected {
   background: rgba(28, 127, 190, 0.22);
-  box-shadow: inset 3px 0 0 #45bdff;
-  color: #f3f9ff;
+  box-shadow: inset 3px 0 0 var(--ga-bright-blue);
+  color: var(--ga-text);
   outline: none;
 }
 
@@ -522,7 +526,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #6fd4ff;
+  color: var(--ga-bright-blue);
   cursor: pointer;
 }
 
@@ -572,11 +576,11 @@
   flex: 0 0 auto;
   width: 15px;
   height: 15px;
-  color: #36e1a4;
+  color: var(--ga-success);
 }
 
 .gh-audit-prototype-note strong {
-  color: #3fe6a2;
+  color: var(--ga-success);
   font-weight: 680;
 }
 
@@ -606,7 +610,7 @@
 
 .gh-audit-selected-detail h2 {
   margin: 4px 0 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 0.98rem;
 }
 
@@ -715,7 +719,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: #82d7ff;
+  color: var(--ga-bright-blue);
   font-size: 0.56rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -761,16 +765,16 @@
 
 .gh-audit-action.is-good,
 .gh-audit-status.is-good {
-  color: #48dca3;
+  color: var(--ga-success);
 }
 
 .gh-audit-action.is-bad,
 .gh-audit-status.is-bad {
-  color: #ff656f;
+  color: var(--ga-danger);
 }
 
 .gh-audit-action.is-info {
-  color: #64c7ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-audit-status i {
@@ -830,7 +834,7 @@
 
 .gh-audit-pages button[aria-current="page"] {
   border-color: rgba(58, 184, 255, 0.7);
-  color: #f6fbff;
+  color: var(--ga-text);
   background: rgba(31, 128, 210, 0.32);
 }
 
@@ -865,7 +869,7 @@
 
 .gh-audit-detail-head h2 {
   margin: 8px 0 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 1rem;
 }
 
@@ -916,7 +920,7 @@
 
 .gh-audit-object-card button {
   padding: 0 10px;
-  color: #58caff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-audit-detail-scroll {
@@ -947,7 +951,7 @@
   justify-self: start;
   min-height: 28px;
   padding: 0 9px;
-  color: #57c9ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-audit-diff {
@@ -1004,7 +1008,7 @@
   place-items: center;
   border-radius: 999px;
   background: rgba(48, 181, 255, 0.18);
-  color: #6fd0ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-audit-chain-step small {
@@ -1032,7 +1036,7 @@
 
 .gh-audit-detail-actions button {
   min-height: 38px;
-  color: #61caff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-audit-detail button:disabled,
@@ -1315,7 +1319,7 @@
 
 .gh-cde-hero h1 {
   margin: 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: clamp(1.95rem, 2.6vw, 2.35rem);
   font-weight: 720;
   line-height: 1.06;
@@ -1357,14 +1361,14 @@
   height: 28px;
   border: 1px solid rgba(52, 199, 255, 0.36);
   border-radius: 7px;
-  color: #28d7ff;
+  color: var(--ga-bright-blue);
   background: rgba(34, 178, 255, 0.1);
 }
 
 .gh-cde-kpi strong {
   display: block;
   margin-top: 14px;
-  color: #f1f7ff;
+  color: var(--ga-text);
   font-size: 1.55rem;
   line-height: 1;
 }
@@ -1467,7 +1471,7 @@
 
 .gh-cde-icon-button {
   width: 38px;
-  color: #62cdfd;
+  color: var(--ga-bright-blue);
 }
 
 .gh-cde-menu-wrap {
@@ -1549,7 +1553,7 @@
   border: 0;
   border-bottom: 1px solid rgba(75, 163, 215, 0.2);
   background: rgba(3, 22, 37, 0.38);
-  color: #f2f8ff;
+  color: var(--ga-text);
   text-align: left;
 }
 
@@ -1581,7 +1585,7 @@
 .gh-cde-row:focus-visible,
 .gh-cde-row.is-selected {
   background: rgba(28, 127, 190, 0.22);
-  color: #f3f9ff;
+  color: var(--ga-text);
   outline: none;
 }
 
@@ -1590,7 +1594,7 @@
   align-items: center;
   gap: 9px;
   min-width: 0;
-  color: #52c8ff;
+  color: var(--ga-bright-blue);
   font-weight: 650;
 }
 
@@ -1610,7 +1614,7 @@
   height: 22px;
   border: 1px solid rgba(67, 200, 255, 0.42);
   border-radius: 5px;
-  color: #40caff;
+  color: var(--ga-bright-blue);
   background: rgba(46, 173, 255, 0.1);
 }
 
@@ -1633,11 +1637,11 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2b9bff, #35dae7);
+  background: linear-gradient(90deg, var(--ga-bright-blue), var(--ga-teal));
 }
 
 .gh-cde-mini-bar.is-warn span {
-  background: linear-gradient(90deg, #ff7c6d, #ffb04f);
+  background: linear-gradient(90deg, var(--ga-danger), var(--ga-warning));
 }
 
 .gh-cde-mini-bar.is-neutral span {
@@ -1645,7 +1649,7 @@
 }
 
 .gh-cde-inline-value {
-  color: #9fb4c7;
+  color: var(--ga-text-muted);
   font: inherit;
 }
 
@@ -1696,7 +1700,7 @@
 .gh-cde-pages button.is-active,
 .gh-cde-pages button[aria-current="page"] {
   border-color: rgba(58, 184, 255, 0.7);
-  color: #f6fbff;
+  color: var(--ga-text);
   background: rgba(31, 128, 210, 0.32);
 }
 
@@ -1718,7 +1722,7 @@
 .gh-cde-detail-head h2 {
   max-width: 270px;
   margin: 0 0 6px;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 1rem;
 }
 
@@ -1776,7 +1780,7 @@
 .gh-cde-detail-tabs button.is-active,
 .gh-cde-detail-tabs button:hover,
 .gh-cde-detail-tabs button:focus-visible {
-  color: #f6fbff;
+  color: var(--ga-text);
   outline: none;
 }
 
@@ -1787,7 +1791,7 @@
   left: 0;
   height: 2px;
   border-radius: 999px;
-  background: #4dbdff;
+  background: var(--ga-bright-blue);
   content: "";
 }
 
@@ -1854,7 +1858,7 @@
 
 .gh-cde-lineage strong,
 .gh-cde-linked-summary strong {
-  color: #f6fbff;
+  color: var(--ga-text);
   font-size: 0.78rem;
 }
 
@@ -1863,7 +1867,7 @@
   min-height: 30px;
   border: 0;
   background: transparent;
-  color: #4ac8ff;
+  color: var(--ga-bright-blue);
   text-align: left;
 }
 
@@ -2323,7 +2327,7 @@
 }
 
 .gh-admin-tabs button.is-active {
-  border-color: #35b7ff;
+  border-color: var(--ga-bright-blue);
   color: var(--ga-white);
 }
 
@@ -2333,7 +2337,7 @@
   border: 1px solid rgba(255, 190, 92, 0.32);
   border-radius: 8px;
   background: rgba(255, 170, 38, 0.08);
-  color: #ffd38a;
+  color: var(--ga-warning);
   font-size: 0.76rem;
 }
 
@@ -2433,7 +2437,7 @@
 
 .gh-admin-policy-card small {
   min-width: 0;
-  color: var(--ga-mint);
+  color: var(--ga-success);
   font-size: 0.66rem;
   white-space: nowrap;
   overflow: hidden;
@@ -2441,7 +2445,7 @@
 }
 
 .gh-admin-policy-card.is-unavailable small {
-  color: #ffbf55;
+  color: var(--ga-warning);
 }
 
 .gh-admin-policy-grid {
@@ -2511,7 +2515,7 @@
 }
 
 .gh-admin-sparkline.is-active i {
-  background: #31b7ff;
+  background: var(--ga-bright-blue);
 }
 
 .gh-admin-sparkline i:nth-child(2) {
@@ -2547,7 +2551,7 @@
   align-content: center;
   background:
     radial-gradient(circle at center, rgba(8, 42, 68, 1) 0 50%, transparent 51%),
-    conic-gradient(#22d5d5 0 78%, #ff9548 78% 90%, #2e91f2 90% 100%);
+    conic-gradient(var(--ga-teal) 0 78%, var(--ga-warning) 78% 90%, var(--ga-highlight-blue) 90% 100%);
 }
 
 .gh-admin-donut.is-unavailable {
@@ -2585,15 +2589,15 @@
   width: 10px;
   height: 10px;
   border-radius: 3px;
-  background: #22d5d5;
+  background: var(--ga-teal);
 }
 
 .gh-admin-compliance-legend div:nth-child(2) i {
-  background: #ff9548;
+  background: var(--ga-warning);
 }
 
 .gh-admin-compliance-legend div:nth-child(3) i {
-  background: #2e91f2;
+  background: var(--ga-highlight-blue);
 }
 
 .gh-admin-compliance-legend strong {
@@ -2604,7 +2608,7 @@
   min-height: 28px;
   border: 0;
   background: transparent;
-  color: #45c7ff;
+  color: var(--ga-bright-blue);
   display: inline-flex;
   justify-content: space-between;
   align-items: center;
@@ -2632,7 +2636,7 @@
 .gh-admin-history header button {
   border: 0;
   background: transparent;
-  color: #45c7ff;
+  color: var(--ga-bright-blue);
   font: inherit;
   font-size: 0.72rem;
   cursor: pointer;
@@ -2665,7 +2669,7 @@
   place-items: center;
   border: 1px solid rgba(79, 197, 255, 0.32);
   border-radius: 6px;
-  color: #45c7ff;
+  color: var(--ga-bright-blue);
   font-size: 0.7rem;
 }
 
@@ -2748,7 +2752,7 @@
 }
 
 .gh-admin-brand-preview strong {
-  color: #42c7ff;
+  color: var(--ga-bright-blue);
   font-size: 0.9rem;
   font-weight: 500;
   letter-spacing: 0.18em;
@@ -2836,7 +2840,7 @@
   width: 18%;
   height: 100%;
   border-radius: inherit;
-  background: #31b7ff;
+  background: var(--ga-bright-blue);
 }
 
 .gh-admin-validation {
@@ -2924,7 +2928,7 @@
   display: grid;
   place-items: center;
   background: rgba(79, 197, 255, 0.12);
-  color: #45c7ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-admin-integration-list div {
@@ -3277,7 +3281,7 @@
 
 .gh-admin-control-hero h1 {
   margin: 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 28px;
   line-height: 1.15;
   letter-spacing: -0.02em;
@@ -3388,7 +3392,8 @@
 .gh-admin-control-job-row:focus-visible,
 .gh-admin-control-integration:hover,
 .gh-admin-control-integration:focus-visible {
-  background: rgba(18, 72, 109, 0.82);
+  /* Same hover tint family as audit/stewardship rows — consistency pass. */
+  background: rgba(28, 127, 190, 0.24);
   outline: none;
 }
 
@@ -3405,7 +3410,7 @@
   height: 20px;
   display: grid;
   place-items: center;
-  color: #54d4f8;
+  color: var(--ga-bright-blue);
 }
 
 .gh-admin-control-icon svg {
@@ -3556,7 +3561,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2fe1a6, #4fc5f3);
+  background: linear-gradient(90deg, var(--ga-success), var(--ga-bright-blue));
 }
 
 .gh-admin-control-policy-row:hover,
@@ -3566,14 +3571,14 @@
 
 .gh-admin-control-policy-row:not([aria-disabled="true"]):hover span,
 .gh-admin-control-policy-row:not([aria-disabled="true"]):focus-visible span {
-  color: #f3f8ff;
+  color: var(--ga-text);
 }
 
 .gh-admin-control-job-row.is-selected,
 .gh-admin-control-integration.is-selected,
 .gh-admin-control-policy-row.is-selected {
   background: rgba(35, 135, 190, 0.22);
-  box-shadow: inset 3px 0 0 #54d4f8;
+  box-shadow: inset 3px 0 0 var(--ga-bright-blue);
 }
 
 .gh-admin-control-policy-row[aria-disabled="true"] {
@@ -3602,7 +3607,7 @@
 
 .gh-admin-status-line {
   min-height: 18px;
-  color: #54c9f8;
+  color: var(--ga-bright-blue);
   font-size: 0.68rem;
 }
 
@@ -3632,7 +3637,7 @@
 
 .gh-admin-control-detail h2 {
   margin: 3px 0 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 1rem;
 }
 
@@ -4260,7 +4265,7 @@
   padding: 6px;
   border: 1px solid var(--ga-border);
   border-radius: 6px;
-  background: var(--ga-panel-strong);
+  background: var(--ga-surface-strong);
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
 }
 
@@ -4467,8 +4472,8 @@
   flex: 0 0 auto;
   border: 1px solid rgba(182, 232, 255, 0.5);
   border-radius: 999px;
-  background: linear-gradient(135deg, #e8fbff, #7edcff);
-  color: #083252;
+  background: linear-gradient(135deg, var(--ga-light-blue), var(--ga-bright-blue));
+  color: var(--ga-navy-900);
   font-size: 0.68rem;
   font-weight: 800;
 }
@@ -4684,7 +4689,7 @@
 .gh-taxonomy-prototype-eyebrow {
   display: block;
   margin-bottom: 8px;
-  color: #45c8f4;
+  color: var(--ga-bright-blue);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -4694,7 +4699,7 @@
 .gh-taxonomy-prototype-hero h1 {
   margin: 0;
   max-width: 620px;
-  color: #f4f8ff;
+  color: var(--ga-text);
   font-size: clamp(26px, 1.9vw, 30px);
   line-height: 1.06;
   letter-spacing: 0;
@@ -4714,7 +4719,7 @@
 .gh-taxonomy-prototype-detail button {
   border: 1px solid rgba(88, 171, 224, 0.34);
   border-radius: 8px;
-  color: #dff4ff;
+  color: var(--ga-text-soft);
   background: rgba(18, 58, 88, 0.72);
   font: inherit;
 }
@@ -4722,9 +4727,9 @@
 .gh-taxonomy-prototype-new {
   min-height: 40px;
   padding: 0 16px;
-  color: #031824;
+  color: var(--ga-navy-950);
   font-weight: 800;
-  background: linear-gradient(180deg, #77d4ff 0%, #3a99cf 100%);
+  background: linear-gradient(180deg, var(--ga-bright-blue) 0%, var(--ga-highlight-blue) 100%);
   box-shadow: 0 16px 40px rgba(60, 180, 235, 0.22);
 }
 
@@ -4758,7 +4763,7 @@
   border-radius: 14px;
   border: 1px solid rgba(92, 171, 218, 0.32);
   background: linear-gradient(180deg, rgba(15, 38, 64, 0.96), rgba(8, 22, 40, 0.96));
-  color: var(--ga-text, #dce6ed);
+  color: var(--ga-text);
   padding: 20px 22px 18px;
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.55);
   display: flex;
@@ -4775,33 +4780,33 @@
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-text);
 }
 .gh-taxonomy-newterm-close {
   background: transparent;
   border: 0;
   font-size: 22px;
   line-height: 1;
-  color: var(--ga-text-subtle, #7e8c97);
+  color: var(--ga-text-muted);
   cursor: pointer;
   padding: 2px 8px;
   border-radius: 6px;
 }
 .gh-taxonomy-newterm-close:hover {
-  color: #ffffff;
+  color: var(--ga-white);
   background: rgba(255, 255, 255, 0.06);
 }
 .gh-taxonomy-newterm-help {
   margin: 0;
   font-size: 12.5px;
-  color: var(--ga-text-subtle, #9aaab5);
+  color: var(--ga-text-muted);
 }
 .gh-taxonomy-newterm-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 12px;
-  color: var(--ga-text-subtle, #b1c0ca);
+  color: var(--ga-text-muted);
 }
 .gh-taxonomy-newterm-field span {
   text-transform: uppercase;
@@ -4814,7 +4819,7 @@
   border-radius: 8px;
   border: 1px solid rgba(92, 171, 218, 0.36);
   background: rgba(6, 22, 40, 0.7);
-  color: var(--ga-text-strong, #ffffff);
+  color: var(--ga-text);
   font-size: 13.5px;
   font-family: inherit;
   resize: vertical;
@@ -4835,7 +4840,7 @@
   border-radius: 6px;
   background: rgba(255, 99, 99, 0.12);
   border: 1px solid rgba(255, 99, 99, 0.42);
-  color: #ffb4b4;
+  color: var(--ga-danger);
   font-size: 12.5px;
 }
 .gh-taxonomy-newterm-actions {
@@ -4863,7 +4868,7 @@
 }
 
 .gh-taxonomy-prototype-tabs button.is-active {
-  color: #f3f8ff;
+  color: var(--ga-text);
 }
 
 .gh-taxonomy-prototype-tabs button.is-active::after {
@@ -4874,7 +4879,7 @@
   bottom: -1px;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #37d7e9, #66b7ff);
+  background: linear-gradient(90deg, var(--ga-teal), var(--ga-bright-blue));
 }
 
 .gh-taxonomy-prototype-tabs span {
@@ -4945,7 +4950,7 @@
 
 .gh-taxonomy-prototype-hierarchy-grid strong {
   overflow: hidden;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4975,7 +4980,7 @@
 
 .gh-taxonomy-prototype-card h2 {
   margin: 0 0 3px;
-  color: #f4f9ff;
+  color: var(--ga-text);
   font-size: 16px;
   line-height: 1.18;
   letter-spacing: 0;
@@ -5035,7 +5040,7 @@
   min-height: 26px;
   padding: 0;
   border: 0;
-  color: #4ecfff;
+  color: var(--ga-bright-blue);
   background: transparent;
   font-size: 12px;
 }
@@ -5064,13 +5069,13 @@
 .gh-taxonomy-prototype .ga-status-pill.tone-good {
   border-color: rgba(46, 230, 166, 0.28);
   background: rgba(46, 230, 166, 0.11);
-  color: #2ee6a6;
+  color: var(--ga-success);
 }
 
 .gh-taxonomy-prototype .ga-status-pill.tone-warn {
   border-color: rgba(255, 181, 71, 0.30);
   background: rgba(255, 181, 71, 0.12);
-  color: #ffbd55;
+  color: var(--ga-warning);
 }
 
 .gh-taxonomy-prototype-recert-pill {
@@ -5120,7 +5125,7 @@
   border: 1px solid rgba(88, 171, 224, 0.3);
   border-radius: 8px;
   padding: 0 11px;
-  color: #dff4ff;
+  color: var(--ga-text-soft);
   background: rgba(10, 38, 61, 0.82);
   font: inherit;
   font-size: 12px;
@@ -5163,7 +5168,7 @@
 
 .gh-taxonomy-prototype-cde-row.is-selected {
   background: rgba(38, 118, 170, 0.26);
-  box-shadow: inset 3px 0 0 #36d6e8;
+  box-shadow: inset 3px 0 0 var(--ga-teal);
 }
 
 .gh-taxonomy-prototype-cde-row:nth-child(odd) {
@@ -5181,7 +5186,7 @@
 .gh-taxonomy-prototype-cde-row strong {
   min-width: 0;
   overflow: hidden;
-  color: #f3f8ff;
+  color: var(--ga-text);
   text-overflow: ellipsis;
 }
 
@@ -5211,9 +5216,9 @@
   left: 12px;
   width: 10px;
   height: 5px;
-  border-top: 2px solid #36d6e8;
-  border-right: 2px solid #36d6e8;
-  box-shadow: -2px 0 0 #36d6e8;
+  border-top: 2px solid var(--ga-teal);
+  border-right: 2px solid var(--ga-teal);
+  box-shadow: -2px 0 0 var(--ga-teal);
   content: "";
 }
 
@@ -5222,7 +5227,7 @@
   border: 1px solid rgba(255, 104, 112, 0.38);
   border-radius: 5px;
   padding: 2px 5px;
-  color: #ff7f89;
+  color: var(--ga-danger);
   font-size: 10px;
   font-style: normal;
   font-weight: 800;
@@ -5277,7 +5282,7 @@
 }
 
 .gh-taxonomy-prototype-empty strong {
-  color: #f2f7ff;
+  color: var(--ga-text);
 }
 
 .gh-taxonomy-prototype-detail {
@@ -5307,7 +5312,7 @@
 
 .gh-taxonomy-prototype-detail-head h2 {
   margin: 3px 0 0;
-  color: #f3f8ff;
+  color: var(--ga-text);
   font-size: 18px;
   line-height: 1.2;
 }
@@ -5337,7 +5342,7 @@
 
 .gh-taxonomy-prototype-detail-card h3 {
   margin: 0 0 8px;
-  color: #f2f7ff;
+  color: var(--ga-text);
   font-size: 13px;
 }
 
@@ -5703,7 +5708,7 @@
 .gh-governance-ns-settings.is-primary {
   border-color: rgba(102, 197, 255, 0.54);
   background: linear-gradient(180deg, rgba(102, 197, 255, 0.88), rgba(61, 132, 173, 0.98));
-  color: #041d31;
+  color: var(--ga-navy-950);
   font-weight: 800;
 }
 
@@ -5781,7 +5786,7 @@
 .gh-governance-ns-filter-menu button[aria-pressed="true"] {
   border-color: rgba(102, 197, 255, 0.52);
   background: rgba(102, 197, 255, 0.16);
-  color: #f2f9ff;
+  color: var(--ga-text);
 }
 
 .gh-governance-ns-action-panel {
@@ -5886,7 +5891,7 @@
 .gh-governance-ns-filter-pills button[aria-pressed="true"] {
   border-color: rgba(102, 197, 255, 0.52);
   background: linear-gradient(180deg, rgba(102, 197, 255, 0.78), rgba(61, 132, 173, 0.86));
-  color: #041d31;
+  color: var(--ga-navy-950);
   font-weight: 800;
 }
 
@@ -5920,22 +5925,22 @@
 
 .gh-governance-ns-kpi.tone-blue .gh-governance-ns-kpi-icon {
   background: rgba(35, 144, 235, 0.17);
-  color: #4cbefc;
+  color: var(--ga-bright-blue);
 }
 
 .gh-governance-ns-kpi.tone-red .gh-governance-ns-kpi-icon {
   background: rgba(255, 77, 99, 0.15);
-  color: #ff6977;
+  color: var(--ga-danger);
 }
 
 .gh-governance-ns-kpi.tone-amber .gh-governance-ns-kpi-icon {
   background: rgba(255, 183, 58, 0.16);
-  color: #ffc14d;
+  color: var(--ga-warning);
 }
 
 .gh-governance-ns-kpi.tone-green .gh-governance-ns-kpi-icon {
   background: rgba(28, 216, 177, 0.15);
-  color: #2ee6bf;
+  color: var(--ga-success);
 }
 
 .gh-governance-ns-kpi-copy {
@@ -6032,7 +6037,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #5fc9ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-governance-ns-menu-wrap {
@@ -6050,7 +6055,7 @@
   padding: 6px;
   border: 1px solid var(--gov-border);
   border-radius: 6px;
-  background: #08233a;
+  background: var(--ga-surface-strong);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
 }
 
@@ -6166,7 +6171,7 @@
   border: 1px solid rgba(102, 197, 255, 0.3);
   border-radius: 999px;
   background: rgba(102, 197, 255, 0.08);
-  color: #66c5ff;
+  color: var(--ga-bright-blue);
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -6215,49 +6220,49 @@
 .gh-governance-ns-sla.tone-crit {
   border-color: rgba(255, 92, 108, 0.34);
   background: rgba(255, 92, 108, 0.12);
-  color: #ff7b87;
+  color: var(--ga-danger);
 }
 
 .gh-governance-ns-sla.tone-warn {
   border-color: rgba(255, 181, 71, 0.34);
   background: rgba(255, 181, 71, 0.12);
-  color: #ffc85b;
+  color: var(--ga-warning);
 }
 
 .gh-governance-ns-sla.tone-good {
   border-color: rgba(46, 230, 166, 0.32);
   background: rgba(46, 230, 166, 0.1);
-  color: #67e3b5;
+  color: var(--ga-success);
 }
 
 .gh-governance-ns-priority.tone-high {
   border-color: rgba(255, 92, 108, 0.34);
   background: rgba(255, 92, 108, 0.12);
-  color: #ff646f;
+  color: var(--ga-danger);
 }
 
 .gh-governance-ns-priority.tone-medium {
   border-color: rgba(255, 181, 71, 0.34);
   background: rgba(255, 181, 71, 0.12);
-  color: #ffc247;
+  color: var(--ga-warning);
 }
 
 .gh-governance-ns-priority.tone-low {
   border-color: rgba(98, 181, 255, 0.3);
   background: rgba(98, 181, 255, 0.12);
-  color: #62b5ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-governance-ns-status {
-  color: #65b9ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-governance-ns-status.tone-approved {
-  color: #42dfaa;
+  color: var(--ga-success);
 }
 
 .gh-governance-ns-status.tone-blocked {
-  color: #ff6c74;
+  color: var(--ga-danger);
 }
 
 .gh-governance-ns-empty {
@@ -6307,7 +6312,7 @@
 .gh-governance-ns-pagination button.is-active {
   border-color: var(--gov-border-strong);
   background: rgba(47, 155, 235, 0.2);
-  color: #69c8ff;
+  color: var(--ga-bright-blue);
 }
 
 .gh-governance-ns-pagination button:disabled {
@@ -6462,7 +6467,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #ff6b73;
+  color: var(--ga-danger);
   font-size: 0.76rem;
 }
 
@@ -6484,8 +6489,8 @@
 }
 
 .gh-governance-ns-tabs button.is-active {
-  border-bottom-color: #39b7ff;
-  color: #72ccff;
+  border-bottom-color: var(--ga-bright-blue);
+  color: var(--ga-bright-blue);
 }
 
 .gh-governance-ns-detail-body {
@@ -6620,7 +6625,7 @@
   margin-top: 10px;
   min-height: 30px;
   padding: 0 9px;
-  color: #5dc6ff;
+  color: var(--ga-bright-blue);
   font-size: 0.76rem;
 }
 
@@ -6684,11 +6689,11 @@
 }
 
 .gh-governance-ns-diff-row span:nth-child(2) {
-  color: #ff6e77;
+  color: var(--ga-danger);
 }
 
 .gh-governance-ns-diff-row span:nth-child(4) {
-  color: #44dca7;
+  color: var(--ga-success);
 }
 
 .gh-governance-ns-table-row strong,
@@ -6774,7 +6779,7 @@
   place-items: center;
   border-radius: 999px;
   background: rgba(58, 183, 255, 0.17);
-  color: #67caff;
+  color: var(--ga-bright-blue);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -6782,7 +6787,7 @@
 .gh-governance-ns-flow.is-summary .gh-governance-ns-flow-step > span {
   grid-row: 1 / 4;
   align-self: start;
-  background: #0e5b83;
+  background: var(--ga-entrada-blue);
   box-shadow: 0 0 0 4px rgba(8, 39, 64, 0.96);
 }
 
@@ -6855,19 +6860,19 @@
 .gh-governance-ns-actions .tone-approve {
   border-color: rgba(102, 197, 255, 0.42);
   background: rgba(102, 197, 255, 0.12);
-  color: #d8f4ff;
+  color: var(--ga-text-soft);
 }
 
 .gh-governance-ns-actions .tone-request {
   border-color: rgba(255, 189, 64, 0.48);
   background: rgba(137, 96, 28, 0.42);
-  color: #ffc65b;
+  color: var(--ga-warning);
 }
 
 .gh-governance-ns-actions .tone-escalate {
   border-color: rgba(255, 85, 98, 0.48);
   background: rgba(119, 35, 48, 0.48);
-  color: #ff818a;
+  color: var(--ga-danger);
 }
 
 .gh-governance-ns-actions button:disabled {
@@ -7331,15 +7336,15 @@
   padding: 4px;
   margin-bottom: 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--ga-surface-soft);
+  border: 1px solid var(--ga-border-muted);
 }
 
 .gh-admin-tabstrip-tab {
   appearance: none;
   background: transparent;
   border: 0;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.65));
+  color: var(--ga-text-muted);
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -7350,12 +7355,12 @@
 }
 
 .gh-admin-tabstrip-tab:hover {
-  color: var(--ga-ink-strong, #f5f8ff);
+  color: var(--ga-text);
 }
 
 .gh-admin-tabstrip-tab.is-active {
-  background: linear-gradient(135deg, #025080 0%, #3D84AD 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--ga-entrada-blue) 0%, var(--ga-highlight-blue) 100%);
+  color: var(--ga-white);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18) inset;
 }
 
@@ -7372,27 +7377,27 @@
   align-items: flex-start;
   padding: 20px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--ga-surface-muted);
+  border: 1px solid var(--ga-border-muted);
 }
 
 .gh-admin-truth-check-hero h2 {
   font-family: var(--ga-font-display, "Instrument Sans", "Hanken Grotesk", sans-serif);
   font-size: 22px;
   margin: 6px 0 8px;
-  color: var(--ga-ink-strong, #f5f8ff);
+  color: var(--ga-text);
 }
 
 .gh-admin-truth-check-hero p {
   margin: 0;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.7));
+  color: var(--ga-text-muted);
   font-size: 13px;
   line-height: 1.55;
 }
 
 .gh-admin-truth-check-hero code {
   background: rgba(102, 197, 255, 0.12);
-  color: #66C5FF;
+  color: var(--ga-bright-blue);
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 12px;
@@ -7418,18 +7423,18 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.55));
+  color: var(--ga-text-muted);
 }
 
 .gh-admin-truth-check-totals strong {
   font-family: var(--ga-font-display, "Instrument Sans", sans-serif);
   font-size: 24px;
-  color: var(--ga-ink-strong, #f5f8ff);
+  color: var(--ga-text);
 }
 
 .gh-admin-truth-check-totals span {
   font-size: 11px;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  color: var(--ga-text-muted);
 }
 
 .gh-admin-truth-check-meta {
@@ -7438,21 +7443,21 @@
   align-items: center;
   flex-wrap: wrap;
   font-size: 12px;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.65));
+  color: var(--ga-text-muted);
 }
 
 .gh-admin-truth-check-meta strong {
-  color: var(--ga-ink-strong, #f5f8ff);
+  color: var(--ga-text);
   font-weight: 600;
 }
 
 .gh-admin-truth-check-meta code {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ga-surface-soft);
   border-radius: 4px;
   padding: 1px 6px;
   margin: 0 2px;
   font-size: 11px;
-  color: #66C5FF;
+  color: var(--ga-bright-blue);
 }
 
 .gh-admin-truth-check-meta button {
@@ -7461,8 +7466,8 @@
 
 .gh-admin-truth-check-table-wrap {
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--ga-border-muted);
+  background: var(--ga-surface-muted);
   overflow: hidden;
 }
 
@@ -7477,19 +7482,19 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  color: var(--ga-text-muted);
   font-weight: 600;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--ga-surface-soft);
+  border-bottom: 1px solid var(--ga-border-muted);
   white-space: nowrap;
 }
 
 .gh-admin-truth-check-table tbody td,
 .gh-admin-truth-check-table tbody th {
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  color: var(--ga-ink-strong, #f5f8ff);
+  border-bottom: 1px solid rgba(207, 239, 255, 0.05);
+  color: var(--ga-text);
   vertical-align: middle;
 }
 
@@ -7500,7 +7505,7 @@
 
 .gh-admin-truth-check-table tbody th code {
   font-family: ui-monospace, "JetBrains Mono", monospace;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ga-surface-soft);
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 12px;
@@ -7513,21 +7518,21 @@
 }
 
 .gh-admin-truth-check-delta.tone-muted {
-  color: rgba(245, 248, 255, 0.55);
+  color: var(--ga-text-muted);
 }
 
 .gh-admin-truth-check-delta.tone-warn {
-  color: #ffbe5c;
+  color: var(--ga-warning);
 }
 
 .gh-admin-truth-check-delta.tone-bad {
-  color: #ff6b6b;
+  color: var(--ga-danger);
 }
 
 .gh-admin-truth-check-queries {
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--ga-border-muted);
+  background: var(--ga-surface-muted);
   padding: 12px 16px;
 }
 
@@ -7536,7 +7541,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.65));
+  color: var(--ga-text-muted);
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -7558,7 +7563,7 @@
 }
 
 .gh-admin-truth-check-queries li header span {
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  color: var(--ga-text-muted);
   font-family: ui-monospace, "JetBrains Mono", monospace;
 }
 
@@ -7568,7 +7573,7 @@
   padding: 10px 12px;
   font-family: ui-monospace, "JetBrains Mono", monospace;
   font-size: 12px;
-  color: #cfe6ff;
+  color: var(--ga-text-soft);
   overflow-x: auto;
   margin: 0;
   white-space: pre-wrap;
@@ -7577,18 +7582,18 @@
 
 .gh-admin-truth-check-query-error {
   margin: 6px 0 0;
-  color: #ff6b6b;
+  color: var(--ga-danger);
   font-size: 12px;
 }
 
 .gh-admin-truth-check-note {
   font-size: 12px;
-  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  color: var(--ga-text-muted);
   margin: 0;
 }
 
 .gh-admin-truth-check-note[data-state="degraded"] strong {
-  color: #ffbe5c;
+  color: var(--ga-warning);
 }
 
 @media (max-width: 960px) {
@@ -7598,4 +7603,118 @@
   .gh-admin-truth-check-totals {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Enterprise-consistency pass (2026-07) — shared interactive-state,
+   skeleton, chip-overflow, comment and diff polish for the
+   Stewardship / Audit Evidence / Control Center surfaces.
+   All colors are --ga-* tokens or token-derived translucents.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Keyboard focus: 2px --ga-focus ring on every interactive element of these
+   surfaces. !important is deliberate — dozens of legacy `:hover, :focus-visible
+   { outline: none }` compound rules would otherwise win on specificity/order,
+   and re-splitting each of them is far riskier than one scoped override.
+   :focus-visible only matches keyboard focus, so pointer interactions keep
+   their existing hover styling with no ring. */
+.gh-audit-ns :is(button, a, input, select, textarea, [role="row"], summary):focus-visible,
+.gh-admin-ns :is(button, a, input, select, textarea, [role="row"], summary):focus-visible,
+.gh-governance-ns :is(button, a, input, select, textarea, [role="row"], summary):focus-visible {
+  outline: 2px solid var(--ga-focus) !important;
+  outline-offset: -2px;
+}
+
+/* Skeleton bars: the shared .gh-skeleton-bar primitive in app.css still
+   shimmers through cream (#e6ecf4) from the old shell. Scoped dark override —
+   ice-blue token translucents over the dark panel, no white flash. */
+.gh-audit-ns .gh-skeleton-bar,
+.gh-admin-ns .gh-skeleton-bar,
+.gh-governance-ns .gh-skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(102, 197, 255, 0.08) 0%,
+    rgba(102, 197, 255, 0.2) 50%,
+    rgba(102, 197, 255, 0.08) 100%
+  );
+  background-size: 220% 100%;
+}
+
+/* Stewardship queue chips (SLA + priority): at 1280-1720px the narrow grid
+   columns wrapped "Overdue · 7d default SLA" into a 3-line blob inside a
+   999px-radius pill. Chips never wrap; the label span ellipsizes and the
+   full text lives in the title attribute (set in GovernanceWorkspace). */
+.gh-governance-ns-sla,
+.gh-governance-ns-priority {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.gh-governance-ns-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Work-item comments (Stewardship detail rail): previously unstyled divs.
+   Card chrome matches the evidence-grid cells in the same rail. */
+.gh-governance-ns-comments {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.gh-governance-ns-comment {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(71, 166, 223, 0.16);
+  border-radius: 6px;
+  background: rgba(5, 31, 52, 0.48);
+}
+
+.gh-governance-ns-comment .gh-governance-ns-eyebrow {
+  margin-bottom: 4px;
+  color: var(--ga-text-muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.gh-governance-ns-comment p {
+  margin: 0;
+  color: var(--ga-text-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+/* Audit event diff preview: monospace values with removed/added tints from
+   the danger/success tokens — same semantics as the stewardship diff table. */
+.gh-audit-diff-preview span,
+.gh-audit-diff-preview em,
+.gh-governance-ns-diff-row span:nth-child(2),
+.gh-governance-ns-diff-row span:nth-child(4) {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  font-style: normal;
+}
+
+.gh-audit-diff-preview span {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 92, 108, 0.08);
+  color: var(--ga-danger);
+}
+
+.gh-audit-diff-preview em {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(46, 230, 166, 0.08);
+  color: var(--ga-success);
+}
+
+/* Metastore truth-check table: hover shift like every other operations table
+   (it previously had no hover state at all). */
+.gh-admin-truth-check-table tbody tr:hover td,
+.gh-admin-truth-check-table tbody tr:hover th {
+  background: var(--ga-surface-soft);
 }
