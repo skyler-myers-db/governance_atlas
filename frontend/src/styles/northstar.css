@@ -4601,7 +4601,7 @@ body {
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.68rem;
-  color: rgba(160, 185, 204, 0.72);
+  color: var(--ga-text-muted);
 }
 
 .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-cell .gh-asset-type-icon {
@@ -4776,7 +4776,7 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: 5px 15px;
-  color: rgba(160, 185, 204, 0.68);
+  color: var(--ga-text-muted);
   font-size: 0.68rem;
 }
 
