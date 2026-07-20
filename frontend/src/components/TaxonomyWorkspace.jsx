@@ -953,6 +953,19 @@ function GlossaryCdeRegistry({
   const [newCdeError, setNewCdeError] = useState("");
   const queryClient = useQueryClient();
 
+  // Dialog keyboard contract: Escape closes whichever modal is open (unless
+  // a save is in flight) — role=dialog without Escape fails basic a11y.
+  useEffect(() => {
+    if (!newTermOpen && !newCdeOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      if (newTermOpen && !newTermSaving) setNewTermOpen(false);
+      if (newCdeOpen && !newCdeSaving) setNewCdeOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [newTermOpen, newCdeOpen, newTermSaving, newCdeSaving]);
+
   const handleSubmitNewTerm = async (event) => {
     event.preventDefault();
     if (newTermSaving) return;

@@ -2070,7 +2070,9 @@ function previewMetricItems({ asset, primaryOwner, stewardOwner, coverage, quali
     },
     {
       label: "Quality score",
-      value: qualityScore !== null ? `${Math.round(qualityScore)} / 100` : "Unavailable",
+      // Enterprise-UI pass 2026-07: "Unavailable" read as a broken widget.
+      // Say what the empty state actually means, quietly.
+      value: qualityScore !== null ? `${Math.round(qualityScore)} / 100` : "No checks run yet",
       unavailable: qualityScore === null,
     },
     {
@@ -2080,7 +2082,7 @@ function previewMetricItems({ asset, primaryOwner, stewardOwner, coverage, quali
     },
     {
       label: "Usage · 30d",
-      value: usage || "Unavailable",
+      value: usage || "No usage telemetry",
       unavailable: !usage,
     },
   ];
@@ -2455,8 +2457,15 @@ function FilterRailGroup({ eyebrow, count = null, children }) {
     <section className="gh-discovery-filter-group">
       <header>
         <span>{eyebrow}</span>
-        {count !== null ? <small>{Number(count || 0).toLocaleString()} results</small> : null}
       </header>
+      {/* Enterprise-UI pass 2026-07: the count used to share the header line
+          with the uppercase eyebrow, which crammed "47 results" against
+          "CERTIFICATION" in the 238px rail. It now gets its own quiet line. */}
+      {count !== null ? (
+        <small className="gh-discovery-filter-group-count">
+          {Number(count || 0).toLocaleString()} results
+        </small>
+      ) : null}
       <div>{children}</div>
     </section>
   );
@@ -3899,7 +3908,11 @@ function SelectionPreview({
 
         {sourceAuthoritative ? (
           <div className="gh-discovery-preview-badges">
-            {cert ? <span className="gh-discovery-status-pill certified">{cert}</span> : null}
+            {/* Enterprise-UI pass 2026-07: certification + sensitivity chips
+                render ONCE, beside the title (gh-discovery-preview-title-badges).
+                This row previously repeated them, so the preview opened with
+                "Certified / Confidential" twice. Only the coverage meter —
+                which does not appear in the title row — stays here. */}
             {coverage !== null ? (
               <span className="gh-discovery-coverage-chip">
                 {`${coverage}% Metadata Coverage`}
@@ -3908,9 +3921,6 @@ function SelectionPreview({
             ) : (
               <span className="gh-discovery-muted-pill">Metadata coverage unavailable</span>
             )}
-            {sensitivity ? (
-              <span className={`gh-discovery-sensitivity-pill ${sensitivityToneClass(sensitivity)}`.trim()}>{sensitivity}</span>
-            ) : null}
           </div>
         ) : null}
 
@@ -4213,9 +4223,9 @@ function SelectionPreview({
               aria-expanded={commentOpen}
               aria-label={`Comment on ${asset.name}`}
               className="gh-secondary-button"
+              data-tooltip={`Comment files a governance request on ${asset.fqn} (actor role: ${actorRoleLabel || "writer"}).`}
               disabled={Boolean(workflowBusy)}
               onClick={() => setCommentOpen((current) => !current)}
-              title={`Comment files a governance request on ${asset.fqn} (actor role: ${actorRoleLabel || "writer"}).`}
               type="button"
             >
               Comment
@@ -4224,8 +4234,8 @@ function SelectionPreview({
             <button
               aria-label="Comment unavailable: comment threads require a backed workflow before they can be created from Discover."
               className="gh-secondary-button"
+              data-tooltip="Comment threads require a backed workflow before they can be created from Discover."
               disabled
-              title="Comment threads require a backed workflow before they can be created from Discover."
               type="button"
             >
               Comment
@@ -4235,6 +4245,7 @@ function SelectionPreview({
             <button
               aria-label={`Request access to ${asset.name}`}
               className="gh-secondary-button"
+              data-tooltip={`Files an access request for ${asset.fqn} into the governance queue.`}
               disabled={Boolean(workflowBusy)}
               onClick={() =>
                 fileGovernanceWorkflowRequest(
@@ -4243,7 +4254,6 @@ function SelectionPreview({
                   "Access requested from the Discover preview.",
                 )
               }
-              title={`Files an access request for ${asset.fqn} into the governance queue.`}
               type="button"
             >
               {workflowBusy === "access" ? "Requesting…" : "Request access"}
@@ -4252,24 +4262,31 @@ function SelectionPreview({
             <button
               aria-label="Request access unavailable: access requests require a backed workflow before they can be created from Discover."
               className="gh-secondary-button"
+              data-tooltip="Access requests require a backed workflow before they can be created from Discover."
               disabled
-              title="Access requests require a backed workflow before they can be created from Discover."
               type="button"
             >
               Request access
             </button>
           )}
+          {/* Enterprise-UI pass 2026-07: this rendered as gh-primary-button,
+              whose app-level purple gradient washed the label out to
+              near-invisible next to the two dark secondaries, and the native
+              title tooltip sat on top of the unreadable label. All three
+              footer actions now share the same secondary styling (see
+              .gh-discovery-preview-footer in discovery.css) and the hint
+              renders as a CSS tooltip positioned above the button. */}
           <button
-            className="gh-primary-button"
-            disabled={recordUnavailable}
-            onClick={() => onOpenGovernance(asset.fqn)}
-            title={
+            className="gh-secondary-button"
+            data-tooltip={
               recordUnavailable
                 ? recordUnavailableReason
                 : sourceAuthoritative
                   ? "Open governance workspace"
                   : "Open governance certification review context; this does not certify metadata without a backed mutation workflow."
             }
+            disabled={recordUnavailable}
+            onClick={() => onOpenGovernance(asset.fqn)}
             type="button"
           >
             {sourceAuthoritative ? "Certify" : "Review cert"}
@@ -6372,7 +6389,9 @@ export default function DiscoveryWorkspace({
             onResetBrowse={resetBrowse}
           />
           {showAdvancedFilters ? (
-            <div className="gh-discovery-filter-shell gh-discovery-hero-filter-popover" id="gh-discovery-filter-popover" ref={filterCommandRef}>
+            // The launcher declares aria-haspopup="dialog"; the popover must
+            // actually be one for AT to connect the two.
+            <div className="gh-discovery-filter-shell gh-discovery-hero-filter-popover" id="gh-discovery-filter-popover" ref={filterCommandRef} role="dialog" aria-label="Advanced discovery filters">
               <FiltersPopover
                 bootstrap={bootstrap}
                 facets={resultsFacets}

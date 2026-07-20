@@ -179,9 +179,9 @@ body {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid rgba(205, 215, 236, 0.72);
+  border: 1px solid var(--ga-border);
   border-radius: 10px;
-  background: rgba(245, 248, 255, 0.82);
+  background: var(--ga-surface-muted);
   color: var(--gh-ink-soft);
   font-size: 0.84rem;
 }
@@ -347,7 +347,7 @@ body {
 }
 
 .gh-chip-status.tone-neutral {
-  color: #425474;
+  color: var(--ga-text-soft);
   background: var(--gh-surface-soft);
 }
 
@@ -445,28 +445,50 @@ button.gh-chip-soft,
   cursor: pointer;
 }
 
+/* ============================================================
+   Global interactive-state system (design contract).
+   Hover = subtle surface tint (never a light fill — text stays
+   >= 4.5:1 on the dark palette), focus-visible = 2px --ga-focus
+   ring with offset, active = pressed tint, disabled = reduced
+   opacity. The old rules here hovered buttons to a near-white
+   rgba(244,247,255,.98) fill while the label stayed white —
+   "highlight contrasts to the point you can't see". Do not
+   reintroduce light hover fills on any shared primitive.
+   ============================================================ */
 .gh-product-tab:hover,
-.gh-primary-button:hover,
 .gh-secondary-button:hover,
-.gh-tertiary-button:hover,
 .gh-segment-button:hover,
 .gh-filter-chip:hover,
 .gh-saved-view:hover,
 .gh-category-row:hover,
 .gh-request-row:hover {
   transform: translateY(-1px);
-  box-shadow:
-    0 10px 24px rgba(91, 67, 238, 0.12),
-    0 0 0 1px rgba(91, 67, 238, 0.08);
-  border-color: rgba(91, 67, 238, 0.3);
-  background: rgba(244, 247, 255, 0.98);
+  box-shadow: none;
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.14);
+  color: var(--ga-text, #f5fbff);
+}
+
+/* Filled (gradient) buttons keep their fill on hover and simply
+   brighten — replacing the gradient with a tint used to flatten
+   the primary CTA and swallow its label. */
+.gh-primary-button:hover,
+.gh-product-tab.is-active:hover,
+.gh-segment-button.is-active:hover,
+.gh-subtab.is-active:hover {
+  transform: translateY(-1px);
+  border-color: transparent;
+  filter: brightness(1.1);
+  color: #fff;
 }
 
 .gh-tertiary-button:hover {
+  transform: none;
   box-shadow: none;
   border-color: transparent;
   background: transparent;
-  color: #3928b7;
+  /* was #3928b7 — dark purple on a dark shell was near-invisible */
+  color: var(--ga-light-blue, #cfefff);
 }
 
 button.gh-chip:not(.is-readonly):hover,
@@ -477,8 +499,42 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-subtab:focus-visible {
   transform: none;
   box-shadow: none;
-  border-color: rgba(15, 92, 192, 0.24);
-  background: rgba(231, 239, 255, 0.96);
+  border-color: rgba(102, 197, 255, 0.32);
+  background: var(--ga-surface-soft, rgba(102, 197, 255, 0.07));
+  color: var(--ga-text, #f5fbff);
+}
+
+/* Pressed state: cancel the hover lift and deepen the tint so the
+   click reads as a press, not a flash. */
+.gh-product-tab:active,
+.gh-primary-button:active,
+.gh-secondary-button:active,
+.gh-segment-button:active,
+.gh-filter-chip:active,
+.gh-saved-view:active,
+.gh-subtab:active,
+button.gh-chip:not(.is-readonly):active {
+  transform: translateY(0);
+  filter: brightness(0.94);
+}
+
+/* Disabled state: dim the whole control but keep the label legible
+   (>= 3:1) — never swap to a light fill. */
+.gh-product-tab:disabled,
+.gh-primary-button:disabled,
+.gh-secondary-button:disabled,
+.gh-tertiary-button:disabled,
+.gh-segment-button:disabled,
+.gh-filter-chip:disabled,
+.gh-subtab:disabled,
+button.gh-chip:disabled,
+.gh-input:disabled,
+.gh-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+  box-shadow: none;
 }
 
 .gh-search-submit {
@@ -490,15 +546,15 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: grid;
   gap: 12px;
   padding: 18px 20px 20px;
-  border: 1px solid rgba(201, 212, 232, 0.9);
+  border: 1px solid var(--ga-border);
   border-radius: 24px;
   background:
-    radial-gradient(circle at top left, rgba(91, 67, 238, 0.08), transparent 34%),
-    radial-gradient(circle at top right, rgba(15, 92, 192, 0.06), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.965) 100%);
+    radial-gradient(circle at top left, rgba(102, 197, 255, 0.08), transparent 34%),
+    radial-gradient(circle at top right, rgba(92, 225, 230, 0.06), transparent 28%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
   box-shadow:
     0 18px 38px rgba(18, 35, 58, 0.075),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    0 1px 0 rgba(207, 239, 255, 0.1) inset;
 }
 
 .gh-surface-header::before {
@@ -506,16 +562,16 @@ button.gh-chip:not(.is-readonly):focus-visible,
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.74) 100%);
+  background: linear-gradient(90deg, rgba(102, 197, 255, 0.85) 0%, rgba(61, 132, 173, 0.6) 100%);
   opacity: 0.86;
 }
 
 .gh-surface-header.is-featured {
   padding: 20px 22px 22px;
-  border-color: rgba(184, 199, 221, 0.94);
+  border-color: var(--ga-border-strong);
   box-shadow:
     0 22px 48px rgba(18, 35, 58, 0.09),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(207, 239, 255, 0.1) inset;
 }
 
 .gh-surface-header.is-featured .gh-surface-header-title {
@@ -686,7 +742,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: grid;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid rgba(214, 224, 236, 0.9);
+  border-top: 1px solid var(--ga-border-muted);
 }
 
 .gh-surface-panel-section:first-child {
@@ -759,7 +815,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: grid;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid rgba(214, 224, 236, 0.9);
+  border-top: 1px solid var(--ga-border-muted);
 }
 
 .gh-surface-drawer-section:first-child {
@@ -931,7 +987,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-filter-check.is-active {
-  color: #4d3bcf;
+  color: var(--ga-bright-blue);
   background: transparent;
 }
 .gh-category-row,
@@ -940,8 +996,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
   min-height: 38px;
   padding: 0.52rem 0.68rem;
   border-radius: 9px;
-  border: 1px solid rgba(198, 210, 234, 0.68);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -956,8 +1012,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-filter-chip.is-active,
 .gh-request-row.is-active {
   background: var(--gh-accent-soft);
-  border-color: rgba(91, 67, 238, 0.24);
-  color: #4d3bcf;
+  border-color: rgba(102, 197, 255, 0.3);
+  color: var(--ga-bright-blue);
 }
 
 .gh-category-count {
@@ -1047,10 +1103,12 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: grid;
   gap: 8px;
   padding: 18px 20px;
-  border: 1px solid rgba(214, 224, 236, 0.88);
+  /* dark-token empty state — was a white card that flashed a legacy
+     light shell inside loading/empty surfaces */
+  border: 1px solid var(--ga-border, rgba(31, 63, 95, 0.96));
   border-radius: 20px;
-  background: rgba(248, 251, 255, 0.94);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  background: var(--ga-surface-muted, rgba(12, 33, 56, 0.68));
+  box-shadow: var(--ga-glass-highlight, inset 0 1px 0 rgba(207, 239, 255, 0.12));
 }
 
 .gh-empty-state-block::before {
@@ -1058,7 +1116,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, rgba(91, 67, 238, 0.86) 0%, rgba(15, 92, 192, 0.68) 100%);
+  background: linear-gradient(90deg, rgba(102, 197, 255, 0.8) 0%, rgba(61, 132, 173, 0.5) 100%);
   opacity: 0.8;
 }
 
@@ -1096,7 +1154,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #627294;
+  color: var(--ga-text-muted);
 }
 
 .gh-table tbody tr:last-child td {
@@ -1108,11 +1166,12 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-table tbody tr:hover {
-  background: rgba(246, 249, 255, 0.92);
+  /* subtle dark row tint — the old near-white fill made row text vanish */
+  background: rgba(102, 197, 255, 0.08);
 }
 
 .gh-table tbody tr.is-active {
-  background: rgba(230, 240, 255, 0.9);
+  background: rgba(102, 197, 255, 0.14);
 }
 
 .gh-inline-action {
@@ -1131,7 +1190,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   justify-content: flex-end;
   padding-top: 8px;
   margin-top: 8px;
-  border-top: 1px solid rgba(205, 215, 236, 0.85);
+  border-top: 1px solid var(--ga-border-muted);
 }
 
 .gh-shell-status-note {
@@ -1142,11 +1201,11 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-shell-status-note.tone-warn {
-  color: #9b6918;
+  color: var(--ga-warning);
 }
 
 .gh-shell-status-note.tone-bad {
-  color: #b14852;
+  color: var(--ga-danger);
 }
 
 .gh-surface-drawer-head {
@@ -1233,9 +1292,9 @@ button.gh-chip:not(.is-readonly):focus-visible,
 
 .gh-request-card {
   padding: 7px 9px;
-  border: 1px solid rgba(198, 210, 234, 0.72);
+  border: 1px solid var(--ga-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--ga-surface);
   display: grid;
   gap: 5px;
 }
@@ -1246,9 +1305,9 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-request-card.is-active {
-  border-color: rgba(103, 79, 236, 0.4);
+  border-color: rgba(102, 197, 255, 0.4);
   box-shadow: none;
-  background: rgba(245, 242, 255, 0.96);
+  background: rgba(102, 197, 255, 0.12);
 }
 
 .gh-request-list-dense {
@@ -1324,7 +1383,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   background: var(--gh-surface-soft);
 }
 .gh-task-card.is-complete {
-  background: linear-gradient(180deg, rgba(240, 248, 245, 0.92), rgba(255, 255, 255, 0.96));
+  background: rgba(46, 230, 166, 0.08);
 }
 
 .gh-task-card-head {
@@ -1350,7 +1409,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 10px;
   align-items: start;
   padding: 0.74rem 0;
-  border-bottom: 1px solid rgba(198, 210, 234, 0.72);
+  border-bottom: 1px solid var(--ga-border-muted);
 }
 
 .gh-attribute-row:last-child {
@@ -1422,31 +1481,35 @@ button.gh-chip:not(.is-readonly):focus-visible,
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.74) 100%);
+  background: linear-gradient(90deg, rgba(102, 197, 255, 0.85) 0%, rgba(61, 132, 173, 0.6) 100%);
   opacity: 0.86;
 }
 
+/* Tone variants keep the SAME dark navy base as the neutral card —
+   the old white/cream gradients here were the "old shell" flash the
+   operator kept seeing on error/warn/ready loading states. Only the
+   accent wash and border hue change per tone. */
 .gh-workspace-state-card.tone-bad {
-  border-color: rgba(207, 92, 102, 0.24);
+  border-color: rgba(255, 92, 108, 0.3);
   background:
-    radial-gradient(circle at top right, rgba(207, 92, 102, 0.08), transparent 34%),
-  linear-gradient(180deg, rgba(255, 250, 251, 0.99) 0%, rgba(253, 246, 248, 0.98) 100%);
+    radial-gradient(circle at top right, rgba(255, 92, 108, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
 }
 
 .gh-workspace-state-card.tone-warn {
-  border-color: rgba(201, 135, 45, 0.2);
+  border-color: rgba(255, 181, 71, 0.28);
   background:
-    radial-gradient(circle at top left, rgba(201, 135, 45, 0.07), transparent 30%),
-    radial-gradient(circle at top right, rgba(15, 92, 192, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(255, 251, 245, 0.98) 100%);
+    radial-gradient(circle at top left, rgba(255, 181, 71, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.05), transparent 26%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
 }
 
 .gh-workspace-state-card.tone-good {
-  border-color: rgba(31, 139, 103, 0.18);
+  border-color: rgba(46, 230, 166, 0.26);
   background:
-    radial-gradient(circle at top left, rgba(31, 139, 103, 0.07), transparent 30%),
-    radial-gradient(circle at top right, rgba(15, 92, 192, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(245, 253, 250, 0.98) 100%);
+    radial-gradient(circle at top left, rgba(46, 230, 166, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.05), transparent 26%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
 }
 
 .gh-workspace-state-card h2 {
@@ -1474,7 +1537,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
   width: min(520px, 100%);
   height: 12px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(223, 231, 242, 0.72), rgba(242, 246, 251, 0.98), rgba(223, 231, 242, 0.72));
+  /* dark shimmer matching the index.html preboot skeleton bars */
+  background: linear-gradient(90deg, rgba(12, 33, 56, 0.9), rgba(20, 50, 79, 0.95), rgba(12, 33, 56, 0.9));
   background-size: 200% 100%;
   animation: gh-shell-shimmer 1.4s ease-in-out infinite;
 }
@@ -1588,14 +1652,14 @@ button.gh-chip:not(.is-readonly):focus-visible,
   grid-template-columns: 1fr;
   margin-top: 10px;
   padding: 16px 18px 18px;
-  border: 1px solid rgba(214, 224, 236, 0.92);
+  border: 1px solid var(--ga-border);
   border-radius: 18px;
   background:
-    radial-gradient(circle at top right, rgba(91, 67, 238, 0.05), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(248, 251, 255, 0.972) 100%);
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.05), transparent 34%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
   box-shadow:
     0 16px 34px rgba(18, 35, 58, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    0 1px 0 rgba(207, 239, 255, 0.1) inset;
   position: relative;
   align-items: start;
   z-index: 60;
@@ -1636,9 +1700,9 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-shell-brand-band,
 .gh-shell-nav-band {
   min-width: 0;
-  border: 1px solid rgba(214, 224, 236, 0.92);
+  border: 1px solid var(--ga-border);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(247, 250, 255, 0.97) 100%);
+  background: var(--ga-surface);
   box-shadow: 0 16px 38px rgba(18, 35, 58, 0.075);
 }
 
@@ -1648,8 +1712,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
   min-height: 148px;
   padding: 26px 34px;
   background:
-    radial-gradient(circle at top left, rgba(91, 67, 238, 0.12), transparent 48%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 255, 0.97) 100%);
+    radial-gradient(circle at top left, rgba(102, 197, 255, 0.1), transparent 48%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
 }
 
 .gh-shell-nav-band {
@@ -1660,8 +1724,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
   min-height: 148px;
   padding: 20px 26px 24px;
   background:
-    radial-gradient(circle at top right, rgba(91, 67, 238, 0.08), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 255, 0.975) 100%);
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
 }
 
 .gh-shell-nav-band-head {
@@ -1763,7 +1827,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #546685;
+  color: var(--ga-text-muted);
 }
 
 .gh-global-search-label,
@@ -1772,7 +1836,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   font-weight: 850;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #64758e;
+  color: var(--ga-text-muted);
 }
 
 .gh-shell-brand-title {
@@ -1783,7 +1847,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-shell-brand-subtitle {
-  color: #60748e;
+  color: var(--ga-text-muted);
   font-size: clamp(0.9rem, 0.16vw + 0.86rem, 1rem);
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -1809,13 +1873,13 @@ button.gh-chip:not(.is-readonly):focus-visible,
   min-height: 54px;
   padding: 0 18px;
   border-radius: 15px;
-  border: 1px solid rgba(182, 198, 216, 0.96);
-  background: rgba(247, 250, 255, 0.92);
-  color: #334763;
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface-soft);
+  color: var(--ga-text-soft);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  box-shadow: var(--ga-glass-highlight);
 }
 
 .gh-product-tab span {
@@ -1842,12 +1906,12 @@ button.gh-chip:not(.is-readonly):focus-visible,
   align-items: center;
   padding: 8px 12px;
   margin-bottom: 2px;
-  border: 1px solid rgba(182, 198, 216, 0.82);
+  border: 1px solid var(--ga-border);
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(246, 249, 255, 0.98), rgba(255, 255, 255, 0.98));
+  background: var(--ga-surface);
   box-shadow:
     0 18px 34px rgba(18, 35, 58, 0.14),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(207, 239, 255, 0.1) inset;
   pointer-events: none;
 }
 
@@ -1904,12 +1968,12 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 12px;
   align-items: center;
   padding: 12px 14px;
-  border: 1px solid rgba(214, 224, 236, 0.88);
+  border: 1px solid var(--ga-border);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(250, 252, 255, 0.98) 0%, rgba(246, 250, 255, 0.96) 100%);
+  background: var(--ga-surface);
   box-shadow:
     0 10px 24px rgba(18, 35, 58, 0.05),
-    0 1px 0 rgba(255, 255, 255, 0.88) inset;
+    0 1px 0 rgba(207, 239, 255, 0.08) inset;
 }
 
 .gh-global-search-copy,
@@ -1934,7 +1998,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-global-search-input {
   min-height: 46px;
   border-radius: 12px;
-  border-color: rgba(182, 198, 216, 0.96);
+  border-color: var(--ga-border-strong);
   font-size: clamp(0.9rem, 0.18vw + 0.88rem, 0.98rem);
   padding-inline: 16px;
 }
@@ -1951,8 +2015,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 10px;
   padding: 14px;
   border-radius: 18px;
-  border: 1px solid rgba(182, 198, 216, 0.96);
-  background: rgba(255, 255, 255, 0.985);
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface-strong);
   box-shadow: 0 22px 40px rgba(18, 35, 58, 0.12);
   z-index: 260;
 }
@@ -1971,13 +2035,13 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-search-result-row {
   padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(214, 224, 236, 0.9);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 248, 252, 0.98) 100%);
+  border: 1px solid var(--ga-border, rgba(31, 63, 95, 0.96));
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96));
 }
 
 .gh-search-result-row:hover {
-  border-color: rgba(15, 92, 192, 0.3);
-  background: rgba(235, 243, 255, 0.9);
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.1);
 }
 
 .gh-search-result-main {
@@ -2011,7 +2075,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
   align-items: center;
   gap: 10px;
   padding-top: 10px;
-  border-top: 1px solid rgba(214, 224, 236, 0.92);
+  border-top: 1px solid var(--ga-border-muted);
 }
 
 .gh-shell-identity-block {
@@ -2024,7 +2088,7 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-shell-identity {
-  color: #5f7290;
+  color: var(--ga-text-muted);
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.11em;
@@ -2116,8 +2180,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 14px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(214, 224, 236, 0.9);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 249, 255, 0.96) 100%);
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface);
 }
 
 .gh-shell-inbox-item-copy {
@@ -2175,6 +2239,9 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 12px;
 }
 
+/* Canonical keyboard-focus treatment: a 2px --ga-focus ring with
+   offset. Replaces the legacy purple rgba(91,67,238) halo which
+   clashed with the Entrada palette and washed out on dark surfaces. */
 button:focus-visible,
 .gh-chip:focus-visible,
 .gh-filter-chip:focus-visible,
@@ -2182,11 +2249,10 @@ button:focus-visible,
 .gh-input:focus-visible,
 .gh-select:focus-visible,
 .gh-textarea:focus-visible {
-  outline: none;
-  border-color: rgba(91, 67, 238, 0.4);
-  box-shadow:
-    0 0 0 3px rgba(109, 106, 255, 0.16),
-    0 10px 24px rgba(20, 34, 66, 0.08);
+  outline: 2px solid var(--ga-focus, rgba(102, 197, 255, 0.42));
+  outline-offset: 2px;
+  border-color: rgba(102, 197, 255, 0.52);
+  box-shadow: none;
 }
 
 @keyframes gh-progress-slide {
@@ -2269,7 +2335,7 @@ button:focus-visible,
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--gh-ink, #1a2236);
-  background: #fff;
+  background: var(--ga-surface);
   border: 1px solid var(--gh-line, #d8cfb9);
   border-radius: 10px;
   cursor: pointer;
@@ -2301,7 +2367,7 @@ button:focus-visible,
   margin: 0;
   padding: 6px;
   list-style: none;
-  background: #fff;
+  background: var(--ga-surface);
   border: 1px solid var(--gh-line, #d8cfb9);
   border-radius: 10px;
   box-shadow: 0 16px 34px rgba(18, 35, 58, 0.12);
@@ -2325,11 +2391,11 @@ button:focus-visible,
   transition: background 120ms ease, color 120ms ease;
 }
 .gh-discovery-sort-option:hover {
-  background: var(--gh-indigo-soft, #e6e3ff);
+  background: var(--gh-indigo-soft);
   color: var(--gh-indigo-2, #2d1f93);
 }
 .gh-discovery-sort-option.is-active {
-  background: var(--gh-indigo-soft, #e6e3ff);
+  background: var(--gh-indigo-soft);
   color: var(--gh-indigo-2, #2d1f93);
 }
 .gh-discovery-sort-option:focus-visible {
@@ -2340,7 +2406,7 @@ button:focus-visible,
 .gh-chip-selected {
   border-color: rgba(91, 67, 238, 0.28);
   background: var(--gh-accent-soft);
-  color: #4d3bcf;
+  color: var(--ga-bright-blue);
 }
 
 .gh-result-list.gh-discovery-card-list {
@@ -2372,13 +2438,13 @@ button:focus-visible,
   gap: 4px;
   min-height: 78px;
   padding: 12px;
-  border: 1px solid rgba(214, 224, 236, 0.92);
+  border: 1px solid var(--ga-border);
   border-radius: 14px;
-  background: rgba(245, 248, 252, 0.88);
+  background: var(--ga-surface-muted);
 }
 
 .gh-preview-stat-card span {
-  color: #62768f;
+  color: var(--ga-text-muted);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -2429,7 +2495,7 @@ button:focus-visible,
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-top: 1px solid rgba(214, 224, 236, 0.88);
+  border-top: 1px solid var(--ga-border);
 }
 
 .gh-preview-profile-row:first-child {
@@ -2438,7 +2504,7 @@ button:focus-visible,
 }
 
 .gh-preview-profile-row span {
-  color: #6a7f98;
+  color: var(--ga-text-muted);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -2546,10 +2612,10 @@ button:focus-visible,
 
 .gh-record-card {
   padding: 18px;
-  border: 1px solid rgba(214, 224, 236, 0.92);
+  border: 1px solid var(--ga-border);
   border-radius: 16px;
   background:
-    radial-gradient(circle at top right, rgba(91, 67, 238, 0.05), transparent 34%),
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.05), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.972) 100%);
   box-shadow: 0 12px 28px rgba(18, 35, 58, 0.055);
 }
@@ -2564,7 +2630,7 @@ button:focus-visible,
 }
 
 .gh-metadata-edit-field > span {
-  color: #60748e;
+  color: var(--ga-text-muted);
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.12em;
@@ -2722,10 +2788,10 @@ button:focus-visible,
   background:
     radial-gradient(circle at top left, rgba(120, 88, 255, 0.1), transparent 28%),
     radial-gradient(circle at top right, rgba(77, 140, 255, 0.08), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 250, 255, 0.965));
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96), rgba(9, 32, 52, 0.98));
   box-shadow:
     0 26px 56px rgba(22, 35, 68, 0.1),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(207, 239, 255, 0.1) inset;
   position: relative;
   isolation: isolate;
   z-index: 90;
@@ -2738,10 +2804,10 @@ button:focus-visible,
 .gh-discovery-command-panel,
 .gh-record-card {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 250, 255, 0.965));
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96), rgba(9, 32, 52, 0.98));
   box-shadow:
     0 18px 34px rgba(18, 32, 62, 0.07),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(207, 239, 255, 0.1) inset;
 }
 
 .gh-shell-brand-mark {
@@ -2768,7 +2834,7 @@ button:focus-visible,
 .gh-discovery-sidebar,
 .gh-selection-preview,
 .gh-record-card {
-  border-color: rgba(201, 212, 232, 0.9);
+  border-color: var(--ga-border);
 }
 
 .gh-discovery-command-panel::before,
@@ -2779,7 +2845,7 @@ button:focus-visible,
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.74) 100%);
+  background: linear-gradient(90deg, rgba(102, 197, 255, 0.85) 0%, rgba(61, 132, 173, 0.6) 100%);
   opacity: 0.88;
 }
 
@@ -2899,7 +2965,7 @@ aside.gh-selection-preview > .gh-surface-rail-body {
 }
 .gh-asset-preview-section + .gh-asset-preview-section {
   padding-top: 14px;
-  border-top: 1px solid rgba(216, 207, 185, 0.6);
+  border-top: 1px solid var(--ga-border-muted);
 }
 
 .gh-surface-rail-head,
@@ -2964,8 +3030,11 @@ button.gh-chip:not(.is-readonly):hover,
 button.gh-chip:not(.is-readonly):focus-visible,
 button.gh-chip-soft:not(.is-readonly):hover,
 button.gh-chip-soft:not(.is-readonly):focus-visible {
-  border-color: rgba(15, 92, 192, 0.28);
-  background: rgba(230, 240, 255, 0.96);
+  /* was a light rgba(230,240,255,.96) fill — invisible white-on-white
+     label on the dark shell; keep the tint subtle and dark. */
+  border-color: rgba(102, 197, 255, 0.32);
+  background: rgba(102, 197, 255, 0.14);
+  color: var(--ga-text, #f5fbff);
 }
 
 .gh-selection-preview .gh-lineage-linked-row,
@@ -3057,8 +3126,8 @@ button.gh-lineage-linked-row {
 button.gh-lineage-linked-row:hover,
 button.gh-lineage-linked-row:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(15, 92, 192, 0.3);
-  background: rgba(240, 246, 255, 0.98);
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.1);
   box-shadow: 0 12px 24px rgba(31, 52, 109, 0.08);
 }
 
@@ -3337,7 +3406,7 @@ body::after {
 
 .gh-global-search-label,
 .gh-field-label {
-  color: #5e6f89;
+  color: var(--ga-text-muted);
 }
 
 .gh-global-search-input,
@@ -3362,7 +3431,7 @@ body::after {
 }
 
 .gh-shell-identity {
-  color: #6a7d98;
+  color: var(--ga-text-muted);
   font-size: 0.64rem;
   letter-spacing: 0.15em;
 }
@@ -3409,9 +3478,9 @@ button.gh-lineage-linked-row.is-asset-link::after {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  border: 1px solid rgba(166, 182, 204, 0.9);
-  background: rgba(255, 255, 255, 0.96);
-  color: #4a5f82;
+  border: 1px solid var(--ga-border-strong);
+  background: var(--ga-surface);
+  color: var(--ga-text-soft);
   font-size: 0.76rem;
   font-weight: 900;
   transition:
@@ -3423,38 +3492,38 @@ button.gh-lineage-linked-row.is-asset-link::after {
 
 button.gh-lineage-linked-row:not(.is-readonly):hover,
 button.gh-lineage-linked-row:not(.is-readonly):focus-visible {
-  border-color: rgba(15, 92, 192, 0.32);
-  background: linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(232, 241, 255, 0.98));
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.12);
   box-shadow:
     0 12px 26px rgba(18, 35, 58, 0.08),
     0 0 0 1px rgba(15, 92, 192, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+    0 1px 0 rgba(207, 239, 255, 0.08) inset;
   transform: translateY(-1px);
 }
 
 button.gh-lineage-linked-row:not(.is-readonly):hover span:first-child,
 button.gh-lineage-linked-row:not(.is-readonly):focus-visible span:first-child {
-  color: #153556;
+  color: var(--ga-text);
 }
 
 button.gh-lineage-linked-row:not(.is-readonly):hover span:last-child,
 button.gh-lineage-linked-row:not(.is-readonly):focus-visible span:last-child {
-  color: #39557d;
+  color: var(--ga-text-soft);
 }
 
 button.gh-lineage-linked-row.is-asset-link:not(.is-readonly):hover::after,
 button.gh-lineage-linked-row.is-asset-link:not(.is-readonly):focus-visible::after {
   transform: translateY(-50%) scale(1.02);
-  border-color: rgba(15, 92, 192, 0.32);
-  background: rgba(233, 242, 255, 0.98);
-  color: #174777;
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.16);
+  color: var(--ga-bright-blue);
 }
 
 div.gh-lineage-linked-row.is-readonly {
   cursor: default;
   pointer-events: none;
-  background: rgba(250, 252, 255, 0.88);
-  border-color: rgba(214, 224, 236, 0.84);
+  background: var(--ga-surface-muted);
+  border-color: var(--ga-border-muted);
   box-shadow: none;
 }
 
@@ -3468,10 +3537,10 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
   align-items: center;
   justify-content: center;
   padding: 0.34rem 0.82rem;
-  border: 1px solid rgba(182, 198, 216, 0.92);
+  border: 1px solid var(--ga-border);
   border-radius: 999px;
-  background: rgba(243, 247, 255, 0.98);
-  color: #4d617f;
+  background: var(--ga-surface-soft);
+  color: var(--ga-text-soft);
   font-size: 0.74rem;
   font-weight: 850;
   letter-spacing: 0.12em;
@@ -3539,12 +3608,12 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
 .gh-lineage-edge-toggle {
   font: inherit;
   cursor: pointer;
-  border: 1px solid rgba(111, 125, 177, 0.28);
-  background: rgba(255, 255, 255, 0.94);
-  color: #33445f;
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface);
+  color: var(--ga-text-soft);
   box-shadow:
     0 10px 22px rgba(18, 35, 58, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.94) inset;
+    0 1px 0 rgba(207, 239, 255, 0.08) inset;
   transition:
     transform 140ms ease,
     box-shadow 140ms ease,
@@ -3567,18 +3636,18 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
 .gh-graph-branch-toggle:focus-visible,
 .gh-lineage-edge-toggle:hover,
 .gh-lineage-edge-toggle:focus-visible {
-  border-color: rgba(15, 92, 192, 0.34);
-  background: linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(232, 241, 255, 0.98));
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.12);
   box-shadow:
     0 14px 28px rgba(18, 35, 58, 0.1),
-    0 1px 0 rgba(255, 255, 255, 0.96) inset;
+    0 1px 0 rgba(207, 239, 255, 0.08) inset;
   transform: translateY(-1px);
 }
 
 .gh-graph-branch-toggle.is-collapsed,
 .gh-lineage-edge-toggle.is-collapsed {
-  border-color: rgba(91, 67, 238, 0.24);
-  background: rgba(238, 236, 255, 0.96);
+  border-color: rgba(102, 197, 255, 0.3);
+  background: rgba(102, 197, 255, 0.12);
 }
 @keyframes gh-background-drift {
   0% {
@@ -3619,7 +3688,7 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
 .gh-search-dropdown,
 .gh-filters-popover {
   backdrop-filter: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96));
+  background: var(--ga-surface);
 }
 
 .gh-shell-module-label {
@@ -3792,23 +3861,9 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.gh-product-tab:hover,
-.gh-primary-button:hover,
-.gh-secondary-button:hover,
-.gh-segment-button:hover,
-.gh-filter-chip:hover,
-.gh-saved-view:hover,
-.gh-category-row:hover,
-.gh-request-row:hover {
-  color: var(--gh-ink);
-}
-
-.gh-product-tab.is-active:hover,
-.gh-primary-button:hover,
-.gh-segment-button.is-active:hover,
-.gh-subtab.is-active:hover {
-  color: #fff;
-}
+/* (Removed: legacy hover color patch blocks. Hover text color now
+   lives with the canonical interactive-state system alongside the
+   base primitives near the top of this file — one source of truth.) */
 
 .gh-lineage-linked-row span:first-child,
 .gh-lineage-linked-row span:last-child,
@@ -4018,7 +4073,7 @@ and single-line
   background: linear-gradient(
     90deg,
     var(--gh-surface-muted) 0%,
-    #e6ecf4 50%,
+    rgba(102, 197, 255, 0.16) 50%,
     var(--gh-surface-muted) 100%
   );
   background-size: 220% 100%;
@@ -4205,7 +4260,7 @@ and single-line
   margin: 0 !important;
   padding: 10px 20px !important;
   border: 0 !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
   border-radius: 0 !important;
   background: var(--ga-surface-strong) !important;
   box-shadow: none !important;
@@ -4274,13 +4329,13 @@ and single-line
 .gh-discovery-result-row::before { display: none !important; }
 .gh-discovery-result-row:hover {
   transform: none !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  background: var(--gh-surface-muted) !important;
   border-color: var(--gh-border-strong, #b8c2d3) !important;
   box-shadow: none !important;
 }
 .gh-discovery-result-row.is-selected {
   border-color: var(--gh-accent, #5b3ff2) !important;
-  background: var(--gh-accent-soft, #eef0ff) !important;
+  background: var(--gh-accent-soft) !important;
   box-shadow: inset 0 0 0 1px var(--gh-accent, #5b3ff2) !important;
 }
 
@@ -4313,7 +4368,7 @@ and single-line
 .gh-shell-inbox-panel { max-width: 480px; }
 
 /* Page root shouldn't have the heavy pale-blue gradient behind the compact bars */
-body { background: var(--gh-bg, #f7f9fc) !important; }
+body { background: var(--gh-bg) !important; }
 
 /* ---- Shell overhaul tranche 2: fix nav order + left-rail eyebrow clipping ---- */
 .gh-shell-nav-band {
@@ -4352,13 +4407,13 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
   font-size: 10px !important;
   padding: 2px 6px !important;
   border-radius: 3px !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  background: var(--gh-surface-muted) !important;
   color: var(--gh-text-muted, #5c6b82) !important;
   letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
   display: inline-block !important;
   align-self: flex-start !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
 }
 .gh-discovery-sidebar .gh-surface-rail-title {
   font-size: 14px !important;
@@ -4400,15 +4455,15 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 /* ---- Discovery results toolbar — anchor inside the results card ---- */
 .gh-discovery-results-toolbar {
   padding: 10px 14px !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  background: var(--gh-surface-muted) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
   margin: 0 !important;
   border-radius: 6px 6px 0 0 !important;
 }
 
 /* ---- Metadata Catalog card — kill the pop-out shadow + accent bar ---- */
 .gh-discovery-results.gh-surface-panel-section {
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   border-radius: 6px !important;
   background: var(--ga-surface) !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
@@ -4418,13 +4473,13 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 .gh-discovery-results .gh-surface-panel-section-head,
 .gh-surface-panel-section > .gh-surface-panel-section-head {
   padding: 14px 16px !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
   margin: 0 !important;
   background: var(--ga-surface) !important;
 }
 
 /* Workspace background — no big gradient */
-.gh-app, .gh-workspace, body { background: var(--gh-bg, #f7f9fc) !important; }
+.gh-app, .gh-workspace, body { background: var(--gh-bg) !important; }
 
 /* ---- Shell overhaul tranche 3 — correct rail class names + kill purple accent bars ---- */
 .gh-surface-rail,
@@ -4447,7 +4502,7 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 .gh-selection-preview .gh-surface-rail-head {
   padding: 12px 14px !important;
   gap: 4px !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  border-bottom: 1px solid var(--gh-border);
 }
 .gh-discovery-sidebar .gh-eyebrow,
 .gh-selection-preview .gh-eyebrow {
@@ -4479,7 +4534,7 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 /* Metadata Catalog (results) header */
 .gh-surface-header {
   padding: 12px 14px !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
   background: var(--ga-surface) !important;
   margin: 0 !important;
   border-radius: 6px 6px 0 0 !important;
@@ -4520,11 +4575,11 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 }
 .gh-discovery-sidebar .gh-category-row:hover,
 .gh-discovery-sidebar .gh-saved-view:hover {
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  background: var(--gh-surface-muted) !important;
 }
 .gh-discovery-sidebar .gh-category-row.is-active,
 .gh-discovery-sidebar .gh-saved-view.is-active {
-  background: var(--gh-accent-soft, #eef0ff) !important;
+  background: var(--gh-accent-soft) !important;
   color: var(--gh-accent, #5b3ff2) !important;
   font-weight: 600 !important;
 }
@@ -4556,8 +4611,8 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 .gh-selection-preview .gh-empty-state-block {
   margin: 12px 14px !important;
   padding: 16px !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
-  border: 1px dashed var(--gh-border, #d8dee9) !important;
+  background: var(--gh-surface-muted) !important;
+  border: 1px dashed var(--gh-border) !important;
   border-radius: 6px !important;
   text-align: center !important;
 }
@@ -4582,7 +4637,7 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 
 /* Global gradient background off */
 body, .gh-app, .gh-workspace, .gh-discovery-shell {
-  background: var(--gh-bg, #f7f9fc) !important;
+  background: var(--gh-bg) !important;
   background-image: none !important;
 }
 
@@ -4629,7 +4684,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 .gh-result-list.gh-discovery-card-list {
   padding: 8px 14px !important;
   gap: 6px !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   border-top: 0 !important;
   border-radius: 0 0 6px 6px !important;
   background: var(--ga-surface) !important;
@@ -4647,8 +4702,8 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 .gh-discovery-loading-strip,
 .gh-discovery-state-strip {
   padding: 8px 16px !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
-  border-top: 1px solid var(--gh-border, #d8dee9) !important;
+  background: var(--gh-surface-muted) !important;
+  border-top: 1px solid var(--gh-border) !important;
   font-size: 12px !important;
   color: var(--gh-text-muted, #5c6b82) !important;
 }
@@ -4708,7 +4763,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
   padding: 0 20px !important;
   height: 42px !important;
   background: var(--ga-surface) !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
 }
 .gh-entity-record-tabs button {
   background: transparent !important;
@@ -4743,7 +4798,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 [class*="summary-tile"],
 .gh-entity-hero [class*="metric-tile"] {
   background: var(--ga-surface) !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   border-radius: 6px !important;
   box-shadow: none !important;
   padding: 10px 14px !important;
@@ -4765,7 +4820,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 
 /* Entity record section cards — match catalog style */
 .gh-entity-record-section {
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   border-radius: 6px !important;
   background: var(--ga-surface) !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
@@ -4812,7 +4867,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 .gh-preview-stat-card.gh-entity-metric-card.tone-neutral,
 .gh-preview-stat-card.gh-entity-metric-card.tone-info {
   background: var(--ga-surface) !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   border-radius: 6px !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
   padding: 10px 14px !important;
@@ -4876,14 +4931,14 @@ button[class*="back-to-discovery"] {
   padding: 0 12px !important;
   font-size: 12px !important;
   border-radius: 6px !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   background: var(--ga-surface) !important;
   color: var(--gh-text, #14213d) !important;
   box-shadow: none !important;
   font-weight: 600 !important;
 }
 .gh-entity-hero [class*="entity-action-row"] button:hover {
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  background: var(--gh-surface-muted) !important;
   border-color: var(--gh-border-strong, #b8c2d3) !important;
 }
 .gh-entity-hero [class*="entity-action-row"] button.is-primary,
@@ -4902,8 +4957,8 @@ button[class*="back-to-discovery"] {
   font-size: 11px !important;
   font-weight: 600 !important;
   border-radius: 11px !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border: 1px solid var(--gh-border) !important;
+  background: var(--gh-surface-muted) !important;
   color: var(--gh-text-muted, #5c6b82) !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -4913,15 +4968,15 @@ button[class*="back-to-discovery"] {
 .gh-entity-hero .tone-bad,
 .gh-entity-hero [class*="governance-status"].tone-bad,
 .gh-entity-hero .gh-status-chip.tone-bad {
-  background: #fdeeec !important;
-  color: #b42318 !important;
-  border-color: #f2b5ab !important;
+  background: rgba(255, 92, 108, 0.14) !important;
+  color: var(--ga-danger) !important;
+  border-color: rgba(255, 92, 108, 0.36) !important;
 }
 .gh-entity-hero .tone-good,
 .gh-entity-hero .gh-status-chip.tone-good {
-  background: #ebf8ef !important;
-  color: #067647 !important;
-  border-color: #a9d8b8 !important;
+  background: rgba(46, 230, 166, 0.14) !important;
+  color: var(--ga-success) !important;
+  border-color: rgba(46, 230, 166, 0.36) !important;
 }
 
 /* ---- Governance workspace hero compaction ---- */
@@ -4930,7 +4985,7 @@ button[class*="back-to-discovery"] {
 .gh-governance-header {
   padding: 14px 20px !important;
   background: var(--ga-surface) !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
   box-shadow: none !important;
   border-radius: 0 !important;
   margin: 0 !important;
@@ -4966,7 +5021,7 @@ button[class*="back-to-discovery"] {
 /* ---- Taxonomy empty-state card: kill the purple accent bar ---- */
 .gh-taxonomy-workspace .gh-empty-state,
 .gh-taxonomy-workspace .gh-empty-state-block {
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   background: var(--ga-surface) !important;
   border-radius: 6px !important;
   padding: 40px 20px !important;
@@ -5058,7 +5113,7 @@ button[class*="back-to-discovery"] {
   height: 2px !important;
   padding: 0 !important;
   margin: 0 !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  background: var(--gh-surface-muted) !important;
   border: 0 !important;
   z-index: 1000 !important;
   display: block !important;
@@ -5080,10 +5135,10 @@ button[class*="back-to-discovery"] {
   right: 20px !important;
   font-size: 10px !important;
   color: var(--gh-text-muted, #5c6b82) !important;
-  background: rgba(255, 255, 255, 0.94) !important;
+  background: var(--ga-surface-strong) !important;
   padding: 2px 8px !important;
   border-radius: 0 0 4px 4px !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   border-top: 0 !important;
   line-height: 1.2 !important;
   font-weight: 500 !important;
@@ -5138,8 +5193,8 @@ button[class*="back-to-discovery"] {
 
 /* #6 Muted OWNER pill when universal (not alarming yellow everywhere) */
 .gh-labeled-pill-warn {
-  background: var(--gh-surface-muted, #f3f6fb) !important;
-  border-color: var(--gh-border, #d8dee9) !important;
+  background: var(--gh-surface-muted) !important;
+  border-color: var(--gh-border) !important;
 }
 .gh-labeled-pill-warn .gh-labeled-pill-value {
   color: var(--gh-text-muted, #5c6b82) !important;
@@ -5152,7 +5207,7 @@ button[class*="back-to-discovery"] {
   border-color: rgba(255, 181, 71, 0.42) !important;
 }
 .gh-discovery-row.has-critical-gap .gh-labeled-pill-warn .gh-labeled-pill-value {
-  color: #b54708 !important;
+  color: var(--ga-warning) !important;
 }
 
 /* #7 Labeled pill hierarchy — tiny uppercase label, normal value */
@@ -5192,8 +5247,8 @@ button[class*="back-to-discovery"] {
   width: 18px !important;
   height: 18px !important;
   padding: 0 !important;
-  background: #fdeeec !important;
-  color: #b42318 !important;
+  background: rgba(255, 92, 108, 0.14) !important;
+  color: var(--ga-danger) !important;
   font-size: 11px !important;
   font-weight: 700 !important;
   border-radius: 50% !important;
@@ -5338,7 +5393,7 @@ button[class*="back-to-discovery"] {
   flex-direction: row !important;
   gap: 6px !important;
   padding: 0 14px 10px !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid var(--gh-border) !important;
   margin-top: 8px !important;
   grid-template-columns: none !important;
 }
@@ -5353,7 +5408,7 @@ button[class*="back-to-discovery"] {
   font-size: 11px !important;
   font-weight: 600 !important;
   border-radius: 4px !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border: 1px solid var(--gh-border) !important;
   background: var(--ga-surface) !important;
   color: var(--gh-text, #14213d) !important;
   box-shadow: none !important;
@@ -5361,7 +5416,7 @@ button[class*="back-to-discovery"] {
 }
 .gh-selection-preview .gh-surface-rail-actions .gh-secondary-button:hover:not(:disabled),
 .gh-selection-preview .gh-action-grid button:hover:not(:disabled) {
-  background: var(--gh-surface-muted, #f3f6fb) !important;
+  background: var(--gh-surface-muted) !important;
   border-color: var(--gh-border-strong, #b8c2d3) !important;
 }
 .gh-selection-preview .gh-surface-rail-actions .gh-secondary-button:disabled,
@@ -5374,15 +5429,11 @@ button[class*="back-to-discovery"] {
    Dark mode tokens (#14)
    ============================================================ */
 :root[data-theme="dark"] {
-  --gh-bg: #0c1116;
-  --gh-surface: #151b23;
-  --gh-surface-muted: #1e252e;
-  --gh-border: #2b3440;
-  --gh-border-strong: #3e4a5a;
-  --gh-text: #e2e8f0;
-  --gh-text-muted: #94a3b8;
-  --gh-accent: #7c6bff;
-  --gh-accent-soft: #1f1c3d;
+  /* Collapsed: this block used to re-declare a foreign slate/purple
+     palette (#151b23 surfaces, #7c6bff accent) on top of the Entrada
+     --ga-* contract, and since data-theme="dark" is always set it was
+     silently winning over design/tokens/colors.css. The gh-* aliases
+     in the token layer ARE the dark values — nothing to override. */
   color-scheme: dark;
 }
 :root[data-theme="dark"] body,
@@ -5463,11 +5514,11 @@ button[class*="back-to-discovery"] {
 .gh-cmdk {
   width: min(640px, 92vw);
   max-height: 70vh;
-  background: var(--gh-surface, #ffffff);
+  background: var(--gh-surface);
   color: var(--gh-text, #14213d);
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid var(--gh-border);
   border-radius: 10px;
-  box-shadow: 0 28px 62px rgba(10, 15, 23, 0.38), 0 1px 0 rgba(255,255,255,0.6) inset;
+  box-shadow: 0 28px 62px rgba(10, 15, 23, 0.38), 0 1px 0 rgba(207, 239, 255, 0.08) inset;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5476,7 +5527,7 @@ button[class*="back-to-discovery"] {
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  border-bottom: 1px solid var(--gh-border);
   gap: 10px;
 }
 .gh-cmdk-prefix { color: var(--gh-text-muted, #5c6b82); font-weight: 700; }
@@ -5491,10 +5542,10 @@ button[class*="back-to-discovery"] {
 .gh-cmdk-hint {
   font-size: 11px;
   color: var(--gh-text-muted, #5c6b82);
-  background: var(--gh-surface-muted, #f3f6fb);
+  background: var(--gh-surface-muted);
   padding: 2px 8px;
   border-radius: 3px;
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid var(--gh-border);
 }
 .gh-cmdk-list { flex: 1 1 auto; overflow-y: auto; padding: 6px 0; }
 .gh-cmdk-group {
@@ -5517,7 +5568,7 @@ button[class*="back-to-discovery"] {
   width: 100%;
   text-align: left;
 }
-.gh-cmdk-item.is-active { background: var(--gh-accent-soft, #eef0ff); }
+.gh-cmdk-item.is-active { background: var(--gh-accent-soft); }
 .gh-cmdk-item-glyph { color: var(--gh-accent, #5b3ff2); display: inline-flex; align-items: center; justify-content: center; }
 .gh-cmdk-generic-glyph { font-size: 14px; }
 .gh-cmdk-item-text { display: flex; flex-direction: column; min-width: 0; }
@@ -5548,16 +5599,16 @@ button[class*="back-to-discovery"] {
   display: flex;
   gap: 12px;
   padding: 8px 14px;
-  border-top: 1px solid var(--gh-border, #d8dee9);
+  border-top: 1px solid var(--gh-border);
   font-size: 11px;
   color: var(--gh-text-muted, #5c6b82);
-  background: var(--gh-surface-muted, #f3f6fb);
+  background: var(--gh-surface-muted);
 }
 .gh-cmdk-footer-hint { display: inline-flex; align-items: center; gap: 4px; }
 .gh-cmdk kbd {
   display: inline-block;
   padding: 1px 5px;
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid var(--gh-border);
   border-bottom-width: 2px;
   border-radius: 3px;
   background: var(--gh-surface, rgba(12, 33, 56, 0.96));
@@ -5586,7 +5637,7 @@ button[class*="back-to-discovery"] {
   gap: 4px;
   align-items: center;
   padding: 6px 10px;
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid var(--gh-border);
   border-radius: 20px;
   background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   font-size: 11px;
@@ -5603,12 +5654,12 @@ button[class*="back-to-discovery"] {
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid var(--gh-border);
   border-bottom-width: 2px;
   border-radius: 3px;
   font-size: 10px;
   min-width: 14px;
-  background: var(--gh-surface-muted, #f3f6fb);
+  background: var(--gh-surface-muted);
 }
 .gh-theme-toggle {
   width: 40px;
@@ -5667,7 +5718,7 @@ button[class*="back-to-discovery"] {
 .gh-alerts-panel-close {
   border: 0;
   background: transparent;
-  color: #5c6b82;
+  color: var(--ga-text-muted);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -5676,7 +5727,7 @@ button[class*="back-to-discovery"] {
 }
 .gh-alerts-panel-close:hover {
   background: rgba(91, 67, 238, 0.08);
-  color: #2a2f6b;
+  color: var(--ga-text-soft);
 }
 .gh-alerts-panel-body {
   padding: 14px;
@@ -5694,7 +5745,7 @@ button[class*="back-to-discovery"] {
   height: 7px;
   border-radius: 50%;
   background: #c1545f;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--ga-shell);
 }
 
 /* ============================================================
@@ -5804,8 +5855,8 @@ button[class*="back-to-discovery"] {
 /* The header row is sticky; make sure it overlays the first result row
    with opaque background so the first row isn't half-obscured */
 .gh-discovery-row-head {
-  background: var(--gh-surface-muted, #f3f6fb) !important;
-  box-shadow: 0 1px 0 var(--gh-border, #d8dee9) !important;
+  background: var(--gh-surface-muted) !important;
+  box-shadow: 0 1px 0 var(--gh-border) !important;
 }
 
 /* Bulk bar sticky just under the shell header + column header stack; kill
@@ -7679,4 +7730,15 @@ button[class*="back-to-discovery"] {
 @keyframes gh-toast-slide-in {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Focus-visible safety net (adversarial a11y audit) ----------------
+   Several component rules still zero the outline on :focus-visible
+   (legacy indigo-ring patterns, breadcrumbs, tertiary buttons). Keyboard
+   users must always see focus: re-assert the canonical ga ring last. */
+.gh-tertiary-button:focus-visible,
+.gh-breadcrumbs-link:focus-visible,
+.gh-discovery-sort-trigger:focus-visible {
+  outline: 2px solid var(--ga-focus) !important;
+  outline-offset: 2px;
 }

@@ -424,6 +424,9 @@ function CanvasInner({
       ) : null}
       <ReactFlow
         edges={flowEdges}
+        // Edges are informational, not actionable — keeping them focusable
+        // put ~26 invisible keyboard tab stops before the first node.
+        edgesFocusable={false}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         maxZoom={2.25}
@@ -461,6 +464,12 @@ function CanvasInner({
           fontSize: 11,
           letterSpacing: "0.02em",
           color: "var(--ga-text-muted)",
+          // Solid pill: at narrow widths the auto-layout can push a node
+          // card into this corner, and bare text collided with card text.
+          background: "var(--ga-surface-strong)",
+          border: "1px solid var(--ga-border-muted)",
+          borderRadius: 999,
+          padding: "3px 10px",
         }}
       >
         Showing {Number(graph.meta?.graphDepthLimit) > 1

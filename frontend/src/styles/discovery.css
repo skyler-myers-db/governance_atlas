@@ -54,7 +54,9 @@
   /* Deeper purple — operator 2026-04-19 round 2 asked for a darker
      indigo so the Quick action reads as decisive. */
   background: linear-gradient(180deg, var(--gh-indigo, #3d2bc4) 0%, var(--gh-indigo-2, #2d1f93) 100%);
-  color: #fff;
+  /* --gh-indigo now resolves to the light Entrada purple, so the label must
+     be dark to keep AA contrast (white-on-light-purple fails). */
+  color: var(--ga-navy-950);
   font-family: inherit;
   font-size: 0.95rem;
   font-weight: 700;
@@ -302,7 +304,7 @@
 }
 
 .gh-discovery-result-fqn {
-  color: #60748e;
+  color: var(--ga-text-muted);
   font-size: 0.78rem;
   line-height: 1.42;
   word-break: break-word;
@@ -324,7 +326,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  color: #60748e;
+  color: var(--ga-text-muted);
   font-size: 0.86rem;
   font-weight: 700;
   min-width: 0;
@@ -514,15 +516,17 @@
 }
 
 .gh-discovery-result-row {
+  /* Inset highlight is a faint light-blue derivation, not the cream-era
+     near-opaque white line. */
   box-shadow:
     0 14px 32px rgba(20, 32, 62, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(207, 239, 255, 0.07) inset;
 }
 
 .gh-discovery-result-row:hover {
   box-shadow:
     0 18px 38px rgba(21, 34, 67, 0.1),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(207, 239, 255, 0.07) inset;
 }
 
 .gh-discovery-results-more {
@@ -632,7 +636,8 @@
 }
 .gh-filter-check.is-active .gh-filter-check-count {
   background: var(--gh-accent);
-  color: #ffffff;
+  /* --gh-accent is the bright Entrada blue; dark navy text keeps AA. */
+  color: var(--ga-navy-950);
 }
 
 /* Phase 2-i.4 — density toggle */
@@ -722,7 +727,7 @@
   background: var(--gh-accent-soft, #eef0ff);
   box-shadow: inset 2px 0 0 var(--gh-accent, #5b3ff2);
 }
-.gh-discovery-row.is-bulk-selected { background: #f6f3ff; }
+.gh-discovery-row.is-bulk-selected { background: var(--gh-indigo-soft); }
 .gh-discovery-row-head {
   min-height: 36px;
   background: var(--gh-surface-muted, #f3f6fb) !important;
@@ -769,7 +774,7 @@
   height: 22px;
   border: 0;
   background: transparent;
-  color: #b8c2d3;
+  color: var(--ga-text-muted);
   font-size: 16px;
   cursor: pointer;
   border-radius: 4px;
@@ -777,7 +782,7 @@
   line-height: 1;
 }
 .gh-discovery-row-star:hover { color: var(--gh-accent, #5b3ff2); background: rgba(91, 67, 238, 0.08); }
-.gh-discovery-row-star.is-favorite { color: #f59e0b; }
+.gh-discovery-row-star.is-favorite { color: var(--ga-warning); }
 
 .gh-discovery-row-asset { overflow: hidden; }
 .gh-discovery-row-asset-text {
@@ -850,7 +855,7 @@
 .gh-tier-silver { background: var(--ga-surface-muted) !important; border-color: var(--ga-border-strong) !important; }
 .gh-tier-silver .gh-labeled-pill-value { color: var(--ga-text-soft) !important; font-weight: 700 !important; }
 .gh-tier-bronze { background: rgba(255, 140, 90, 0.16) !important; border-color: rgba(255, 140, 90, 0.5) !important; }
-.gh-tier-bronze .gh-labeled-pill-value { color: #ffb08a !important; font-weight: 700 !important; }
+.gh-tier-bronze .gh-labeled-pill-value { color: var(--ga-warning) !important; font-weight: 700 !important; }
 .gh-tier-tier1, .gh-tier-tier-1 { background: rgba(46, 230, 166, 0.14) !important; border-color: rgba(46, 230, 166, 0.42) !important; }
 .gh-tier-tier1 .gh-labeled-pill-value, .gh-tier-tier-1 .gh-labeled-pill-value { color: var(--ga-success) !important; font-weight: 700 !important; }
 
@@ -879,7 +884,7 @@
   white-space: nowrap;
 }
 .gh-row-gap-more { color: var(--gh-text-muted, #5c6b82); font-size: 10px; }
-.gh-row-gaps-ok .gh-row-gap-text { color: #067647; font-weight: 600; }
+.gh-row-gaps-ok .gh-row-gap-text { color: var(--ga-success); font-weight: 600; }
 
 .gh-discovery-row-updated {
   font-size: 11px;
@@ -939,8 +944,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  background: #f6f3ff;
-  border-bottom: 1px solid #d8d0ff;
+  background: var(--gh-indigo-soft);
+  border-bottom: 1px solid rgba(157, 124, 255, 0.4);
   font-size: 12px;
   color: var(--gh-accent, #5b3ff2);
   font-weight: 600;
@@ -1111,10 +1116,10 @@
   margin-top: 8px;
   padding: 8px 12px;
   background: rgba(255, 181, 71, 0.14);
-  border: 1px solid #e8cb9d;
+  border: 1px solid rgba(255, 181, 71, 0.42);
   border-radius: 6px;
   font-size: 11px;
-  color: #b54708;
+  color: var(--ga-warning);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1214,9 +1219,9 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: #f3efff;
-  color: #5b3ff2;
-  border: 1px solid rgba(91, 67, 238, 0.2);
+  background: var(--gh-indigo-soft);
+  color: var(--ga-purple);
+  border: 1px solid rgba(157, 124, 255, 0.35);
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1265,9 +1270,9 @@
   font-size: 10px;
   font-weight: 600;
   border-radius: 3px;
-  background: #f0f9ff;
-  color: #0369a1;
-  border: 1px solid rgba(3, 105, 161, 0.2);
+  background: var(--ga-surface-soft);
+  color: var(--ga-bright-blue);
+  border: 1px solid rgba(102, 197, 255, 0.32);
   max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1523,7 +1528,7 @@
   width: 24px;
 }
 .gh-discovery-asset-card-star.is-favorite {
-  color: #e8a500;
+  color: var(--ga-warning);
 }
 .gh-discovery-asset-card-star:hover,
 .gh-discovery-asset-card-more:hover {
@@ -1574,10 +1579,10 @@
 }
 .gh-discovery-asset-pill {
   align-items: center;
-  background: rgba(225, 29, 116, 0.08);
-  border: 1px solid rgba(225, 29, 116, 0.28);
+  background: var(--gh-indigo-soft);
+  border: 1px solid rgba(157, 124, 255, 0.4);
   border-radius: 4px;
-  color: #a01255;
+  color: var(--ga-purple);
   display: inline-flex;
   font-size: 0.66rem;
   font-weight: 800;
@@ -1591,11 +1596,11 @@
   text-overflow: ellipsis;
 }
 .gh-discovery-asset-pill-domain {
-  /* Real domain (non-fallback) uses the magenta brand accent as
-     a soft-fill pill, matching the mockup's FINANCE DATA marker. */
-  background: rgba(225, 29, 116, 0.1);
-  border-color: rgba(225, 29, 116, 0.3);
-  color: #a01255;
+  /* Domain marker uses the Entrada purple accent as a soft-fill pill
+     (the old magenta was a light-theme brand color with dark-on-light text). */
+  background: var(--gh-indigo-soft);
+  border-color: rgba(157, 124, 255, 0.4);
+  color: var(--ga-purple);
 }
 
 .gh-discovery-asset-card-chips {
@@ -1625,22 +1630,22 @@
 .gh-discovery-asset-tag[data-tag*="phi"],
 .gh-discovery-asset-tag[data-tag*="sensitive"],
 .gh-discovery-asset-tag[data-tag*="restricted"] {
-  background: rgba(180, 35, 24, 0.1);
-  border-color: rgba(180, 35, 24, 0.3);
-  color: #a52014;
+  background: rgba(255, 92, 108, 0.12);
+  border-color: rgba(255, 92, 108, 0.36);
+  color: var(--ga-danger);
 }
 .gh-discovery-asset-tag[data-tag*="critical"],
 .gh-discovery-asset-tag[data-tag*="tier 1"],
 .gh-discovery-asset-tag[data-tag*="tier_1"],
 .gh-discovery-asset-tag[data-tag*="gold"] {
-  background: rgba(181, 71, 8, 0.1);
-  border-color: rgba(181, 71, 8, 0.3);
-  color: #9a3b05;
+  background: rgba(255, 181, 71, 0.12);
+  border-color: rgba(255, 181, 71, 0.36);
+  color: var(--ga-warning);
 }
 .gh-discovery-asset-tag.is-glossary {
-  background: rgba(91, 63, 242, 0.08);
-  border-color: rgba(91, 63, 242, 0.24);
-  color: #3c27b5;
+  background: var(--gh-indigo-soft);
+  border-color: rgba(157, 124, 255, 0.35);
+  color: var(--ga-purple);
 }
 .gh-discovery-asset-tag.is-overflow {
   background: transparent;
@@ -1655,7 +1660,7 @@
 .gh-discovery-asset-tag.is-untagged {
   background: transparent;
   border-style: dashed;
-  color: #8794af;
+  color: var(--ga-text-muted);
   font-style: italic;
   font-weight: 500;
 }
@@ -1715,16 +1720,16 @@
 }
 
 .gh-discovery-asset-card-menu-item:disabled {
-  color: #b0b8c7;
+  color: var(--ga-text-faint);
   cursor: not-allowed;
 }
 
 .gh-discovery-asset-status {
   align-items: center;
-  background: rgba(6, 118, 71, 0.12);
-  border: 1px solid rgba(6, 118, 71, 0.3);
+  background: rgba(46, 230, 166, 0.12);
+  border: 1px solid rgba(46, 230, 166, 0.36);
   border-radius: 4px;
-  color: #046b40;
+  color: var(--ga-success);
   display: inline-flex;
   font-size: 0.68rem;
   font-weight: 700;
@@ -1736,14 +1741,14 @@
   white-space: nowrap;
 }
 .gh-discovery-asset-status-draft {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #a15600;
+  background: rgba(255, 181, 71, 0.12);
+  border-color: rgba(255, 181, 71, 0.36);
+  color: var(--ga-warning);
 }
 .gh-discovery-asset-status-needs-work {
-  background: rgba(180, 35, 24, 0.1);
-  border-color: rgba(180, 35, 24, 0.3);
-  color: #a52014;
+  background: rgba(255, 92, 108, 0.12);
+  border-color: rgba(255, 92, 108, 0.36);
+  color: var(--ga-danger);
 }
 .gh-discovery-asset-status-neutral {
   background: var(--gh-surface-muted, #f3f6fb);
@@ -1782,10 +1787,10 @@
 }
 .gh-discovery-asset-trust {
   align-items: center;
-  background: rgba(6, 118, 71, 0.08);
-  border: 1px solid rgba(6, 118, 71, 0.22);
+  background: rgba(46, 230, 166, 0.1);
+  border: 1px solid rgba(46, 230, 166, 0.3);
   border-radius: 4px;
-  color: #046b40;
+  color: var(--ga-success);
   display: inline-flex;
   font-size: 0.7rem;
   font-weight: 600;
@@ -1793,14 +1798,14 @@
   padding: 0 8px;
 }
 .gh-discovery-asset-trust.is-mid {
-  background: rgba(181, 71, 8, 0.1);
-  border-color: rgba(181, 71, 8, 0.28);
-  color: #9a3b05;
+  background: rgba(255, 181, 71, 0.12);
+  border-color: rgba(255, 181, 71, 0.34);
+  color: var(--ga-warning);
 }
 .gh-discovery-asset-trust.is-low {
-  background: rgba(180, 35, 24, 0.1);
-  border-color: rgba(180, 35, 24, 0.28);
-  color: #a52014;
+  background: rgba(255, 92, 108, 0.12);
+  border-color: rgba(255, 92, 108, 0.34);
+  color: var(--ga-danger);
 }
 
 .gh-discovery-asset-card-description {
@@ -2013,7 +2018,8 @@ h3.gh-asset-preview-header-name {
 .gh-asset-preview-action-grid > .gh-primary-button {
   background: linear-gradient(180deg, var(--gh-indigo, #3d2bc4) 0%, var(--gh-indigo-2, #2d1f93) 100%);
   border: 1px solid var(--gh-indigo-2, #2d1f93);
-  color: #fff;
+  /* Light-purple gradient in the dark palette → dark label for AA contrast. */
+  color: var(--ga-navy-950);
 }
 .gh-asset-preview-action-grid > .gh-primary-button:hover:not(:disabled) {
   filter: brightness(1.06);
@@ -2035,9 +2041,9 @@ h3.gh-asset-preview-header-name {
   /* Favorited state uses the amber star convention, consistent with the
      card-level star glyph. The prior magenta tint conflicted with the
      de-magenta-fication directive from the fourth parity review. */
-  color: #c48712;
-  border-color: rgba(196, 135, 18, 0.45);
-  background: rgba(255, 232, 176, 0.2);
+  color: var(--ga-warning);
+  border-color: rgba(255, 181, 71, 0.45);
+  background: rgba(255, 181, 71, 0.16);
 }
 
 /* Inline degraded-preview notice (shown when live rows aren't granted
@@ -2048,21 +2054,21 @@ h3.gh-asset-preview-header-name {
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  background: rgba(181, 71, 8, 0.06);
-  border: 1px solid rgba(181, 71, 8, 0.24);
+  background: rgba(255, 181, 71, 0.08);
+  border: 1px solid rgba(255, 181, 71, 0.3);
   border-radius: 8px;
   margin-bottom: 8px;
   font-size: 0.78rem;
 }
 .gh-selection-preview-inline-notice-label {
   font-weight: 800;
-  color: #8a3a07;
+  color: var(--ga-warning);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-size: 0.68rem;
 }
 .gh-selection-preview-inline-notice-body {
-  color: #5c4733;
+  color: var(--ga-text-soft);
   line-height: 1.35;
 }
 
@@ -2301,7 +2307,8 @@ h3.gh-asset-preview-header-name {
 .gh-discovery-chip-row .gh-chip-accent {
   background: var(--gh-accent, #5b3ff2);
   border-color: var(--gh-accent, #5b3ff2);
-  color: #fff;
+  /* Bright-blue accent fill needs a dark label for AA contrast. */
+  color: var(--ga-navy-950);
 }
 
 /* Round 19 defect #2: OBO fallback banner on the Discovery results column. */
@@ -2310,18 +2317,314 @@ h3.gh-asset-preview-header-name {
   align-items: center;
   gap: 16px;
   justify-content: space-between;
-  background: rgba(182, 123, 31, 0.1);
-  border: 1px solid rgba(182, 123, 31, 0.3);
-  color: #6b4a14;
+  background: rgba(255, 181, 71, 0.1);
+  border: 1px solid rgba(255, 181, 71, 0.32);
+  color: var(--ga-warning);
   border-radius: var(--gh-radius-md, 10px);
   padding: 10px 14px;
   font-size: 0.88rem;
   margin: 0 0 12px;
 }
 .gh-discovery-obo-fallback-banner strong {
-  color: #6b4a14;
+  color: var(--ga-warning);
 }
 .gh-discovery-obo-fallback-copy {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* ====================================================================
+ * Enterprise-UI consistency pass — Discover surface (2026-07).
+ *
+ * discovery.css loads BEFORE northstar.css (see src/main.jsx), so every
+ * override below deliberately carries HIGHER SPECIFICITY than the
+ * northstar rule it replaces (extra .gh-discovery-shell prefix, element
+ * qualifiers, or repeated attribute selectors), plus !important only
+ * where the northstar rule itself is !important. Do not "simplify" the
+ * selectors — equal specificity would silently hand the win back to
+ * northstar.css.
+ * =================================================================== */
+
+/* --- Defect 7a: filter rail dead space ------------------------------
+   northstar gives the rail position:sticky; top:72px inside a scroll
+   container whose top edge sits at ~56px, so the sticky clamp shoves the
+   rail ~46px BELOW its natural grid position even before any scrolling.
+   Match the sticky offset to the grid's own 26px top padding so the
+   CERTIFICATION group aligns with the DISCOVER eyebrow at rest and still
+   sticks neatly under the shell header when scrolling. */
+.gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] aside.gh-discovery-prototype-filter-rail {
+  top: 26px;
+  padding-top: 0;
+}
+
+/* --- Defect 7b: "47 results" counter --------------------------------
+   Rendered by FilterRailGroup on its own line now (DiscoveryWorkspace.jsx);
+   quiet, tabular, clearly subordinate to the group eyebrow. */
+.gh-discovery-filter-group .gh-discovery-filter-group-count {
+  display: block;
+  margin-top: -3px;
+  color: var(--ga-text-faint);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
+
+/* --- Defect 3: "100% TRUST" badge → quiet "Coverage" ----------------
+   The metric is metadata coverage; northstar renders the value in
+   1.15rem success-green with a "Trust" caption, which reads as a fake
+   score when every row is 100%. Rename the caption and mute the value. */
+.gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-coverage-cell {
+  color: var(--ga-text-muted);
+}
+.gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-coverage-cell > span:first-child {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ga-text-soft);
+}
+.gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-coverage-cell::after {
+  content: "Coverage";
+  color: var(--ga-text-faint);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+/* Grid cards are too narrow for the caption — the absolute top-right badge
+   would print "COVERAGE" across the certification chips. Keep the compact
+   value only and reserve its corner so chips never run underneath it. */
+.gh-discovery-shell .gh-discovery-results-panel[data-display-mode="grid"] .gh-discovery-coverage-cell::after {
+  content: none;
+}
+/* Repeated attribute is intentional: northstar's grid-mode padding rule is
+   also !important at (0,5,0) specificity — this must land above it. */
+.gh-discovery-shell .gh-discovery-results-panel[data-display-mode="grid"][data-display-mode] .gh-discovery-table-row.gh-discovery-asset-card {
+  padding-right: 68px !important;
+}
+
+/* --- Defect 4: grid/list view toggle contrast ------------------------
+   The active state was a bright translucent fill behind a thin 13px
+   stroke icon — at a glance an empty glowing box. Every state now keeps
+   the icon legible: brighter idle stroke, soft hover surface, and an
+   active state that colors the ICON bright blue instead of flooding the
+   background. */
+.gh-discovery-shell .gh-discovery-view-mode .gh-discovery-view-mode-button {
+  color: var(--ga-text-soft);
+  background: var(--ga-surface-muted);
+  border-color: var(--ga-border);
+}
+.gh-discovery-shell .gh-discovery-view-mode .gh-discovery-view-mode-button:hover {
+  background: var(--ga-surface-soft);
+  border-color: var(--ga-border-strong);
+  color: var(--ga-text);
+}
+.gh-discovery-shell .gh-discovery-view-mode .gh-discovery-view-mode-button:active {
+  background: rgba(102, 197, 255, 0.16);
+  color: var(--ga-text);
+}
+.gh-discovery-shell .gh-discovery-view-mode .gh-discovery-view-mode-button.is-active {
+  background: rgba(102, 197, 255, 0.12);
+  border-color: rgba(102, 197, 255, 0.55);
+  color: var(--ga-bright-blue);
+}
+.gh-discovery-shell .gh-discovery-view-mode .gh-discovery-view-mode-button.is-active:hover {
+  background: rgba(102, 197, 255, 0.18);
+  color: var(--ga-bright-blue);
+}
+
+/* --- Defect 5: preview panel slicing result rows ---------------------
+   The preview is position:fixed on the right; the results grid kept its
+   centered 1220px width underneath, so row chips were cut mid-character
+   at the panel edge. While the preview is open, reserve its width as
+   right padding so rows end where the panel begins. (The repeated
+   [data-preview-open] attribute is intentional: it out-specifies the
+   northstar width/margin rules, which are also !important.) */
+.gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"][data-preview-open="true"][data-preview-open] {
+  width: auto !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  padding-left: 18px !important;
+  padding-right: calc(clamp(460px, 30vw, 900px) + 18px) !important;
+}
+
+/* --- Defect 2: preview footer actions --------------------------------
+   Comment / Request access / Certify previously mixed two dark app-level
+   secondaries with one purple-gradient primary whose label washed out to
+   near-invisible (and whose native tooltip then floated over the
+   unreadable label). All three now share one quiet secondary treatment
+   with AA labels in every state, wrap instead of overflowing, and get a
+   CSS tooltip anchored ABOVE the button. */
+.gh-discovery-preview-card .gh-discovery-preview-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gh-discovery-preview-card .gh-discovery-preview-footer > button {
+  flex: 1 1 120px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(102, 197, 255, 0.28) !important;
+  background: rgba(102, 197, 255, 0.08) !important;
+  background-image: none !important;
+  color: var(--ga-text) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  /* No overflow:hidden here — it would clip the ::after tooltip. Labels
+     are short and the flex-wrap on the footer absorbs narrow widths. */
+  white-space: nowrap;
+  filter: none !important;
+  box-shadow: none !important;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.gh-discovery-preview-card .gh-discovery-preview-footer > button:hover:not(:disabled) {
+  background: var(--ga-surface-soft) !important;
+  border-color: rgba(102, 197, 255, 0.48) !important;
+  color: var(--ga-text) !important;
+}
+.gh-discovery-preview-card .gh-discovery-preview-footer > button:active:not(:disabled) {
+  background: rgba(102, 197, 255, 0.18) !important;
+}
+.gh-discovery-preview-card .gh-discovery-preview-footer > button:disabled {
+  border-color: var(--ga-border) !important;
+  background: var(--ga-surface-muted) !important;
+  color: var(--ga-text-muted) !important;
+  cursor: not-allowed;
+}
+
+/* Footer tooltips: rendered above the button, never on top of the label.
+   Native title attributes were removed from these buttons in favor of
+   data-tooltip so placement is deterministic. */
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip] {
+  position: relative;
+}
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip]:hover::after,
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: max-content;
+  max-width: 230px;
+  white-space: normal;
+  overflow: visible;
+  padding: 6px 9px;
+  border: 1px solid var(--ga-border-strong);
+  border-radius: 6px;
+  background: var(--ga-surface-strong);
+  color: var(--ga-text-soft);
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  box-shadow: 0 12px 26px rgba(0, 10, 18, 0.45);
+  pointer-events: none;
+}
+/* Keep edge buttons' tooltips inside the panel. */
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip]:first-child:hover::after,
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip]:first-child:focus-visible::after {
+  left: 0;
+  transform: none;
+}
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip]:last-child:hover::after,
+.gh-discovery-preview-card .gh-discovery-preview-footer > button[data-tooltip]:last-child:focus-visible::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* --- Defect 8: consistent hover / focus / active states --------------
+   One focus contract for every interactive element on the surface:
+   2px bright-blue ring, offset so it never swallows the label. */
+.gh-discovery-shell :is(button, select, a, [role="row"], [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--ga-focus) !important;
+  outline-offset: 2px;
+}
+
+/* Hover surface shifts (northstar leaves several of these static). */
+.gh-discovery-shell .gh-discovery-results-tabs button:hover:not(.is-active) {
+  background: var(--ga-surface-soft);
+  color: var(--ga-text);
+}
+.gh-discovery-shell .gh-discovery-sort-trigger:hover {
+  background: var(--ga-surface-soft);
+  border-color: var(--ga-border-strong);
+  color: var(--ga-text);
+}
+.gh-discovery-shell .gh-discovery-sort-option:hover {
+  background: var(--ga-surface-soft);
+  color: var(--ga-text);
+}
+.gh-discovery-preview-card .gh-discovery-preview-tabs button:hover:not(.is-active) {
+  color: var(--ga-text);
+  background: var(--ga-surface-soft);
+}
+.gh-discovery-preview-card .gh-discovery-preview-close:hover {
+  color: var(--ga-text);
+  background: var(--ga-surface-soft);
+  border-radius: 5px;
+}
+.gh-discovery-shell .gh-discovery-filter-group button:active {
+  background: rgba(102, 197, 255, 0.14);
+}
+.gh-discovery-shell .gh-discovery-results-more .gh-secondary-button:hover:not(:disabled) {
+  background: var(--ga-surface-soft);
+  border-color: var(--ga-border-strong);
+  color: var(--ga-text);
+}
+
+/* --- Adversarial layout fixes (1280px, preview open) ------------------
+   1. The hero column narrows to ~420px with the preview open; the search
+      row previously clipped the Saved searches / Advanced buttons at the
+      overflow-hidden hero edge ("Advance|"). Wrap instead of clip.
+   2. The "Sort:" label wrapped away from its dropdown into the filter-rail
+      gutter, reading as a stray token under the facet counts. */
+/* display:flex !important is required: the base row is display:grid with
+   fixed auto tracks (northstar), so bare flex-wrap properties were inert
+   and the Advanced button still clipped at the hero's overflow edge. */
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-row {
+  display: flex !important;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-row > * {
+  min-width: 0;
+}
+
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-box {
+  min-width: 240px;
+  flex: 1 1 240px;
+}
+
+/* Keep the sort control inside the results column when it narrows — it was
+   measured hanging 40px into the facet-rail gutter at 1280px. */
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-results-tabs {
+  flex-wrap: wrap;
+  margin-left: 0;
+  padding-left: 0;
+  justify-content: flex-end;
+}
+
+.gh-discovery-sort-inline {
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+/* On the hover-tinted row background the faint-token FQN caption measured
+   4.27:1 — one tier up only while the row is hovered/focused keeps the
+   resting hierarchy but stays AA in every state. */
+.gh-discovery-table-row:hover .gh-discovery-result-fqn,
+.gh-discovery-table-row:focus-visible .gh-discovery-result-fqn,
+.gh-discovery-table-row:hover code,
+.gh-discovery-table-row:focus-visible code {
+  color: var(--ga-text-muted) !important;
 }

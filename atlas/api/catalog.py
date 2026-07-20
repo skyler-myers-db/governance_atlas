@@ -593,8 +593,27 @@ def api_asset_quality(asset_fqn: str, request: Request) -> JSONResponse:
     asset_fqn = _normalize_str(asset_fqn)
     if not asset_fqn:
         raise HTTPException(status_code=400, detail="asset_fqn is required.")
-    _require_open_asset(asset_fqn, request)
-    from runtime_app import _uc_for_request
+    from runtime_app import _asset_is_openable, _uc_for_request
+
+    # Availability probe, not a resource fetch: lineage nodes legitimately
+    # reference assets outside the actor's scope, and a 404 here spams the
+    # browser console on every such node. Answer 200 with an honest
+    # unavailable envelope instead.
+    if not _asset_is_openable(asset_fqn, request):
+        return JSONResponse(
+            status_code=200,
+            content=_envelope(
+                {
+                    "runs": [],
+                    "results": [],
+                    "summary": None,
+                    "databricksMonitoring": None,
+                    "state": "unavailable",
+                    "reason": "Asset is not visible in the current workspace scope.",
+                },
+                extra={"state": "unavailable"},
+            ),
+        )
 
     store = _store_read()
     try:
@@ -651,8 +670,23 @@ def api_asset_databricks_evidence(asset_fqn: str, request: Request) -> JSONRespo
     asset_fqn = _normalize_str(asset_fqn)
     if not asset_fqn:
         raise HTTPException(status_code=400, detail="asset_fqn is required.")
-    _require_open_asset(asset_fqn, request)
-    from runtime_app import _uc_for_request
+    from runtime_app import _asset_is_openable, _uc_for_request
+
+    # Same contract as api_asset_quality: availability probe → honest 200
+    # unavailable envelope, never console-spamming 404s for out-of-scope
+    # lineage neighbors.
+    if not _asset_is_openable(asset_fqn, request):
+        return JSONResponse(
+            status_code=200,
+            content=_envelope(
+                {
+                    "assetFqn": asset_fqn,
+                    "state": "unavailable",
+                    "reason": "Asset is not visible in the current workspace scope.",
+                },
+                extra={"state": "unavailable"},
+            ),
+        )
 
     try:
         payload = databricks_evidence.asset_databricks_evidence_payload(

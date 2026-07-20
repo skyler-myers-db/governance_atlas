@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+<!-- data-theme="dark" is set statically (not just by AppFrame's effect) so the
+     :root[data-theme="dark"] override layer applies from the very first
+     React-rendered frame — otherwise the loading states between preboot and
+     AppFrame mount render with legacy light base rules ("old shell" flash). -->
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -190,11 +194,13 @@
       <div class="ga-preboot">
         <div class="ga-preboot-topbar">
           <div class="ga-preboot-mark">GA</div>
+          <!-- Mirror the hydrated shell's branding exactly so the preboot →
+               shell transition reads as one continuous chrome. -->
           <div class="ga-preboot-brand">
             <strong>Governance Atlas</strong>
-            <span>Metadata Workspace</span>
+            <span>By Entrada</span>
           </div>
-          <div class="ga-preboot-search">Search assets, domains, owners, tags…</div>
+          <div class="ga-preboot-search">Search assets, glossary terms, owners...</div>
         </div>
         <div class="ga-preboot-body">
           <div class="ga-preboot-rail">
