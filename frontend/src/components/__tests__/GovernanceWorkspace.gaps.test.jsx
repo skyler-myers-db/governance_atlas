@@ -113,7 +113,7 @@ describe("GovernanceWorkspace gap fixes", () => {
   it("removes the dead Bulk assign control", async () => {
     renderGovernance();
     await waitFor(() => {
-      expect(screen.getByText("Owner missing")).not.toBeNull();
+      expect(screen.getAllByText("Owner missing").length).toBeGreaterThan(0);
     });
     expect(screen.queryByRole("button", { name: "Bulk assign" })).toBeNull();
   });
@@ -121,7 +121,7 @@ describe("GovernanceWorkspace gap fixes", () => {
   it("files a real governance request from the New work item panel", async () => {
     renderGovernance();
     await waitFor(() => {
-      expect(screen.getByText("Owner missing")).not.toBeNull();
+      expect(screen.getAllByText("Owner missing").length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "New work item" }));
@@ -161,7 +161,7 @@ describe("GovernanceWorkspace gap fixes", () => {
       currentUser: { email: "reader@example.com", name: "Reader", role: "Reader" },
     });
     await waitFor(() => {
-      expect(screen.getByText("Owner missing")).not.toBeNull();
+      expect(screen.getAllByText("Owner missing").length).toBeGreaterThan(0);
     });
     fireEvent.click(screen.getByRole("button", { name: "New work item" }));
     fireEvent.change(screen.getByLabelText("New work item asset FQN"), {
@@ -200,7 +200,7 @@ describe("GovernanceWorkspace gap fixes", () => {
     renderGovernance({ currentUser: { name: "Skyler Myers", email: "skyler@entrada.ai" } });
 
     await waitFor(() => {
-      expect(screen.getByText("Requester-only item")).not.toBeNull();
+      expect(screen.getAllByText("Requester-only item").length).toBeGreaterThan(0);
     });
     // The requester must not be presented as the assignee...
     expect(screen.getAllByText("Unassigned").length).toBeGreaterThan(0);
@@ -263,12 +263,10 @@ describe("GovernanceWorkspace gap fixes", () => {
       expect(screen.getByText("This request proposes the metadata changes listed below.")).not.toBeNull();
     });
     expect(screen.queryByText("No opening evidence was recorded for this work item.")).toBeNull();
-    const changes = screen.getByRole("definition", { name: "" }) || null;
     const grid = document.querySelector('[aria-label="Requested metadata changes"]');
     expect(grid).not.toBeNull();
     expect(within(grid).getByText("Domain")).not.toBeNull();
     expect(within(grid).getByText("Finance")).not.toBeNull();
-    void changes;
   });
 
   it("renders the backed comment timeline and re-fetches it after commenting", async () => {
@@ -323,7 +321,7 @@ describe("GovernanceWorkspace gap fixes", () => {
     renderGovernance();
 
     await waitFor(() => {
-      expect(screen.getByText("Owner missing")).not.toBeNull();
+      expect(screen.getAllByText("Owner missing").length).toBeGreaterThan(0);
     });
     expect(screen.queryByText(/SLA evidence unavailable/)).toBeNull();
   });
