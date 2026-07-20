@@ -1146,7 +1146,9 @@ def api_audit_evidence(
     request: Request,
     audit_id: Optional[str] = Query(default=None),
     date_range: Optional[str] = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=500),
+    # Default matches AUDIT_EVIDENCE_DEFAULT_LIMIT: visibility scoping drops
+    # rows about out-of-scope assets, so a 200-row fetch starved the feed.
+    limit: int = Query(default=500, ge=1, le=500),
     refresh: Optional[str] = Query(default=None),
 ) -> JSONResponse:
     from runtime_app import _ensure_live_runtime, _store_for_read, _visible_assets

@@ -88,7 +88,7 @@ describe("AuditBrowserWorkspace gap fixes", () => {
     const { container } = renderWorkspace(envelope(events, { hiddenRowsExcluded: 3 }));
     await screen.findByText(/Showing 8 of 20 events/);
     expect(container.querySelectorAll(".gh-audit-row")).toHaveLength(8);
-    expect(screen.getByText(/3 internal\/maintenance rows excluded/)).toBeTruthy();
+    expect(screen.getByText(/3 rows excluded by governance scoping/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Load more" }));
     await screen.findByText(/Showing 16 of 20 events/);
     expect(container.querySelectorAll(".gh-audit-row")).toHaveLength(16);

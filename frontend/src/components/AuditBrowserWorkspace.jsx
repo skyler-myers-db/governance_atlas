@@ -569,6 +569,11 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   const reviewsResolved = numberOrNull(summary.reviewsResolved);
   const lastEventAt = text(summary.lastEventAt);
   const hiddenRowsExcluded = numberOrNull(summary.hiddenRowsExcluded) || 0;
+  // Exclusions split by cause so the caption never conflates row-level
+  // security (assets outside the actor's visibility scope) with internal
+  // maintenance noise.
+  const visibilityScopedRowsExcluded = numberOrNull(summary.visibilityScopedRowsExcluded) || 0;
+  const internalRowsExcluded = numberOrNull(summary.internalRowsExcluded) || 0;
   const auditSource = text(
     summary.sourceTable ||
       summary.auditTable ||
@@ -920,7 +925,15 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                 <small>
                   {[
                     filteredEvents.length ? `Showing ${pageRows.length} of ${filteredEvents.length} events` : "",
-                    hiddenRowsExcluded ? `${hiddenRowsExcluded} internal/maintenance rows excluded` : "",
+                    visibilityScopedRowsExcluded
+                      ? `${visibilityScopedRowsExcluded} rows about assets outside your visibility scope withheld`
+                      : "",
+                    internalRowsExcluded
+                      ? `${internalRowsExcluded} internal/maintenance rows excluded`
+                      : "",
+                    !visibilityScopedRowsExcluded && !internalRowsExcluded && hiddenRowsExcluded
+                      ? `${hiddenRowsExcluded} rows excluded by governance scoping`
+                      : "",
                   ].filter(Boolean).join(" · ")}
                 </small>
                 {filteredEvents.length > pageRows.length ? (

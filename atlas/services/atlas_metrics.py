@@ -2680,12 +2680,18 @@ def _audit_source_table(store: Any) -> str:
     return ""
 
 
+AUDIT_EVIDENCE_DEFAULT_LIMIT = 500
+
+
 def audit_evidence_payload(
     *,
     store: Any,
     audit_id: str | None = None,
     date_range: str | None = None,
-    limit: int = 200,
+    # 500, not 200: visibility scoping legitimately withholds rows about
+    # assets outside the actor's scope, so a small fetch window starves the
+    # surviving feed of older updated/status events.
+    limit: int = AUDIT_EVIDENCE_DEFAULT_LIMIT,
     visible_asset_fqns: Sequence[str] | None = None,
 ) -> Dict[str, Any]:
     fetched = _audit_evidence_rows(store, limit=limit)
@@ -2737,6 +2743,11 @@ def audit_evidence_payload(
             "sourceTable": _audit_source_table(store),
             "rowScope": "visible-assets" if visible_asset_fqns is not None else "governance audit log",
             "hiddenRowsExcluded": max(0, len(ranged_audit) - len(audit)),
+            # Split the exclusion so the UI can say WHY rows were withheld:
+            # visibility scoping (row-level security on assets outside the
+            # actor's scope) is a different story than internal bookkeeping.
+            "visibilityScopedRowsExcluded": max(0, len(ranged_audit) - len(scoped_audit)),
+            "internalRowsExcluded": max(0, len(scoped_audit) - len(audit)),
         },
         "events": safe_audit,
         "selectedEvent": selected,
