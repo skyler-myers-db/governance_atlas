@@ -21,14 +21,22 @@ For each item the user surfaces (whether one bug or a list of ten):
 4. **Deploy to the live `dev` target:**
    ```bash
    cd /Users/entrada-mac/repos/governance_atlas
-   python3 scripts/prepare_bundle.py --output build/atlas-app --target dev
-   cd build/atlas-app && databricks bundle deploy -t dev
-   databricks apps deploy atlas --source-code-path /Workspace/Users/skyler@entrada.ai/.bundle/atlas/dev/files
+   BUNDLE=/tmp/atlas_bundle   # MUST be OUTSIDE the repo tree — see below
+   python3 scripts/prepare_bundle.py --output "$BUNDLE" --target dev --profile DEFAULT --var=warehouse_id=da02d15a9490650b
+   cd "$BUNDLE" && databricks bundle deploy -t dev --profile DEFAULT --var=warehouse_id=da02d15a9490650b
+   databricks apps deploy atlas --source-code-path /Workspace/Users/skyler@entrada.ai/.bundle/atlas/dev/files --profile DEFAULT
    ```
-   `bundle deploy` MUST run from `build/atlas-app`, not the repo root: the in-repo
-   `app.yaml` is the portable default (no dev catalogs/emails/Genie/Lakebase), and
-   only the packaged copy has the dev env vars baked in. Deploying from the repo
-   root would ship the portable env and break the live dev app.
+   Two non-obvious rules, both learned the hard way:
+   - The packaged bundle dir MUST live OUTSIDE the repo (`/tmp/...`, not
+     `build/atlas-app`). `databricks bundle deploy` walks up to the nearest `.git`
+     and honors its `.gitignore`; the repo `.gitignore` ignores `build/`, so
+     deploying from `build/atlas-app` silently uploads ONLY the force-included
+     `frontend/dist` and drops `app.yaml`/`run_app.py`/`atlas/` — the app then
+     fails to start with "No command to run and no Python file found."
+   - `bundle deploy` must run from the packaged dir, not the repo root: the in-repo
+     `app.yaml` is the portable default (no dev catalogs/emails/Genie/Lakebase);
+     only the packaged copy (written by `prepare_bundle --target dev`) has the dev
+     env vars baked in. The dev app is bound to warehouse `da02d15a9490650b`.
    All three commands take 1-3 min each. Background them with `nohup ... & disown` and poll with `sleep` since the macOS shell tool times out at 10s.
 
 5. **Independent subagent verification.** Spawn a fresh general-purpose subagent that:
