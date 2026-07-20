@@ -32,8 +32,12 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
     if cached and now - cached[0] < ttl_s:
         return cached[1]
     value = loader()
+    # Stamp COMPLETION time, not call time: a loader slower than its TTL would
+    # otherwise write an already-expired entry, and endpoints whose warm loaders
+    # exceed the TTL (taxonomy 90s, audit evidence 30s, control-center 45s on a
+    # cold warehouse) stayed in state=loading forever on the live app.
     with _CACHE_LOCK:
-        _TTL_CACHE[key] = (now, value)
+        _TTL_CACHE[key] = (time.time(), value)
     return value
 
 

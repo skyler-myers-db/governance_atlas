@@ -805,6 +805,33 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         self.assertEqual(_ttl_stale_value("swr-test-key"), {"v": 1})
         self.assertIsNone(_ttl_stale_value("swr-test-missing"))
 
+    def test_ttl_value_stamps_completion_time_for_slow_loaders(self) -> None:
+        """A loader slower than its TTL must still produce a fresh entry.
+
+        Regression: entries were stamped with the pre-load timestamp, so any
+        loader slower than its TTL wrote an already-expired entry and the
+        endpoint stayed in state=loading forever (observed live on taxonomy,
+        audit evidence, and control-center).
+        """
+        from unittest.mock import patch as mock_patch
+
+        from atlas.api import cache as cache_module
+
+        clock = {"now": 1000.0}
+
+        def fake_time() -> float:
+            return clock["now"]
+
+        def slow_loader() -> dict:
+            clock["now"] += 40  # slower than the 30s TTL
+            return {"v": "slow"}
+
+        with mock_patch.object(cache_module.time, "time", fake_time):
+            cache_module._ttl_value("swr-slow-key", 30, slow_loader)
+            self.assertEqual(
+                cache_module._ttl_fresh_value("swr-slow-key", 30), {"v": "slow"}
+            )
+
     def _command_center_mocks(self, visible_assets_fn):
         import runtime_app
 
