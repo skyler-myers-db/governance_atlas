@@ -179,7 +179,14 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
 
 
 def _warehouse_key(uc: Any) -> str:
-    return normalize_str(getattr(uc, "warehouse_id", "")) or "default"
+    """Cache partition for this client: warehouse AND acting credentials.
+
+    Keying by warehouse alone leaked actor-scoped reads (visible inventory,
+    discovery index, asset headers) across users sharing the warehouse.
+    """
+    warehouse = normalize_str(getattr(uc, "warehouse_id", "")) or "default"
+    scope = normalize_str(getattr(uc, "cache_scope", "")) or "app"
+    return f"{warehouse}:{scope}"
 
 
 def invalidate_asset_caches(asset_fqn: str | None = None) -> None:

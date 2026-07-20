@@ -260,6 +260,21 @@ class UCSQLClient:
     def runtime_context(self) -> Dict[str, Any]:
         return dict(self._client_context)
 
+    @property
+    def cache_scope(self) -> str:
+        """Cache-partition key for results fetched by this client.
+
+        OBO clients read Unity Catalog under the signed-in user's permissions,
+        so their results must never share cache entries with the app principal
+        or with other users. Keyed by token hash: same session -> same bucket.
+        """
+        if self._user_access_token:
+            import hashlib
+
+            digest = hashlib.sha256(self._user_access_token.encode("utf-8")).hexdigest()
+            return f"obo-{digest[:16]}"
+        return "app"
+
     def _empty_table_tag_df(self) -> pd.DataFrame:
         return pd.DataFrame(
             columns=[
