@@ -43,6 +43,11 @@
   --ga-text-soft: #cfefff;
   --ga-text-muted: #8fa8b6;
   --ga-text-faint: #668396;
+  /* Referenced widely (28+ sites in lineage alone) but previously never
+     defined — every var(--ga-text-strong, #fff) was riding its fallback.
+     Defined here so those references are live tokens. */
+  --ga-text-strong: var(--ga-white);
+  --ga-text-subtle: var(--ga-text-muted);
 
   --ga-focus: rgba(102, 197, 255, 0.42);
 

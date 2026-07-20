@@ -320,7 +320,19 @@ function CommandCenterTrustRing({ value = 0, trend = "Trend unavailable", label 
       <div className="gh-command-center-trust-center">
         <span>{label}</span>
         <strong>{displayValue}<small>%</small></strong>
-        <em data-trend-state={/(unavailable|^-$)/i.test(String(trend)) ? "unavailable" : "delta"}>{trend}</em>
+        {/* "History since…" is provenance, not a delta — the green "+"
+            badge on it read as a positive trend and crowded the ring. */}
+        <em
+          data-trend-state={
+            /(unavailable|^-$)/i.test(String(trend))
+              ? "unavailable"
+              : /^(history since|trend history|collecting)/i.test(String(trend).trim())
+                ? "history"
+                : "delta"
+          }
+        >
+          {trend}
+        </em>
       </div>
     </div>
   );

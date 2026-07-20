@@ -3,17 +3,10 @@ body {
   background: var(--ga-bg) !important;
 }
 
-:root[data-theme="dark"] {
-  --gh-bg: var(--ga-bg);
-  --gh-bg-2: var(--ga-shell);
-}
-
-:root[data-theme="dark"] body,
-:root[data-theme="dark"] .gh-app,
-:root[data-theme="dark"] .gh-workspace,
-:root[data-theme="dark"] .gh-discovery-shell {
-  background: var(--ga-bg) !important;
-}
+/* (Collapsed: the --gh-bg/--gh-bg-2 re-alias and the dark body
+   background re-assert lived here to win over app.css's old slate
+   dark-theme block. That block now defers to the token layer, so the
+   base rules above are already the dark values.) */
 
 .gh-app.gh-app-with-rail {
   --ga-topbar-bg: #08172a;
@@ -1010,11 +1003,17 @@ body {
   text-align: left;
 }
 
-.ga-side-nav-user .gh-user-chip-trigger:hover,
+.ga-side-nav-user .gh-user-chip-trigger:hover {
+  border-color: var(--ga-border);
+  background: rgba(102, 197, 255, 0.08);
+}
+
 .ga-side-nav-user .gh-user-chip-trigger:focus-visible {
   border-color: var(--ga-border);
   background: rgba(102, 197, 255, 0.08);
-  outline: none;
+  /* keep the canonical --ga-focus ring (was outline: none) */
+  outline: 2px solid var(--ga-focus, rgba(102, 197, 255, 0.42));
+  outline-offset: 2px;
 }
 
 .ga-side-nav-user .gh-user-chip-avatar {
@@ -1424,13 +1423,19 @@ body {
 }
 
 .ga-ai-chip:hover:not(:disabled),
-.ga-icon-button:hover,
-.ga-ai-chip:focus-visible:not(:disabled),
-.ga-icon-button:focus-visible {
+.ga-icon-button:hover {
   border-color: var(--ga-border-strong);
   background: rgba(102, 197, 255, 0.12);
   color: var(--ga-text);
-  outline: none;
+}
+
+.ga-ai-chip:focus-visible:not(:disabled),
+.ga-icon-button:focus-visible {
+  border-color: var(--ga-border-strong);
+  /* canonical --ga-focus ring (was outline: none, leaving keyboard
+     focus indistinguishable from hover) */
+  outline: 2px solid var(--ga-focus, rgba(102, 197, 255, 0.42));
+  outline-offset: 2px;
 }
 
 .ga-notifications-button:hover,
@@ -1438,7 +1443,12 @@ body {
 .ga-help-button:hover,
 .ga-help-button:focus-visible {
   border: 0 !important;
-  background: transparent;
+  /* was transparent — a completely dead hover; give the borderless
+     topbar icons the same subtle tint as the other chrome controls.
+     !important because the .ga-help-button base pins its background
+     with !important. */
+  background: rgba(102, 197, 255, 0.12) !important;
+  color: var(--ga-text);
   box-shadow: none;
 }
 
@@ -1713,6 +1723,33 @@ body {
   height: 14px;
 }
 
+/* Interactive states per the global contract: subtle dark tint on
+   hover (text stays legible), pressed dims, focus gets the ga ring. */
+.gh-command-center-actions button:hover:not(:disabled):not(:last-child) {
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.14);
+  color: var(--ga-text);
+}
+
+.gh-command-center-actions button:last-child:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.gh-command-center-actions button:active:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.gh-command-center-actions button:focus-visible,
+.gh-command-center-window-group button:focus-visible {
+  outline: 2px solid var(--ga-focus, rgba(102, 197, 255, 0.42));
+  outline-offset: 2px;
+}
+
+.gh-command-center-window-group button:hover:not(:disabled):not(.is-active) {
+  background: rgba(102, 197, 255, 0.1);
+  color: var(--ga-text);
+}
+
 .gh-command-center-window-group {
   display: inline-flex;
   align-items: center;
@@ -1911,7 +1948,11 @@ body {
   font-size: 0.62rem;
   font-style: normal;
   font-weight: 700;
-  max-width: 100%;
+  /* The caption sits BELOW ring center where the circle narrows, so a
+     full-width (100%) line ran under the gauge stroke and clipped
+     ("History since 2026-07-…" cut by the ring). 76% keeps the
+     ellipsis inside the dial face. */
+  max-width: 76%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1934,14 +1975,19 @@ body {
    unavailable — the badge against an "Unavailable" string is misleading
    (looks like a positive delta) and was visually colliding with the
    gauge stroke at narrow widths. */
-.gh-command-center-trust-center em[data-trend-state="unavailable"] {
+.gh-command-center-trust-center em[data-trend-state="unavailable"],
+.gh-command-center-trust-center em[data-trend-state="history"] {
   color: var(--ga-text-muted, #b2bdc2);
   font-weight: 600;
-  font-size: 0.62rem;
+  /* compact enough that "History since 2026-07-20" fits the dial face
+     without truncating */
+  font-size: 0.56rem;
   margin-top: 4px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  max-width: 86%;
 }
-.gh-command-center-trust-center em[data-trend-state="unavailable"]::before {
+.gh-command-center-trust-center em[data-trend-state="unavailable"]::before,
+.gh-command-center-trust-center em[data-trend-state="history"]::before {
   display: none;
 }
 
@@ -2175,12 +2221,20 @@ body {
 
 .gh-command-center-kpi em {
   width: fit-content;
+  /* Single-line compact pill: "History since 2026-07-20" used to wrap
+     into an awkward two-line pill inside the KPI tile. Cap to the
+     text column and ellipsize instead of wrapping. */
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   align-self: end;
-  padding: 4px 9px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: rgba(207, 239, 255, 0.06);
   color: var(--ga-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-style: normal;
   font-weight: 700;
 }
@@ -5352,6 +5406,15 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   display: none !important;
 }
 
+/* The FAB itself (not just the chat panel) must also yield when the
+   Discovery preview sidecar is open — the fixed bottom-right pill sat
+   on top of the preview's footer corner. Same precedent as the lineage
+   explorer, which hides the FAB; Atlas AI stays reachable from the
+   topbar chip. */
+.gh-app:has(.gh-discovery-main-grid[data-preview-open="true"]) .gh-atlas-ai-fab {
+  display: none;
+}
+
 @media (min-width: 2200px) {
   .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"][data-preview-open="true"] {
     width: calc(100% - 40px) !important;
@@ -7649,4 +7712,29 @@ input.gh-input,
   background: rgba(61, 132, 173, 0.20) !important;
   color: var(--ga-text-strong, #ffffff) !important;
   border-color: rgba(102, 197, 255, 0.45) !important;
+}
+
+/* ============================================================
+   Taxonomy (Glossary & CDE) surface polish — enterprise-UI pass.
+   Scoped with the section wrapper so these win over the
+   operations-pages.css base rules that load later in the bundle.
+   ============================================================ */
+
+/* The provenance caption ("Showing N of N …") used a -8px top margin
+   that dragged it up over the search input border on the glossary tab
+   and through the domain-tab underline on the CDE tab (it read as
+   struck-through text). Give it clear space instead. */
+.gh-taxonomy-prototype-shell .gh-taxonomy-prototype-cde-provenance {
+  margin: 2px 0 0;
+  color: var(--ga-text-muted);
+}
+
+/* Detail-card list rows ("Reviewer workflow", "Version history") rendered
+   <strong>email</strong><span>role · state</span> flush together —
+   "sarah.johnson@entrada.aisteward · active". Separate them. */
+.gh-taxonomy-prototype-shell .gh-taxonomy-prototype-detail-card li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
 }

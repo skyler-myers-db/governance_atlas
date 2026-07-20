@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+<!-- data-theme="dark" is set statically (not just by AppFrame's effect) so the
+     :root[data-theme="dark"] override layer applies from the very first
+     React-rendered frame — otherwise the loading states between preboot and
+     AppFrame mount render with legacy light base rules ("old shell" flash). -->
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
