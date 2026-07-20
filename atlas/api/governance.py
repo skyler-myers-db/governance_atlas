@@ -360,10 +360,17 @@ def api_governance_glossary_term(term_id: str, request: Request) -> JSONResponse
     return JSONResponse({"term": term})
 
 
-async def api_governance_create_request(request: Request) -> JSONResponse:
+async def api_governance_create_request(
+    request: Request,
+    fast: bool = Query(
+        default=False,
+        description="Return a minimal response for UI flows that already carry the selected asset context.",
+    ),
+) -> JSONResponse:
     from runtime_app import (
         _asset_detail_payload,
         _asset_is_openable,
+        _direct_actor_identity_visible,
         _ensure_can_mutate,
         _ensure_live_runtime,
         _governance_summary,
@@ -389,7 +396,10 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not asset_fqn or not title:
         raise HTTPException(status_code=400, detail="assetFqn and title are required.")
-    if not _asset_is_openable(asset_fqn, request):
+    if not (
+        _asset_is_openable(asset_fqn, request) or
+        _direct_actor_identity_visible(asset_fqn, request)
+    ):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     request_id = governance_service.create_change_request(
         store,
@@ -399,6 +409,8 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
         note=note,
         actor_role=actor_role,
     )
+    if fast is True:
+        return JSONResponse({"ok": True, "requestId": request_id, "assetFqn": asset_fqn})
     return JSONResponse(
         {
             "ok": True,

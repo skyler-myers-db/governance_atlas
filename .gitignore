@@ -231,3 +231,4 @@ docs/northstar_visual_qa/**/chrome-profile*/
 node_modules/
 .claude/
 *mcp*
+AGENT*

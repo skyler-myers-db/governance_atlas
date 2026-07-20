@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -98,6 +99,43 @@ class SanitizationContractTests(unittest.TestCase):
         self.assertIn("&lt;b&gt;business owner&lt;/b&gt;", captured["new_comment"])
         self.assertNotIn("<script>", captured["new_comment"])
         self.assertNotIn("\x00", captured["new_comment"])
+
+    def test_governance_request_fast_response_omits_heavy_refetch(self) -> None:
+        class Store:
+            def create_change_request(self, **_kwargs):
+                return "REQ-FAST"
+
+        request = JsonRequest(
+            {
+                "assetFqn": "main.customer.customer_dim",
+                "title": "Lineage impact review",
+                "note": "Review downstream dependencies.",
+            }
+        )
+
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _ensure_can_mutate=lambda _request: "writer@example.com",
+            _user_role_slug=lambda _request: "writer",
+            _store=lambda: Store(),
+            _asset_is_openable=lambda *_args, **_kwargs: True,
+            _asset_detail_payload=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("asset refetch called")),
+            _governance_summary=lambda _request: (_ for _ in ()).throw(AssertionError("summary refetch called")),
+        ):
+            response = asyncio.run(governance_api.api_governance_create_request(request, fast=True))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            json.loads(response.body.decode("utf-8")),
+            {
+                "ok": True,
+                "requestId": "REQ-FAST",
+                "assetFqn": "main.customer.customer_dim",
+            },
+        )
 
 
 if __name__ == "__main__":

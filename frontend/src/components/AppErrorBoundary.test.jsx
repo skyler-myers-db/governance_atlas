@@ -51,6 +51,31 @@ describe("AppErrorBoundary", () => {
     expect(screen.queryByText("Frontend Error")).toBeNull();
   });
 
+  it("does not convert ResizeObserver loop notifications into workspace crashes", async () => {
+    render(
+      <AppErrorBoundary>
+        <section>
+          <h2>Healthy workspace</h2>
+        </section>
+      </AppErrorBoundary>,
+    );
+
+    const event = new Event("error", { cancelable: true });
+    Object.defineProperty(event, "error", {
+      value: new Error("ResizeObserver loop completed with undelivered notifications."),
+    });
+    Object.defineProperty(event, "message", {
+      value: "ResizeObserver loop completed with undelivered notifications.",
+    });
+
+    window.dispatchEvent(event);
+
+    await waitFor(() => {
+      expect(screen.getByText("Healthy workspace")).not.toBeNull();
+      expect(screen.queryByText("Frontend Error")).toBeNull();
+    });
+  });
+
   it("does NOT tear down the app for a stray unhandled promise rejection", async () => {
     render(
       <AppErrorBoundary>

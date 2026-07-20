@@ -1,0 +1,11 @@
+{
+  "buildId": "frontend-47af5664672a",
+  "generatedAt": "2026-05-05T20:27:13.771Z",
+  "sourceHash": "47af5664672a4e0667d83757808e2529a84903b97263c4a0a0df4df8c8d32782",
+  "runtimeChain": {
+    "appYaml": "app.yaml",
+    "launcher": "run_app.py",
+    "backendModule": "runtime_app.py",
+    "frontendDist": "frontend/dist/index.html"
+  }
+}

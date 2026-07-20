@@ -1745,15 +1745,15 @@ export function HomePage({
       tone: data.signalAvailability?.lineage ? "info" : "muted",
     },
   ];
-  const governedCount = numericValue(governedAssetsKpi.value);
   // Only assert a quarter-over-quarter coverage delta when the API actually
   // supplies a real previous coverage value. Previously this fabricated a
   // story against hardcoded constants (78.4 baseline, "90% Q2 target",
   // "week 30") the backend never returns — a governance-honesty violation.
   const coveragePrevious = numericValue(coverageKpi.previousValue ?? coverageKpi.previous);
   const coverageNow = numericValue(postureValue ?? coverageKpi.value);
-  const narrativeTarget = data.narrative?.target || "";
-  const narrativeTargetWeek = data.narrative?.targetWeek || "";
+  const narrativeTarget = typeof data.narrative?.target === "string" ? data.narrative.target.trim() : "";
+  const narrativeTargetWeek = typeof data.narrative?.targetWeek === "string" ? data.narrative.targetWeek.trim() : "";
+  const governedCount = numericValue(governedAssetsKpi.value);
   const narrativeHeadline = baselineAssetCount !== null && governedCount !== null
     ? (
       <>
@@ -1774,17 +1774,13 @@ export function HomePage({
     ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> governed assets are in scope.
-        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
+        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")} when backed coverage evidence is returned.
       </>
     )
     : (
-      // No governed-asset count available — render an honest fallback
-      // headline instead of the literal "- governed assets are in scope"
-      // string the user reported. Coverage continues to surface its own
-      // honest "unavailable" copy in the second clause.
       <>
-        <strong>Governed asset count unavailable.</strong>
-        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
+        <strong>Command Center is waiting on backed governance metrics.</strong>
+        {" "}Unavailable values stay blank until Unity Catalog or the governance store returns evidence.
       </>
     );
   const heroCertifiedKpi = certifiedKpi;

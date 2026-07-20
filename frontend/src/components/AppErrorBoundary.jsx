@@ -74,9 +74,11 @@ export default class AppErrorBoundary extends Component {
         this.setState({ staleChunkEventError: error });
         return;
       }
-      if (!isBenignGlobalError(error)) {
-        console.error("Governance Atlas unhandled window error", error);
+      if (isBenignGlobalError(error)) {
+        event?.preventDefault?.();
+        return;
       }
+      console.error("Governance Atlas unhandled window error", error);
     };
     this.handleUnhandledRejection = (event) => {
       const reason = event?.reason;
