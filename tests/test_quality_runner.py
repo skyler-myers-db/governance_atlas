@@ -222,5 +222,43 @@ class RunQualitySuiteTests(unittest.TestCase):
         self.assertEqual(store.results[0]["outcome"], "skipped")
 
 
+class IdentifierEscapingTests(unittest.TestCase):
+    def test_safe_table_quotes_three_part_fqn(self) -> None:
+        from atlas.services.quality_runner import _safe_table
+
+        self.assertEqual(_safe_table("cat.sch.tbl"), "`cat`.`sch`.`tbl`")
+
+    def test_safe_col_escapes_backticks(self) -> None:
+        from atlas.services.quality_runner import _safe_col
+
+        # A malicious column name cannot break out of the backtick quoting.
+        self.assertEqual(_safe_col("x`) AS a, (SELECT 1"), "`x``) AS a, (SELECT 1`")
+
+    def test_null_count_query_quotes_identifiers(self) -> None:
+        from atlas.services.quality_runner import _eval_null_count
+        from atlas.services.quality_runner import TestCaseSpec
+
+        captured = {}
+
+        class CapturingUC:
+            def query_df(self, sql: str):
+                captured["sql"] = sql
+                return FakeFrame([{"nulls": 0, "total": 10}])
+
+        _eval_null_count(
+            CapturingUC(),
+            TestCaseSpec(
+                case_id="c",
+                test_key="null_count",
+                entity_fqn="cat.sch.tbl",
+                parameters={"threshold": 0},
+                column_name="email",
+            ),
+        )
+        self.assertIn("`cat`.`sch`.`tbl`", captured["sql"])
+        self.assertIn("`email`", captured["sql"])
+        self.assertNotIn("FROM cat.sch.tbl", captured["sql"])
+
+
 if __name__ == "__main__":
     unittest.main()

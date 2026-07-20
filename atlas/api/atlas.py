@@ -121,6 +121,15 @@ def _databricks_job_inventory(
         _sdk_get(uc_client, "_client_context", "host")
     )
     host = host.rstrip("/")
+    # The SDK returns a lazy pager: the actual list API call (and any scope
+    # error like "token does not have required scopes: jobs") fires during
+    # iteration, NOT at list_jobs(). Guard the loop so a missing jobs scope
+    # degrades job inventory to empty instead of raising through the whole
+    # control-center warm loader (which left the endpoint stuck loading).
+    try:
+        job_iter = list(job_iter)
+    except Exception:
+        return []
     for job in job_iter:
         job_id = _sdk_get(job, "job_id") or _sdk_get(job, "job_id".upper())
         settings = _sdk_get(job, "settings") or {}

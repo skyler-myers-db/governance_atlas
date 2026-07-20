@@ -885,7 +885,8 @@ ORDER BY tag_name""",
         )
         q = (
             f"SELECT {ident_cols} FROM {quote_ident(catalog)}.information_schema.tables "
-            f"WHERE table_catalog = '{catalog}' AND table_schema = '{schema}' AND table_name = '{table}'"
+            f"WHERE table_catalog = {sql_literal(catalog)} AND table_schema = {sql_literal(schema)} "
+            f"AND table_name = {sql_literal(table)}"
         )
         try:
             return self.query_df(q)
@@ -894,7 +895,8 @@ ORDER BY tag_name""",
             try:
                 fallback_q = (
                     f"SELECT {ident_cols} FROM system.information_schema.tables "
-                    f"WHERE table_catalog = '{catalog}' AND table_schema = '{schema}' AND table_name = '{table}'"
+                    f"WHERE table_catalog = {sql_literal(catalog)} AND table_schema = {sql_literal(schema)} "
+                    f"AND table_name = {sql_literal(table)}"
                 )
                 return self.query_df(fallback_q)
             except Exception:
