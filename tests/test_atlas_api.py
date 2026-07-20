@@ -769,5 +769,180 @@ class AtlasApiTests(unittest.TestCase):
         self.assertTrue(any("not substituted" in warning for warning in payload["meta"]["warnings"]))
 
 
+def _age_cache_prefix(prefix: str, seconds: float = 3600) -> None:
+    """Backdate cached entries so the fresh-TTL check misses but stale data remains."""
+    from atlas.api import cache as cache_module
+
+    with cache_module._CACHE_LOCK:
+        for key, (ts, value) in list(cache_module._TTL_CACHE.items()):
+            if key.startswith(prefix):
+                cache_module._TTL_CACHE[key] = (ts - seconds, value)
+
+
+def _raise_visible_assets(request) -> pd.DataFrame:
+    raise RuntimeError("synchronous rebuild must not run while stale data exists")
+
+
+class StaleWhileRevalidateTests(unittest.TestCase):
+    """TTL expiry must serve the last good payload, never an empty loading envelope.
+
+    Regression: dashboards flip-flopped available -> loading -> available on every
+    cache expiry, blanking KPIs for live users (observed on /api/atlas/command-center).
+    """
+
+    def setUp(self) -> None:
+        _invalidate_cache_prefix("atlas_command_center_payload:")
+        _invalidate_cache_prefix("atlas_taxonomy_overview:")
+        _invalidate_cache_prefix("atlas_audit_evidence_payload:")
+        _invalidate_cache_prefix("atlas_admin_control_center_payload:")
+        _invalidate_cache_prefix("runtime_inventory:")
+
+    def test_ttl_stale_value_returns_expired_entries(self) -> None:
+        from atlas.api.cache import _ttl_stale_value, _ttl_value
+
+        _ttl_value("swr-test-key", 45, lambda: {"v": 1})
+        _age_cache_prefix("swr-test-key")
+        self.assertEqual(_ttl_stale_value("swr-test-key"), {"v": 1})
+        self.assertIsNone(_ttl_stale_value("swr-test-missing"))
+
+    def _command_center_mocks(self, visible_assets_fn):
+        import runtime_app
+
+        return patch.multiple(
+            runtime_app,
+            _uc_runtime_status_fast=lambda background=True: {"state": "live", "message": ""},
+            _fast_bootstrap_inventory_summary=lambda _scope, **_kwargs: {"visibleAssets": 1},
+            _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
+            _visible_assets=visible_assets_fn,
+            _store_for_read=lambda: FakeStore(),
+            _request_cache_scope=lambda request: "swr-actor",
+        )
+
+    def test_command_center_serves_stale_payload_after_ttl_expiry(self) -> None:
+        with self._command_center_mocks(lambda request: _visible_assets()):
+            warm = atlas_api.api_command_center(_request(), refresh="1")
+        self.assertEqual(_response_json(warm)["estate"]["visibleAssetCount"], 1)
+
+        _age_cache_prefix("atlas_command_center_payload:")
+        with self._command_center_mocks(_raise_visible_assets):
+            response = atlas_api.api_command_center(_request())
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertNotEqual(payload["meta"]["state"], "loading")
+        self.assertEqual(payload["estate"]["visibleAssetCount"], 1)
+
+    def test_taxonomy_overview_serves_stale_payload_after_ttl_expiry(self) -> None:
+        import runtime_app
+
+        live_mocks = dict(
+            _ensure_live_runtime=lambda: None,
+            _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
+        )
+        with patch.multiple(
+            runtime_app, **live_mocks, _store_for_read=lambda: FakeStore()
+        ), patch.object(atlas_api.governance_service, "glossary_terms", return_value=[]):
+            warm = atlas_api.api_taxonomy_overview(_request(), refresh="1")
+        self.assertEqual(_response_json(warm)["meta"]["state"], "available")
+
+        def _raise_store():
+            raise RuntimeError("synchronous rebuild must not run while stale data exists")
+
+        _age_cache_prefix("atlas_taxonomy_overview:")
+        with patch.multiple(runtime_app, **live_mocks, _store_for_read=_raise_store):
+            response = atlas_api.api_taxonomy_overview(_request())
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertNotEqual(payload["meta"]["state"], "loading")
+        self.assertEqual(payload["classifications"][0]["classification_id"], "class-1")
+
+    def test_audit_evidence_serves_stale_payload_after_ttl_expiry(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "steward",
+            _store_for_read=lambda: FakeStore(),
+            _visible_assets=lambda request: _visible_assets(),
+        ):
+            warm = atlas_api.api_audit_evidence(_request(), limit=25, refresh="1")
+        self.assertIsInstance(_response_json(warm)["events"], list)
+
+        _age_cache_prefix("atlas_audit_evidence_payload:")
+        # Pre-mark the key as warming so no background thread spawns; the raising
+        # _visible_assets mock would otherwise poison the cache mid-test.
+        cache_key = atlas_api._route_cache_key(
+            "atlas_audit_evidence_payload",
+            atlas_api._request_scope_key(_request()),
+            None,
+            None,
+            25,
+        )
+        with atlas_api._AUDIT_EVIDENCE_WARMING_LOCK:
+            atlas_api._AUDIT_EVIDENCE_WARMING.add(cache_key)
+        try:
+            with patch.multiple(
+                runtime_app,
+                _ensure_live_runtime=lambda: None,
+                _user_role_slug=lambda request: "steward",
+                _store_for_read=lambda: FakeStore(),
+                _visible_assets=_raise_visible_assets,
+            ):
+                response = atlas_api.api_audit_evidence(_request(), limit=25)
+        finally:
+            with atlas_api._AUDIT_EVIDENCE_WARMING_LOCK:
+                atlas_api._AUDIT_EVIDENCE_WARMING.discard(cache_key)
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertNotEqual(payload["meta"]["state"], "loading")
+        self.assertIsInstance(payload["events"], list)
+        self.assertNotIn("hydrating", payload["meta"].get("capabilities", {}))
+
+    def _admin_control_mocks(self, visible_assets_fn):
+        import runtime_app
+
+        cfg = SimpleNamespace(
+            deploy_target="Dev",
+            environment_label="Dev - DEFAULT",
+            gov_catalog="datapact",
+            gov_schema="atlas",
+            warehouse_id="wh-1",
+            workspace_host="example.cloud.databricks.com",
+        )
+        return patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: cfg,
+            _user_role_slug=lambda request: "admin",
+            _fast_bootstrap_inventory_summary=lambda _scope, **_kwargs: {"visibleAssets": 1},
+            _request_cache_scope=lambda request: "swr-actor",
+            _uc_runtime_status_fast=lambda background=True: {"state": "live", "message": ""},
+            _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
+            _visible_assets=visible_assets_fn,
+            _store_for_read=lambda: FakeStore(),
+        )
+
+    def test_admin_control_center_serves_stale_payload_after_ttl_expiry(self) -> None:
+        with self._admin_control_mocks(lambda request: _visible_assets()), patch.object(
+            atlas_api.genie_service, "provider_status", lambda _cfg: {"state": "available"}
+        ), patch.object(atlas_api, "_databricks_job_inventory", lambda *_a, **_k: []):
+            warm = atlas_api.api_admin_control_center(_request(), refresh="1")
+        self.assertEqual(_response_json(warm)["meta"]["state"], "available")
+
+        _age_cache_prefix("atlas_admin_control_center_payload:")
+        with self._admin_control_mocks(_raise_visible_assets), patch.object(
+            atlas_api.genie_service, "provider_status", lambda _cfg: {"state": "available"}
+        ), patch.object(atlas_api, "_databricks_job_inventory", lambda *_a, **_k: []):
+            response = atlas_api.api_admin_control_center(_request())
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertEqual(payload["meta"]["state"], "available")
+        self.assertTrue(payload["meta"]["capabilities"].get("refreshing"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 import pandas as pd
 
-from atlas.api.cache import _ttl_cache_pop, _ttl_fresh_value, _ttl_value
+from atlas.api.cache import _ttl_cache_pop, _ttl_fresh_value, _ttl_stale_value, _ttl_value
 from atlas.api.identity import _request_auth_mode, _user_email
 from atlas.api.response import _error_response, _with_meta
 from atlas.services import atlas_metrics
@@ -581,6 +581,11 @@ def api_command_center(
             store=_store_for_read(),
         )
 
+    # Stale-while-revalidate: when the TTL lapses, serve the last good payload
+    # while the background warm rebuilds it. Returning the empty loading
+    # envelope here made the home page flip available -> loading -> available
+    # on every cache expiry, blanking all KPIs for live users.
+    stale_payload: Optional[dict] = None
     if not refresh_flag and _ttl_fresh_value(payload_cache_key, 45) is None:
         with _COMMAND_CENTER_WARMING_LOCK:
             should_warm = payload_cache_key not in _COMMAND_CENTER_WARMING
@@ -604,32 +609,37 @@ def api_command_center(
                 daemon=True,
             ).start()
 
-        loading_payload = atlas_metrics.empty_command_center_payload()
-        loading_payload["meta"] = {
-            "warnings": [
-                "Command-center metrics are hydrating from live Databricks metadata."
-            ]
-        }
-        return _wrap(
-            loading_payload,
-            request,
-            source="unity-catalog-inventory+governance-store",
-            state="loading",
-            authoritative=False,
-            warnings=loading_payload["meta"]["warnings"],
-            capabilities={"refresh": True, "hydrating": True},
-        )
+        stale_payload = _ttl_stale_value(payload_cache_key)
+        if stale_payload is None:
+            loading_payload = atlas_metrics.empty_command_center_payload()
+            loading_payload["meta"] = {
+                "warnings": [
+                    "Command-center metrics are hydrating from live Databricks metadata."
+                ]
+            }
+            return _wrap(
+                loading_payload,
+                request,
+                source="unity-catalog-inventory+governance-store",
+                state="loading",
+                authoritative=False,
+                warnings=loading_payload["meta"]["warnings"],
+                capabilities={"refresh": True, "hydrating": True},
+            )
 
-    try:
-        payload = _ttl_value(payload_cache_key, 45, load_command_center_payload)
-    except Exception as exc:
-        return _error_response(
-            request,
-            status_code=503,
-            source="unity-catalog-inventory+governance-store",
-            detail=_normalize_str(exc) or "Command center metrics are unavailable.",
-            state="unavailable",
-        )
+    if stale_payload is not None:
+        payload = stale_payload
+    else:
+        try:
+            payload = _ttl_value(payload_cache_key, 45, load_command_center_payload)
+        except Exception as exc:
+            return _error_response(
+                request,
+                status_code=503,
+                source="unity-catalog-inventory+governance-store",
+                detail=_normalize_str(exc) or "Command center metrics are unavailable.",
+                state="unavailable",
+            )
 
     fallback, reason = _obo_fallback_payload(uc_client)
     payload_meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
@@ -930,6 +940,9 @@ def api_taxonomy_overview(
         }
 
     cached_entry = _ttl_fresh_value(cache_key, 90)
+    # Stale-while-revalidate: keep serving the last good overview while the
+    # background warm refreshes it; only first-ever loads see the loading state.
+    stale_entry = None
     if not refresh_flag and cached_entry is None:
         with _TAXONOMY_OVERVIEW_WARMING_LOCK:
             should_warm = cache_key not in _TAXONOMY_OVERVIEW_WARMING
@@ -953,25 +966,27 @@ def api_taxonomy_overview(
                 daemon=True,
             ).start()
 
-        payload = atlas_metrics.taxonomy_overview_payload(store=None, glossary_terms=[])
-        return _wrap(
-            payload,
-            request,
-            source="governance-store+unity-catalog-inventory",
-            state="loading",
-            authoritative=False,
-            warnings=["Taxonomy overview is hydrating from the governance store and Unity Catalog metadata."],
-            capabilities={
-                "glossaryEnriched": False,
-                "classificationTree": False,
-                "domainTree": False,
-                "dataProducts": False,
-                "columnGroups": False,
-                "hydrating": True,
-            },
-        )
+        stale_entry = _ttl_stale_value(cache_key)
+        if stale_entry is None:
+            payload = atlas_metrics.taxonomy_overview_payload(store=None, glossary_terms=[])
+            return _wrap(
+                payload,
+                request,
+                source="governance-store+unity-catalog-inventory",
+                state="loading",
+                authoritative=False,
+                warnings=["Taxonomy overview is hydrating from the governance store and Unity Catalog metadata."],
+                capabilities={
+                    "glossaryEnriched": False,
+                    "classificationTree": False,
+                    "domainTree": False,
+                    "dataProducts": False,
+                    "columnGroups": False,
+                    "hydrating": True,
+                },
+            )
 
-    cached = _ttl_value(cache_key, 90, load_taxonomy_overview)
+    cached = stale_entry if stale_entry is not None else _ttl_value(cache_key, 90, load_taxonomy_overview)
     payload = cached.get("payload") if isinstance(cached, dict) else {}
     warnings = cached.get("warnings") if isinstance(cached, dict) else []
     capabilities = cached.get("capabilities") if isinstance(cached, dict) else {}
@@ -1149,6 +1164,9 @@ def api_audit_evidence(
     )
     if refresh_flag:
         _ttl_cache_pop(cache_key)
+    # Stale-while-revalidate: serve the last good audit payload while the
+    # background warm refreshes it; only first-ever loads see the loading state.
+    stale_audit = None
     if not refresh_flag and _ttl_fresh_value(cache_key, 30) is None and audit_id_value is None:
         with _AUDIT_EVIDENCE_WARMING_LOCK:
             should_warm = cache_key not in _AUDIT_EVIDENCE_WARMING
@@ -1172,31 +1190,33 @@ def api_audit_evidence(
                 daemon=True,
             ).start()
 
-        payload = atlas_metrics.audit_evidence_payload(
-            store=None,
-            audit_id=audit_id_value,
-            date_range=date_range_value,
-            limit=limit_value,
-            visible_asset_fqns=[],
-        )
-        return _wrap(
-            payload,
-            request,
-            source="governance-store+metadata-audit-log",
-            state="loading",
-            authoritative=False,
-            entity_id=audit_id_value,
-            warnings=["Audit evidence is hydrating from visible assets and the metadata audit log."],
-            capabilities={
-                "requiredRole": "steward-or-admin",
-                "actorRole": actor_role,
-                "rowLevelSecurity": "visible-assets-only",
-                "actorIdentityExposure": "steward-admin-gated",
-                "visibleAssetCount": 0,
-                "hydrating": True,
-            },
-        )
-    audit_payload = _ttl_value(cache_key, 30, load_audit_payload)
+        stale_audit = _ttl_stale_value(cache_key)
+        if stale_audit is None:
+            payload = atlas_metrics.audit_evidence_payload(
+                store=None,
+                audit_id=audit_id_value,
+                date_range=date_range_value,
+                limit=limit_value,
+                visible_asset_fqns=[],
+            )
+            return _wrap(
+                payload,
+                request,
+                source="governance-store+metadata-audit-log",
+                state="loading",
+                authoritative=False,
+                entity_id=audit_id_value,
+                warnings=["Audit evidence is hydrating from visible assets and the metadata audit log."],
+                capabilities={
+                    "requiredRole": "steward-or-admin",
+                    "actorRole": actor_role,
+                    "rowLevelSecurity": "visible-assets-only",
+                    "actorIdentityExposure": "steward-admin-gated",
+                    "visibleAssetCount": 0,
+                    "hydrating": True,
+                },
+            )
+    audit_payload = stale_audit if stale_audit is not None else _ttl_value(cache_key, 30, load_audit_payload)
     detail = (
         _normalize_str(audit_payload.get("visibilityError"))
         if isinstance(audit_payload, dict)
@@ -1322,6 +1342,9 @@ def api_admin_control_center(
         )
 
     cached_entry = _ttl_fresh_value(cache_key, 45)
+    # Stale-while-revalidate: serve the last good control-center payload while
+    # the background warm refreshes it; only first-ever loads see loading.
+    stale_admin = None
     if cached_entry is None and not refresh_flag:
         _fast_bootstrap_inventory_summary(_request_cache_scope(request), start_background=True)
         with _ADMIN_CONTROL_WARMING_LOCK:
@@ -1346,6 +1369,16 @@ def api_admin_control_center(
                 daemon=True,
             ).start()
 
+        stale_admin = _ttl_stale_value(cache_key)
+        if stale_admin is not None:
+            return _wrap(
+                stale_admin,
+                request,
+                source="runtime-diagnostics+governance-store",
+                state="available",
+                authoritative=True,
+                capabilities={"refreshing": True},
+            )
         try:
             ai_status = genie_service.provider_status(cfg)
         except Exception as exc:

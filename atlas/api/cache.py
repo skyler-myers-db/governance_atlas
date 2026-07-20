@@ -44,6 +44,17 @@ def _ttl_fresh_value(key: str, ttl_s: int) -> Any:
     return None
 
 
+def _ttl_stale_value(key: str) -> Any:
+    """Return the cached value regardless of freshness, or None if never cached.
+
+    Supports stale-while-revalidate: route handlers serve the last good payload
+    while a background warm rebuilds it, instead of regressing to an empty
+    loading envelope every time the TTL lapses.
+    """
+    cached = _TTL_CACHE.get(key)
+    return cached[1] if cached else None
+
+
 def _ttl_cache_pop(key: str) -> None:
     with _CACHE_LOCK:
         _TTL_CACHE.pop(key, None)
