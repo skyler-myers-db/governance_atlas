@@ -158,8 +158,13 @@
 
 .gh-audit-prototype-tabs button.is-active {
   border-color: rgba(92, 198, 242, 0.72);
-  background: linear-gradient(180deg, rgba(87, 178, 220, 0.95), rgba(38, 117, 158, 0.95));
+  /* Bright-family fill so the dark label + count stay ≥4.5:1. */
+  background: linear-gradient(180deg, rgba(102, 197, 255, 0.95), rgba(102, 197, 255, 0.68));
   color: var(--ga-navy-950);
+}
+
+.gh-audit-prototype-tabs button.is-active span {
+  opacity: 1;
 }
 
 .gh-audit-prototype-tabs button span {
@@ -462,12 +467,20 @@
 }
 
 .gh-audit-row:hover,
-.gh-audit-row:focus-visible,
 .gh-audit-row.is-selected {
   background: rgba(28, 127, 190, 0.22);
   box-shadow: inset 3px 0 0 var(--ga-bright-blue);
   color: var(--ga-text);
-  outline: none;
+}
+
+/* Keyboard focus must stay visible even on the already-selected row — the
+   shared hover/selected style previously swallowed the ring. */
+.gh-audit-row:focus-visible {
+  background: rgba(28, 127, 190, 0.22);
+  color: var(--ga-text);
+  outline: 2px solid var(--ga-focus);
+  outline-offset: -2px;
+  box-shadow: inset 3px 0 0 var(--ga-bright-blue);
 }
 
 .gh-audit-row > span {
@@ -5890,13 +5903,22 @@
 .gh-governance-ns-filter-pills button.is-active,
 .gh-governance-ns-filter-pills button[aria-pressed="true"] {
   border-color: rgba(102, 197, 255, 0.52);
-  background: linear-gradient(180deg, rgba(102, 197, 255, 0.78), rgba(61, 132, 173, 0.86));
+  /* Bright-family bottom stop: the old mid-blue composite put the dark
+     count badge at 2.8:1. */
+  background: linear-gradient(180deg, rgba(102, 197, 255, 0.95), rgba(102, 197, 255, 0.68));
   color: var(--ga-navy-950);
   font-weight: 800;
 }
 
 .gh-governance-ns-filter-pills span {
   opacity: 0.74;
+}
+
+/* Count badges inside the filled active pill must not fade — 74% opacity
+   dark-on-blue measured 2.8:1. */
+.gh-governance-ns-filter-pills button.is-active span,
+.gh-governance-ns-filter-pills button[aria-pressed="true"] span {
+  opacity: 1;
 }
 
 .gh-governance-ns-kpis {
@@ -7359,7 +7381,8 @@
 }
 
 .gh-admin-tabstrip-tab.is-active {
-  background: linear-gradient(135deg, var(--ga-entrada-blue) 0%, var(--ga-highlight-blue) 100%);
+  /* Darker gradient tail: white-on-#3d84ad measured 4.1:1 at this size. */
+  background: linear-gradient(135deg, var(--ga-entrada-blue) 0%, #2f6e97 100%);
   color: var(--ga-white);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18) inset;
 }

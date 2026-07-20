@@ -6389,7 +6389,9 @@ export default function DiscoveryWorkspace({
             onResetBrowse={resetBrowse}
           />
           {showAdvancedFilters ? (
-            <div className="gh-discovery-filter-shell gh-discovery-hero-filter-popover" id="gh-discovery-filter-popover" ref={filterCommandRef}>
+            // The launcher declares aria-haspopup="dialog"; the popover must
+            // actually be one for AT to connect the two.
+            <div className="gh-discovery-filter-shell gh-discovery-hero-filter-popover" id="gh-discovery-filter-popover" ref={filterCommandRef} role="dialog" aria-label="Advanced discovery filters">
               <FiltersPopover
                 bootstrap={bootstrap}
                 facets={resultsFacets}

@@ -319,17 +319,25 @@ class BackendWriteAuditContractsTests(unittest.TestCase):
         self.assertEqual(audit["after_json"]["runId"], "quality-1")
 
     def test_quality_reads_require_open_asset_before_store_read(self) -> None:
+        import json
+
         from fastapi import HTTPException
         from atlas.api import catalog
 
         store = OperationalStore()
         with RuntimePatcher(store, openable=False):
-            with self.assertRaises(HTTPException) as asset_ctx:
-                catalog.api_asset_quality("datapact.atlas.customer_dim", self.request())
+            # Per-asset quality is an availability probe: invisible assets get
+            # an honest 200 "unavailable" envelope (a 404 spammed the browser
+            # console for out-of-scope lineage neighbors) — but the store must
+            # STILL never be read for an asset the actor cannot open.
+            asset_response = catalog.api_asset_quality("datapact.atlas.customer_dim", self.request())
             with self.assertRaises(HTTPException) as list_ctx:
                 catalog.api_list_quality_runs(self.request(), entityFqn="datapact.atlas.customer_dim")
 
-        self.assertEqual(asset_ctx.exception.status_code, 404)
+        self.assertEqual(asset_response.status_code, 200)
+        asset_payload = json.loads(asset_response.body)
+        self.assertEqual(asset_payload["data"]["state"], "unavailable")
+        self.assertEqual(asset_payload["data"]["runs"], [])
         self.assertEqual(list_ctx.exception.status_code, 404)
         self.assertEqual(store.quality_result_reads, 0)
         self.assertEqual(store.quality_run_reads, 0)

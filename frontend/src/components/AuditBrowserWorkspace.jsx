@@ -756,7 +756,8 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   return (
     <section className="ga-page gh-audit-ns" data-testid="audit-northstar">
       <div className="gh-audit-shell">
-        <main className="gh-audit-main gh-audit-prototype">
+        {/* section, not main: AppFrame already provides the page's single main landmark */}
+        <section className="gh-audit-main gh-audit-prototype">
           <header className="gh-audit-hero gh-audit-prototype-hero">
             <div>
               <span className="gh-prototype-eyebrow">Audit Evidence</span>
@@ -865,15 +866,17 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
             ))}
           </section>
 
-          <section className="gh-audit-table-panel gh-audit-prototype-table" aria-label="Audit events">
-            <div className="gh-audit-table-head" role="row">
-              <span>Time (UTC)</span>
-              <span>Actor</span>
-              <span>Event</span>
-              <span>Target</span>
-              <span>Evidence</span>
+          <section className="gh-audit-table-panel gh-audit-prototype-table" aria-label="Audit events" role="table">
+            <div className="gh-audit-table-headgroup" role="rowgroup">
+              <div className="gh-audit-table-head" role="row">
+                <span role="columnheader">Time (UTC)</span>
+                <span role="columnheader">Actor</span>
+                <span role="columnheader">Event</span>
+                <span role="columnheader">Target</span>
+                <span role="columnheader">Evidence</span>
+              </div>
             </div>
-            <div className="gh-audit-table-body">
+            <div className="gh-audit-table-body" role="rowgroup">
               {pageRows.length ? pageRows.map((event) => (
                 <div
                   className={`gh-audit-row${selected?.id === event.id ? " is-selected" : ""}`}
@@ -889,16 +892,17 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                       setStatus(`${displayLabel(event.action)} evidence selected.`);
                     }
                   }}
-                  role="button"
+                  role="row"
+                  aria-selected={selected?.id === event.id || undefined}
                   tabIndex={0}
                 >
-                  <span className="gh-audit-time">{event.createdAt ? new Date(event.createdAt).toISOString().replace("T", " ").slice(0, 19) : "Unavailable"}</span>
-                  <span className="gh-audit-actor"><ActorMark actor={event.actor} /><strong>{event.actor || "Unavailable"}</strong></span>
+                  <span role="cell" className="gh-audit-time">{event.createdAt ? new Date(event.createdAt).toISOString().replace("T", " ").slice(0, 19) : "Unavailable"}</span>
+                  <span role="cell" className="gh-audit-actor"><ActorMark actor={event.actor} /><strong>{event.actor || "Unavailable"}</strong></span>
                   {/* No repeated "No detail recorded" placeholder — suppress the
                       sub-line entirely when the row has no detail. */}
-                  <span><ActionBadge action={event.action} />{event.detail ? <small>{event.detail}</small> : null}</span>
-                  <span className="gh-audit-object"><strong>{event.objectLabel}</strong></span>
-                  <span className="gh-audit-source">
+                  <span role="cell"><ActionBadge action={event.action} />{event.detail ? <small>{event.detail}</small> : null}</span>
+                  <span role="cell" className="gh-audit-object"><strong>{event.objectLabel}</strong></span>
+                  <span role="cell" className="gh-audit-source">
                     <small title={evidenceReference(event)}>
                       <span>{auditEvidenceSummary(event)}</span>
                     </small>
@@ -1004,7 +1008,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
             </aside>
           ) : null}
           <div className="gh-audit-status-line" aria-live="polite">{status}</div>
-        </main>
+        </section>
       </div>
     </section>
   );

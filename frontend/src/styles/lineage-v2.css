@@ -74,6 +74,11 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ga-lineage-v2-card.is-focus::before { animation: none; }
+  /* React Flow's animated edges run an infinite dashdraw keyframe the
+     library applies inline — it must also stop under reduced motion. */
+  .react-flow__edge-path {
+    animation: none !important;
+  }
 }
 
 .ga-lineage-v2-card.is-selected {

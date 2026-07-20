@@ -936,6 +936,13 @@ body {
   box-shadow: inset 3px 0 0 var(--ga-bright-blue);
 }
 
+/* The .is-active box-shadow (declared after the :focus-visible rule) was
+   silently erasing the keyboard focus ring on the current page's nav item —
+   combine both so keyboard users always see where they are. */
+.ga-side-nav-item.is-active:focus-visible {
+  box-shadow: var(--ga-shadow-focus), inset 3px 0 0 var(--ga-bright-blue);
+}
+
 .ga-side-nav-item.is-active .ga-side-nav-icon {
   color: var(--ga-white);
 }
@@ -1358,7 +1365,9 @@ body {
 
 .ga-ai-chip.is-primary {
   border-color: rgba(102, 197, 255, 0.36);
-  background: linear-gradient(180deg, rgba(91, 182, 225, 0.96), rgba(45, 141, 191, 0.96));
+  /* Bright-family fill: the old mid-blue bottom stop measured 4.08:1 with
+     the dark label — below AA for this label size. */
+  background: linear-gradient(180deg, rgba(102, 197, 255, 0.98), rgba(102, 197, 255, 0.74));
   color: #06233a;
   font-weight: 800;
   box-shadow: 0 10px 28px rgba(64, 175, 226, 0.22);
@@ -1777,7 +1786,9 @@ body {
 
 .gh-command-center-actions button:last-child {
   border-color: rgba(102, 197, 255, 0.36);
-  background: linear-gradient(180deg, rgba(102, 197, 255, 0.78), rgba(61, 132, 173, 0.92));
+  /* Bottom stop stays in the bright-blue family: the old rgba(61,132,173)
+     composite put the dark label at 3.7:1 (below AA for this 12.7px text). */
+  background: linear-gradient(180deg, rgba(102, 197, 255, 0.95), rgba(102, 197, 255, 0.68));
   color: #041d31;
   font-weight: 800;
   cursor: pointer;
@@ -3106,6 +3117,13 @@ body {
 .ga-ai-mark,
 .ga-action-tile-icon {
   color: var(--ga-bright-blue);
+}
+
+/* The FAB is a filled bright pill — the shared .ga-ai-mark bright-blue icon
+   color above drops to 1.6:1 on its hover fill. Pin the pill's glyph dark. */
+.gh-atlas-ai-fab .ga-ai-mark,
+.gh-atlas-ai-fab svg {
+  color: var(--ga-navy-950);
 }
 
 .ga-sparkline {

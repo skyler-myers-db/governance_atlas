@@ -2580,3 +2580,24 @@ h3.gh-asset-preview-header-name {
   border-color: var(--ga-border-strong);
   color: var(--ga-text);
 }
+
+/* --- Adversarial layout fixes (1280px, preview open) ------------------
+   1. The hero column narrows to ~420px with the preview open; the search
+      row previously clipped the Saved searches / Advanced buttons at the
+      overflow-hidden hero edge ("Advance|"). Wrap instead of clip.
+   2. The "Sort:" label wrapped away from its dropdown into the filter-rail
+      gutter, reading as a stray token under the facet counts. */
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-row {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-box {
+  min-width: 240px;
+  flex: 1 1 240px;
+}
+
+.gh-discovery-sort-inline {
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}

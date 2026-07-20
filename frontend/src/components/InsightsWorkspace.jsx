@@ -705,7 +705,8 @@ export function InsightsWorkspace({
       </section>
 
       <div className="gh-insights-dashboard">
-        <main className="gh-insights-main">
+        {/* section, not main: AppFrame already provides the page's single main landmark */}
+        <section className="gh-insights-main">
           <section className="gh-insights-card gh-insights-policy-card">
             <CardHeader
               title="Policy Compliance Trend"
@@ -781,7 +782,7 @@ export function InsightsWorkspace({
               onToggle={() => setShowAllDomains((value) => !value)}
             />
           </section>
-        </main>
+        </section>
 
         <RecommendationRail recommendations={data.recommendations} onNavigate={onNavigate} />
       </div>

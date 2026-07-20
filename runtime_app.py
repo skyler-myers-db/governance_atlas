@@ -20,6 +20,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from atlas.api import (
@@ -226,9 +227,24 @@ async def _runtime_lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Governance Atlas Runtime", lifespan=_runtime_lifespan)
+# Static assets shipped 464kB where 151kB gzip would; the bundle is served by
+# this process directly (no CDN in Databricks Apps), so compress here.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+class _HashedAssetStaticFiles(StaticFiles):
+    """Vite content-hashes every filename under /assets, so responses are
+    immutable — without this header every navigation revalidates each chunk."""
+
+    def file_response(self, *args, **kwargs):  # type: ignore[override]
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 app.mount(
     "/assets",
-    StaticFiles(directory=str(REACT_DIST_DIR / "assets"), check_dir=False),
+    _HashedAssetStaticFiles(directory=str(REACT_DIST_DIR / "assets"), check_dir=False),
     name="react-assets",
 )
 

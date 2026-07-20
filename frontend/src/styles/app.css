@@ -7731,3 +7731,14 @@ button[class*="back-to-discovery"] {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* --- Focus-visible safety net (adversarial a11y audit) ----------------
+   Several component rules still zero the outline on :focus-visible
+   (legacy indigo-ring patterns, breadcrumbs, tertiary buttons). Keyboard
+   users must always see focus: re-assert the canonical ga ring last. */
+.gh-tertiary-button:focus-visible,
+.gh-breadcrumbs-link:focus-visible,
+.gh-discovery-sort-trigger:focus-visible {
+  outline: 2px solid var(--ga-focus) !important;
+  outline-offset: 2px;
+}
