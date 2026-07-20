@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
+import sys
+import types
 import unittest
 
 import pandas as pd
 
+from atlas.api import assets as assets_api
 from atlas.services import assets as asset_service
 
 
@@ -87,6 +91,31 @@ class AssetDetailSectionTests(unittest.TestCase):
         )
 
         self.assertIsNone(payload)
+
+
+class AssetDetailMalformedFqnTests(unittest.TestCase):
+    def test_two_part_fqn_returns_400_not_503(self) -> None:
+        previous = sys.modules.get("runtime_app")
+        module = types.ModuleType("runtime_app")
+        module._ensure_live_runtime = lambda: None
+        # If the guard works, the visibility record is never consulted.
+        module._asset_visibility_record = lambda *_a, **_k: (_ for _ in ()).throw(
+            AssertionError("visibility should not be checked for a malformed FQN")
+        )
+        module._asset_detail_payload = lambda *_a, **_k: {}
+        sys.modules["runtime_app"] = module
+        try:
+            request = types.SimpleNamespace(headers={}, state=types.SimpleNamespace())
+            response = assets_api.api_asset_detail("datapact.enterprise_metadata_ops", request)
+        finally:
+            if previous is None:
+                sys.modules.pop("runtime_app", None)
+            else:
+                sys.modules["runtime_app"] = previous
+
+        self.assertEqual(response.status_code, 400)
+        body = json.loads(response.body.decode("utf-8"))
+        self.assertIn("three-part", body["detail"])
 
 
 if __name__ == "__main__":
