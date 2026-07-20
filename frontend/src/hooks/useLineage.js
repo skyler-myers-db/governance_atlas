@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLineage } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
@@ -169,6 +169,33 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
   // need a warm neighbor (e.g. hover dwell > 600 ms) must call
   // `prefetchLineage()` explicitly, one neighbor at a time.
 
+  // Stable identity: a new refresh closure every render busted the
+  // useLineageGraphV2 useMemo (refresh is a dep), forcing a full dagre
+  // relayout of the canvas on every parent re-render. Declared BEFORE the
+  // early returns below so hook order is stable (React error #310 rule).
+  const refresh = useCallback(async () => {
+    if (!assetFqn) return null;
+    atlasQueryClient.removeQueries({
+      queryKey: [LINEAGE_QUERY_PREFIX],
+      exact: false,
+      predicate: (query) => query.queryKey?.[2] === assetFqn,
+    });
+    const initial = await initialQuery.refetch();
+    const initialValue = normalizeCanonicalPayload(assetFqn, initial.data, {
+      authoritative: false,
+      source: "live",
+    });
+    if (!initialValue) return null;
+    setCachedLineage(assetFqn, initialValue);
+    const full = await fullQuery.refetch();
+    const fullValue = normalizeCanonicalPayload(assetFqn, full.data, {
+      authoritative: false,
+      source: "live",
+    });
+    if (fullValue) return setCachedLineage(assetFqn, fullValue);
+    return initialValue;
+  }, [assetFqn, initialQuery, fullQuery]);
+
   if (!assetFqn) {
     return {
       loading: false,
@@ -220,29 +247,6 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
       refresh: async () => safePayload,
     };
   }
-
-  const refresh = async () => {
-    if (!assetFqn) return null;
-    atlasQueryClient.removeQueries({
-      queryKey: [LINEAGE_QUERY_PREFIX],
-      exact: false,
-      predicate: (query) => query.queryKey?.[2] === assetFqn,
-    });
-    const initial = await initialQuery.refetch();
-    const initialValue = normalizeCanonicalPayload(assetFqn, initial.data, {
-      authoritative: false,
-      source: "live",
-    });
-    if (!initialValue) return null;
-    setCachedLineage(assetFqn, initialValue);
-    const full = await fullQuery.refetch();
-      const fullValue = normalizeCanonicalPayload(assetFqn, full.data, {
-        authoritative: false,
-        source: "live",
-      });
-    if (fullValue) return setCachedLineage(assetFqn, fullValue);
-    return initialValue;
-  };
 
   return {
     loading: !safePayload && initialQuery.isPending && !initialQuery.isError,

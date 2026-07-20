@@ -11,6 +11,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { LineageNodeCard } from "./LineageNodeCard";
+import { mergeAccumulatedGraph } from "./mergeAccumulatedGraph";
 
 /**
  * LineageCanvasV2 — design-faithful lineage canvas built on React Flow.
@@ -176,41 +177,26 @@ function CanvasInner({
   //     previous focus is irrelevant to this asset and would just
   //     confuse the dagre layout (and previously left the canvas
   //     blank when the new focus had nothing in common with the old).
-  const [accumulatedGraph, setAccumulatedGraph] = useState(() => ({
-    nodes: graph.nodes,
-    edges: graph.edges,
-    nodeMap: new Map(graph.nodes.map((n) => [n.id, n])),
-    edgeMap: new Map(graph.edges.map((e) => [e.id, e])),
-  }));
+  const [accumulatedGraph, setAccumulatedGraph] = useState(() =>
+    mergeAccumulatedGraph(
+      { nodes: [], edges: [] },
+      { nodes: graph.nodes, edges: graph.edges, focus: graph.focus },
+    ),
+  );
   useEffect(() => {
     if (!graph.nodes.length && !graph.edges.length) return;
-    setAccumulatedGraph((current) => {
-      const incomingFocusId = graph.focus?.id || null;
-      // EXPAND vs RESET decision: we're expanding only when the new
-      // focus is already part of the existing merged set (meaning the
-      // user clicked through to it from a visible neighbor). Otherwise
-      // this is external navigation — discard the previous session's
-      // graph and rebuild from scratch.
-      const isExpand =
-        incomingFocusId && current.nodeMap.has(incomingFocusId);
-      const baseNodeMap = isExpand ? new Map(current.nodeMap) : new Map();
-      const baseEdgeMap = isExpand ? new Map(current.edgeMap) : new Map();
-      graph.nodes.forEach((node) => {
-        if (!node?.id) return;
-        baseNodeMap.set(node.id, node);
-      });
-      graph.edges.forEach((edge) => {
-        if (!edge?.id) return;
-        baseEdgeMap.set(edge.id, edge);
-      });
-      return {
-        nodes: Array.from(baseNodeMap.values()),
-        edges: Array.from(baseEdgeMap.values()),
-        nodeMap: baseNodeMap,
-        edgeMap: baseEdgeMap,
-      };
-    });
-  }, [graph.nodes, graph.edges, graph.focus?.id]);
+    // EXPAND vs RESET and node/edge merging are FQN-keyed (see
+    // mergeAccumulatedGraph): the API assigns role-prefixed ids so the same
+    // asset changes id when it becomes the focus. Comparing by raw id here
+    // made every in-canvas click RESET the graph instead of extending it.
+    setAccumulatedGraph((current) =>
+      mergeAccumulatedGraph(current, {
+        nodes: graph.nodes,
+        edges: graph.edges,
+        focus: graph.focus,
+      }),
+    );
+  }, [graph.nodes, graph.edges, graph.focus]);
 
   // Render from the accumulated set so the canvas never blanks while a
   // refetch is in flight. The accumulated set always contains at least
