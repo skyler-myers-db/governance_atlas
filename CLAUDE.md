@@ -22,9 +22,13 @@ For each item the user surfaces (whether one bug or a list of ten):
    ```bash
    cd /Users/entrada-mac/repos/governance_atlas
    python3 scripts/prepare_bundle.py --output build/atlas-app --target dev
-   databricks bundle deploy -t dev
+   cd build/atlas-app && databricks bundle deploy -t dev
    databricks apps deploy atlas --source-code-path /Workspace/Users/skyler@entrada.ai/.bundle/atlas/dev/files
    ```
+   `bundle deploy` MUST run from `build/atlas-app`, not the repo root: the in-repo
+   `app.yaml` is the portable default (no dev catalogs/emails/Genie/Lakebase), and
+   only the packaged copy has the dev env vars baked in. Deploying from the repo
+   root would ship the portable env and break the live dev app.
    All three commands take 1-3 min each. Background them with `nohup ... & disown` and poll with `sleep` since the macOS shell tool times out at 10s.
 
 5. **Independent subagent verification.** Spawn a fresh general-purpose subagent that:
