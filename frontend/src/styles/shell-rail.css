@@ -1671,7 +1671,7 @@
 /* Flatten the card border to a thin charcoal stroke — no gradient background,
    no purple left accent bar, no soft drop shadow. */
 .gh-discovery-asset-card {
-  background: #fff !important;
+  background: var(--ga-surface) !important;
   border: 1px solid rgba(15, 23, 42, 0.1) !important;
   box-shadow: none !important;
   border-radius: 10px;
@@ -2113,7 +2113,7 @@ h3.gh-asset-preview-header-name {
 }
 
 .gh-asset-preview-usage-cell {
-  background: #fff !important;
+  background: var(--ga-surface-soft) !important;
   border: 1px solid var(--gh-line, #e2e4ec) !important;
   border-radius: 8px;
   padding: 10px;
@@ -2307,9 +2307,9 @@ body {
    through — flagged by the operator on 2026-04-19 as the biggest
    remaining divergence from the mockup. */
 .gh-panel {
-  border: 1px solid rgba(182, 198, 216, 0.55) !important;
+  border: 1px solid var(--ga-border) !important;
   box-shadow: none !important;
-  background: #fff !important;
+  background: var(--ga-surface) !important;
 }
 /* Discovery command panel (Discovery title + Favorites + Sort bar) is
    NOT a card — it sits on the cream body. Operator 2026-04-19 flagged
@@ -2485,8 +2485,8 @@ body,
   min-height: 30px;
   padding: 0 10px;
   border-radius: 5px;
-  background: #ffffff;
-  border-color: #d5d9de;
+  background: var(--ga-surface);
+  border-color: var(--ga-border);
   gap: 7px;
 }
 
@@ -2579,8 +2579,8 @@ body,
   padding: calc(var(--gh-shell-header-height, 41px) + 8px) 0 10px;
   gap: 8px;
   align-items: stretch;
-  background: #ffffff !important;
-  border-right: 1px solid var(--gh-line, #dfe3e6) !important;
+  background: var(--ga-chrome-bg) !important;
+  border-right: 1px solid var(--ga-border) !important;
   overflow: hidden !important;
 }
 

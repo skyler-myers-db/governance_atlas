@@ -30,12 +30,32 @@ function isStaleChunkError(error) {
     || /error loading dynamically imported module/i.test(message);
 }
 
+// Global errors that must NEVER tear down the whole app: request
+// cancellations, benign browser noise, and stale-chunk fetch failures from a
+// background prefetch. A single async reject (a cancelled fetch, a browser
+// extension, ResizeObserver noise) previously replaced the entire UI with a
+// raw error string — the app looked crashed when nothing user-facing broke.
+function isBenignGlobalError(error) {
+  if (!error) return true;
+  const name = (error && error.name) || "";
+  const message = typeof error === "string" ? error : error.message || "";
+  if (name === "AbortError") return true;
+  if (/ResizeObserver loop/i.test(message)) return true;
+  if (/The (?:user )?aborted a request|signal is aborted|aborted/i.test(message)) return true;
+  return false;
+}
+
 export default class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      // Only a real React render error (getDerivedStateFromError /
+      // componentDidCatch) replaces the app. Global window/promise errors are
+      // logged but never tear down the tree.
       error: null,
-      eventError: null,
+      // Stale-chunk errors surfaced globally (e.g. a background prefetch
+      // import 404) DO warrant the reload card, but nothing else does.
+      staleChunkEventError: null,
     };
   }
 
@@ -49,13 +69,26 @@ export default class AppErrorBoundary extends Component {
 
   componentDidMount() {
     this.handleWindowError = (event) => {
-      this.setState({ eventError: event?.error || new Error(event?.message || "Unhandled window error.") });
+      const error = event?.error || new Error(event?.message || "Unhandled window error.");
+      if (isStaleChunkError(error)) {
+        this.setState({ staleChunkEventError: error });
+        return;
+      }
+      if (!isBenignGlobalError(error)) {
+        console.error("Governance Atlas unhandled window error", error);
+      }
     };
     this.handleUnhandledRejection = (event) => {
       const reason = event?.reason;
       const error =
         reason instanceof Error ? reason : new Error(typeof reason === "string" ? reason : "Unhandled promise rejection.");
-      this.setState({ eventError: error });
+      if (isStaleChunkError(error)) {
+        this.setState({ staleChunkEventError: error });
+        return;
+      }
+      if (!isBenignGlobalError(error)) {
+        console.error("Governance Atlas unhandled promise rejection", error);
+      }
     };
     window.addEventListener("error", this.handleWindowError);
     window.addEventListener("unhandledrejection", this.handleUnhandledRejection);
@@ -67,7 +100,7 @@ export default class AppErrorBoundary extends Component {
   }
 
   render() {
-    const activeError = this.state.error || this.state.eventError;
+    const activeError = this.state.error || this.state.staleChunkEventError;
     if (!activeError) return this.props.children;
 
     // Stale-chunk failure after a redeploy. This is not a bug — the user's
@@ -117,7 +150,22 @@ export default class AppErrorBoundary extends Component {
           tone="bad"
         >
           <div className="gh-support-copy">
-            The page stayed reachable, but a client-side error interrupted rendering. Reload after the fix deploys.
+            The page stayed reachable, but a client-side error interrupted rendering. Reloading usually recovers the workspace.
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <button
+              className="gh-primary-button"
+              onClick={() => {
+                try {
+                  window.location.reload();
+                } catch (_) {
+                  /* ignore */
+                }
+              }}
+              type="button"
+            >
+              Reload workspace
+            </button>
           </div>
         </WorkspaceStateCard>
       </section>

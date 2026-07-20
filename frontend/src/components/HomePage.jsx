@@ -310,7 +310,7 @@ function Icon({ name }) {
   );
 }
 
-function CommandCenterTrustRing({ value = 0, trend = "9.0 pts QoQ", label = "Posture", size = 200 }) {
+function CommandCenterTrustRing({ value = 0, trend = "Trend unavailable", label = "Posture", size = 200 }) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
   const displayValue = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
   const stroke = 14;
@@ -1745,15 +1745,29 @@ export function HomePage({
       tone: data.signalAvailability?.lineage ? "info" : "muted",
     },
   ];
-  const narrativeTarget = data.narrative?.target || "90% Q2 target";
-  const narrativeTargetWeek = data.narrative?.targetWeek || "week 30";
   const governedCount = numericValue(governedAssetsKpi.value);
+  // Only assert a quarter-over-quarter coverage delta when the API actually
+  // supplies a real previous coverage value. Previously this fabricated a
+  // story against hardcoded constants (78.4 baseline, "90% Q2 target",
+  // "week 30") the backend never returns — a governance-honesty violation.
+  const coveragePrevious = numericValue(coverageKpi.previousValue ?? coverageKpi.previous);
+  const coverageNow = numericValue(postureValue ?? coverageKpi.value);
+  const narrativeTarget = data.narrative?.target || "";
+  const narrativeTargetWeek = data.narrative?.targetWeek || "";
   const narrativeHeadline = baselineAssetCount !== null && governedCount !== null
     ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> of {formatCount(baselineAssetCount)} productionized assets meet baseline policy.
-        {" "}Coverage is up <strong>{Math.round(postureValue ?? numericValue(coverageKpi.value) ?? 0) - Math.round(numericValue(coverageKpi.previousValue ?? coverageKpi.previous ?? 78.4) ?? 78.4)} points</strong>
-        {" "}this quarter - on track to hit the <span>{narrativeTarget}</span> by {narrativeTargetWeek}.
+        {coveragePrevious !== null && coverageNow !== null ? (
+          <>
+            {" "}Coverage is {coverageNow >= coveragePrevious ? "up" : "down"} <strong>{Math.abs(Math.round(coverageNow) - Math.round(coveragePrevious))} points</strong>
+            {narrativeTarget ? (
+              <>{" "}from the prior period — on track to hit the <span>{narrativeTarget}</span>{narrativeTargetWeek ? ` by ${narrativeTargetWeek}` : ""}.</>
+            ) : " from the prior period."}
+          </>
+        ) : (
+          <>{" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.</>
+        )}
       </>
     )
     : governedCount !== null
