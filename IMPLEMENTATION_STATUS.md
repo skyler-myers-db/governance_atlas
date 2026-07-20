@@ -1,6 +1,37 @@
 # Implementation Status
 
-Last updated: 2026-05-04 during reopened `northstar/*` audit continuation on `datapact-test`
+Last updated: 2026-07-20 during the full-audit remediation pass on `main`.
+
+## Checkpoint - 2026-07-20 Full Audit Remediation
+
+An 8-dimension independent audit (repo + live Databricks app) plus a personal
+live sweep drove a remediation batch on branch
+`fix/command-center-stale-while-revalidate`. Note: the audit found the older
+`northstar_gap_analysis` ledgers below are heavily stale (~85% of sampled open
+rows already fixed in current code); treat them as historical, not current.
+
+Fixed and validated (442 backend pytest, 486 frontend vitest, clean build):
+- **P0** Dashboard caches (command-center/taxonomy/audit/control-center) flipped
+  available→loading→available on every TTL lapse; now stale-while-revalidate.
+- **P0** Same endpoints could stick in `loading` forever when a warm loader ran
+  slower than its TTL; TTL entries are now stamped at loader completion.
+- **P0/security** Live-metadata + assets caches were keyed only by warehouse,
+  leaking per-user OBO Unity Catalog reads (sample rows, columns, lineage)
+  across users; now partitioned by acting credentials.
+- **P1** SQL identifier escaping in `uc.get_information_schema_table_metadata`
+  and every `quality_runner` built-in evaluator; context-aware PermissionDenied
+  handler (no false "write access" copy on reads, config suffix stripped);
+  job-inventory scope error degrades instead of killing control-center.
+- **P1** Lineage v2: FQN-keyed canvas accumulation (in-canvas click now expands
+  instead of resetting), hydrating live-lineage payload renders instead of
+  showing "No lineage edges", stable `refresh` closure (no relayout storm).
+- **P1/UX** Dark-brand preboot splash (was the old light/cream shell on every
+  load), favicon, legible ga-token tone chips, resilient error boundary (a stray
+  global reject no longer replaces the app), removed fabricated Command Center
+  narrative constants, de-creamed the load-order-fragile masked `!important` CSS.
+- **Build/tests** Restored portable `app.yaml` (dev values baked only into the
+  packaged bundle), FastAPI 0.139 route introspection, regenerated OpenAPI
+  snapshot, 400 (not 503) for malformed FQNs, removed orphan workspaces/hooks/CSS.
 
 ## Current Authoritative State - Reopened And Blocking
 
