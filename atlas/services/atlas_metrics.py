@@ -2760,31 +2760,6 @@ def _admin_internal_audit_row(row: Mapping[str, Any]) -> bool:
     return any(token.replace(" ", "_") in action for token in _INTERNAL_EVENT_TOKENS)
 
 
-# Internal bookkeeping actions (identity mirroring, projections, alias
-# upkeep) are real audit rows but operational noise in an admin activity
-# stream — five "Identity Directory Upserted" rows in a row read as a
-# broken feed, not governance activity.
-_ADMIN_INTERNAL_EVENT_TOKENS = (
-    "identity_directory",
-    "entity_registry",
-    "entity_alias",
-    "notification",
-    "projection",
-    "mirror",
-)
-
-
-def _admin_internal_audit_row(row: Mapping[str, Any]) -> bool:
-    """True for internal bookkeeping audit rows (identity mirroring etc.).
-
-    Live audit actions arrive hyphenated ("identity-directory-upserted"),
-    so separators are normalized to underscores before matching the
-    underscore-form token list.
-    """
-    action = _lower(row.get("action")).replace("-", "_").replace(" ", "_")
-    return any(token in action for token in _ADMIN_INTERNAL_EVENT_TOKENS)
-
-
 def _admin_policy_requirements(command: Mapping[str, Any]) -> Dict[str, Any]:
     policy_kpi = next(
         (

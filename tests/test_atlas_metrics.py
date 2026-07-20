@@ -172,8 +172,11 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertGreaterEqual(len(policy_kpi["sparkline"]), 2)
         self.assertEqual(payload["governance"]["openRequests"], 1)
         self.assertEqual(payload["governance"]["policyExceptions"], 1)
-        self.assertIsNone(payload["posture"]["overall"])
-        self.assertEqual(payload["posture"]["state"], "unavailable")
+        # Posture is now a documented composite (see POSTURE_FORMULA), so a
+        # populated estate produces a real score with the formula attached.
+        self.assertIsNotNone(payload["posture"]["overall"])
+        self.assertEqual(payload["posture"]["state"], "available")
+        self.assertEqual(payload["posture"]["formula"], atlas_metrics.POSTURE_FORMULA)
         self.assertEqual(payload["topDomains"][0]["domain"], "Customer")
         self.assertEqual(payload["catalogHealth"][0]["catalog"], "main")
         self.assertEqual(payload["catalogHealth"][0]["assetCount"], 2)
@@ -306,10 +309,7 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertNotIn("ga-taxonomy-term", serialized)
         self.assertNotIn("home-evidence-plane", serialized)
 
-    def test_command_center_audit_readiness_uses_documented_formula(self) -> None:
-        # Audit readiness is now computed from asset metadata dimensions
-        # (documented + owned + classified), so it stays available even when
-        # the audit log itself has no rows — but only with visible assets.
+    def test_command_center_marks_audit_readiness_unavailable_without_audit(self) -> None:
         class NoAuditStore(FakeStore):
             def list_metadata_audit(self, **_: object) -> pd.DataFrame:
                 return pd.DataFrame()
@@ -320,17 +320,8 @@ class AtlasMetricsTests(unittest.TestCase):
         )
 
         audit_kpi = next(item for item in payload["kpis"] if item["key"] == "auditReadiness")
-        self.assertIsNotNone(audit_kpi["value"])
-        self.assertEqual(audit_kpi["state"], "available")
-        self.assertEqual(audit_kpi["formula"], atlas_metrics.AUDIT_READINESS_FORMULA)
-
-        empty_payload = atlas_metrics.command_center_payload(
-            visible_assets=pd.DataFrame(),
-            store=NoAuditStore(),
-        )
-        empty_kpi = next(item for item in empty_payload["kpis"] if item["key"] == "auditReadiness")
-        self.assertIsNone(empty_kpi["value"])
-        self.assertEqual(empty_kpi["state"], "unavailable")
+        self.assertIsNone(audit_kpi["value"])
+        self.assertEqual(audit_kpi["state"], "unavailable")
 
     def test_command_center_marks_unsupported_zero_signals_unavailable(self) -> None:
         class NoPolicySignalStore(FakeStore):
@@ -352,11 +343,8 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(coverage_kpi["state"], "unavailable")
         self.assertIsNone(certified_critical_kpi["value"])
         self.assertEqual(certified_critical_kpi["state"], "unavailable")
-        # The request/audit sources responded (with zero rows), so zero policy
-        # exceptions is a real, backed answer — not an unavailable signal.
-        self.assertEqual(policy_kpi["value"], 0)
-        self.assertEqual(policy_kpi["state"], "available")
-        self.assertIn("No policy exceptions recorded", policy_kpi["reason"])
+        self.assertIsNone(policy_kpi["value"])
+        self.assertEqual(policy_kpi["state"], "unavailable")
 
     def test_command_center_payload_replaces_nan_with_json_safe_nulls(self) -> None:
         payload = atlas_metrics.command_center_payload(

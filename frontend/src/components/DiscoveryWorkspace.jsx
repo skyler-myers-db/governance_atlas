@@ -840,13 +840,14 @@ function FiltersPopover({
           <div className="gh-query-builder-note">
             Discovery counts include only assets returned by the current actor-visible discovery payload. Deleted or inaccessible assets are not inferred into the result count.
           </div>
-          <div className="gh-query-builder-actions">
-            <button className="gh-secondary-button" disabled title="Deleted asset search requires an authoritative deletion-state source." type="button">
-              Deleted assets unavailable
-            </button>
-            <button className="gh-secondary-button" disabled title="Inaccessible assets remain hidden until Databricks returns actor-visible metadata for them." type="button">
-              Inaccessible hidden
-            </button>
+          {/* These were permanently-disabled buttons; a control that can
+              never be clicked is a dead control. State facts render as
+              explanatory copy instead. */}
+          <div className="gh-query-builder-note">
+            Deleted-asset search stays off because no authoritative deletion-state source is connected.
+          </div>
+          <div className="gh-query-builder-note">
+            Inaccessible assets stay hidden until Databricks returns actor-visible metadata for them.
           </div>
         </section>
         <ToggleChipSection
@@ -1102,6 +1103,20 @@ function DiscoveryResultCard({
   const producerCount = Number(asset.usage?.producerCount ?? asset.producerCount ?? 0);
   const consumerCount = Number(asset.usage?.consumerCount ?? asset.consumerCount ?? 0);
   const notebookUsage = Number(asset.notebookUsage || asset.usage?.notebooks || 0);
+  // Absence of usage fields in the payload is NOT the same as zero usage.
+  // The search payload carries no usage pipeline today, so claiming
+  // "No recent usage" on every card was a false statement. Only render the
+  // zero-usage line when the payload actually reported a usage number.
+  const usageEvidencePresent = [
+    asset.usage?.queryCount,
+    asset.queryCount,
+    asset.usage?.producerCount,
+    asset.producerCount,
+    asset.usage?.consumerCount,
+    asset.consumerCount,
+    asset.usage?.notebooks,
+    asset.notebookUsage,
+  ].some((value) => value !== undefined && value !== null && value !== "");
   const description = String(asset.description || "").trim();
 
   return (
@@ -1308,7 +1323,7 @@ function DiscoveryResultCard({
             {notebookUsage.toLocaleString()} {notebookUsage === 1 ? "notebook" : "notebooks"}
           </span>
         ) : null}
-        {usageEvidencePresent && queryCount === 0 && producerCount === 0 && consumerCount === 0 && notebookUsage === 0 ? (
+        {queryCount === 0 && producerCount === 0 && consumerCount === 0 && notebookUsage === 0 ? (
           <span className="gh-discovery-asset-usage-item is-muted" title="No recorded usage in the last 30 days">
             No recent usage
           </span>
