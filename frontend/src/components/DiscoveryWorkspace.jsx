@@ -420,6 +420,69 @@ function facetCount(facets, key, value) {
   return entries.find((entry) => entry.value === value)?.count || 0;
 }
 
+// Saved searches persist in localStorage next to favorites/recents — same
+// local-browser scope, honestly labeled as such in the popover. Shape:
+// { id, name, savedAt, query, views, types, catalogs, domains, tiers,
+//   certifications, sensitivities, businessCriticalities, cdeOnly }.
+const SAVED_SEARCH_STORAGE_KEY = "gh-saved-searches";
+const SAVED_SEARCH_FILTER_KEYS = [
+  "views",
+  "types",
+  "catalogs",
+  "domains",
+  "tiers",
+  "certifications",
+  "sensitivities",
+  "businessCriticalities",
+];
+
+function readSavedSearches() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SAVED_SEARCH_STORAGE_KEY);
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr)
+      ? arr.filter((entry) => entry && typeof entry === "object" && entry.name).slice(0, 20)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedSearches(entries) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SAVED_SEARCH_STORAGE_KEY, JSON.stringify(entries.slice(0, 20)));
+  } catch {
+    /* quota — ignore */
+  }
+}
+
+function savedSearchFromFilters(name, filters) {
+  const entry = {
+    id: `saved-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+    name: String(name || "").trim(),
+    savedAt: new Date().toISOString(),
+    query: String(filters?.query || ""),
+    cdeOnly: Boolean(filters?.cdeOnly),
+  };
+  for (const key of SAVED_SEARCH_FILTER_KEYS) {
+    entry[key] = Array.isArray(filters?.[key]) ? [...filters[key]] : [];
+  }
+  return entry;
+}
+
+function savedSearchSummary(entry) {
+  const parts = [];
+  if (String(entry?.query || "").trim()) parts.push(`"${String(entry.query).trim()}"`);
+  const filterCount = SAVED_SEARCH_FILTER_KEYS.reduce(
+    (sum, key) => sum + (Array.isArray(entry?.[key]) ? entry[key].length : 0),
+    0,
+  ) + (entry?.cdeOnly ? 1 : 0);
+  if (filterCount) parts.push(`${filterCount} filter${filterCount === 1 ? "" : "s"}`);
+  return parts.join(" · ") || "Empty scope (matches everything)";
+}
+
 function previewRelatedAssetsFromGraph(graphBundle, focusFqn) {
   const nodes = graphBundle?.data?.nodes || [];
   return [...new Set(
@@ -1887,6 +1950,17 @@ function discoveryDisplayText(value = "") {
     .trim();
 }
 
+// Rows display for result metadata. The API now emits ""/null when row
+// counts are unknown (legacy cached payloads may still carry literal
+// dashes); anything absent renders as no chip rather than a fake value.
+function rowsDisplayValue(asset) {
+  const raw = asset?.rows ?? asset?.rowCount;
+  const text = String(raw ?? "").trim();
+  if (!text || text === "—" || text === "-") return "";
+  if (typeof raw === "string") return text;
+  return compactCount(raw, " rows");
+}
+
 function discoveryResultMetadata(asset, primaryOwner = "", sourceAuthoritative = true) {
   const owner = prettyOwnerName(primaryOwner);
   if (!sourceAuthoritative) {
@@ -1898,9 +1972,7 @@ function discoveryResultMetadata(asset, primaryOwner = "", sourceAuthoritative =
       upstream !== null || downstream !== null
         ? `${upstream ?? 0} up / ${downstream ?? 0} down`
         : "";
-    const rows = typeof asset?.rows === "string" && asset.rows !== "-"
-      ? asset.rows
-      : compactCount(asset?.rows || asset?.rowCount, " rows");
+    const rows = rowsDisplayValue(asset);
     return [
       owner ? { key: "owner", label: owner } : null,
       freshness ? { key: "freshness", label: `Fresh ${freshness}` } : null,
@@ -1918,9 +1990,7 @@ function discoveryResultMetadata(asset, primaryOwner = "", sourceAuthoritative =
     upstream !== null || downstream !== null
       ? `${upstream ?? 0} up / ${downstream ?? 0} down`
       : "";
-  const rows = typeof asset?.rows === "string" && asset.rows !== "—"
-    ? asset.rows
-    : compactCount(asset?.rows || asset?.rowCount, " rows");
+  const rows = rowsDisplayValue(asset);
   return [owner, freshness ? `Fresh ${freshness}` : "", queries, lineage, rows].filter(Boolean);
 }
 
@@ -1967,11 +2037,14 @@ function previewMetricItems({ asset, primaryOwner, stewardOwner, coverage, quali
     String(asset?.freshness || asset?.freshnessLabel || asset?.updatedAgo || "").trim() ||
     relativeTime(asset?.updatedAt || asset?.lastModified);
   const rawRows = asset?.rows ?? asset?.rowCount;
-  const rowCount = Number.isFinite(Number(rawRows))
-    ? Number(rawRows).toLocaleString()
-    : typeof rawRows === "string" && rawRows !== "—"
-      ? rawRows
-      : "";
+  const rawRowsText = String(rawRows ?? "").trim();
+  // Empty / dash means the payload did not report rows. Guard explicitly:
+  // Number("") is 0, which previously rendered a fake "Rows 0".
+  const rowCount = !rawRowsText || rawRowsText === "—" || rawRowsText === "-"
+    ? ""
+    : Number.isFinite(Number(rawRowsText.replace(/,/g, "")))
+      ? Number(rawRowsText.replace(/,/g, "")).toLocaleString()
+      : rawRowsText;
   const usage =
     compactCount(asset?.queries30d || asset?.queryCount30d || asset?.usage?.queries30d || asset?.queryCount, " queries");
   return [
@@ -1980,11 +2053,16 @@ function previewMetricItems({ asset, primaryOwner, stewardOwner, coverage, quali
       value: primaryOwner ? prettyOwnerName(primaryOwner) : "Unassigned",
       unavailable: !primaryOwner,
     },
-    {
-      label: "Steward team",
-      value: stewardOwner ? prettyOwnerName(stewardOwner) : "Unassigned",
-      unavailable: !stewardOwner,
-    },
+    // Steward team renders only when a steward-role owner actually exists.
+    // A permanent "Unassigned" row implied a steward roster concept that no
+    // data source backs for most assets.
+    ...(stewardOwner
+      ? [{
+          label: "Steward team",
+          value: prettyOwnerName(stewardOwner),
+          unavailable: false,
+        }]
+      : []),
     {
       label: "Freshness",
       value: freshness && freshness !== "—" ? freshness : "Unavailable",
@@ -2219,13 +2297,15 @@ function DiscoverySearchHero({
           options={facetValues(facets, "sensitivities", [], filters.sensitivities)}
           value={selectedOne(filters.sensitivities)}
         />
+        {/* Disabled until quality-run evidence exists, but the copy tells
+            the user how to change that instead of a dead "Unavailable". */}
         <DiscoveryFilterSelect
-          allLabel="Unavailable"
+          allLabel="No checks yet"
           disabled
           label="Quality"
           onChange={() => {}}
           options={[]}
-          title="Quality filters require persisted quality-run evidence."
+          title="No quality checks have run yet — run checks from an asset's Quality tab to unlock this filter."
           value=""
         />
         <DiscoveryFilterSelect
@@ -2256,19 +2336,41 @@ function PrototypeDiscoveryFilterRail({
   resultsCount = 0,
   onDiscoveryStateChange,
 }) {
-  const domainOptions = facetValues(facets, "domains", [], filters.domains || [])
-    .filter((option) => !/^all\s+domains$/i.test(String(option || "")))
-    .slice(0, 6);
-  const classificationOptions = facetValues(facets, "sensitivities", [], filters.sensitivities || [])
-    .filter((option) => !/^all\s+(sensitivit|classificat)/i.test(String(option || "")))
-    .slice(0, 4);
-  const certificationOptions = facetValues(facets, "certifications", ["Certified", "In Review", "Uncertified"], filters.certifications || [])
-    .filter((option) => !/^all\s+(certificat|workflow)/i.test(String(option || "")))
-    .slice(0, 4);
   const activeCertifications = filters.certifications || [];
   const activeDomains = filters.domains || [];
   const activeClassifications = filters.sensitivities || [];
-  const totalCount = Number(resultsCount || assets.length || 0);
+  // Zero-count options are hidden: a filter button that can only produce an
+  // empty result set is noise. Actively-selected values stay visible even at
+  // zero so the user can un-toggle them.
+  const withLiveCounts = (options, facetKey, active) =>
+    options.filter(
+      (option) =>
+        active.includes(option) || Number(facetCount(facets, facetKey, option) || 0) > 0,
+    );
+  const domainOptions = withLiveCounts(
+    facetValues(facets, "domains", [], activeDomains)
+      .filter((option) => !/^all\s+domains$/i.test(String(option || ""))),
+    "domains",
+    activeDomains,
+  ).slice(0, 6);
+  const classificationOptions = withLiveCounts(
+    facetValues(facets, "sensitivities", [], activeClassifications)
+      .filter((option) => !/^all\s+(sensitivit|classificat)/i.test(String(option || ""))),
+    "sensitivities",
+    activeClassifications,
+  ).slice(0, 4);
+  const certificationOptions = withLiveCounts(
+    facetValues(facets, "certifications", ["Certified", "In Review", "Uncertified"], activeCertifications)
+      .filter((option) => !/^all\s+(certificat|workflow)/i.test(String(option || ""))),
+    "certifications",
+    activeCertifications,
+  ).slice(0, 4);
+  // Header count matches the options actually shown in the group (sum of
+  // their facet counts) instead of the unrelated total result count.
+  const certificationShownCount = certificationOptions.reduce(
+    (sum, option) => sum + Number(facetCount(facets, "certifications", option) || 0),
+    0,
+  );
   const appendAttributeQuery = (clause) => {
     onDiscoveryStateChange((current) => ({
       ...current,
@@ -2278,7 +2380,7 @@ function PrototypeDiscoveryFilterRail({
 
   return (
     <aside className="gh-discovery-prototype-filter-rail" aria-label="Discovery filters">
-      <FilterRailGroup eyebrow="Certification" count={totalCount}>
+      <FilterRailGroup eyebrow="Certification" count={certificationShownCount}>
         {certificationOptions.map((option) => {
           const active = activeCertifications.includes(option);
           return (
@@ -2360,50 +2462,104 @@ function FilterRailGroup({ eyebrow, count = null, children }) {
   );
 }
 
-function DiscoverySavedSearchesPopover({ onClose }) {
+// Local-browser saved searches. Persisted in localStorage like favorites /
+// recently-viewed — no backed preference store is required for a per-browser
+// shortcut, and the previous all-disabled placard was five dead controls.
+function DiscoverySavedSearchesPopover({ filters, onApply, onClose }) {
+  const [savedSearches, setSavedSearches] = useState(() => readSavedSearches());
+  const [draftName, setDraftName] = useState("");
+
+  const saveCurrentSearch = () => {
+    const name = draftName.trim();
+    if (!name) return;
+    const entry = savedSearchFromFilters(name, filters);
+    setSavedSearches((current) => {
+      // Same name replaces the previous save so re-saving a scope updates it.
+      const next = [entry, ...current.filter((item) => item.name !== name)].slice(0, 20);
+      writeSavedSearches(next);
+      return next;
+    });
+    setDraftName("");
+  };
+
+  const deleteSavedSearch = (id) => {
+    setSavedSearches((current) => {
+      const next = current.filter((item) => item.id !== id);
+      writeSavedSearches(next);
+      return next;
+    });
+  };
+
   return (
     <div className="gh-discovery-saved-searches-popover" role="dialog" aria-label="Saved searches">
-      {[
-        ["Saved search inventory unavailable", "No backed user-preference store has reported saved searches."],
-        ["Pinned team searches unavailable", "Team-scoped saved-search state is not configured for this workspace."],
-        ["Recent search shortcuts unavailable", "Recent-search history is not persisted by the live runtime."],
-      ].map(([label, detail]) => (
+      <div className="gh-discovery-saved-searches-actions" aria-label="Save current search">
+        <label className="gh-query-builder-field">
+          <span className="gh-field-label">Save current search as</span>
+          <input
+            aria-label="Saved search name"
+            className="gh-input"
+            onChange={(event) => setDraftName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                saveCurrentSearch();
+              }
+            }}
+            placeholder="e.g. Finance PII tables"
+            value={draftName}
+          />
+        </label>
         <button
-          aria-disabled="true"
-          disabled
-          key={label}
-          title={detail}
+          disabled={!draftName.trim()}
+          onClick={saveCurrentSearch}
+          title={
+            draftName.trim()
+              ? "Save the current query and filters to this browser."
+              : "Name the saved search to store the current query and filters."
+          }
           type="button"
         >
-          <strong>{label}</strong>
-          <span>{detail}</span>
-          <small>Disabled</small>
+          <strong>Save current search</strong>
+          <span>{savedSearchSummary(savedSearchFromFilters(draftName || "draft", filters))}</span>
+          <small>Local</small>
         </button>
-      ))}
+      </div>
+      {savedSearches.length ? (
+        savedSearches.map((entry) => (
+          <div className="gh-discovery-saved-search-row" key={entry.id}>
+            <button
+              onClick={() => {
+                onApply?.(entry);
+                onClose?.();
+              }}
+              title={`Apply saved search ${entry.name}`}
+              type="button"
+            >
+              <strong>{entry.name}</strong>
+              <span>{savedSearchSummary(entry)}</span>
+              <small>Apply</small>
+            </button>
+            <button
+              aria-label={`Delete saved search ${entry.name}`}
+              onClick={() => deleteSavedSearch(entry.id)}
+              title={`Delete saved search ${entry.name}`}
+              type="button"
+            >
+              <strong>Delete</strong>
+              <span>Removes this saved search from this browser only.</span>
+              <small>Local</small>
+            </button>
+          </div>
+        ))
+      ) : (
+        <div className="gh-support-copy">
+          No saved searches in this browser yet. Set a query or filters, then save them here.
+        </div>
+      )}
       <div className="gh-discovery-saved-searches-actions" aria-label="Saved search management">
-        <button
-          aria-disabled="true"
-          disabled
-          title="Creating saved searches requires a backed user-preference store; this control does not mutate Databricks without one."
-          type="button"
-        >
-          <strong>Create saved search unavailable</strong>
-          <span>Requires backed preferences</span>
-          <small>Disabled</small>
-        </button>
-        <button
-          aria-disabled="true"
-          disabled
-          title="Managing saved searches requires a backed user-preference store; this control does not mutate Databricks without one."
-          type="button"
-        >
-          <strong>Manage saved searches unavailable</strong>
-          <span>Requires backed preferences</span>
-          <small>Disabled</small>
-        </button>
         <button onClick={onClose} type="button">
           <strong>Close saved searches</strong>
-          <span>No saved-search state was changed.</span>
+          <span>Saved searches live in this browser&apos;s local storage.</span>
           <small>Close</small>
         </button>
       </div>
@@ -2583,16 +2739,15 @@ function DiscoveryResultsTable({
       types: tab.types || [],
     }));
   };
+  // "Coverage score" renders under its own name. The old mapping renamed it
+  // to "Trust score" in the dropdown, which — combined with uniform scores —
+  // read as a fabricated trust rating. Coverage is what the metric measures.
   const sortValues = (() => {
     const opts = Array.isArray(sortOptions) ? sortOptions : [];
-    const filtered = opts
-      .filter((option) => !/best\s*match/i.test(String(option)))
-      .map((option) => (/coverage\s*score/i.test(String(option)) ? "Trust score" : option));
+    const filtered = opts.filter((option) => !/best\s*match/i.test(String(option)));
     return filtered.some((option) => /relevance/i.test(String(option))) ? filtered : ["Relevance", ...filtered];
   })();
-  const normalizedSortValue = /coverage\s*score/i.test(String(filters.sortBy || ""))
-    ? "Trust score"
-    : filters.sortBy || "Relevance";
+  const normalizedSortValue = filters.sortBy || "Relevance";
   return (
     <section
       aria-label="Discovery results"
@@ -2628,7 +2783,7 @@ function DiscoveryResultsTable({
           onChange={(nextValue) =>
             onDiscoveryStateChange((current) => ({
               ...current,
-              sortBy: /trust\s*score/i.test(String(nextValue)) ? "Coverage score" : nextValue,
+              sortBy: nextValue,
             }))
           }
         />
@@ -2674,7 +2829,9 @@ function DiscoveryResultsTable({
           <div role="columnheader">Owner</div>
           <div role="columnheader">Certification</div>
           <div role="columnheader">Domain</div>
-          <div role="columnheader">Trust Signal</div>
+          {/* Renamed from "Trust Signal": the value is metadata coverage,
+              and labeling it trust (with uniform 100%s) read as fake. */}
+          <div role="columnheader">Coverage</div>
           <div role="columnheader">Sensitivity</div>
           <div role="columnheader">Glossary Linkage</div>
           <div role="columnheader">Description</div>
@@ -3059,7 +3216,7 @@ function DiscoveryDegradedResultsState({
         </div>
         <div className="gh-discovery-cell gh-discovery-coverage-cell">
           <span className="gh-discovery-trust-score">--</span>
-          <span className="gh-visually-hidden">Trust unavailable because live discovery did not return results.</span>
+          <span className="gh-visually-hidden">Coverage unavailable because live discovery did not return results.</span>
         </div>
         <div className="gh-discovery-cell gh-discovery-description-cell">
           <span className="gh-truncate">{summarizedMessage}</span>
@@ -3896,7 +4053,9 @@ function SelectionPreview({
                   <span>Quality score from the asset metadata response.</span>
                 </div>
               ) : (
-                <div className="gh-support-copy">Quality score is unavailable for this asset in the current live metadata response.</div>
+                <div className="gh-support-copy">
+                  No quality checks have run for this asset yet — run checks from the asset&apos;s Quality tab to populate a score.
+                </div>
               )}
               {Array.isArray(asset.failedTests) && asset.failedTests.length ? (
                 <ul className="gh-discovery-quality-list">
