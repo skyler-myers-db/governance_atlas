@@ -752,7 +752,9 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["groups"][0]["domain"], "Customer")
         self.assertIsNone(payload["groups"][0]["items"][0]["controlCoverage"])
         self.assertEqual(payload["groups"][0]["items"][0]["controlState"], "unavailable")
-        self.assertEqual(payload["groups"][0]["items"][0]["status"], "Control evidence unavailable")
+        # Status now reflects the asset's real certification instead of
+        # conflating missing control evidence with overall health.
+        self.assertEqual(payload["groups"][0]["items"][0]["status"], "Certified")
         self.assertIsNone(payload["groups"][0]["items"][0]["linkedPolicies"])
         self.assertEqual(payload["groups"][0]["items"][0]["linkedPolicyState"], "unavailable")
 
