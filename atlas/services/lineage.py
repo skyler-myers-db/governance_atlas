@@ -374,8 +374,12 @@ def graph_node_for_asset(
     if not identity_resolved and not item_kind:
         item_kind = "Lineage Reference"
     footer = foot or [item_kind]
-    if not is_openable and "Metadata record unavailable" not in footer:
-        footer = [*footer, "Metadata record unavailable"]
+    if not is_openable:
+        # L9: non-openable nodes previously stacked two vague lines
+        # ("Metadata unavailable" + "Metadata record unavailable") in the
+        # card footer. Collapse to ONE clear permission-honest line so a
+        # restricted node reads intentionally instead of broken.
+        footer = ["Not visible to your account"]
     metadata_unavailable = not is_openable or not identity_resolved
     governance_status = asset_service.normalize_str(row.get("governance_status"))
     domain = asset_service.normalize_str(row.get("domain"))
@@ -1689,6 +1693,40 @@ def build_data_graph(
     }
 
 
+def _peek_cached_visible_inventory(uc: UCSQLClient) -> Optional[pd.DataFrame]:
+    """Return the already-cached visible inventory, or None — never scans.
+
+    L4: the initial lineage profile must stay cheap (no inventory scans),
+    but when the inventory is ALREADY warm in either TTL cache we can
+    resolve the focus asset's identity for free instead of rendering the
+    focus card as an anonymous "Lineage Reference / Metadata unavailable"
+    stub on every cold lineage cache. Only peeks — a cache miss returns
+    None and the caller emits an explicit loading state.
+    """
+    now = time.time()
+    for cache, key in (
+        # assets.inventory() cache — the same frame visible_assets() serves.
+        (asset_service._TTL_CACHE, f"inventory:{asset_service._warehouse_key(uc)}"),
+        # live_metadata.cached_asset_inventory() cache — warmed by bootstrap.
+        (metadata_service._TTL_CACHE, f"asset_inventory:{metadata_service._warehouse_key(uc)}"),
+    ):
+        try:
+            cached = cache.get(key)
+            if not cached:
+                continue
+            fetched_at, payload = cached[0], cached[1]
+            if not isinstance(payload, pd.DataFrame) or payload.empty:
+                continue
+            if now - fetched_at >= 600:
+                continue
+            visible = asset_service.visible_assets(payload)
+            if isinstance(visible, pd.DataFrame) and not visible.empty:
+                return visible
+        except Exception:
+            continue
+    return None
+
+
 def build_initial_data_graph(
     uc: UCSQLClient,
     store: Any,
@@ -1699,9 +1737,10 @@ def build_initial_data_graph(
     The initial profile exists to unblock the page while cold
     system.access.table_lineage queries hydrate in the full profile. It must
     not call upstream/downstream lineage APIs, visible inventory scans, column
-    previews, or operational context. A per-asset identity probe is enough to
-    render the focus card truthfully; full topology replaces it as soon as the
-    background profile returns.
+    previews, or operational context. When the visible inventory is already
+    cached we resolve the focus identity from it (free); otherwise the focus
+    renders as an explicit LOADING state — never "Metadata unavailable" — so
+    the frontend can show honest hydration instead of a false negative.
     """
 
     normalized_fqn = asset_service.normalize_str(asset_fqn)
@@ -1709,43 +1748,67 @@ def build_initial_data_graph(
         catalog, schema, table = asset_service.split_uc_name(normalized_fqn)
     except ValueError:
         catalog, schema, table = "", "", normalized_fqn.split(".")[-1] or normalized_fqn
-    row = pd.Series(
-        {
-            "fqn": normalized_fqn,
-            "table_catalog": catalog,
-            "table_schema": schema,
-            "table_name": table,
-            "table_type": "",
-            "data_source_format": "",
-            "comment": "",
-            "certification": "",
-            "domain": "",
-            "tier": "",
-            "sensitivity": "",
-            "governance_status": "",
-        }
-    )
-    visible_inventory = pd.DataFrame()
-    direct_openable_assets: Set[str] = set()
 
-    focus = graph_node_for_asset(
-        uc,
-        store,
-        normalized_fqn,
-        "focus",
-        50,
-        50,
-        kicker="Focus",
-        kind=asset_service.friendly_table_type(
-            row.get("table_type"),
-            row.get("data_source_format"),
-        ),
-        foot=[asset_service.normalize_str(row.get("certification")) or "Metadata unavailable"],
-        depth=0,
-        visible_inventory=visible_inventory,
-        include_columns=False,
-        direct_openable_assets=direct_openable_assets,
-    )
+    cached_inventory = _peek_cached_visible_inventory(uc)
+    if cached_inventory is not None and asset_service.asset_is_visible(
+        cached_inventory, normalized_fqn
+    ):
+        # Warm-inventory path: full identity resolution at zero extra cost.
+        row = asset_service.inventory_row(cached_inventory, normalized_fqn)
+        focus = graph_node_for_asset(
+            uc,
+            store,
+            normalized_fqn,
+            "focus",
+            50,
+            50,
+            kicker="Focus",
+            kind=asset_service.friendly_table_type(
+                row.get("table_type"),
+                row.get("data_source_format"),
+            ),
+            foot=[asset_service.normalize_str(row.get("certification")) or "Unassigned"],
+            depth=0,
+            visible_inventory=cached_inventory,
+            include_columns=False,
+            direct_openable_assets={normalized_fqn},
+        )
+    else:
+        # Cold-cache path: identity is genuinely unknown RIGHT NOW but the
+        # full profile is already hydrating in the background. Emit a
+        # loading-state focus (openabilityState "loading", foot "Loading
+        # metadata…") rather than routing through graph_node_for_asset,
+        # which would mislabel the focus as a non-openable "Lineage
+        # Reference" with unavailable metadata — the L4 defect.
+        focus = {
+            "id": f"focus-{normalized_fqn}",
+            "assetFqn": normalized_fqn,
+            "label": table or normalized_fqn.split(".")[-1],
+            "subtitle": " / ".join(part for part in [catalog, schema] if part),
+            "kicker": "Focus",
+            "kind": "",
+            "role": "focus",
+            "depth": 0,
+            "x": 50,
+            "y": 50,
+            "foot": ["Loading metadata…"],
+            "columns": [],
+            "details": {
+                "fqn": normalized_fqn,
+                "description": "Asset metadata is hydrating from live Unity Catalog inventory.",
+                "governanceStatus": "",
+                "domain": "",
+                "tier": "",
+                "certification": "",
+                "sensitivity": "",
+                # The user navigated here; the full profile / destination
+                # page surfaces the truth. Do not block clicks on a
+                # not-yet-resolved identity (bootstrap-pessimism rule).
+                "isOpenable": True,
+                "openabilityState": "loading",
+                "resolutionState": "loading",
+            },
+        }
     return {
         "nodes": [focus],
         "edges": [],

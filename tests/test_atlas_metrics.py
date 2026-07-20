@@ -306,7 +306,10 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertNotIn("ga-taxonomy-term", serialized)
         self.assertNotIn("home-evidence-plane", serialized)
 
-    def test_command_center_marks_audit_readiness_unavailable_without_audit(self) -> None:
+    def test_command_center_audit_readiness_uses_documented_formula(self) -> None:
+        # Audit readiness is now computed from asset metadata dimensions
+        # (documented + owned + classified), so it stays available even when
+        # the audit log itself has no rows — but only with visible assets.
         class NoAuditStore(FakeStore):
             def list_metadata_audit(self, **_: object) -> pd.DataFrame:
                 return pd.DataFrame()
@@ -317,8 +320,17 @@ class AtlasMetricsTests(unittest.TestCase):
         )
 
         audit_kpi = next(item for item in payload["kpis"] if item["key"] == "auditReadiness")
-        self.assertIsNone(audit_kpi["value"])
-        self.assertEqual(audit_kpi["state"], "unavailable")
+        self.assertIsNotNone(audit_kpi["value"])
+        self.assertEqual(audit_kpi["state"], "available")
+        self.assertEqual(audit_kpi["formula"], atlas_metrics.AUDIT_READINESS_FORMULA)
+
+        empty_payload = atlas_metrics.command_center_payload(
+            visible_assets=pd.DataFrame(),
+            store=NoAuditStore(),
+        )
+        empty_kpi = next(item for item in empty_payload["kpis"] if item["key"] == "auditReadiness")
+        self.assertIsNone(empty_kpi["value"])
+        self.assertEqual(empty_kpi["state"], "unavailable")
 
     def test_command_center_marks_unsupported_zero_signals_unavailable(self) -> None:
         class NoPolicySignalStore(FakeStore):
@@ -340,8 +352,11 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(coverage_kpi["state"], "unavailable")
         self.assertIsNone(certified_critical_kpi["value"])
         self.assertEqual(certified_critical_kpi["state"], "unavailable")
-        self.assertIsNone(policy_kpi["value"])
-        self.assertEqual(policy_kpi["state"], "unavailable")
+        # The request/audit sources responded (with zero rows), so zero policy
+        # exceptions is a real, backed answer — not an unavailable signal.
+        self.assertEqual(policy_kpi["value"], 0)
+        self.assertEqual(policy_kpi["state"], "available")
+        self.assertIn("No policy exceptions recorded", policy_kpi["reason"])
 
     def test_command_center_payload_replaces_nan_with_json_safe_nulls(self) -> None:
         payload = atlas_metrics.command_center_payload(

@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import pandas as pd
 
 from atlas.uc import _is_skippable_metadata_error
+from atlas.util import quote_ident, sql_literal
 from atlas.services import live_metadata as metadata_service
 
 
@@ -291,6 +292,78 @@ def inventory(
     return value
 
 
+def _iso_timestamp(value: Any) -> str:
+    """Normalize a timestamp-ish value to an ISO-8601 string ('' when absent).
+
+    Used for information_schema.last_altered so the frontend can compute
+    relative freshness with `new Date(...)`. Never fabricates: unparseable
+    or missing values return an empty string.
+    """
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    try:
+        ts = pd.Timestamp(value)
+    except (TypeError, ValueError):
+        return ""
+    if ts is pd.NaT:
+        return ""
+    try:
+        return ts.isoformat()
+    except Exception:
+        return ""
+
+
+def _catalog_last_altered_map(uc, catalog: str) -> Dict[str, str]:
+    """fqn -> ISO-8601 `last_altered` for every table in one catalog.
+
+    Sourced from the SAME information_schema.tables relation the inventory
+    query reads, as a single per-catalog query cached for 600s — this keeps
+    the discovery index freshness enrichment cheap (no per-asset fan-out).
+    Any failure degrades to an empty map so freshness is simply absent,
+    never fabricated.
+    """
+
+    def _load() -> Dict[str, str]:
+        queries = [
+            f"""SELECT table_catalog, table_schema, table_name, last_altered
+FROM {quote_ident(catalog)}.information_schema.tables
+WHERE table_schema <> 'information_schema'""",
+            f"""SELECT table_catalog, table_schema, table_name, last_altered
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema <> 'information_schema'""",
+        ]
+        for query in queries:
+            try:
+                df = uc.query_df(query)
+            except Exception:
+                continue
+            if df is None or df.empty:
+                continue
+            mapping: Dict[str, str] = {}
+            for _, row in df.iterrows():
+                fqn = ".".join(
+                    normalize_str(row.get(col))
+                    for col in ("table_catalog", "table_schema", "table_name")
+                )
+                iso = _iso_timestamp(row.get("last_altered"))
+                if fqn and iso:
+                    mapping[fqn] = iso
+            return mapping
+        return {}
+
+    return _ttl_value(
+        f"catalog_last_altered:{_warehouse_key(uc)}:{normalize_str(catalog)}",
+        600,
+        _load,
+    )
+
+
 def build_inventory(
     uc, store, hidden_catalogs: Sequence[str], is_skippable_metadata_error
 ) -> pd.DataFrame:
@@ -364,6 +437,19 @@ def build_inventory(
 
     inventory["tags"] = inventory["fqn"].map(
         lambda fqn: tag_maps.get(str(fqn), {}) if pd.notna(fqn) else {}
+    )
+    # Freshness enrichment: last_altered comes from the same
+    # information_schema.tables relation the inventory reads — one cached
+    # query per catalog (never per-asset fan-out). This lights up the
+    # discovery card freshness, "Updated" sort, and preview freshness.
+    last_altered_map: Dict[str, str] = {}
+    for catalog in catalogs:
+        try:
+            last_altered_map.update(_catalog_last_altered_map(uc, catalog))
+        except Exception:
+            continue
+    inventory["last_altered"] = inventory["fqn"].map(
+        lambda fqn: last_altered_map.get(str(fqn), "") if pd.notna(fqn) else ""
     )
     inventory["domain"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "domain")
@@ -1016,6 +1102,18 @@ def _is_customer_visible_tag(tag_name: Any) -> bool:
     return not any(normalized.startswith(prefix) for prefix in INTERNAL_TAG_PREFIXES)
 
 
+def _display_or_empty(value: Any) -> str:
+    """Collapse the legacy '—' placeholder to an empty string.
+
+    The API must never bake presentation placeholders into payloads: the
+    frontend renders its own labeled fallbacks ("Unavailable", "No
+    description...") and treats empty as absent. Emitting literal em-dashes
+    defeated those fallbacks and read as fake data.
+    """
+    text = normalize_str(value)
+    return "" if text in {"—", "-"} else text
+
+
 def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
     raw_table_type = normalize_str(row.get("table_type"))
     raw_storage_format = normalize_str(row.get("data_source_format"))
@@ -1035,15 +1133,25 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "catalog": normalize_str(row.get("table_catalog")),
         "schema": normalize_str(row.get("table_schema")),
         "objectType": friendly_table_type(raw_table_type, raw_storage_format),
-        "description": normalize_str(row.get("comment")) or PLACEHOLDER_DESCRIPTION,
+        # Emit the REAL description (empty when empty). The client renders
+        # the "No description has been captured..." placeholder itself;
+        # baking the sentence server-side defeated the frontend's
+        # missing-description detection and inflated coverage claims.
+        "description": normalize_str(row.get("comment")),
         "coverageScore": safe_int(row.get("governance_score")),
-        "rows": "—",
-        "format": friendly_storage_format(raw_storage_format),
-        "storageFormat": friendly_storage_format(raw_storage_format),
+        # Rows / size / files are not known at inventory time. Emit empty
+        # (absent) instead of a literal "—" so the client can render honest
+        # "Unavailable" fallbacks instead of a fake-looking dash.
+        "rows": "",
+        "format": _display_or_empty(friendly_storage_format(raw_storage_format)),
+        "storageFormat": _display_or_empty(friendly_storage_format(raw_storage_format)),
         "tableTypeRaw": raw_table_type,
-        "managementType": management_type(raw_table_type),
-        "size": "—",
-        "files": "—",
+        "managementType": _display_or_empty(management_type(raw_table_type)),
+        "size": "",
+        "files": "",
+        # ISO-8601 last_altered from information_schema (see build_inventory
+        # enrichment). Empty when the source didn't report it.
+        "updatedAt": _iso_timestamp(row.get("last_altered")),
         "domain": normalize_str(row.get("domain")) or "Unassigned",
         "tier": normalize_str(row.get("tier")) or "Unassigned",
         "certification": normalize_str(row.get("certification")) or "Unassigned",
@@ -3507,7 +3615,11 @@ def asset_detail_payload(
                     detail_df = pd.DataFrame()
             detail = detail_map(detail_df)
 
-            if normalize_str(base["description"]) == PLACEHOLDER_DESCRIPTION:
+            # base_asset_payload now emits the real (possibly empty)
+            # description. When it's empty, try the live comment sources;
+            # if nothing is captured we keep it empty — the CLIENT renders
+            # the "No description..." placeholder, never the API.
+            if not normalize_str(base["description"]):
                 try:
                     base["description"] = cached_comment(uc, catalog, schema, table)
                 except Exception:
@@ -3520,7 +3632,7 @@ def asset_detail_payload(
                     except Exception:
                         base["description"] = ""
                 if not normalize_str(base["description"]):
-                    base["description"] = PLACEHOLDER_DESCRIPTION
+                    base["description"] = ""
 
             try:
                 row_count = coalesce(

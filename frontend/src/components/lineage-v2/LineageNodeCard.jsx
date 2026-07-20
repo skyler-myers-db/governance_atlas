@@ -69,7 +69,10 @@ function meaningful(value) {
 // batch-fetched `header` (richer fields) and fall back to whatever
 // useLineageGraphV2 surfaced from the lineage payload. Always returns
 // strings (or null) — the caller renders only non-empty entries.
-function deriveCardStats(node, header) {
+// Exported so LineageDetailRail (LineageWorkspace.jsx) can reuse the exact
+// same header→stats derivation for the selected node — the rail and the card
+// must never disagree about what we know for a node (L2).
+export function deriveCardStats(node, header) {
   const h = header || {};
   // Rows: header has pre-formatted "1.2M" string from the backend
   // formatter. Lineage payload only has it for the focus node, so prefer
@@ -468,7 +471,10 @@ export function LineageNodeCard({
             (node.foot || []).slice(0, 2).map((line, idx) => (
               <span
                 className={`ga-lineage-v2-card-footstat ${
-                  /unavailable|pending/i.test(line) ? "is-empty" : ""
+                  // "Not visible to your account" (restricted, L9) and
+                  // "Loading metadata…" (cold-cache initial profile, L4)
+                  // are status lines, not stats — render them muted.
+                  /unavailable|pending|not visible|loading/i.test(line) ? "is-empty" : ""
                 }`.trim()}
                 key={`${line}-${idx}`}
                 title={line}

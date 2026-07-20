@@ -215,10 +215,14 @@ describe("LineageWorkspace (v2)", () => {
     expect(screen.getByText("nodes=1")).toBeTruthy();
   });
 
-  it("does not fetch quality evidence for a lineage focus outside actor-visible inventory", () => {
+  // L1: quality/evidence gating now trusts the LIVE asset header (the
+  // authoritative visibility proof) instead of the bootstrap seed set —
+  // sharedVisibleAssetSet under-reported visibility and blanked the
+  // Impact Brief for perfectly visible assets.
+  it("does not fetch quality evidence until the focus asset header hydrates", () => {
     useAssetDetail.mockReturnValue({
-      detail: { fqn: "a.b.focus", name: "focus" },
-      loading: false,
+      detail: null,
+      loading: true,
       error: "",
     });
     useLineageGraphV2.mockReturnValue({

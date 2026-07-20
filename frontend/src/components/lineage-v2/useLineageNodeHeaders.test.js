@@ -86,12 +86,15 @@ describe("useLineageNodeHeaders", () => {
   });
 
   it("caps cold node header hydration to a bounded batch", async () => {
-    const manyFqns = Array.from({ length: 30 }, (_, index) => `catalog.schema.asset_${index}`);
+    // L7: the cap now matches the backend graph node limit (48) so cards
+    // beyond the 18th stop rendering bare footers. Still one request —
+    // the batch endpoint accepts up to 64 FQNs.
+    const manyFqns = Array.from({ length: 60 }, (_, index) => `catalog.schema.asset_${index}`);
     const { result } = renderHook(() => useLineageNodeHeaders(manyFqns));
     await waitFor(() => {
-      expect(result.current.headers.size).toBe(18);
+      expect(result.current.headers.size).toBe(48);
     });
     expect(fetchAssetHeaders).toHaveBeenCalledTimes(1);
-    expect(fetchAssetHeaders.mock.calls[0][0]).toHaveLength(18);
+    expect(fetchAssetHeaders.mock.calls[0][0]).toHaveLength(48);
   });
 });

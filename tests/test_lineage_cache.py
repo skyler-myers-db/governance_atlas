@@ -575,7 +575,9 @@ class LineageCacheTests(unittest.TestCase):
 
         self.assertFalse(node["details"]["isOpenable"])
         self.assertEqual(node["details"]["resolutionState"], "lineage-only")
-        self.assertIn("Metadata record unavailable", node["foot"])
+        # L9: non-openable nodes now emit ONE clear permission-honest foot
+        # line instead of stacking two "Metadata … unavailable" variants.
+        self.assertEqual(node["foot"], ["Not visible to your account"])
         self.assertEqual(node["details"]["governanceStatus"], "Unavailable")
         self.assertEqual(node["details"]["domain"], "Unavailable")
 

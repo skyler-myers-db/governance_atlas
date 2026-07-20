@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { LineageCanvasV2 } from "./lineage-v2/LineageCanvasV2";
+import { deriveCardStats } from "./lineage-v2/LineageNodeCard";
 import { useLineageGraphV2 } from "./lineage-v2/useLineageGraphV2";
 import { useLineageNodeHeaders } from "./lineage-v2/useLineageNodeHeaders";
 import { useAssetDetail } from "../hooks/useAssetDetail";
@@ -41,7 +42,10 @@ import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from 
 
 function compactCount(value) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return "Unavailable";
+  // L12: a non-numeric count used to render the word "Unavailable", which
+  // concatenated into gibberish like "Unavailable edges". A dash reads as
+  // "no value" without pretending to be a stat.
+  if (!Number.isFinite(number)) return "—";
   return Math.max(0, Math.trunc(number)).toLocaleString();
 }
 
@@ -447,7 +451,7 @@ function FocusChip({ tone, children, title = "" }) {
   );
 }
 
-function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear }) {
+function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear, loading = false, restricted = false }) {
   // Source the chips from the asset detail when available — the
   // lineage payload's `focus` node is a thin stub from
   // system.access.table_lineage and doesn't carry freshness / owner /
@@ -499,19 +503,40 @@ function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear }) 
         <span className="ga-lineage-eyebrow">Lineage Atlas</span>
         <h1>{focusFqn}</h1>
         <p>Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.</p>
-        <div className="ga-lineage-v2-hero-chips">
-          <FocusChip tone={certified ? "good" : "neutral"}>
-            {certified ? "Certified" : "Certification unavailable"}
-          </FocusChip>
-          <FocusChip tone={freshness ? "info" : "neutral"}>
-            {freshness ? `Freshness · ${freshness}` : "Freshness unavailable"}
-          </FocusChip>
-          <FocusChip tone={classification ? "warn" : "neutral"} title={classification}>
-            {classification || "Sensitivity unavailable"}
-          </FocusChip>
-          <FocusChip tone={owner ? "info" : "neutral"} title={owner}>
-            {owner ? `Owner · ${owner}` : "Owner unavailable"}
-          </FocusChip>
+        <div className="ga-lineage-v2-hero-chips" aria-busy={loading || undefined}>
+          {/*
+            L6: while the asset header is still loading, four grey
+            "… unavailable" chips used to flash on EVERY load — a false
+            negative. Render ellipsis placeholders during load; only a
+            RESOLVED header may claim an honest empty ("Not certified").
+            Restricted assets say "Restricted", not "unavailable".
+          */}
+          {loading ? (
+            ["Certification", "Freshness", "Sensitivity", "Owner"].map((label) => (
+              <FocusChip key={label} tone="neutral" title="Loading asset metadata">
+                {label} …
+              </FocusChip>
+            ))
+          ) : restricted && !asset?.fqn ? (
+            <FocusChip tone="warn" title="This asset's metadata is not visible to your account">
+              Restricted · metadata not visible to your account
+            </FocusChip>
+          ) : (
+            <>
+              <FocusChip tone={certified ? "good" : "neutral"}>
+                {certified ? "Certified" : "Not certified"}
+              </FocusChip>
+              <FocusChip tone={freshness ? "info" : "neutral"}>
+                {freshness ? `Freshness · ${freshness}` : "No freshness signal"}
+              </FocusChip>
+              <FocusChip tone={classification ? "warn" : "neutral"} title={classification}>
+                {classification || "No sensitivity label"}
+              </FocusChip>
+              <FocusChip tone={owner ? "info" : "neutral"} title={owner}>
+                {owner ? `Owner · ${owner}` : "No owner assigned"}
+              </FocusChip>
+            </>
+          )}
           {edgeCount !== null ? (
             <FocusChip tone="info">
               {edgeCount} {edgeCount === 1 ? "edge" : "edges"}
@@ -600,6 +625,10 @@ function ColumnTracePath({ title, trace, directItems, error }) {
   );
 }
 
+// L10: stable section list so the lazy activity fetch below keys a stable
+// react-query cache entry instead of re-normalizing a fresh array per render.
+const RAIL_ACTIVITY_SECTIONS = ["activity"];
+
 function LineageDetailRail({
   graph,
   focus,
@@ -611,6 +640,7 @@ function LineageDetailRail({
   databricksEvidence,
   accessExplain,
   impactRequestState,
+  nodeHeaders = null,
   onCreateImpactRequest,
   onExportImpactBrief,
   onOpenAsset,
@@ -621,6 +651,21 @@ function LineageDetailRail({
   const [activeTab, setActiveTab] = useState("impact");
   const subject = selectedNode || focus;
   const subjectId = subject?.id;
+  const subjectFqn = subject?.fqn || "";
+  // L2: the batch header fetch (useLineageNodeHeaders) already holds
+  // rows/size/owner/updatedAt for visible peer nodes — reuse it via the
+  // exact card derivation so the rail never says "Unavailable" for data
+  // that is already sitting in memory for the selected node.
+  const subjectHeader = nodeHeaders?.get?.(subjectFqn) || null;
+  const subjectStats = deriveCardStats(subject, subjectHeader);
+  // L10: recorded activity is a lazy asset-detail section. Fetch it only
+  // once the Details tab is open (enabled flag — the hook itself must run
+  // unconditionally to keep hook order stable). Reuses the shared
+  // asset-detail cache, so a cached section costs no request.
+  const activityFetch = useAssetDetail(isUcAssetFqn(subjectFqn) ? subjectFqn : "", {
+    sections: RAIL_ACTIVITY_SECTIONS,
+    enabled: activeTab === "details",
+  });
   const sources = useMemo(
     () =>
       graph.edges
@@ -702,15 +747,41 @@ function LineageDetailRail({
     : Array.isArray(focusedAsset?.activity)
       ? focusedAsset.activity
       : [];
-  const recentActivity = detailActivity.length ? detailActivity : subject?.recentActivity || [];
+  // L10: lazily fetched `sections=activity` rows for the selected subject.
+  const fetchedActivity = arrayValue(activityFetch?.detail?.activity);
+  const recentActivity = detailActivity.length
+    ? detailActivity
+    : fetchedActivity.length
+      ? fetchedActivity
+      : subject?.recentActivity || [];
   const recentActivityCount = recentActivity.length || subject?.recentActivityCount || 0;
+  // L2: merged rail stats — the focus subject reads from the asset detail
+  // (focusedAsset); a selected non-focus subject falls back to its
+  // batch-fetched node header stats so real values render instead of
+  // "Unavailable".
+  const railFreshness = detailFreshness || subjectStats.freshness || subject?.freshness || "";
+  const railRows =
+    detailRowCount != null && detailRowCount !== ""
+      ? displayCount(detailRowCount)
+      : subjectStats.rowCount || subject?.rowCount || "";
+  const railOwner = detailOwner || subjectStats.ownerLabel || "";
+  const railType = detailType || subjectStats.typeLabel || "";
+  const railSize = detailSize || subjectStats.size || "";
+  const railFiles = detailFiles || subjectStats.files || "";
+  // L13: every count in this rail is bounded by the caller's visibility
+  // scope. Annotate so "0" reads as "0 visible to you", not "0 exist".
+  const railVisibilityScope = String(
+    graph.meta?.visibilityScope || graph.meta?.capabilities?.visibilityScope || "",
+  );
+  const scopeNote = railVisibilityScope && railVisibilityScope !== "full"
+    ? " within your visibility scope"
+    : "";
   const columnLineageCount = Array.isArray(graph.columnEdges) ? graph.columnEdges.length : 0;
   const downstreamDashboards = consumers.filter((node) => node.kind === "dashboard");
   const downstreamJobs = consumers.filter((node) => node.kind === "job");
   const linkedPolicies = arrayValue(focusedAsset?.policies || focusedAsset?.linkedPolicies);
   const linkedControls = arrayValue(focusedAsset?.controls || focusedAsset?.linkedControls);
   const accessGrants = arrayValue(accessExplain?.data?.grants || accessExplain?.data?.permissions);
-  const approvalBlockers = arrayValue(focusedAsset?.approvalBlockers || focusedAsset?.requiredApprovals);
   const directColumnLineage = buildColumnDirectLineage(
     graph.columnLineage,
     selectedColumn,
@@ -852,7 +923,7 @@ function LineageDetailRail({
       {activeTab === "impact" ? (
         <div className="ga-lineage-impact-panel">
           <div className="ga-lineage-impact-grid">
-            <ImpactFact label="Downstream" value={compactCount(consumers.length)} detail="visible graph consumers" tone={consumers.length ? "warn" : "neutral"} />
+            <ImpactFact label="Downstream" value={compactCount(consumers.length)} detail={`visible graph consumers${scopeNote}`} tone={consumers.length ? "warn" : "neutral"} />
             <ImpactFact label="Column paths" value={compactCount(columnLineageCount)} detail="direct UC column links" tone={columnLineageCount ? "info" : "neutral"} />
             <ImpactFact
               label="Quality issues"
@@ -873,18 +944,27 @@ function LineageDetailRail({
           </div>
           <div className="ga-lineage-v2-rail-section">
             <header><span>Decision packet</span></header>
+            {/*
+              L5: this packet used to render up to 8 "Unavailable: no …
+              records returned" rows, several for fields no backend ever
+              emits. Rows with a real backing source (owners, sensitivity,
+              access, DQM/profile/Lakeflow via evidence hooks, approvals
+              via the header's openRequests) render their backed values;
+              fields with NO backend source (policies, controls) use plain
+              honest copy. The "Approval blockers" row was removed — no
+              backend emits approval-blocker records.
+            */}
             <ul className="ga-lineage-impact-list">
-              <li>Owners: {detailOwner || "Unavailable"}</li>
-              <li>Sensitivity: {focusedAsset?.sensitivity || subject?.classification || "Unavailable"}</li>
-              <li>Access scope: {accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "Unavailable"}</li>
-              <li>Access grants: {accessGrants.length ? `${accessGrants.length} grant row(s) returned` : "Unavailable: no access-grant rows returned"}</li>
-              <li>Policies: {linkedPolicies.length ? linkedPolicies.map((policy) => firstMeaningful(policy?.name, policy?.title, policy?.id, policy)).slice(0, 3).join(", ") : "Unavailable: no linked policy records returned"}</li>
-              <li>Controls affected: {linkedControls.length ? `${linkedControls.length} linked control(s)` : "Unavailable: no control coverage records returned"}</li>
-              <li>Databricks DQM: {dqmSummary.healthStatus ? `${dqmSummary.healthStatus} · freshness ${dqmSummary.freshnessStatus || "Unavailable"} · completeness ${dqmSummary.completenessStatus || "Unavailable"}` : "Unavailable: no DQM status returned"}</li>
-              <li>Databricks profile: {profileMetricRows.length ? `${profileMetricRows.length} metric table row(s)` : profileMetrics?.monitor?.profileMetricsTableName ? "Monitor configured; metric table visibility unavailable" : "Unavailable: no profile monitor or metric tables returned"}</li>
-              <li>Lakeflow: {lakeflowJobs.length || lakeflowPipelines.length ? `${lakeflowJobs.length} job run(s), ${lakeflowPipelines.length} pipeline update(s)` : "Unavailable: no Lakeflow workflow rows joined from lineage"}</li>
-              <li>Required approvals: {focusedAsset?.openRequests == null ? "Unavailable" : Number(focusedAsset.openRequests) ? `${focusedAsset.openRequests} open request(s)` : "No open approval requests returned"}</li>
-              <li>Approval blockers: {approvalBlockers.length ? approvalBlockers.map((item) => firstMeaningful(item?.title, item?.name, item?.id, item)).join(", ") : "Unavailable: no approval-blocker records returned"}</li>
+              <li>Owners: {detailOwner || subjectStats.ownerLabel || "No owner recorded"}</li>
+              <li>Sensitivity: {focusedAsset?.sensitivity || subject?.classification || "No sensitivity label"}</li>
+              <li>Access scope: {accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "Not returned"}</li>
+              <li>Access grants: {accessGrants.length ? `${accessGrants.length} grant row(s) returned` : "No access-grant rows returned"}</li>
+              <li>Policies: {linkedPolicies.length ? linkedPolicies.map((policy) => firstMeaningful(policy?.name, policy?.title, policy?.id, policy)).slice(0, 3).join(", ") : "No policies linked"}</li>
+              <li>Controls affected: {linkedControls.length ? `${linkedControls.length} linked control(s)` : "No controls linked"}</li>
+              <li>Databricks DQM: {dqmSummary.healthStatus ? `${dqmSummary.healthStatus} · freshness ${dqmSummary.freshnessStatus || "—"} · completeness ${dqmSummary.completenessStatus || "—"}` : "No DQM status returned"}</li>
+              <li>Databricks profile: {profileMetricRows.length ? `${profileMetricRows.length} metric table row(s)` : profileMetrics?.monitor?.profileMetricsTableName ? "Monitor configured; metric tables not visible" : "No profile monitor returned"}</li>
+              <li>Lakeflow: {lakeflowJobs.length || lakeflowPipelines.length ? `${lakeflowJobs.length} job run(s), ${lakeflowPipelines.length} pipeline update(s)` : "No Lakeflow rows joined from lineage"}</li>
+              <li>Required approvals: {focusedAsset?.openRequests == null ? "Not returned for this selection" : Number(focusedAsset.openRequests) ? `${focusedAsset.openRequests} open request(s)` : "No open approval requests"}</li>
               <li>Truncation: {Object.values(truncated).some(Boolean) ? "One or more lineage limits were reached" : "No truncation flag returned"}</li>
               <li>Hydration: {Object.values(progressive).some(Boolean) ? "Progressive lineage state is active" : "Full profile currently displayed"}</li>
             </ul>
@@ -894,7 +974,7 @@ function LineageDetailRail({
               <span>Downstream consumers</span>
               <span className="ga-lineage-v2-rail-count">{consumers.length}</span>
             </header>
-            <LineageRows items={consumers.slice(0, 5)} empty="No downstream consumers returned for this asset." onSelectAsset={onSelectAsset} />
+            <LineageRows items={consumers.slice(0, 5)} empty={`No downstream consumers returned for this asset${scopeNote}.`} onSelectAsset={onSelectAsset} />
           </div>
           <div className="ga-lineage-v2-rail-section">
             <header>
@@ -914,7 +994,17 @@ function LineageDetailRail({
                 {lakeflowJobs.slice(0, 3).map((job, index) => (
                   <li key={`${job.job_id || "job"}-${job.run_id || index}`}>
                     <strong>{job.job_name || job.job_id || "Lakeflow job"}</strong>
-                    <span>{job.result_state || "Result unavailable"} · {job.period_start_time || job.last_lineage_event || "time unavailable"}</span>
+                    {/* L11: omit missing fragments instead of rendering
+                        "Result unavailable · time unavailable" filler. */}
+                    {[job.result_state, job.period_start_time || job.last_lineage_event]
+                      .filter(Boolean)
+                      .join(" · ") ? (
+                      <span>
+                        {[job.result_state, job.period_start_time || job.last_lineage_event]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -952,17 +1042,19 @@ function LineageDetailRail({
       {activeTab === "details" ? (
         <>
           {subject ? (
+            // L2: merged rail stats (asset detail for focus; batch node
+            // header for non-focus subjects) — see railFreshness et al.
             <div className="ga-lineage-v2-rail-stats">
-              <div><span>Last refresh</span><strong>{detailFreshness || subject.freshness || "Unavailable"}</strong></div>
-              <div><span>Rows</span><strong>{detailRowCount != null && detailRowCount !== "" ? displayCount(detailRowCount) : subject.rowCount || "Unavailable"}</strong></div>
-              <div><span>Owner</span><strong>{detailOwner || "Unavailable"}</strong></div>
-              {detailType ? <div><span>Type</span><strong>{detailType}</strong></div> : null}
-              {detailSize ? <div><span>Size</span><strong>{detailSize}{detailFiles ? ` · ${detailFiles} files` : ""}</strong></div> : null}
+              <div><span>Last refresh</span><strong>{railFreshness || "Unavailable"}</strong></div>
+              <div><span>Rows</span><strong>{railRows || "Unavailable"}</strong></div>
+              <div><span>Owner</span><strong>{railOwner || "Unavailable"}</strong></div>
+              {railType ? <div><span>Type</span><strong>{railType}</strong></div> : null}
+              {railSize ? <div><span>Size</span><strong>{railSize}{railFiles ? ` · ${railFiles} files` : ""}</strong></div> : null}
             </div>
           ) : null}
           <div className="ga-lineage-v2-rail-section">
             <header><span>Sources</span><span className="ga-lineage-v2-rail-count">{sources.length}</span></header>
-            <LineageRows items={sources} empty="No source-system details returned." onSelectAsset={onSelectAsset} />
+            <LineageRows items={sources} empty={`No upstream sources returned${scopeNote}.`} onSelectAsset={onSelectAsset} />
           </div>
           <div className="ga-lineage-v2-rail-section">
             <header><span>Recent activity</span><span className="ga-lineage-v2-rail-count">{recentActivityCount}</span></header>
@@ -975,8 +1067,12 @@ function LineageDetailRail({
                   </li>
                 ))}
               </ul>
+            ) : activityFetch?.loading ? (
+              // L10: activity is being fetched lazily now that this tab is
+              // open — say "loading", never a premature empty.
+              <p className="ga-lineage-v2-rail-empty">Loading recorded activity…</p>
             ) : (
-              <p className="ga-lineage-v2-rail-empty">No recent lineage activity returned.</p>
+              <p className="ga-lineage-v2-rail-empty">No recorded activity.</p>
             )}
           </div>
           {focus?.fqn ? (
@@ -1164,17 +1260,17 @@ export default function LineageWorkspace({
   const recommendationsVisibilityScope = lineageRecommendations.visibilityScope || "";
   const recommendationsRelationshipVisibilityScope = lineageRecommendations.relationshipVisibilityScope || "";
   const assetHeaderHydrated = Boolean(assetDetail.detail?.fqn) && !assetDetail.loading && !assetDetail.detail?.error;
-  const focusAssetHasQualityVisibility = Boolean(
-    focusAssetFqn &&
-      sharedVisibleAssetSet &&
-      typeof sharedVisibleAssetSet.has === "function" &&
-      sharedVisibleAssetSet.has(focusAssetFqn),
-  );
+  // L1: quality + Databricks evidence were additionally gated on
+  // sharedVisibleAssetSet — a bootstrap SEED set that under-reports what
+  // the live API can actually serve, so the Impact Brief showed "Quality
+  // issues: Unavailable / DQM health: Unavailable" for perfectly visible
+  // assets. Per the trust-live-API rule, a successfully hydrated asset
+  // header IS the proof of visibility: gate on that alone.
   const quality = useAssetQuality(focusAssetFqn || "", {
-    enabled: Boolean(focusAssetFqn && assetHeaderHydrated && focusAssetHasQualityVisibility),
+    enabled: Boolean(focusAssetFqn && assetHeaderHydrated),
   });
   const databricksEvidence = useAssetDatabricksEvidence(focusAssetFqn || "", {
-    enabled: Boolean(focusAssetFqn && assetHeaderHydrated && focusAssetHasQualityVisibility),
+    enabled: Boolean(focusAssetFqn && assetHeaderHydrated),
   });
   const accessExplain = useAccessExplain(focusAssetFqn || "", { enabled: Boolean(focusAssetFqn) });
   const columnTrace = useColumnLineageTrace(
@@ -1195,6 +1291,21 @@ export default function LineageWorkspace({
     [focusAssetFqn, graph.nodes],
   );
   const { headers: nodeHeaders } = useLineageNodeHeaders(lineageNodeFqns);
+  // L3: the focus FQN is deliberately excluded from the batch header fetch
+  // (its full header already arrives via useAssetDetail above), but the
+  // canvas header map never received it — so the focus card lacked the
+  // rows/size/freshness/owner footer its PEERS had. Seed the map with the
+  // asset detail for the focus; the asset-detail payload is a superset of
+  // the batch header shape (rows/size/files/owners/managementType/
+  // objectType), so deriveCardStats consumes it unchanged.
+  const canvasNodeHeaders = useMemo(() => {
+    const base = nodeHeaders instanceof Map ? new Map(nodeHeaders) : new Map();
+    const detail = assetDetail.detail;
+    if (focusAssetFqn && detail?.fqn === focusAssetFqn) {
+      base.set(focusAssetFqn, detail);
+    }
+    return base;
+  }, [assetDetail.detail, focusAssetFqn, nodeHeaders]);
   const asset =
     assetDetail.detail ||
     (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
@@ -1369,6 +1480,15 @@ export default function LineageWorkspace({
     }
   }, [graph.nodes.length, canvasEverRendered]);
 
+  // L6: while the header request is in flight AND we have nothing (no
+  // detail, no seeded summary) the hero must render loading chips, not
+  // "… unavailable" false negatives. Plain derived consts — no hooks, so
+  // safe above the early returns.
+  const heroMetadataLoading = Boolean(focusAssetFqn) && assetDetail.loading && !asset?.fqn;
+  // L6: restricted focus — the graph payload marks the focus non-openable.
+  // The hydrated asset detail (if any) still wins per trust-live-API.
+  const focusRestricted = graph.focus ? graph.focus.isOpenable === false : false;
+
   if (!focusAssetFqn) {
     return (
       <section className="gh-lineage-shell">
@@ -1405,6 +1525,7 @@ export default function LineageWorkspace({
           focus={null}
           focusFqn={focusAssetFqn}
           hydrating={false}
+          loading={heroMetadataLoading}
           onClear={handleClearFocus}
         />
         <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-error">
@@ -1441,7 +1562,9 @@ export default function LineageWorkspace({
         focus={graph.focus}
         focusFqn={focusAssetFqn}
         hydrating={graph.hydrating}
+        loading={heroMetadataLoading}
         onClear={handleClearFocus}
+        restricted={focusRestricted}
       />
       <div className="ga-lineage-v2-workbench">
         <div className="ga-lineage-v2-workbench-canvas">
@@ -1475,7 +1598,7 @@ export default function LineageWorkspace({
             focusId={focusAssetFqn}
             graph={graph}
             hydrating={graph.hydrating}
-            nodeHeaders={nodeHeaders}
+            nodeHeaders={canvasNodeHeaders}
             onColumnSelect={handleColumnSelect}
             onFocusChange={handleNodeSelect}
             selectedColumn={selectedColumn}
@@ -1490,6 +1613,7 @@ export default function LineageWorkspace({
           focus={graph.focus}
           impactRequestState={impactRequestState}
           isFocusSelected={!selectedNodeFqn || selectedNodeFqn === focusAssetFqn}
+          nodeHeaders={canvasNodeHeaders}
           onCreateImpactRequest={handleCreateImpactRequest}
           onExportImpactBrief={handleExportImpactBrief}
           selectedNode={

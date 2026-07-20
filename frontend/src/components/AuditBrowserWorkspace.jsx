@@ -31,6 +31,16 @@ function safeOrdinal(index = 0) {
   return String(Number(index) + 1).padStart(2, "0");
 }
 
+// Full UUID-style evidence ids overflow the evidence rail; render a stable
+// GOV-<first 8 hex> short form and keep the full id on title/copy paths.
+function shortEvidenceId(value) {
+  const raw = text(value);
+  if (!/^[0-9a-f][0-9a-f-]{15,}$/i.test(raw)) return raw;
+  const hex = raw.replace(/[^0-9a-f]/gi, "");
+  if (hex.length < 8) return raw;
+  return `GOV-${hex.slice(0, 8).toLowerCase()}`;
+}
+
 function customerSafeEvidenceId(value, index = 0, prefix = "AUD") {
   const raw = text(value);
   if (!raw) return `${prefix}-${safeOrdinal(index)}`;
@@ -392,7 +402,7 @@ function evidenceReference(event = {}) {
 
 function auditEvidenceSummary(event = {}) {
   const parts = [
-    event.displayRequestId ? `Evidence ${event.displayRequestId}` : "",
+    event.displayRequestId ? `Evidence ${shortEvidenceId(event.displayRequestId)}` : "",
     event.source || event.detail || "Evidence reference unavailable",
   ].filter(Boolean);
   return parts.join(" · ");
@@ -490,6 +500,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   const [dateRange, setDateRange] = useState("24h");
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const [status, setStatus] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE_OPTIONS[0]);
 
   const canReadAudit = auditRoleAllowed(shell);
   const query = useQuery({
@@ -529,9 +540,10 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
     });
   }, [activeFilter, events]);
 
-  const pageRows = filteredEvents.slice(0, 8);
+  const pageRows = filteredEvents.slice(0, visibleCount);
   const selectedInFiltered = selectedId ? filteredEvents.find((event) => event.id === selectedId) : null;
   const selected = selectedInFiltered || filteredEvents.find((event) => event.entityFqn && event.requestId) || null;
+  const selectedDiffRows = selected ? diffRows(selected.beforeJson, selected.afterJson) : [];
 
   useEffect(() => {
     if (!filteredEvents.length) {
@@ -543,13 +555,20 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
     }
   }, [filteredEvents, selectedId]);
 
-  const loading = canReadAudit && query.isLoading;
+  // A hydrating payload carries placeholder zeros; treat it like the initial
+  // load so the page never renders final-looking empty metrics mid-hydration.
+  const hydrating = envelopeHydrating(query.data);
+  const loading = canReadAudit && (query.isLoading || hydrating);
   const queryError = canReadAudit ? query.error?.message || "" : "Audit trail requires steward or admin permissions.";
   const forbidden = !canReadAudit || responseStatus(query.error) === 403;
   const events24h = numberOrNull(summary.events24h ?? summary.totalChanges);
-  const policyViolations = numberOrNull(summary.policyViolations ?? summary.failedActions);
-  const accessReviews = numberOrNull(summary.accessReviewsOpen ?? summary.approvals);
-  const retentionYears = numberOrNull(summary.retentionYears);
+  // policyViolations / accessReviewsOpen are the backed summary fields; the
+  // old failedActions / text-match "approv" fallbacks mislabeled the KPIs.
+  const policyViolations = numberOrNull(summary.policyViolations);
+  const accessReviews = numberOrNull(summary.accessReviewsOpen);
+  const reviewsResolved = numberOrNull(summary.reviewsResolved);
+  const lastEventAt = text(summary.lastEventAt);
+  const hiddenRowsExcluded = numberOrNull(summary.hiddenRowsExcluded) || 0;
   const auditSource = text(
     summary.sourceTable ||
       summary.auditTable ||
@@ -582,9 +601,6 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
       ? `Append-only Delta audit log ${auditSource} · time-travel evidence references only, no raw row values.`
       : `Audit evidence source unavailable · ${dateRange} scope`,
   );
-  const retentionSupport = retentionYears == null
-    ? "Retention policy not reported"
-    : text(summary.retentionNote || summary.retentionSource, "Retention reported by audit API");
   const eventSupport = text(
     summary.eventsDeltaText ||
       summary.eventsSupport ||
@@ -600,16 +616,17 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
       summary.summarySource,
     "Policy summary unavailable unless reported by audit API",
   );
-  const accessSupport = text(
-    summary.accessReviewsDeltaText ||
-      summary.accessReviewsSupport ||
-      summary.accessReviewSource ||
-      summary.summarySource,
-    "Access review summary unavailable unless reported by audit API",
-  );
-  const auditSummaryUnavailable =
-    events24h == null &&
-    (degradedEvidence || meta?.degraded === true || payload?.degraded === true || summary?.degraded === true);
+  // Backed by store change-request state; when unavailable the KPI stays an
+  // honest "Unavailable" instead of falling back to an audit-text match.
+  const accessSupport = reviewsResolved == null
+    ? text(
+        summary.accessReviewsDeltaText ||
+          summary.accessReviewsSupport ||
+          summary.accessReviewSource ||
+          summary.summarySource,
+        "Access review summary unavailable unless reported by audit API",
+      )
+    : `${reviewsResolved} resolved · ${text(summary.accessReviewSource, "governance change requests")}`;
   const scopedEventMetric = events24h ?? null;
   const eventsMetricLabel = `Events · ${dateRange}`;
   const filters = [
@@ -626,7 +643,16 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   const selectDateRange = (nextRange) => {
     setDateRange(nextRange);
     setDateMenuOpen(false);
+    // New scope means a new result set; restart the pager at the first page.
+    setVisibleCount(PAGE_SIZE_OPTIONS[0]);
     setStatus(`Audit date range set to ${nextRange}.`);
+  };
+  const selectFilter = (name) => {
+    setActiveFilter(name);
+    setVisibleCount(PAGE_SIZE_OPTIONS[0]);
+  };
+  const loadMoreRows = () => {
+    setVisibleCount((count) => Math.min(filteredEvents.length, count + PAGE_SIZE_OPTIONS[0]));
   };
   const exportCsv = () => {
     if (!filteredEvents.length) {
@@ -671,7 +697,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
         events: filteredEvents.length,
         policyViolations: policyViolations ?? null,
         accessReviewsOpen: accessReviews ?? null,
-        retentionYears: retentionYears ?? null,
+        reviewsResolved: reviewsResolved ?? null,
         authoritative: closureAuthoritativeEvidence,
         evidenceKind,
         source: auditSource || "unavailable",
@@ -733,7 +759,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
 	              <p>
 	                {queryError
 	                  ? "Audit evidence is unavailable for this workspace. The evidence log structure remains visible so exports, filters, and retention state can fail closed."
-                  : "Governance Atlas records backed metadata workflow events in a searchable Delta audit log. Export and retention controls stay unavailable until the runtime reports those capabilities."}
+                  : authoritativeEvidence
+                    ? "Governance Atlas records backed metadata workflow events in a searchable Delta audit log. Evidence below is served live from the governed audit table."
+                    : "Governance Atlas records backed metadata workflow events in a searchable Delta audit log. Export and retention controls stay unavailable until the runtime reports those capabilities."}
 	              </p>
             </div>
             <div className="gh-audit-prototype-actions">
@@ -745,7 +773,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                   type="button"
                 >
                   <AuditActionIcon name="filter" />
-                  <span>Date range</span>
+                  <span>{`Date range · ${dateRange}`}</span>
                 </button>
                 {dateMenuOpen ? (
                   <div className="gh-audit-menu" role="menu">
@@ -785,11 +813,13 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
             </div>
           </header>
 
-          <div className="gh-audit-kpis gh-audit-prototype-kpis" aria-label="Audit metrics">
+          {/* The shared .gh-audit-kpis grid is a fixed 4 columns; with the
+              unbackable Retention tile removed, override to 3 so the row has
+              no dead cell. Layout-only inline style, no palette values. */}
+          <div className="gh-audit-kpis gh-audit-prototype-kpis" aria-label="Audit metrics" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             <KpiCard icon="▦" label={eventsMetricLabel} value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(scopedEventMetric)} support={loading ? "Reading audit rows" : eventSupport} tone="info" />
-            <KpiCard icon="!" label={summary.policyViolations == null ? "Policy violations" : "Policy violations · 7d"} value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(policyViolations)} support={policySupport} tone="bad" />
+            <KpiCard icon="!" label="Policy violations" value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(policyViolations)} support={policySupport} tone="bad" />
             <KpiCard icon="✓" label="Access reviews · open" value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(accessReviews)} support={accessSupport} tone="good" />
-            <KpiCard icon="▣" label="Retention" value={loading ? "Loading..." : queryError ? "Unavailable" : (retentionYears == null ? "Unavailable" : `${retentionYears} yr`)} support={retentionSupport} tone="info" />
           </div>
 
           {loading ? (
@@ -800,6 +830,18 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
               title={forbidden ? "Audit trail is steward/admin only" : "Audit trail unavailable"}
               message={forbidden ? "Ask a workspace steward or admin to grant audit visibility." : (queryError || "Audit evidence could not be loaded.")}
             />
+          ) : !events.length ? (
+            <EmptyState
+              title={`No governance events in the last ${rangeNoun(dateRange)}`}
+              message={lastEventAt
+                ? `Most recent governance activity was recorded ${compactDateTime(lastEventAt)}. Widen the range to see it.`
+                : "No customer-visible governance events are recorded in the audit log yet."}
+              actions={dateRange !== "90d" && lastEventAt ? (
+                <button onClick={() => selectDateRange("90d")} type="button">
+                  Show last 90 days
+                </button>
+              ) : null}
+            />
           ) : null}
 
           <section className="gh-audit-prototype-tabs" aria-label="Audit filters">
@@ -808,11 +850,12 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                 aria-pressed={activeFilter === name}
                 className={activeFilter === name ? "is-active" : ""}
                 key={name}
-                onClick={() => setActiveFilter(name)}
+                onClick={() => selectFilter(name)}
                 type="button"
                 aria-label={`${name}, ${count} events`}
               >
                 {name}
+                <small className="gh-audit-tab-count">{` ${count}`}</small>
               </button>
             ))}
           </section>
@@ -846,7 +889,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                 >
                   <span className="gh-audit-time">{event.createdAt ? new Date(event.createdAt).toISOString().replace("T", " ").slice(0, 19) : "Unavailable"}</span>
                   <span className="gh-audit-actor"><ActorMark actor={event.actor} /><strong>{event.actor || "Unavailable"}</strong></span>
-                  <span><ActionBadge action={event.action} /><small>{event.detail || "No detail recorded"}</small></span>
+                  {/* No repeated "No detail recorded" placeholder — suppress the
+                      sub-line entirely when the row has no detail. */}
+                  <span><ActionBadge action={event.action} />{event.detail ? <small>{event.detail}</small> : null}</span>
                   <span className="gh-audit-object"><strong>{event.objectLabel}</strong></span>
                   <span className="gh-audit-source">
                     <small title={evidenceReference(event)}>
@@ -870,6 +915,21 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                 <div className="gh-audit-empty">No audit events match the current filters.</div>
               )}
             </div>
+            {filteredEvents.length || hiddenRowsExcluded ? (
+              <div className="gh-audit-table-caption">
+                <small>
+                  {[
+                    filteredEvents.length ? `Showing ${pageRows.length} of ${filteredEvents.length} events` : "",
+                    hiddenRowsExcluded ? `${hiddenRowsExcluded} internal/maintenance rows excluded` : "",
+                  ].filter(Boolean).join(" · ")}
+                </small>
+                {filteredEvents.length > pageRows.length ? (
+                  <button onClick={loadMoreRows} type="button">
+                    Load more
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </section>
           <footer className="gh-audit-prototype-note">
             <AuditActionIcon name="shield" />
@@ -888,16 +948,27 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                 <div><dt>Actor</dt><dd>{selected.actor || "Unavailable"}</dd></div>
                 <div><dt>Target</dt><dd>{selected.objectLabel}</dd></div>
                 <div><dt>Evidence</dt><dd>{evidenceReference(selected)}</dd></div>
-                <div><dt>Evidence ID</dt><dd>{selected.displayRequestId || selected.displayAuditId || "Unavailable"}</dd></div>
+                <div>
+                  <dt>Evidence ID</dt>
+                  {/* Short GOV-<hex8> form for readability; the full id stays on
+                      the title attribute and the copy button. */}
+                  <dd title={selected.displayRequestId || selected.displayAuditId || undefined}>
+                    {shortEvidenceId(selected.displayRequestId || selected.displayAuditId) || "Unavailable"}
+                  </dd>
+                </div>
               </dl>
-              {diffRows(selected.beforeJson, selected.afterJson).length ? (
+              {selectedDiffRows.length ? (
                 <div className="gh-audit-diff-preview">
-                  {diffRows(selected.beforeJson, selected.afterJson).map((row) => (
+                  {selectedDiffRows.map((row) => (
                     <p key={row.key}><strong>{row.key}</strong><span>{row.before}</span><em>{row.after}</em></p>
                   ))}
                 </div>
               ) : (
-                <Unavailable>No before/after metadata diff was reported for this event.</Unavailable>
+                <Unavailable>
+                  {normalizeStatus(selected.diffState) === "redacted"
+                    ? (selected.diffReason || "Before/after metadata was redacted for this event.")
+                    : "No before/after metadata diff was reported for this event."}
+                </Unavailable>
               )}
               <div className="gh-audit-selected-actions">
                 <button
@@ -926,12 +997,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   );
 }
 
-function draftDate(value, endOfDay = false) {
-  const raw = text(value);
-  if (!raw) return null;
-  const date = new Date(`${raw}T${endOfDay ? "23:59:59" : "00:00:00"}`);
-  const time = date.getTime();
-  return Number.isFinite(time) ? time : null;
+function rangeNoun(range) {
+  const nouns = { "24h": "24 hours", "7d": "7 days", "30d": "30 days", "90d": "90 days" };
+  return nouns[range] || range;
 }
 
 function metricValue(value) {

@@ -997,7 +997,7 @@ export default function App() {
         <Suspense
           fallback={workspaceLoading(
             "Loading governance",
-            "Preparing stewardship lanes, ownership gaps, and glossary context.",
+            "Preparing the stewardship work queue and request evidence.",
           )}
         >
           <GovernanceWorkspace

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createGovernanceRequest,
   fetchCdeDashboard,
   fetchTaxonomyOverview,
+  updateAssetMetadata,
   upsertGovernanceGlossaryTerm,
+  upsertGovernanceOwner,
 } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyStateBlock, LoadingState } from "./ShellStatePrimitives";
@@ -55,37 +58,12 @@ const CDE_PRIORITY = [
   "order total usd",
   "order total (usd)",
 ];
-const UNAVAILABLE_GLOSSARY_TERMS = Array.from({ length: 4 }, (_, index) => ({
-  termId: `term-evidence-unavailable-${index}`,
-  term: "Glossary term unavailable",
-  definition: "Term, hierarchy, reviewer, and association evidence was not returned for this scope.",
-  domain: "Unavailable",
-  status: "unavailable",
-  ownerEmail: "",
-  stewardEmail: "",
-  reviewedAt: "",
-  reviewers: [],
-  assets: [],
-  assetCount: 0,
-  childCount: 0,
-  currentVersion: "",
-  termHistory: [],
-  associationSource: "",
-  summarySource: "",
-  unavailable: true,
-}));
-const UNAVAILABLE_CDES = Array.from({ length: 5 }, (_, index) => ({
-  id: `cde-evidence-unavailable-${index}`,
-  name: "CDE evidence unavailable",
-  column: "",
-  owner: "Owner unavailable",
-  recert: "Unavailable",
-  status: "Unavailable",
-  recertEvidence: "Recertification workflow evidence unavailable",
-  healthEvidence: "Quality/test-run evidence unavailable",
-  sox: false,
-  unavailable: true,
-}));
+// The old UNAVAILABLE_GLOSSARY_TERMS / UNAVAILABLE_CDES fixtures rendered
+// FAKE "evidence unavailable" records whenever the payload was empty —
+// including during the cold-cache hydration window, when real data was
+// seconds away. They were deleted (G6): a hydrating envelope now renders
+// skeleton placeholders, and a genuinely empty registry renders an honest
+// empty state instead of fabricated rows.
 
 function envelopeData(payload) {
   return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
@@ -318,14 +296,21 @@ function normalizeTerm(item, index) {
 function normalizeCde(item, index) {
   const value = item && typeof item === "object" ? item : {};
   const id = text(value.id || value.cdeId || value.name) || `cde-${index}`;
+  const column = text(value.column || value.sourceColumn || value.source_of_record_column);
   return {
     ...value,
     id,
     name: text(value.name || value.term || value.title) || "Unnamed CDE",
-    column: text(value.column || value.sourceColumn || value.source_of_record_column),
+    column,
+    // G9: dashboard rows carry the asset FQN as their id; keep it usable.
+    assetFqn: text(value.assetFqn || value.fqn) || (id.split(".").filter(Boolean).length >= 3 ? id : ""),
+    domain: text(value.domain) || "Unassigned",
     owner: text(value.owner || value.ownerEmail || value.steward || value.stewardEmail) || "Unassigned",
-    recert: text(value.recert || value.recertAge || value.reviewAge || value.lastReview) || "Unavailable",
-    status: text(value.status || value.health || value.state) || "Unavailable",
+    recert: text(value.recert || value.recertAge || value.reviewAge) || "Unavailable",
+    lastReview: text(value.lastReview),
+    certification: text(value.certification),
+    status: text(value.certification || value.status || value.health || value.state) || "Unavailable",
+    sourceBacked: value.sourceBacked === true || Boolean(column),
     recertEvidence: evidenceText(value.recertEvidence, value.recertSource, value.recertWorkflow, value.reviewEvidence),
     healthEvidence: evidenceText(value.healthEvidence, value.qualityEvidence, value.testRun, value.qualityRunId),
     sox: Boolean(value.sox || value.soxRelevant || value.tags?.includes?.("SOX")),
@@ -347,7 +332,12 @@ function sourceAssetFqnForCde(cde = {}) {
   if (explicit) return explicit;
   const column = text(cde.column || cde.sourceColumn || cde.sourceOfRecordColumn);
   const parts = column.split(".").filter(Boolean);
-  return parts.length >= 4 ? parts.slice(0, -1).join(".") : "";
+  if (parts.length >= 4) return parts.slice(0, -1).join(".");
+  // G9: dashboard rows use the asset FQN itself as the row id. Falling back
+  // to it here keeps "Open source asset"/"Open lineage" enabled instead of
+  // claiming "no source asset FQN can be derived" for rows that carry one.
+  const id = text(cde.id);
+  return id.split(".").filter(Boolean).length >= 3 ? id : "";
 }
 
 function normalizeDashboardCde(item, index) {
@@ -364,15 +354,23 @@ function normalizeDashboardCde(item, index) {
   );
   return {
     id: text(value.id) || fqn || `cde-${index}`,
+    // G9: keep the asset FQN on the normalized row — dropping it here is what
+    // disabled "Open source asset"/"Open lineage" in the detail panel.
+    assetFqn: text(value.assetFqn || value.fqn) || (fqn.includes(".") ? fqn : ""),
     name: displayCdeName(rawName),
     column: sourceColumn,
+    domain: text(value.domain) || "Unassigned",
     owner,
     recert:
-      text(value.recert || value.recertAge || value.reviewAge || value.reviewWindow || value.lastReview) ||
+      text(value.recert || value.recertAge || value.reviewAge || value.reviewWindow) ||
       "Unavailable",
+    lastReview: text(value.lastReview),
+    certification: text(value.certification),
+    // Prefer the real certification over the legacy conflated status field.
     status:
-      text(value.status || value.health || value.controlState || value.certification || value.state) ||
+      text(value.certification || value.status || value.health || value.controlState || value.state) ||
       "Unavailable",
+    sourceBacked: value.sourceBacked === true || Boolean(sourceColumn),
     recertEvidence: evidenceText(value.recertEvidence, value.recertSource, value.recertWorkflow, value.reviewEvidence),
     healthEvidence: evidenceText(value.healthEvidence, value.qualityEvidence, value.testRun, value.qualityRunId),
     sox: Boolean(value.sox || value.soxRelevant || value.tags?.includes?.("SOX")),
@@ -384,18 +382,27 @@ function termSourceSummary(term = {}) {
 }
 
 function termAssociationSummary(term = {}) {
+  // G10/G11: plain counts — the old "actor visibility not verified" and
+  // "Association evidence unavailable" hedges read as system errors.
   const count = Number(term.assetCount || 0);
-  if (count > 0) return `${count.toLocaleString()} linked asset${count === 1 ? "" : "s"} - actor visibility not verified`;
-  return "Association evidence unavailable";
+  if (count > 0) return `${count.toLocaleString()} linked asset${count === 1 ? "" : "s"}`;
+  return "No assets linked yet";
 }
 
 function termReviewSummary(term = {}) {
-  const status = text(term.status);
   if (term.reviewedAt) return `Reviewed ${compactDate(term.reviewedAt) || term.reviewedAt}`;
+  // G12: derive review recency from the latest version row when no explicit
+  // reviewedAt exists. Only call it "Reviewed" when that row actually
+  // carries an approved/reviewed status — otherwise it's just an update.
+  const latest = arrayValue(term.termHistory).find((entry) => text(entry?.changedAt));
+  if (latest) {
+    const approved = ["approved", "reviewed", "certified"].includes(normalizeStatus(latest.status));
+    return `${approved ? "Reviewed" : "Updated"} ${compactDate(latest.changedAt) || latest.changedAt}`;
+  }
   if (term.reviewers?.length) {
     return `${term.reviewers.length} reviewer${term.reviewers.length === 1 ? "" : "s"} assigned`;
   }
-  return status ? "Status returned; reviewer evidence unavailable" : "Reviewer evidence unavailable";
+  return "Not yet reviewed";
 }
 
 function cdeRecertEvidenceSummary(cde = {}) {
@@ -404,6 +411,20 @@ function cdeRecertEvidenceSummary(cde = {}) {
 
 function cdeHealthEvidenceSummary(cde = {}) {
   return text(cde.healthEvidence) || "Quality/test-run evidence unavailable";
+}
+
+function cdeSourceSummary(cde = {}) {
+  // G4/G13: source backing is its own signal now — not conflated into the
+  // certification status. Untagged rows get actionable copy, not a dead pill.
+  return cde.sourceBacked || cde.column
+    ? "Source: tagged column"
+    : "Source: not tagged — tag cde_source_column on the asset";
+}
+
+function cdeLastReviewSummary(cde = {}) {
+  const raw = text(cde.lastReview);
+  if (!raw || raw.toLowerCase() === "unavailable") return "No review recorded yet";
+  return `Reviewed ${compactDate(raw) || raw}`;
 }
 
 function cdesFromDashboardPayload(payload) {
@@ -487,6 +508,16 @@ function normalizeOverview(payload) {
   };
 }
 
+function termStatusRank(term = {}) {
+  // G2: approved/linked terms lead the registry so leftover draft/test rows
+  // (e.g. "Atlas Test Term") never occupy the first card slot.
+  const normalized = normalizeStatus(term.status);
+  if (["approved", "certified", "active"].includes(normalized)) return 0;
+  if (["in_review", "proposed", "review", "pending"].includes(normalized)) return 1;
+  if (normalized === "draft") return 2;
+  return 3;
+}
+
 function sortTermsForDisplay(terms) {
   return [...terms].sort((left, right) => {
     const leftPriority = TERM_PRIORITY.indexOf(left.term.toLowerCase());
@@ -494,6 +525,10 @@ function sortTermsForDisplay(terms) {
     const leftRank = leftPriority >= 0 ? leftPriority : TERM_PRIORITY.length;
     const rightRank = rightPriority >= 0 ? rightPriority : TERM_PRIORITY.length;
     if (leftRank !== rightRank) return leftRank - rightRank;
+    const statusDelta = termStatusRank(left) - termStatusRank(right);
+    if (statusDelta) return statusDelta;
+    const linkedDelta = Number(Boolean(right.assetCount)) - Number(Boolean(left.assetCount));
+    if (linkedDelta) return linkedDelta;
     return left.term.localeCompare(right.term);
   });
 }
@@ -762,8 +797,18 @@ export default function TaxonomyWorkspace({
       ...(nonAuthoritativeCdePayload ? ["Non-authoritative CDE dashboard payload rejected."] : []),
     ],
   };
-  const loading = overviewQuery.isPending && !taxonomyOverride;
-  const cdeLoading = cdeDashboardQuery.isPending && !taxonomyOverride && !overview.cdes.length;
+  // G6: a cold cache returns a real envelope with meta.state === "loading"
+  // (hydrating). isPending alone misses that window, which used to flip the
+  // registry into fake "evidence unavailable" records while data was seconds
+  // away. Treat the hydrating envelope as loading.
+  const loading = (overviewQuery.isPending && !taxonomyOverride) || hydratingEnvelope(payload);
+  // The CDE list can arrive on either envelope (overview.cdes or the CDE
+  // dashboard), so a hydrating overview also counts as CDE loading.
+  const cdeLoading =
+    ((cdeDashboardQuery.isPending && !taxonomyOverride) ||
+      hydratingEnvelope(cdeDashboardQuery.data) ||
+      hydratingEnvelope(payload)) &&
+    !overview.cdes.length;
   const error = overviewQuery.error?.message || "";
   const cdeError = cdeDashboardQuery.error?.message || "";
   const sourceUnavailable = {
@@ -879,10 +924,15 @@ function GlossaryCdeRegistry({
   const glossaryCount = terms.length;
   const cdeCount = cdes.length;
   const activeTab = tab === "cdes" ? "cdes" : "glossary";
-  const visibleTerms = terms.slice(0, 4);
   const [selectedTermId, setSelectedTermId] = useState("");
   const [selectedCdeId, setSelectedCdeId] = useState("");
   const [associationBrowserTermId, setAssociationBrowserTermId] = useState("");
+  // G1: render every governed term (the payload already carries them all —
+  // the old `terms.slice(0, 4)` silently hid 17 of 21) with a client-side
+  // search over name/definition/domain.
+  const [termQuery, setTermQuery] = useState("");
+  // G3: full CDE registry with a client-side domain filter.
+  const [cdeDomainFilter, setCdeDomainFilter] = useState("all");
   // New-term modal state. The glossary backend (POST /governance/glossary)
   // accepts a draft directly — there's no workflow gate. The previous
   // "unavailable until configured" placeholder was misleading.
@@ -895,6 +945,12 @@ function GlossaryCdeRegistry({
   });
   const [newTermSaving, setNewTermSaving] = useState(false);
   const [newTermError, setNewTermError] = useState("");
+  // G7: "+ New CDE" flags an asset via the asset-metadata PATCH path
+  // (AssetMetadataPatch.isCde / cdeRationale) — see atlas/api/cde.py.
+  const [newCdeOpen, setNewCdeOpen] = useState(false);
+  const [newCdeDraft, setNewCdeDraft] = useState({ assetFqn: "", rationale: "" });
+  const [newCdeSaving, setNewCdeSaving] = useState(false);
+  const [newCdeError, setNewCdeError] = useState("");
   const queryClient = useQueryClient();
 
   const handleSubmitNewTerm = async (event) => {
@@ -917,7 +973,9 @@ function GlossaryCdeRegistry({
         status: "draft",
       });
       // Invalidate the taxonomy + glossary queries so the new term appears.
-      queryClient.invalidateQueries({ queryKey: ["taxonomyOverview"] });
+      // Key must match the useQuery key above (["atlas", "taxonomy-overview"]);
+      // the old ["taxonomyOverview"] key never matched anything.
+      queryClient.invalidateQueries({ queryKey: ["atlas", "taxonomy-overview"] });
       queryClient.invalidateQueries({ queryKey: ["governance", "glossary"] });
       onActionMessage(`Glossary term “${name}” created with status Draft.`);
       setNewTermDraft({ name: "", definition: "", domain: "", ownerEmail: "" });
@@ -929,23 +987,73 @@ function GlossaryCdeRegistry({
       setNewTermSaving(false);
     }
   };
+  const handleSubmitNewCde = async (event) => {
+    event.preventDefault();
+    if (newCdeSaving) return;
+    const assetFqn = String(newCdeDraft.assetFqn || "").trim();
+    // Minimal shape check: a Unity Catalog asset FQN is catalog.schema.table.
+    if (assetFqn.split(".").filter(Boolean).length < 3) {
+      setNewCdeError("Enter a full asset FQN (catalog.schema.table).");
+      return;
+    }
+    setNewCdeSaving(true);
+    setNewCdeError("");
+    try {
+      await updateAssetMetadata(assetFqn, {
+        isCde: true,
+        cdeRationale: String(newCdeDraft.rationale || "").trim(),
+      });
+      // Refresh both registry sources so the newly flagged CDE appears.
+      queryClient.invalidateQueries({ queryKey: ["atlas", "taxonomy-cde-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["atlas", "taxonomy-overview"] });
+      onActionMessage(`${assetFqn} flagged as a Critical Data Element.`);
+      setNewCdeDraft({ assetFqn: "", rationale: "" });
+      setNewCdeOpen(false);
+    } catch (err) {
+      setNewCdeError(err?.message || "Failed to flag the asset as a CDE — please try again.");
+    } finally {
+      setNewCdeSaving(false);
+    }
+  };
+  const sortedTerms = useMemo(() => sortTermsForDisplay(terms), [terms]);
+  const visibleTerms = useMemo(() => {
+    const query = termQuery.trim().toLowerCase();
+    if (!query) return sortedTerms;
+    return sortedTerms.filter((term) =>
+      [term.term, term.definition, term.domain].join(" ").toLowerCase().includes(query),
+    );
+  }, [sortedTerms, termQuery]);
   const filteredCdes = useMemo(
     () => [...cdes].sort((left, right) =>
       cdePriorityRank(left) - cdePriorityRank(right) || text(left.name).localeCompare(text(right.name)),
     ),
     [cdes],
   );
-  const visibleCdes = filteredCdes.slice(0, 5);
-  const displayTerms = terms.length ? visibleTerms : UNAVAILABLE_GLOSSARY_TERMS;
-  const displayCdes = visibleCdes.length ? visibleCdes : UNAVAILABLE_CDES;
-  const selectedTerm = (terms.length ? terms : UNAVAILABLE_GLOSSARY_TERMS).find((term) => term.termId === selectedTermId) || null;
-  const selectedCde = (cdes.length ? cdes : UNAVAILABLE_CDES).find((cde) => cde.id === selectedCdeId) || null;
+  const cdeDomains = useMemo(
+    () => Array.from(new Set(filteredCdes.map((cde) => text(cde.domain) || "Unassigned"))).sort(),
+    [filteredCdes],
+  );
+  const visibleCdes = useMemo(
+    () =>
+      cdeDomainFilter === "all"
+        ? filteredCdes
+        : filteredCdes.filter((cde) => (text(cde.domain) || "Unassigned") === cdeDomainFilter),
+    [cdeDomainFilter, filteredCdes],
+  );
+  const displayTerms = visibleTerms;
+  const displayCdes = visibleCdes;
+  const selectedTerm = terms.find((term) => term.termId === selectedTermId) || null;
+  const selectedCde = cdes.find((cde) => cde.id === selectedCdeId) || null;
   const termLookup = useMemo(
     () => new Map(terms.map((term) => [term.termId, term])),
     [terms],
   );
   const hierarchyRows = visibleTerms.map((term) => {
-    const parent = term.parentTermId ? termLookup.get(term.parentTermId)?.term || "Parent term recorded" : "Root term";
+    // G10: show the real parent term name when the lookup resolves; fall
+    // back to the raw parent id rather than the vague "Parent term recorded".
+    const parent = term.parentTermId
+      ? termLookup.get(term.parentTermId)?.term || term.parentTermId
+      : "Root term";
     const children = Number(term.childCount || 0);
     return {
       id: term.termId,
@@ -964,24 +1072,12 @@ function GlossaryCdeRegistry({
     onActionMessage(`${cde.name} selected. Review source-of-record column, owner, recertification, and status.`);
   };
   useEffect(() => {
-    if (!terms.length) {
-      if (selectedTermId && !UNAVAILABLE_GLOSSARY_TERMS.some((term) => term.termId === selectedTermId)) {
-        setSelectedTermId("");
-      }
-      return;
-    }
     if (selectedTermId && !terms.some((term) => term.termId === selectedTermId)) {
       setSelectedTermId("");
       setAssociationBrowserTermId("");
     }
   }, [selectedTermId, terms]);
   useEffect(() => {
-    if (!cdes.length) {
-      if (selectedCdeId && !UNAVAILABLE_CDES.some((cde) => cde.id === selectedCdeId)) {
-        setSelectedCdeId("");
-      }
-      return;
-    }
     if (selectedCdeId && !cdes.some((cde) => cde.id === selectedCdeId)) {
       setSelectedCdeId("");
     }
@@ -999,9 +1095,10 @@ function GlossaryCdeRegistry({
             className="gh-taxonomy-prototype-new"
             onClick={() => {
               if (activeTab === "cdes") {
-                onActionMessage(
-                  "New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created.",
-                );
+                // G7: flag an asset as a CDE through the backed
+                // asset-metadata PATCH path instead of a dead toast.
+                setNewCdeError("");
+                setNewCdeOpen(true);
                 return;
               }
               setNewTermError("");
@@ -1009,7 +1106,7 @@ function GlossaryCdeRegistry({
             }}
             title={
               activeTab === "cdes"
-                ? "Show New CDE unavailable reason"
+                ? "Flag an asset as a Critical Data Element"
                 : "Open the New term form"
             }
             type="button"
@@ -1050,38 +1147,66 @@ function GlossaryCdeRegistry({
 
         {activeTab === "glossary" ? (
           <div className="gh-taxonomy-prototype-section">
-            <div className="gh-taxonomy-prototype-count gh-visually-hidden">
+            <label className="gh-taxonomy-search">
+              <span aria-hidden="true" />
+              <input
+                aria-label="Search glossary terms"
+                onChange={(event) => setTermQuery(event.target.value)}
+                placeholder="Search terms by name, definition, or domain..."
+                type="search"
+                value={termQuery}
+              />
+            </label>
+            <p className="gh-taxonomy-prototype-cde-provenance" role="status">
               Showing {visibleTerms.length} of {glossaryCount} governed glossary terms
-            </div>
-          <div className="gh-taxonomy-prototype-hierarchy" aria-label="Glossary hierarchy">
-            <div className="gh-taxonomy-prototype-hierarchy-head">
-              <span>Hierarchy</span>
-              <strong>{terms.length ? `${visibleTerms.length} visible terms` : "Unavailable"}</strong>
-            </div>
-            <div className="gh-taxonomy-prototype-hierarchy-grid">
-              {hierarchyRows.length ? (
-                hierarchyRows.map((row) => (
+            </p>
+          {hierarchyRows.length ? (
+            <div className="gh-taxonomy-prototype-hierarchy" aria-label="Glossary hierarchy">
+              <div className="gh-taxonomy-prototype-hierarchy-head">
+                <span>Hierarchy</span>
+                <strong>{`${visibleTerms.length} visible terms`}</strong>
+              </div>
+              <div className="gh-taxonomy-prototype-hierarchy-grid">
+                {hierarchyRows.map((row) => (
                   <div key={row.id}>
                     <span>{row.parent}</span>
                     <strong>{row.term}</strong>
                     <small>{row.children}</small>
                   </div>
-                ))
-              ) : (
-                Array.from({ length: 4 }, (_, index) => (
-                  <div className="is-unavailable" key={`hierarchy-unavailable-${index}`}>
-                    <span>Hierarchy unavailable</span>
-                    <strong>Term evidence unavailable</strong>
-                    <small>No parent or child relationship was returned.</small>
-                  </div>
-                ))
-              )}
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
+          {loading && !terms.length ? (
+            /* G6: hydrating envelope → skeleton placeholders, never fake
+               "evidence unavailable" records. */
+            <div aria-busy="true" aria-label="Loading glossary terms" className="gh-taxonomy-prototype-card-grid">
+              {Array.from({ length: 4 }, (_, index) => (
+                <article aria-hidden="true" className="gh-taxonomy-prototype-card is-unavailable" key={`term-skeleton-${index}`}>
+                  <div className="gh-taxonomy-prototype-card-head">
+                    <div>
+                      <h2>Loading…</h2>
+                      <span>Fetching glossary terms</span>
+                    </div>
+                  </div>
+                  <p>Glossary evidence is loading from the governance store.</p>
+                </article>
+              ))}
+            </div>
+          ) : !displayTerms.length ? (
+            <EmptyStateBlock
+              title={terms.length ? "No terms match this search" : "No glossary terms yet"}
+              message={
+                terms.length
+                  ? "Adjust or clear the search to see all governed terms."
+                  : "Create the first governed term with + New term."
+              }
+            />
+          ) : (
           <div className="gh-taxonomy-prototype-card-grid" aria-label="Glossary cards">
             {displayTerms.map((term) => (
                 <article
-                  className={`gh-taxonomy-prototype-card ${term.unavailable ? "is-unavailable" : ""} ${selectedTerm?.termId === term.termId ? "is-selected" : ""}`.trim()}
+                  className={`gh-taxonomy-prototype-card ${selectedTerm?.termId === term.termId ? "is-selected" : ""}`.trim()}
                   key={term.termId}
                   onClick={() => {
                     openTermDetail(term);
@@ -1098,7 +1223,7 @@ function GlossaryCdeRegistry({
                   <div className="gh-taxonomy-prototype-card-head">
                     <div>
                       <h2>{term.term}</h2>
-                      <span>{term.unavailable ? "Source and owner unavailable" : `${term.domain} · ${term.stewardEmail || term.ownerEmail || "Unassigned steward"}`}</span>
+                      <span>{`${term.domain} · ${term.stewardEmail || term.ownerEmail || "Unassigned steward"}`}</span>
                     </div>
                     <StatusPill tone={statusTone(term.status)}>
                       {registryLabel(term.status, "Draft")}
@@ -1138,6 +1263,7 @@ function GlossaryCdeRegistry({
                 </article>
               ))}
           </div>
+          )}
           {selectedTerm ? (
             <TermRegistryDetail
               associationBrowserOpen={associationBrowserTermId === selectedTerm.termId}
@@ -1146,36 +1272,83 @@ function GlossaryCdeRegistry({
               onOpenAsset={onOpenAsset}
               onOpenLineage={onOpenLineage}
               term={selectedTerm}
+              termLookup={termLookup}
             />
           ) : null}
           </div>
         ) : (
           <div className="gh-taxonomy-prototype-section">
-            <div className="gh-taxonomy-prototype-count gh-visually-hidden">
+            {cdeDomains.length > 1 ? (
+              <div className="gh-taxonomy-prototype-tabs" role="group" aria-label="Filter CDEs by domain">
+                <button
+                  aria-pressed={cdeDomainFilter === "all"}
+                  className={cdeDomainFilter === "all" ? "is-active" : ""}
+                  onClick={() => setCdeDomainFilter("all")}
+                  type="button"
+                >
+                  All domains <span>{filteredCdes.length}</span>
+                </button>
+                {cdeDomains.map((domain) => (
+                  <button
+                    aria-pressed={cdeDomainFilter === domain}
+                    className={cdeDomainFilter === domain ? "is-active" : ""}
+                    key={domain}
+                    onClick={() => setCdeDomainFilter(domain)}
+                    type="button"
+                  >
+                    {domain} <span>{filteredCdes.filter((cde) => (text(cde.domain) || "Unassigned") === domain).length}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <p className="gh-taxonomy-prototype-cde-provenance" role="status">
               Showing {visibleCdes.length} of {filteredCdes.length} CDE registry rows
-            </div>
+            </p>
           <div className="gh-taxonomy-prototype-cde-table" role="table" aria-label="CDE registry table">
             <div className="gh-taxonomy-prototype-cde-head" role="row">
               <span role="columnheader">CDE</span>
               <span role="columnheader">Source-of-record column</span>
               <span role="columnheader">Owner</span>
               <span role="columnheader">Recert</span>
-              <span role="columnheader">Status</span>
+              <span role="columnheader">Certification</span>
             </div>
-            {displayCdes.map((cde) => {
-                const statusLabel = cde.unavailable
-                  ? registryEvidenceLabel(cde.status)
-                  : cde.column
-                    ? registryEvidenceLabel(cde.status)
-                    : "Source unavailable";
-                const statusEvidence = cde.unavailable
-                  ? cdeHealthEvidenceSummary(cde)
-                  : cde.column
-                  ? cdeHealthEvidenceSummary(cde)
-                  : "Source-of-record column evidence is unavailable for this CDE.";
+            {loading && !cdes.length ? (
+              /* G6: hydrating envelope → skeleton rows, never fake records. */
+              Array.from({ length: 5 }, (_, index) => (
+                <div
+                  aria-hidden="true"
+                  className="gh-taxonomy-prototype-cde-row is-unavailable"
+                  key={`cde-skeleton-${index}`}
+                >
+                  <span role="cell">
+                    <i aria-hidden="true" className="gh-taxonomy-prototype-key-icon" />
+                    <strong>Loading…</strong>
+                  </span>
+                  <span role="cell" className="is-mono">Fetching CDE registry rows</span>
+                  <span role="cell" />
+                  <span role="cell" />
+                  <span role="cell" />
+                </div>
+              ))
+            ) : !displayCdes.length ? (
+              <EmptyStateBlock
+                title={cdes.length ? "No CDEs in this domain" : "No Critical Data Elements yet"}
+                message={
+                  cdes.length
+                    ? "Choose another domain or All domains to see the full registry."
+                    : "Flag an asset as a CDE with + New CDE to start the registry."
+                }
+              />
+            ) : (
+              displayCdes.map((cde) => {
+                // G4/G13: the certification pill shows the real certification;
+                // missing source tags surface as actionable copy instead of a
+                // dead "Unavailable"/"Source unavailable" verdict.
+                const statusLabel = registryEvidenceLabel(cde.status, "Certification pending");
+                const statusEvidence = `${cdeSourceSummary(cde)}. ${cdeHealthEvidenceSummary(cde)}`;
                 return (
                   <div
-                    className={`gh-taxonomy-prototype-cde-row ${cde.unavailable ? "is-unavailable" : ""} ${selectedCde?.id === cde.id ? "is-selected" : ""}`.trim()}
+                    className={`gh-taxonomy-prototype-cde-row ${selectedCde?.id === cde.id ? "is-selected" : ""}`.trim()}
                     key={cde.id}
                     onClick={() => {
                       openCdeDetail(cde);
@@ -1194,7 +1367,9 @@ function GlossaryCdeRegistry({
                       <strong>{cde.name}</strong>
                       {cde.sox ? <em>SOX</em> : null}
                     </span>
-                    <span role="cell" className="is-mono">{cde.column || "Source column unavailable"}</span>
+                    <span role="cell" className="is-mono" title={cdeSourceSummary(cde)}>
+                      {cde.column || "Tag cde_source_column on the asset"}
+                    </span>
                     <span role="cell">{cde.owner}</span>
                     <span
                       aria-label={`Recertification ${registryEvidenceLabel(cde.recert)}. ${cdeRecertEvidenceSummary(cde)}`}
@@ -1204,15 +1379,16 @@ function GlossaryCdeRegistry({
                       <span className="gh-taxonomy-prototype-recert-pill">{registryEvidenceLabel(cde.recert)}</span>
                     </span>
                     <span
-                      aria-label={`Status ${statusLabel}. ${statusEvidence}`}
+                      aria-label={`Certification ${statusLabel}. ${statusEvidence}`}
                       role="cell"
                       title={statusEvidence}
                     >
-                      <StatusPill tone={cde.column ? statusTone(cde.status) : "neutral"}>{statusLabel}</StatusPill>
+                      <StatusPill tone={statusTone(cde.status)}>{statusLabel}</StatusPill>
                     </span>
                   </div>
                 );
-              })}
+              })
+            )}
           </div>
           <p className="gh-taxonomy-prototype-cde-provenance">
             Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.
@@ -1327,6 +1503,77 @@ function GlossaryCdeRegistry({
           </form>
         </div>
       ) : null}
+
+      {newCdeOpen ? (
+        <div className="gh-taxonomy-newterm-scrim" role="dialog" aria-modal="true" aria-labelledby="gh-newcde-title">
+          <form className="gh-taxonomy-newterm-modal" onSubmit={handleSubmitNewCde}>
+            <header className="gh-taxonomy-newterm-head">
+              <h2 id="gh-newcde-title">Flag asset as CDE</h2>
+              <button
+                aria-label="Close"
+                className="gh-taxonomy-newterm-close"
+                disabled={newCdeSaving}
+                onClick={() => setNewCdeOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            <p className="gh-taxonomy-newterm-help">
+              Flags the asset as a Critical Data Element via the governed asset-metadata write path. The registry
+              refreshes once the write lands.
+            </p>
+            <label className="gh-taxonomy-newterm-field">
+              <span>Asset FQN *</span>
+              <input
+                autoFocus
+                className="gh-input"
+                disabled={newCdeSaving}
+                onChange={(event) =>
+                  setNewCdeDraft((current) => ({ ...current, assetFqn: event.target.value }))
+                }
+                placeholder="catalog.schema.table"
+                required
+                type="text"
+                value={newCdeDraft.assetFqn}
+              />
+            </label>
+            <label className="gh-taxonomy-newterm-field">
+              <span>Rationale</span>
+              <textarea
+                className="gh-input"
+                disabled={newCdeSaving}
+                onChange={(event) =>
+                  setNewCdeDraft((current) => ({ ...current, rationale: event.target.value }))
+                }
+                placeholder="Why this element is critical to the business…"
+                rows={3}
+                value={newCdeDraft.rationale}
+              />
+            </label>
+            {newCdeError ? (
+              <p className="gh-taxonomy-newterm-error" role="alert">{newCdeError}</p>
+            ) : null}
+            <div className="gh-taxonomy-newterm-actions">
+              <button
+                className="gh-tertiary-button"
+                disabled={newCdeSaving}
+                onClick={() => setNewCdeOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="gh-primary-button"
+                disabled={newCdeSaving || !newCdeDraft.assetFqn.trim()}
+                type="submit"
+              >
+                {newCdeSaving ? "Flagging…" : "Flag as CDE"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1348,14 +1595,62 @@ function RegistryDetailShell({ children, onClose, title }) {
   );
 }
 
-function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, onClose, onOpenAsset, onOpenLineage, term }) {
+function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, onClose, onOpenAsset, onOpenLineage, term, termLookup = null }) {
   const [showAssociations, setShowAssociations] = useState(Boolean(associationBrowserOpen));
+  // G8: reviewer assignment is backed by POST /governance/glossary
+  // (GlossaryTermUpsert.reviewers), so the old permanently disabled
+  // "Reviewer workflow unavailable" button became a real inline form.
+  const [reviewerFormOpen, setReviewerFormOpen] = useState(false);
+  const [reviewerEmail, setReviewerEmail] = useState("");
+  const [reviewerSaving, setReviewerSaving] = useState(false);
+  const queryClient = useQueryClient();
   const firstAsset = term.assets[0] || null;
   const reviewers = term.reviewers.length ? term.reviewers : [];
   const history = term.termHistory.length ? term.termHistory : [];
+  // G10: resolve the parent term's real name; fall back to the raw id.
+  const parentTermName = term.parentTermId
+    ? termLookup?.get?.(term.parentTermId)?.term || term.parentTermId
+    : "";
   useEffect(() => {
     setShowAssociations(Boolean(associationBrowserOpen));
+    setReviewerFormOpen(false);
+    setReviewerEmail("");
   }, [associationBrowserOpen, term.termId]);
+  const handleAssignReviewer = async (event) => {
+    event.preventDefault();
+    const email = reviewerEmail.trim();
+    if (!email || reviewerSaving) return;
+    setReviewerSaving(true);
+    try {
+      // The upsert overwrites term fields, so replay the term's current
+      // values alongside the extended reviewer roster.
+      await upsertGovernanceGlossaryTerm({
+        termId: term.termId,
+        name: term.term,
+        definition: term.definition || "",
+        domain: term.domain === "Unassigned" ? "" : term.domain || "",
+        ownerEmail: term.ownerEmail || "",
+        status: term.status || "draft",
+        reviewers: [
+          ...term.reviewers.map((reviewer) => ({
+            email: reviewer.email,
+            role: reviewer.role || "Reviewer",
+            state: reviewer.state || "active",
+          })),
+          { email, role: "Reviewer", state: "active" },
+        ],
+        changeNote: `Reviewer ${email} assigned from the glossary registry.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["atlas", "taxonomy-overview"] });
+      onActionMessage(`Reviewer ${email} assigned to ${term.term}.`);
+      setReviewerEmail("");
+      setReviewerFormOpen(false);
+    } catch (error) {
+      onActionMessage(error?.message || "Reviewer assignment failed — please try again.");
+    } finally {
+      setReviewerSaving(false);
+    }
+  };
   return (
     <RegistryDetailShell onClose={onClose} title={term.term}>
       <div className="gh-taxonomy-prototype-detail-grid">
@@ -1410,7 +1705,7 @@ function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, o
           <h3>Hierarchy</h3>
           {term.parentTermId || term.childCount ? (
             <dl>
-              <div><dt>Parent</dt><dd>{term.parentTermId ? "Parent term recorded" : "Root term"}</dd></div>
+              <div><dt>Parent</dt><dd>{parentTermName || "Root term"}</dd></div>
               <div><dt>Child terms</dt><dd>{Number(term.childCount || 0).toLocaleString()} links</dd></div>
               <div><dt>Source</dt><dd>{termSourceSummary(term)}</dd></div>
             </dl>
@@ -1448,13 +1743,43 @@ function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, o
           {showAssociations ? "Hide associations" : "Browse all associations"}
         </button>
         <button
-          disabled
-          title="Reviewer workflow requires a backed glossary task workflow; this route does not submit local-only mutations."
+          onClick={() => setReviewerFormOpen((current) => !current)}
+          title="Assign a reviewer through the governed glossary upsert workflow"
           type="button"
         >
-          Reviewer workflow unavailable
+          {reviewerFormOpen ? "Cancel reviewer assignment" : "Assign reviewer"}
         </button>
       </div>
+      {reviewerFormOpen ? (
+        <form
+          className="gh-taxonomy-prototype-detail-card"
+          aria-label={`Assign reviewer to ${term.term}`}
+          onSubmit={handleAssignReviewer}
+        >
+          <h3>Assign reviewer</h3>
+          <label className="gh-taxonomy-newterm-field">
+            <span>Reviewer email</span>
+            <input
+              className="gh-input"
+              disabled={reviewerSaving}
+              onChange={(event) => setReviewerEmail(event.target.value)}
+              placeholder="reviewer@your-company.ai"
+              required
+              type="email"
+              value={reviewerEmail}
+            />
+          </label>
+          <div className="gh-taxonomy-newterm-actions">
+            <button
+              className="gh-primary-button"
+              disabled={reviewerSaving || !reviewerEmail.trim()}
+              type="submit"
+            >
+              {reviewerSaving ? "Assigning…" : "Assign reviewer"}
+            </button>
+          </div>
+        </form>
+      ) : null}
       {showAssociations ? (
         <section className="gh-taxonomy-prototype-detail-card gh-taxonomy-prototype-associations" aria-label={`${term.term} associated assets`}>
           <h3>Associated assets</h3>
@@ -1489,24 +1814,77 @@ function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, o
 
 function CdeRegistryDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpenLineage }) {
   const sourceAssetFqn = sourceAssetFqnForCde(cde);
+  // G8: "Request recertification" routes through the same governance-request
+  // creation path Lineage uses (POST /governance/requests).
+  const [recertSaving, setRecertSaving] = useState(false);
+  // G8: owner assignment is backed by POST /governance/owners.
+  const [ownerFormOpen, setOwnerFormOpen] = useState(false);
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerSaving, setOwnerSaving] = useState(false);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    setOwnerFormOpen(false);
+    setOwnerEmail("");
+  }, [cde.id]);
+  const handleRequestRecertification = async () => {
+    if (!sourceAssetFqn || recertSaving) return;
+    setRecertSaving(true);
+    try {
+      const response = await createGovernanceRequest(
+        {
+          assetFqn: sourceAssetFqn,
+          title: `Recertification requested: ${cde.name}`,
+          note: `Recertification requested from the CDE registry for ${cde.name} (${sourceAssetFqn}).`,
+        },
+        { fast: true },
+      );
+      const requestId = response?.requestId || response?.id || "";
+      onActionMessage(
+        requestId
+          ? `Recertification request ${requestId} created for ${cde.name}.`
+          : `Recertification request created for ${cde.name}.`,
+      );
+    } catch (error) {
+      onActionMessage(error?.message || "Recertification request failed — please try again.");
+    } finally {
+      setRecertSaving(false);
+    }
+  };
+  const handleAssignOwner = async (event) => {
+    event.preventDefault();
+    const email = ownerEmail.trim();
+    if (!email || !sourceAssetFqn || ownerSaving) return;
+    setOwnerSaving(true);
+    try {
+      await upsertGovernanceOwner({ assetFqn: sourceAssetFqn, ownerEmail: email, ownerType: "steward" });
+      queryClient.invalidateQueries({ queryKey: ["atlas", "taxonomy-cde-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["atlas", "taxonomy-overview"] });
+      onActionMessage(`Owner ${email} assigned to ${sourceAssetFqn}.`);
+      setOwnerEmail("");
+      setOwnerFormOpen(false);
+    } catch (error) {
+      onActionMessage(error?.message || "Owner assignment failed — please try again.");
+    } finally {
+      setOwnerSaving(false);
+    }
+  };
   return (
     <RegistryDetailShell onClose={onClose} title={cde.name}>
       <div className="gh-taxonomy-prototype-detail-grid">
         <section className="gh-taxonomy-prototype-detail-card">
           <h3>Source-of-record column</h3>
-          <p className="is-mono">{cde.column || "Source column unavailable"}</p>
+          <p className="is-mono">{cde.column || "Not tagged — tag cde_source_column on the asset"}</p>
+          <p className="gh-taxonomy-prototype-detail-note">{cdeSourceSummary(cde)}</p>
         </section>
         <section className="gh-taxonomy-prototype-detail-card">
           <h3>Ownership</h3>
           <dl>
             <div><dt>Owner</dt><dd>{cde.owner || "Unassigned"}</dd></div>
             <div><dt>Recertification</dt><dd>{registryEvidenceLabel(cde.recert)}</dd></div>
-            <div><dt>Status</dt><dd>{registryEvidenceLabel(cde.status)}</dd></div>
+            <div><dt>Last review</dt><dd>{cdeLastReviewSummary(cde)}</dd></div>
+            <div><dt>Certification</dt><dd>{registryEvidenceLabel(cde.status, "Certification pending")}</dd></div>
             <div><dt>SOX</dt><dd>{cde.sox ? "SOX-relevant" : "Not marked SOX"}</dd></div>
           </dl>
-          <p className="gh-taxonomy-prototype-detail-note">
-            Quality, recertification, and Unity Catalog proof require returned backing evidence.
-          </p>
         </section>
         <section className="gh-taxonomy-prototype-detail-card">
           <h3>Recertification evidence</h3>
@@ -1517,12 +1895,8 @@ function CdeRegistryDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpenL
           <p>{cdeHealthEvidenceSummary(cde)}</p>
         </section>
         <section className="gh-taxonomy-prototype-detail-card">
-          <h3>Reviewer workflow</h3>
-          <p>Reviewer and recertification mutations are unavailable on this route until a backed CDE workflow is configured.</p>
-        </section>
-        <section className="gh-taxonomy-prototype-detail-card">
           <h3>Association source</h3>
-          <p>{sourceAssetFqn ? sourceAssetFqn : "No source asset FQN can be derived from this registry row."}</p>
+          <p>{sourceAssetFqn ? sourceAssetFqn : "No source asset FQN is recorded on this registry row."}</p>
         </section>
       </div>
       <div className="gh-taxonomy-prototype-detail-actions">
@@ -1546,30 +1920,60 @@ function CdeRegistryDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpenL
           Open lineage
         </button>
         <button
-          aria-label="Request recertification unavailable: recertification workflow is not backed on this route yet."
-          disabled
-          title="Recertification workflow is not backed on this route yet."
+          disabled={!sourceAssetFqn || recertSaving}
+          onClick={handleRequestRecertification}
+          title={
+            sourceAssetFqn
+              ? "Create a governance request asking stewards to recertify this CDE"
+              : "Recertification requests require a source asset FQN"
+          }
           type="button"
         >
-          Request recertification
+          {recertSaving ? "Requesting…" : "Request recertification"}
         </button>
         <button
-          aria-label="Owner workflow unavailable: owner workflow requires a backed CDE registry mutation workflow."
-          disabled
-          title="Owner workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations."
+          disabled={!sourceAssetFqn}
+          onClick={() => setOwnerFormOpen((current) => !current)}
+          title={
+            sourceAssetFqn
+              ? "Assign a steward owner to the source asset"
+              : "Owner assignment requires a source asset FQN"
+          }
           type="button"
         >
-          Owner workflow
-        </button>
-        <button
-          aria-label="Recertification evidence unavailable: recertification workflow requires a backed CDE registry mutation workflow."
-          disabled
-          title="Recertification workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations."
-          type="button"
-        >
-          Recertification evidence
+          {ownerFormOpen ? "Cancel owner assignment" : "Assign owner"}
         </button>
       </div>
+      {ownerFormOpen ? (
+        <form
+          className="gh-taxonomy-prototype-detail-card"
+          aria-label={`Assign owner for ${cde.name}`}
+          onSubmit={handleAssignOwner}
+        >
+          <h3>Assign owner</h3>
+          <label className="gh-taxonomy-newterm-field">
+            <span>Owner email</span>
+            <input
+              className="gh-input"
+              disabled={ownerSaving}
+              onChange={(event) => setOwnerEmail(event.target.value)}
+              placeholder="steward@your-company.ai"
+              required
+              type="email"
+              value={ownerEmail}
+            />
+          </label>
+          <div className="gh-taxonomy-newterm-actions">
+            <button
+              className="gh-primary-button"
+              disabled={ownerSaving || !ownerEmail.trim()}
+              type="submit"
+            >
+              {ownerSaving ? "Assigning…" : "Assign owner"}
+            </button>
+          </div>
+        </form>
+      ) : null}
     </RegistryDetailShell>
   );
 }

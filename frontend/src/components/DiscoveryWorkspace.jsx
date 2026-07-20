@@ -1308,7 +1308,7 @@ function DiscoveryResultCard({
             {notebookUsage.toLocaleString()} {notebookUsage === 1 ? "notebook" : "notebooks"}
           </span>
         ) : null}
-        {queryCount === 0 && producerCount === 0 && consumerCount === 0 && notebookUsage === 0 ? (
+        {usageEvidencePresent && queryCount === 0 && producerCount === 0 && consumerCount === 0 && notebookUsage === 0 ? (
           <span className="gh-discovery-asset-usage-item is-muted" title="No recorded usage in the last 30 days">
             No recent usage
           </span>
