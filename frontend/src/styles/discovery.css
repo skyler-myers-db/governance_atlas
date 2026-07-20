@@ -215,7 +215,7 @@
 .gh-discovery-sidebar .gh-saved-view {
   padding: 0.72rem 0.84rem;
   border-radius: 14px;
-  background: rgba(246, 249, 254, 0.92);
+  background: var(--ga-surface-muted);
 }
 
 .gh-discovery-result-row {
@@ -226,8 +226,7 @@
   padding: 16px 18px;
   border: 1px solid rgba(182, 198, 216, 0.86);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.98);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.97) 100%);
+  background: var(--ga-surface);
   box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
   width: 100%;
   max-width: 100%;
@@ -251,8 +250,8 @@
 
 .gh-discovery-result-row.is-selected {
   border-color: rgba(15, 92, 192, 0.42);
-  box-shadow: 0 0 0 1px rgba(15, 92, 192, 0.06);
-  background: rgba(246, 250, 255, 0.98);
+  box-shadow: 0 0 0 1px rgba(102, 197, 255, 0.18);
+  background: rgba(102, 197, 255, 0.1);
 }
 
 .gh-discovery-result-row:hover {
@@ -840,20 +839,20 @@
 .gh-labeled-pill-unassigned { background: rgba(102, 197, 255, 0.08); color: var(--ga-text-muted, #8fa8b6); }
 .gh-labeled-pill-unassigned .gh-labeled-pill-value { color: var(--gh-text-muted, #5c6b82); }
 .gh-labeled-pill-warn {
-  background: #fdf4e5 !important;
-  border-color: #e8cb9d !important;
+  background: rgba(255, 181, 71, 0.14) !important;
+  border-color: rgba(255, 181, 71, 0.42) !important;
 }
-.gh-labeled-pill-warn .gh-labeled-pill-value { color: #b54708 !important; }
+.gh-labeled-pill-warn .gh-labeled-pill-value { color: var(--ga-warning) !important; }
 
 /* Tier variants */
-.gh-tier-gold { background: #fef3c7 !important; border-color: #fbbf24 !important; }
-.gh-tier-gold .gh-labeled-pill-value { color: #92400e !important; font-weight: 700 !important; }
-.gh-tier-silver { background: #f1f5f9 !important; border-color: #cbd5e1 !important; }
-.gh-tier-silver .gh-labeled-pill-value { color: #475569 !important; font-weight: 700 !important; }
-.gh-tier-bronze { background: #fef2ec !important; border-color: #f3b58a !important; }
-.gh-tier-bronze .gh-labeled-pill-value { color: #9a3412 !important; font-weight: 700 !important; }
-.gh-tier-tier1, .gh-tier-tier-1 { background: #ebf8ef !important; border-color: #a9d8b8 !important; }
-.gh-tier-tier1 .gh-labeled-pill-value, .gh-tier-tier-1 .gh-labeled-pill-value { color: #067647 !important; font-weight: 700 !important; }
+.gh-tier-gold { background: rgba(255, 181, 71, 0.16) !important; border-color: rgba(255, 181, 71, 0.5) !important; }
+.gh-tier-gold .gh-labeled-pill-value { color: var(--ga-warning) !important; font-weight: 700 !important; }
+.gh-tier-silver { background: var(--ga-surface-muted) !important; border-color: var(--ga-border-strong) !important; }
+.gh-tier-silver .gh-labeled-pill-value { color: var(--ga-text-soft) !important; font-weight: 700 !important; }
+.gh-tier-bronze { background: rgba(255, 140, 90, 0.16) !important; border-color: rgba(255, 140, 90, 0.5) !important; }
+.gh-tier-bronze .gh-labeled-pill-value { color: #ffb08a !important; font-weight: 700 !important; }
+.gh-tier-tier1, .gh-tier-tier-1 { background: rgba(46, 230, 166, 0.14) !important; border-color: rgba(46, 230, 166, 0.42) !important; }
+.gh-tier-tier1 .gh-labeled-pill-value, .gh-tier-tier-1 .gh-labeled-pill-value { color: var(--ga-success) !important; font-weight: 700 !important; }
 
 .gh-row-gaps {
   display: inline-flex;
@@ -865,8 +864,8 @@
   overflow: hidden;
 }
 .gh-row-gap-count {
-  background: #fdeeec;
-  color: #b42318;
+  background: rgba(255, 92, 108, 0.14);
+  color: var(--ga-danger);
   font-size: 10px;
   font-weight: 700;
   padding: 1px 5px;
@@ -1111,7 +1110,7 @@
 .gh-selection-preview-alert {
   margin-top: 8px;
   padding: 8px 12px;
-  background: #fdf4e5;
+  background: rgba(255, 181, 71, 0.14);
   border: 1px solid #e8cb9d;
   border-radius: 6px;
   font-size: 11px;
@@ -1232,21 +1231,21 @@
 /* Known tag semantics */
 .gh-row-tag[data-tag^="pii"],
 .gh-row-tag[data-tag*="sensitive"] {
-  background: #fdeeec;
-  color: #b42318;
-  border-color: #f2b5ab;
+  background: rgba(255, 92, 108, 0.14);
+  color: var(--ga-danger);
+  border-color: rgba(255, 92, 108, 0.42);
 }
 .gh-row-tag[data-tag*="gold"],
 .gh-row-tag[data-tag*="tier-1"] {
-  background: #fef3c7;
-  color: #92400e;
-  border-color: #fbbf24;
+  background: rgba(255, 181, 71, 0.16);
+  color: var(--ga-warning);
+  border-color: rgba(255, 181, 71, 0.5);
 }
 .gh-row-tag[data-tag*="certif"],
 .gh-row-tag[data-tag*="verified"] {
-  background: #ebf8ef;
-  color: #067647;
-  border-color: #a9d8b8;
+  background: rgba(46, 230, 166, 0.14);
+  color: var(--ga-success);
+  border-color: rgba(46, 230, 166, 0.42);
 }
 
 .gh-row-tag-stack {
