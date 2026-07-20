@@ -60,7 +60,7 @@ class RuntimeRouteServingTests(unittest.TestCase):
 
     def test_runtime_app_exposes_shell_and_runtime_routes(self) -> None:
         runtime_app = snapshot_script.runtime_app
-        paths = {route.path for route in runtime_app.app.routes}
+        paths = {route.path for route in snapshot_script.iter_api_routes(runtime_app.app)}
 
         self.assertIn("/", paths)
         self.assertIn("/api/bootstrap", paths)

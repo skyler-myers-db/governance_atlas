@@ -303,6 +303,34 @@ function initialLineageShell(parsedMarkers) {
   return hasLineageSource && hasInitialScope && hasInitialProfile && hasLoadingState;
 }
 
+function hydratingLiveLineageShell(parsedMarkers) {
+  // The live /api/lineage endpoint emits a trusted-but-hydrating envelope on
+  // cold cache: source=unity-catalog-lineage, authoritative=false, state=loading
+  // (or capabilities.visibilityScope=full-lineage-hydrating), carrying the focus
+  // node while upstream/downstream edges are still being fetched. This is a real
+  // Databricks degraded envelope, not mock evidence — per IMPLEMENTATION_STATUS
+  // it must render as a hydrating state rather than being rejected (which made
+  // the canvas falsely claim "No lineage edges returned" during warm-up). The
+  // initialLineageShell whitelist only covered the initial_route_shell scope;
+  // this covers the actual full-profile hydrating markers the API emits.
+  const hasLineageSource = parsedMarkers.some(({ key, value }) => (
+    key === "source" && normalizedKey(value).includes("unity_catalog_lineage")
+  ));
+  if (!hasLineageSource) return false;
+  const hasLoadingState = parsedMarkers.some(({ key, value }) => (
+    STATE_KEYS.has(key) && normalizedKey(value) === "loading"
+  ));
+  const hasHydratingScope = parsedMarkers.some(({ key, value }) => (
+    (key === "visibilityscope" || key === "visibility_scope") &&
+    normalizedKey(value).includes("hydrating")
+  ));
+  const hasInitialProfile = parsedMarkers.some(({ key, value }) => (
+    (key === "lineageprofile" || key === "lineage_profile") &&
+    normalizedKey(value) === "initial"
+  ));
+  return hasLoadingState || hasHydratingScope || hasInitialProfile;
+}
+
 function hasPopulatedAuthoritativeFalseContent(value, key = "") {
   if (value == null) return false;
   const normalized = normalizedKey(key);
@@ -446,6 +474,7 @@ export function isNonAuthoritativeMockEvidence(...sources) {
   });
   if (hasRejectingMarker) return true;
   if (initialLineageShell(parsedMarkers)) return false;
+  if (hydratingLiveLineageShell(parsedMarkers)) return false;
   if (trustedWorkspaceScopedLiveEnvelope(parsedMarkers)) return false;
   if (hasAuthorityFalse && hasTrustedDegradedLiveEnvelope && hasPopulatedRowsWithoutAuthority) return true;
   return hasAuthorityFalse && !hasTrustedDegradedLiveEnvelope;

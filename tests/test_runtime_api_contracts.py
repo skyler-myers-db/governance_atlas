@@ -323,7 +323,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
         runtime_app = snapshot_script.runtime_app
         routes = {
             route.path: route
-            for route in runtime_app.app.routes
+            for route in snapshot_script.iter_api_routes(runtime_app.app)
             if route.path in snapshot_script.RUNTIME_PATHS
         }
         request = object()

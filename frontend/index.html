@@ -7,18 +7,28 @@
       name="description"
       content="Governance Atlas metadata workspace built on Unity Catalog."
     />
+    <meta name="theme-color" content="#050e18" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23061321'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%2366c5ff' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%235ce1e6'/%3E%3Cpath d='M32 15v-6M32 55v-6M15 32h-6M55 32h-6' stroke='%233d84ad' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
     <title>Governance Atlas</title>
     <style>
+      /* Preboot skeleton — must visually match the live dark shell so first
+         paint and app hydration are seamless. Tokens mirror
+         src/design/tokens/colors.css (kept inline: this renders before any
+         bundle loads). Any light/cream surface here is a bug. */
       :root {
-        color-scheme: light;
-        --gh-preboot-bg: #eef4fb;
-        --gh-preboot-surface: rgba(255, 255, 255, 0.95);
-        --gh-preboot-line: rgba(188, 202, 224, 0.86);
-        --gh-preboot-ink: #182133;
-        --gh-preboot-ink-soft: #627691;
-        --gh-preboot-accent: #5b43ee;
-        --gh-preboot-accent-2: #7d63ff;
-        --gh-preboot-shadow: 0 18px 42px rgba(18, 35, 58, 0.08);
+        color-scheme: dark;
+        --ga-preboot-shell: #050e18;
+        --ga-preboot-bg: #08172a;
+        --ga-preboot-surface: rgba(12, 33, 56, 0.96);
+        --ga-preboot-line: rgba(31, 63, 95, 0.96);
+        --ga-preboot-text: #f5fbff;
+        --ga-preboot-text-soft: #cfefff;
+        --ga-preboot-text-muted: #8fa8b6;
+        --ga-preboot-accent: #66c5ff;
+        --ga-preboot-accent-2: #3d84ad;
       }
       html, body, #root {
         min-height: 100%;
@@ -26,238 +36,150 @@
       body {
         margin: 0;
         font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI Variable Text", sans-serif;
-        background:
-          radial-gradient(circle at top left, rgba(91, 67, 238, 0.08), transparent 28%),
-          linear-gradient(180deg, #edf3fb 0%, #f5f8fc 100%);
-        color: var(--gh-preboot-ink);
+        background: var(--ga-preboot-shell);
+        color: var(--ga-preboot-text);
       }
-      .gh-preboot {
-        width: min(1500px, calc(100vw - 32px));
-        margin: 16px auto;
+      .ga-preboot {
         display: grid;
-        gap: 16px;
+        grid-template-rows: 56px minmax(0, 1fr);
+        min-height: 100vh;
       }
-      .gh-preboot-shell,
-      .gh-preboot-panel {
-        border: 1px solid var(--gh-preboot-line);
-        border-radius: 22px;
-        background: var(--gh-preboot-surface);
-        box-shadow: var(--gh-preboot-shadow);
-      }
-      .gh-preboot-shell {
-        padding: 20px;
-        display: grid;
-        gap: 14px;
-      }
-      .gh-preboot-topbar {
-        display: grid;
-        grid-template-columns: minmax(320px, 0.72fr) minmax(0, 1.52fr) minmax(300px, 0.56fr);
-        gap: 14px;
-      }
-      .gh-preboot-brand,
-      .gh-preboot-modules,
-      .gh-preboot-identity,
-      .gh-preboot-search,
-      .gh-preboot-panel {
-        border: 1px solid var(--gh-preboot-line);
-        border-radius: 20px;
-        background:
-          radial-gradient(circle at top left, rgba(91, 67, 238, 0.08), transparent 38%),
-          linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(247,250,255,0.96) 100%);
-      }
-      .gh-preboot-brand,
-      .gh-preboot-modules,
-      .gh-preboot-identity {
-        min-height: 110px;
-        padding: 18px 22px;
-      }
-      .gh-preboot-brand {
+      .ga-preboot-topbar {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 14px;
+        padding: 0 18px;
+        background: var(--ga-preboot-bg);
+        border-bottom: 1px solid var(--ga-preboot-line);
       }
-      .gh-preboot-mark {
-        width: 62px;
-        height: 62px;
-        border-radius: 16px;
+      .ga-preboot-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
         display: grid;
         place-items: center;
-        background: linear-gradient(135deg, var(--gh-preboot-accent) 0%, var(--gh-preboot-accent-2) 100%);
-        color: white;
-        font-weight: 900;
-        letter-spacing: 0.08em;
-      }
-      .gh-preboot-brand strong {
-        display: block;
-        font-size: 2.16rem;
-        letter-spacing: -0.05em;
-      }
-      .gh-preboot-brand span,
-      .gh-preboot-copy {
-        color: var(--gh-preboot-ink-soft);
-      }
-      .gh-preboot-kicker {
-        font-size: 0.72rem;
+        background: linear-gradient(135deg, #025080 0%, #3d84ad 100%);
+        color: var(--ga-preboot-text);
         font-weight: 800;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--gh-preboot-ink-soft);
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
       }
-      .gh-preboot-modules {
+      .ga-preboot-brand strong {
+        font-size: 0.98rem;
+        letter-spacing: -0.01em;
+      }
+      .ga-preboot-brand span {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--ga-preboot-text-muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .ga-preboot-search {
+        margin-left: auto;
+        width: min(480px, 40vw);
+        height: 34px;
+        border: 1px solid var(--ga-preboot-line);
+        border-radius: 10px;
+        background: rgba(12, 33, 56, 0.68);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        color: var(--ga-preboot-text-muted);
+        font-size: 0.8rem;
+      }
+      .ga-preboot-body {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        background: var(--ga-preboot-bg);
+        min-height: 0;
+      }
+      .ga-preboot-rail {
+        border-right: 1px solid var(--ga-preboot-line);
+        background: var(--ga-preboot-shell);
+        padding: 18px 14px;
         display: grid;
         gap: 10px;
         align-content: start;
       }
-      .gh-preboot-module-row {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-      .gh-preboot-pill {
-        min-width: 164px;
-        min-height: 54px;
-        padding: 0 22px;
-        border-radius: 15px;
-        border: 1px solid var(--gh-preboot-line);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(248, 250, 255, 0.94);
-        font-weight: 800;
-      }
-      .gh-preboot-pill.is-active {
-        background: linear-gradient(135deg, var(--gh-preboot-accent) 0%, var(--gh-preboot-accent-2) 100%);
-        color: white;
-        border-color: transparent;
-      }
-      .gh-preboot-identity {
-        display: grid;
-        justify-items: end;
-        align-content: center;
-        gap: 4px;
-        text-align: right;
-      }
-      .gh-preboot-user {
-        font-weight: 800;
-      }
-      .gh-preboot-search {
-        min-height: 64px;
-        padding: 10px 14px;
-        display: grid;
-        grid-template-columns: 130px minmax(0, 1fr) 110px;
-        gap: 12px;
-        align-items: center;
-      }
-      .gh-preboot-search-input,
-      .gh-preboot-search-button {
-        min-height: 44px;
-        border: 1px solid var(--gh-preboot-line);
-        border-radius: 14px;
-        background: rgba(255,255,255,0.92);
-      }
-      .gh-preboot-search-input {
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        color: #8a9bb4;
-      }
-      .gh-preboot-search-button {
-        display: grid;
-        place-items: center;
-        font-weight: 800;
-      }
-      .gh-preboot-grid {
-        display: grid;
-        grid-template-columns: minmax(240px, 0.4fr) minmax(0, 1.2fr) minmax(340px, 0.8fr);
-        gap: 16px;
-      }
-      .gh-preboot-panel {
-        padding: 18px;
-        display: grid;
-        gap: 12px;
-        position: relative;
-        overflow: hidden;
-      }
-      .gh-preboot-panel::before {
-        content: "";
-        position: absolute;
-        inset: 0 0 auto 0;
-        height: 4px;
-        background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.72) 100%);
-      }
-      .gh-preboot-panel strong {
+      .ga-preboot-rail span,
+      .ga-preboot-cards span,
+      .ga-preboot-rows span {
         display: block;
-        font-size: 1.38rem;
-        letter-spacing: -0.04em;
-      }
-      .gh-preboot-copy {
-        line-height: 1.5;
-      }
-      .gh-preboot-bars,
-      .gh-preboot-cards {
-        display: grid;
-        gap: 10px;
-      }
-      .gh-preboot-bars span,
-      .gh-preboot-cards span {
-        display: block;
-        border-radius: 14px;
-        background:
-          linear-gradient(90deg, rgba(240, 244, 251, 0.95) 0%, rgba(251, 253, 255, 0.98) 50%, rgba(240, 244, 251, 0.95) 100%);
+        border-radius: 10px;
+        border: 1px solid var(--ga-preboot-line);
+        background: linear-gradient(
+          90deg,
+          rgba(12, 33, 56, 0.9) 0%,
+          rgba(20, 50, 79, 0.9) 50%,
+          rgba(12, 33, 56, 0.9) 100%
+        );
         background-size: 220% 100%;
-        animation: gh-preboot-shimmer 1.6s ease-in-out infinite;
-        border: 1px solid rgba(222, 230, 242, 0.9);
+        animation: ga-preboot-shimmer 1.6s ease-in-out infinite;
       }
-      .gh-preboot-bars span {
-        height: 52px;
+      .ga-preboot-rail span {
+        height: 34px;
       }
-      .gh-preboot-cards span {
-        height: 118px;
+      .ga-preboot-main {
+        padding: 22px;
+        display: grid;
+        gap: 16px;
+        align-content: start;
       }
-      @keyframes gh-preboot-shimmer {
+      .ga-preboot-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ga-preboot-text-soft);
+        font-size: 0.86rem;
+      }
+      .ga-preboot-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ga-preboot-accent);
+        animation: ga-preboot-pulse 1.4s ease-in-out infinite;
+      }
+      .ga-preboot-cards {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .ga-preboot-cards span {
+        height: 96px;
+        border-radius: 14px;
+      }
+      .ga-preboot-rows {
+        display: grid;
+        gap: 10px;
+      }
+      .ga-preboot-rows span {
+        height: 48px;
+      }
+      @keyframes ga-preboot-shimmer {
         0% { background-position: 200% 0; }
         100% { background-position: -20% 0; }
       }
-      @media (max-width: 1120px) {
-        .gh-preboot-topbar {
+      @keyframes ga-preboot-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
+      }
+      @media (max-width: 900px) {
+        .ga-preboot-body {
           grid-template-columns: 1fr;
         }
-        .gh-preboot-identity {
-          justify-items: start;
-          text-align: left;
+        .ga-preboot-rail {
+          display: none;
         }
-        .gh-preboot-search {
-          grid-template-columns: 1fr;
-        }
-        .gh-preboot-grid {
+        .ga-preboot-cards {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
-      @media (max-width: 760px) {
-        .gh-preboot {
-          width: min(100vw - 24px, 1500px);
-          margin: 12px auto;
-        }
-        .gh-preboot-shell {
-          padding: 16px;
-        }
-        .gh-preboot-brand strong {
-          font-size: 1.72rem;
-        }
-        .gh-preboot-grid {
-          grid-template-columns: 1fr;
-        }
-        .gh-preboot-module-row {
-          flex-direction: column;
-        }
-        .gh-preboot-pill {
-          width: 100%;
-          min-width: 0;
-        }
-      }
       @media (prefers-reduced-motion: reduce) {
-        .gh-preboot-bars span,
-        .gh-preboot-cards span {
+        .ga-preboot-rail span,
+        .ga-preboot-cards span,
+        .ga-preboot-rows span,
+        .ga-preboot-dot {
           animation: none;
         }
       }
@@ -265,65 +187,29 @@
   </head>
   <body>
     <div id="root">
-      <div class="gh-preboot">
-        <div class="gh-preboot-shell">
-          <div class="gh-preboot-topbar">
-            <div class="gh-preboot-brand">
-              <div class="gh-preboot-mark">GA</div>
-              <div>
-                <strong>Governance Atlas</strong>
-                <span>Metadata Workspace</span>
-              </div>
-            </div>
-            <div class="gh-preboot-modules">
-              <div class="gh-preboot-kicker">Modules</div>
-              <div class="gh-preboot-module-row">
-                <div class="gh-preboot-pill is-active">Discovery</div>
-                <div class="gh-preboot-pill">Lineage</div>
-                <div class="gh-preboot-pill">Governance</div>
-              </div>
-            </div>
-            <div class="gh-preboot-identity">
-              <div class="gh-preboot-kicker">Preparing workspace</div>
-              <div class="gh-preboot-user">Confirming route and shell access</div>
-            </div>
+      <div class="ga-preboot">
+        <div class="ga-preboot-topbar">
+          <div class="ga-preboot-mark">GA</div>
+          <div class="ga-preboot-brand">
+            <strong>Governance Atlas</strong>
+            <span>Metadata Workspace</span>
           </div>
-          <div class="gh-preboot-search">
-            <div class="gh-preboot-kicker">Global Search</div>
-            <div class="gh-preboot-search-input">Search visible assets by name, schema, domain, or tag</div>
-            <div class="gh-preboot-search-button">Browse</div>
-          </div>
+          <div class="ga-preboot-search">Search assets, domains, owners, tags…</div>
         </div>
-          <div class="gh-preboot-grid">
-          <div class="gh-preboot-panel">
-            <div class="gh-preboot-kicker">Workspace</div>
-            <strong>Opening the requested view</strong>
-            <div class="gh-preboot-copy">Holding the selected module and asset while the live workspace loads.</div>
-            <div class="gh-preboot-bars">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
+        <div class="ga-preboot-body">
+          <div class="ga-preboot-rail">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
           </div>
-          <div class="gh-preboot-panel">
-            <div class="gh-preboot-kicker">Access</div>
-            <strong>Confirming your workspace scope</strong>
-            <div class="gh-preboot-copy">Loading the workspace for your role and visible data scope.</div>
-            <div class="gh-preboot-cards">
-              <span></span>
-              <span></span>
-              <span></span>
+          <div class="ga-preboot-main">
+            <div class="ga-preboot-status">
+              <div class="ga-preboot-dot"></div>
+              Preparing your governance workspace…
             </div>
-          </div>
-          <div class="gh-preboot-panel">
-            <div class="gh-preboot-kicker">Live data</div>
-            <strong>Loading sections progressively</strong>
-            <div class="gh-preboot-copy">Discovery, entity, lineage, and governance details continue after the shell is visible.</div>
-            <div class="gh-preboot-bars">
-              <span></span>
-              <span></span>
-              <span></span>
+            <div class="ga-preboot-cards">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="ga-preboot-rows">
+              <span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
         </div>

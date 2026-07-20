@@ -310,7 +310,7 @@ function Icon({ name }) {
   );
 }
 
-function CommandCenterTrustRing({ value = 0, trend = "9.0 pts QoQ", label = "Posture", size = 200 }) {
+function CommandCenterTrustRing({ value = 0, trend = "Trend unavailable", label = "Posture", size = 200 }) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
   const displayValue = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
   const stroke = 14;
@@ -1667,7 +1667,7 @@ export function HomePage({
       window.setTimeout(() => revokeUrl(url), 0);
     }
     setExportStatus("Command Center brief export started.");
-  }, [activityRows, catalogRows, data.estate?.workspace, data.estate?.workspaceLabel, data.estate?.workspaceName, data.posture?.trend, evidenceKind, evidenceMeta, evidenceWarnings, kpis, postureTitle, postureValue, state]);
+  }, [activityRows, catalogRows, data.estate?.workspace, data.estate?.workspaceLabel, data.estate?.workspaceName, data.posture?.trend, databricksBackedMetadata, evidenceKind, evidenceMeta, evidenceWarnings, kpis, postureTitle, postureValue, state]);
   const togglePresentMode = useCallback(() => {
     if (typeof document === "undefined") {
       setPresentMode((current) => !current);
@@ -1745,27 +1745,29 @@ export function HomePage({
       tone: data.signalAvailability?.lineage ? "info" : "muted",
     },
   ];
+  // Only assert a quarter-over-quarter coverage delta when the API actually
+  // supplies a real previous coverage value. Previously this fabricated a
+  // story against hardcoded constants (78.4 baseline, "90% Q2 target",
+  // "week 30") the backend never returns — a governance-honesty violation.
+  const coveragePrevious = numericValue(coverageKpi.previousValue ?? coverageKpi.previous);
+  const coverageNow = numericValue(postureValue ?? coverageKpi.value);
   const narrativeTarget = typeof data.narrative?.target === "string" ? data.narrative.target.trim() : "";
   const narrativeTargetWeek = typeof data.narrative?.targetWeek === "string" ? data.narrative.targetWeek.trim() : "";
   const governedCount = numericValue(governedAssetsKpi.value);
-  const previousCoverageValue = numericValue(coverageKpi.previousValue ?? coverageKpi.previous);
-  const currentCoverageValue = postureValue ?? numericValue(coverageKpi.value);
-  const coverageDeltaPoints =
-    currentCoverageValue !== null && previousCoverageValue !== null
-      ? Math.round(currentCoverageValue) - Math.round(previousCoverageValue)
-      : null;
   const narrativeHeadline = baselineAssetCount !== null && governedCount !== null
     ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> of {formatCount(baselineAssetCount)} productionized assets meet baseline policy.
-        {coverageDeltaPoints !== null ? (
+        {coveragePrevious !== null && coverageNow !== null ? (
           <>
-            {" "}Coverage is {coverageDeltaPoints >= 0 ? "up" : "down"} <strong>{Math.abs(coverageDeltaPoints)} points</strong> over the returned comparison window.
+            {" "}Coverage is {coverageNow >= coveragePrevious ? "up" : "down"} <strong>{Math.abs(Math.round(coverageNow) - Math.round(coveragePrevious))} points</strong>
+            {narrativeTarget ? (
+              <>{" "}from the prior period — on track to hit the <span>{narrativeTarget}</span>{narrativeTargetWeek ? ` by ${narrativeTargetWeek}` : ""}.</>
+            ) : " from the prior period."}
           </>
-        ) : null}
-        {narrativeTarget && narrativeTargetWeek ? (
-          <> Target: <span>{narrativeTarget}</span> by {narrativeTargetWeek}.</>
-        ) : null}
+        ) : (
+          <>{" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.</>
+        )}
       </>
     )
     : governedCount !== null

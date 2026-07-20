@@ -29,7 +29,10 @@ describe("AppErrorBoundary", () => {
     expect(screen.getByText("Render exploded")).not.toBeNull();
   });
 
-  it("captures window error events without treating normal unavailable content as a crash", async () => {
+  it("does NOT tear down the app for a stray global window error", async () => {
+    // A single async/global error (a cancelled fetch, a browser extension,
+    // a background prefetch reject) must not replace the whole UI. The app
+    // stayed reachable; only a real React render error should show the card.
     render(
       <AppErrorBoundary>
         <section>
@@ -38,23 +41,14 @@ describe("AppErrorBoundary", () => {
       </AppErrorBoundary>,
     );
 
-    expect(screen.getByText("Workspace Unavailable")).not.toBeNull();
-    expect(screen.queryByText("Frontend Error")).toBeNull();
-
     const event = new Event("error");
-    Object.defineProperty(event, "error", {
-      value: new Error("Window failure"),
-    });
-    Object.defineProperty(event, "message", {
-      value: "Window failure",
-    });
-
+    Object.defineProperty(event, "error", { value: new Error("Window failure") });
+    Object.defineProperty(event, "message", { value: "Window failure" });
     window.dispatchEvent(event);
 
-    await waitFor(() => {
-      expect(screen.getByText("Frontend Error")).not.toBeNull();
-      expect(screen.getByText("Window failure")).not.toBeNull();
-    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText("Workspace Unavailable")).not.toBeNull();
+    expect(screen.queryByText("Frontend Error")).toBeNull();
   });
 
   it("does not convert ResizeObserver loop notifications into workspace crashes", async () => {
@@ -82,7 +76,7 @@ describe("AppErrorBoundary", () => {
     });
   });
 
-  it("captures unhandled promise rejections", async () => {
+  it("does NOT tear down the app for a stray unhandled promise rejection", async () => {
     render(
       <AppErrorBoundary>
         <div>Healthy child</div>
@@ -90,16 +84,12 @@ describe("AppErrorBoundary", () => {
     );
 
     const event = new Event("unhandledrejection");
-    Object.defineProperty(event, "reason", {
-      value: "Async failure",
-    });
-
+    Object.defineProperty(event, "reason", { value: "Async failure" });
     window.dispatchEvent(event);
 
-    await waitFor(() => {
-      expect(screen.getByText("Frontend Error")).not.toBeNull();
-      expect(screen.getByText("Async failure")).not.toBeNull();
-    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText("Healthy child")).not.toBeNull();
+    expect(screen.queryByText("Frontend Error")).toBeNull();
   });
 
   it("shows a friendly reload-now card when a lazy chunk import fails after a redeploy", async () => {

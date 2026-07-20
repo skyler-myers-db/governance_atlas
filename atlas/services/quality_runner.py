@@ -31,6 +31,26 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from atlas.services import quality as quality_service
+from atlas.util import quote_ident, quote_uc_3part
+
+
+def _safe_table(entity_fqn: str) -> str:
+    """Return a backtick-quoted 3-part table reference for `entity_fqn`.
+
+    Built-in evaluators previously spliced the raw FQN straight after FROM,
+    so a crafted columnName/FQN could inject SQL. Quote every identifier.
+    Falls back to whole-string identifier quoting if the FQN is not 3-part
+    (the caller already validated openability upstream).
+    """
+    parts = [p for p in str(entity_fqn).split(".") if p]
+    if len(parts) == 3:
+        return quote_uc_3part(parts[0], parts[1], parts[2])
+    return quote_ident(str(entity_fqn))
+
+
+def _safe_col(column_name: str) -> str:
+    """Backtick-quote a column identifier, escaping embedded backticks."""
+    return quote_ident(str(column_name))
 
 
 @dataclass
@@ -78,7 +98,7 @@ def _first_col(frame) -> Any:
 
 def _row_count(uc, entity_fqn: str) -> Optional[int]:
     try:
-        frame = uc.query_df(f"SELECT count(*) AS c FROM {entity_fqn}")
+        frame = uc.query_df(f"SELECT count(*) AS c FROM {_safe_table(entity_fqn)}")
     except Exception:
         return None
     val = _scalar(frame)
@@ -107,7 +127,7 @@ def _eval_null_count(uc, spec: TestCaseSpec, fraction: bool = False) -> CaseOutc
     threshold = spec.parameters.get("threshold")
     try:
         frame = uc.query_df(
-            f"SELECT sum(CASE WHEN `{spec.column_name}` IS NULL THEN 1 ELSE 0 END) AS nulls, count(*) AS total FROM {spec.entity_fqn}"
+            f"SELECT sum(CASE WHEN {_safe_col(spec.column_name)} IS NULL THEN 1 ELSE 0 END) AS nulls, count(*) AS total FROM {_safe_table(spec.entity_fqn)}"
         )
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
@@ -135,7 +155,7 @@ def _eval_unique(uc, spec: TestCaseSpec) -> CaseOutcome:
         return CaseOutcome(spec.case_id, "errored", detail="column_name required")
     try:
         frame = uc.query_df(
-            f"SELECT count(*) AS total, count(DISTINCT `{spec.column_name}`) AS distinct_count FROM {spec.entity_fqn}"
+            f"SELECT count(*) AS total, count(DISTINCT {_safe_col(spec.column_name)}) AS distinct_count FROM {_safe_table(spec.entity_fqn)}"
         )
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
@@ -162,8 +182,8 @@ def _eval_accepted_values(uc, spec: TestCaseSpec) -> CaseOutcome:
     literals = ", ".join(f"'{str(v).replace(chr(39), chr(39) * 2)}'" for v in accepted)
     try:
         frame = uc.query_df(
-            f"""SELECT count(*) AS violating FROM {spec.entity_fqn}
-WHERE `{spec.column_name}` IS NOT NULL AND `{spec.column_name}` NOT IN ({literals})"""
+            f"""SELECT count(*) AS violating FROM {_safe_table(spec.entity_fqn)}
+WHERE {_safe_col(spec.column_name)} IS NOT NULL AND {_safe_col(spec.column_name)} NOT IN ({literals})"""
         )
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
@@ -188,8 +208,8 @@ def _eval_regex(uc, spec: TestCaseSpec) -> CaseOutcome:
     safe_pattern = str(pattern).replace("'", "''")
     try:
         frame = uc.query_df(
-            f"""SELECT count(*) AS violating FROM {spec.entity_fqn}
-WHERE `{spec.column_name}` IS NOT NULL AND NOT rlike(cast(`{spec.column_name}` AS STRING), '{safe_pattern}')"""
+            f"""SELECT count(*) AS violating FROM {_safe_table(spec.entity_fqn)}
+WHERE {_safe_col(spec.column_name)} IS NOT NULL AND NOT rlike(cast({_safe_col(spec.column_name)} AS STRING), '{safe_pattern}')"""
         )
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
@@ -212,7 +232,7 @@ def _eval_min_max(uc, spec: TestCaseSpec) -> CaseOutcome:
     max_threshold = spec.parameters.get("maxThreshold")
     try:
         frame = uc.query_df(
-            f"SELECT min(`{spec.column_name}`) AS min_v, max(`{spec.column_name}`) AS max_v FROM {spec.entity_fqn}"
+            f"SELECT min({_safe_col(spec.column_name)}) AS min_v, max({_safe_col(spec.column_name)}) AS max_v FROM {_safe_table(spec.entity_fqn)}"
         )
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
@@ -245,7 +265,7 @@ def _eval_freshness(uc, spec: TestCaseSpec) -> CaseOutcome:
     max_age = spec.parameters.get("maxAgeSeconds")
     try:
         frame = uc.query_df(
-            f"SELECT unix_timestamp(max(`{column}`)) AS max_ts FROM {spec.entity_fqn}"
+            f"SELECT unix_timestamp(max({_safe_col(column)})) AS max_ts FROM {_safe_table(spec.entity_fqn)}"
         )
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
@@ -317,7 +337,7 @@ def _eval_schema_column_presence(uc, spec: TestCaseSpec) -> CaseOutcome:
         return CaseOutcome(spec.case_id, "errored", detail="column_name required")
     expected_type = spec.parameters.get("expectedDataType")
     try:
-        frame = uc.query_df(f"DESCRIBE TABLE {spec.entity_fqn}")
+        frame = uc.query_df(f"DESCRIBE TABLE {_safe_table(spec.entity_fqn)}")
     except Exception as exc:
         return CaseOutcome(spec.case_id, "errored", detail=str(exc))
     if frame is None or frame.empty:

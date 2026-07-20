@@ -82,7 +82,15 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
 
 
 def _warehouse_key(uc: Any) -> str:
-    return normalize_str(getattr(uc, "warehouse_id", "")) or "default"
+    """Cache partition for this client: warehouse AND acting credentials.
+
+    Keying by warehouse alone leaked per-user Unity Catalog reads (sample rows,
+    columns, lineage, table detail) across users: data fetched under one user's
+    OBO permissions was served to every other user on the same warehouse.
+    """
+    warehouse = normalize_str(getattr(uc, "warehouse_id", "")) or "default"
+    scope = normalize_str(getattr(uc, "cache_scope", "")) or "app"
+    return f"{warehouse}:{scope}"
 
 
 def invalidate_live_metadata_caches(asset_fqn: str | None = None) -> None:

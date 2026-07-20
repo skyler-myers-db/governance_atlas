@@ -123,6 +123,33 @@ describe("nonAuthoritativeEvidence", () => {
     })).toBe(false);
   });
 
+  it("allows the full-profile hydrating lineage envelope the live API actually emits", () => {
+    // Live cold-cache lineage: source=unity-catalog-lineage, state=loading,
+    // authoritative=false, capabilities.visibilityScope=full-lineage-hydrating,
+    // carrying the focus node while edges are still fetched. Must render as
+    // hydrating, not be rejected as mock (which showed "No lineage edges").
+    expect(isNonAuthoritativeMockEvidence({
+      authoritative: false,
+      profile: "full",
+      graphs: {
+        data: {
+          nodes: [{ id: "focus-main.default.orders", assetFqn: "main.default.orders" }],
+          edges: [],
+        },
+      },
+      meta: {
+        state: "loading",
+        source: "unity-catalog-lineage",
+        authoritative: false,
+        capabilities: {
+          visibilityScope: "full-lineage-hydrating",
+          lineageProfile: "full",
+          hydrating: true,
+        },
+      },
+    })).toBe(false);
+  });
+
   it("rejects populated business rows when the envelope is authoritative false", () => {
     expect(isNonAuthoritativeMockEvidence({
       authoritative: false,

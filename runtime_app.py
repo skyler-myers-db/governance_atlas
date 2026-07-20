@@ -1479,14 +1479,47 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     message = str(exc) if exc else ""
     lowered = message.lower()
     path_is_api = str(request.url.path).startswith("/api/")
-    if "permission_denied" in lowered or "does not have" in lowered and ("modify" in lowered or "select" in lowered or "use" in lowered):
+    request_method = str(getattr(request, "method", "")).upper()
+    is_write_method = request_method in {"POST", "PUT", "PATCH", "DELETE"}
+    # Sanitize the raw echo: the SDK's PermissionDenied str includes a
+    # "Config: host=..., workspace_id=..., client_id=..." suffix. Never leak
+    # workspace/client identifiers to the browser.
+    raw_first_line = message.splitlines()[0] if message else ""
+    for marker in (" Config:", ". Config:", "Config:"):
+        idx = raw_first_line.find(marker)
+        if idx != -1:
+            raw_first_line = raw_first_line[:idx].rstrip(" .")
+            break
+    raw_first_line = raw_first_line[:400]
+    is_scope_error = "required scopes" in lowered or "invalid scope" in lowered
+    is_asset_write_denial = "permission_denied" in lowered or (
+        "does not have" in lowered
+        and ("modify" in lowered or "select" in lowered or "use" in lowered)
+    )
+    if is_scope_error or is_asset_write_denial:
         if path_is_api:
             request_id = _http_request_id(request)
+            if is_scope_error:
+                detail = (
+                    "This action needs a Databricks permission the app's token "
+                    "wasn't granted. The affected section is unavailable; other "
+                    "data is unaffected."
+                )
+            elif is_write_method:
+                detail = (
+                    "You don't have write access to this asset. Ask a steward "
+                    "with MODIFY on this table to make the change."
+                )
+            else:
+                detail = (
+                    "You don't have permission to view this resource in Unity "
+                    "Catalog."
+                )
             return JSONResponse(
                 {
-                    "detail": "You don't have write access to this asset. Ask a steward with MODIFY on this table to make the change.",
+                    "detail": detail,
                     "errorClass": "PermissionDenied",
-                    "raw": message.splitlines()[0][:400],
+                    "raw": raw_first_line,
                     "requestId": request_id,
                     "httpRequestId": request_id,
                 },

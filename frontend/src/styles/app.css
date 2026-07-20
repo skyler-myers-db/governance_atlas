@@ -2866,7 +2866,7 @@ button:focus-visible,
    (same Y as "Filters" on the left). */
 aside.gh-selection-preview,
 aside.gh-panel.gh-selection-preview {
-  background: #fdfaf1 !important;
+  background: var(--ga-surface) !important;
   border: 0 !important;
   border-left: 1px solid var(--gh-line-strong, #6e6039) !important;
   border-right: 0 !important;
@@ -4207,7 +4207,7 @@ and single-line
   border: 0 !important;
   border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
   border-radius: 0 !important;
-  background: #fafbfd !important;
+  background: var(--ga-surface-strong) !important;
   box-shadow: none !important;
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
@@ -4410,7 +4410,7 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 .gh-discovery-results.gh-surface-panel-section {
   border: 1px solid var(--gh-border, #d8dee9) !important;
   border-radius: 6px !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
   padding: 0 !important;
   overflow: hidden !important;
@@ -4420,7 +4420,7 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
   padding: 14px 16px !important;
   border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
   margin: 0 !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
 }
 
 /* Workspace background — no big gradient */
@@ -4480,7 +4480,7 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 .gh-surface-header {
   padding: 12px 14px !important;
   border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   margin: 0 !important;
   border-radius: 6px 6px 0 0 !important;
 }
@@ -4608,7 +4608,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 }
 .gh-surface-header.is-featured,
 .gh-discovery-command-head {
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   box-shadow: none !important;
   border: 0 !important;
   border-radius: 6px 6px 0 0 !important;
@@ -4632,7 +4632,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
   border: 1px solid var(--gh-border, #d8dee9) !important;
   border-top: 0 !important;
   border-radius: 0 0 6px 6px !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
   margin-top: -1px !important;
 }
@@ -4656,7 +4656,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 /* ---- Entity page OM-parity pass ---- */
 .gh-entity-hero {
   padding: 14px 20px !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
 }
 .gh-entity-hero-title,
 .gh-entity-hero [class*="entity-hero-title"] h1,
@@ -4707,7 +4707,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
   gap: 0 !important;
   padding: 0 20px !important;
   height: 42px !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
 }
 .gh-entity-record-tabs button {
@@ -4742,7 +4742,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 [class*="entity-hero-metric"],
 [class*="summary-tile"],
 .gh-entity-hero [class*="metric-tile"] {
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   border: 1px solid var(--gh-border, #d8dee9) !important;
   border-radius: 6px !important;
   box-shadow: none !important;
@@ -4767,7 +4767,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 .gh-entity-record-section {
   border: 1px solid var(--gh-border, #d8dee9) !important;
   border-radius: 6px !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
   padding: 14px 16px !important;
 }
@@ -4811,7 +4811,7 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
 .gh-preview-stat-card.gh-entity-metric-card.tone-good,
 .gh-preview-stat-card.gh-entity-metric-card.tone-neutral,
 .gh-preview-stat-card.gh-entity-metric-card.tone-info {
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   border: 1px solid var(--gh-border, #d8dee9) !important;
   border-radius: 6px !important;
   box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
@@ -4877,7 +4877,7 @@ button[class*="back-to-discovery"] {
   font-size: 12px !important;
   border-radius: 6px !important;
   border: 1px solid var(--gh-border, #d8dee9) !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   color: var(--gh-text, #14213d) !important;
   box-shadow: none !important;
   font-weight: 600 !important;
@@ -4929,7 +4929,7 @@ button[class*="back-to-discovery"] {
 [class*="governance-workbench-hero"],
 .gh-governance-header {
   padding: 14px 20px !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
   box-shadow: none !important;
   border-radius: 0 !important;
@@ -4967,7 +4967,7 @@ button[class*="back-to-discovery"] {
 .gh-taxonomy-workspace .gh-empty-state,
 .gh-taxonomy-workspace .gh-empty-state-block {
   border: 1px solid var(--gh-border, #d8dee9) !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   border-radius: 6px !important;
   padding: 40px 20px !important;
   box-shadow: none !important;
@@ -5148,8 +5148,8 @@ button[class*="back-to-discovery"] {
 /* Only apply warning tone when row has severe needs-work (not when
    every row is in the same state — which becomes noise) */
 .gh-discovery-row.has-critical-gap .gh-labeled-pill-warn {
-  background: #fdf4e5 !important;
-  border-color: #e8cb9d !important;
+  background: rgba(255, 181, 71, 0.14) !important;
+  border-color: rgba(255, 181, 71, 0.42) !important;
 }
 .gh-discovery-row.has-critical-gap .gh-labeled-pill-warn .gh-labeled-pill-value {
   color: #b54708 !important;
@@ -5354,7 +5354,7 @@ button[class*="back-to-discovery"] {
   font-weight: 600 !important;
   border-radius: 4px !important;
   border: 1px solid var(--gh-border, #d8dee9) !important;
-  background: #ffffff !important;
+  background: var(--ga-surface) !important;
   color: var(--gh-text, #14213d) !important;
   box-shadow: none !important;
   line-height: 1 !important;

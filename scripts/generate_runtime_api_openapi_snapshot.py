@@ -285,6 +285,20 @@ def _load_runtime_app():
 runtime_app = _load_runtime_app()
 
 
+def iter_api_routes(app: Any):
+    """Yield every route object that has a concrete path.
+
+    FastAPI >= 0.139 stores included routers as `_IncludedRouter` entries in
+    `app.routes` (no `.path` attribute); the real APIRoutes live on
+    `original_router.routes` with their full prefixes already applied.
+    """
+    for route in app.routes:
+        if hasattr(route, "path"):
+            yield route
+        elif hasattr(route, "original_router"):
+            yield from route.original_router.routes
+
+
 def build_runtime_api_snapshot() -> dict[str, Any]:
     openapi = runtime_app.app.openapi()
     snapshot = {

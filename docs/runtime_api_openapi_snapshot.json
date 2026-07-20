@@ -25,8 +25,43 @@
         "title": "AssetDescriptionPatch",
         "type": "object"
       },
+      "AssetHeadersRequest": {
+        "properties": {
+          "assets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assets",
+            "type": "array"
+          }
+        },
+        "title": "AssetHeadersRequest",
+        "type": "object"
+      },
       "AssetMetadataPatch": {
         "properties": {
+          "businessCriticality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Businesscriticality"
+          },
+          "cdeRationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cderationale"
+          },
           "certification": {
             "anyOf": [
               {
@@ -90,6 +125,17 @@
             ],
             "title": "Freeformtags"
           },
+          "isCde": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iscde"
+          },
           "sensitivity": {
             "anyOf": [
               {
@@ -152,6 +198,32 @@
           }
         },
         "title": "AtlasAiQuestion",
+        "type": "object"
+      },
+      "BrandingPatch": {
+        "properties": {
+          "accentColor": {
+            "default": "",
+            "title": "Accentcolor",
+            "type": "string"
+          },
+          "logoUrl": {
+            "default": "",
+            "title": "Logourl",
+            "type": "string"
+          },
+          "orgDisplayName": {
+            "default": "",
+            "title": "Orgdisplayname",
+            "type": "string"
+          },
+          "primaryColor": {
+            "default": "",
+            "title": "Primarycolor",
+            "type": "string"
+          }
+        },
+        "title": "BrandingPatch",
         "type": "object"
       },
       "ClassificationReviewPayload": {
@@ -2635,6 +2707,35 @@
           },
           {
             "in": "query",
+            "name": "businessCriticalities",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Businesscriticalities"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cdeOnly",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Cdeonly",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
             "name": "sortBy",
             "required": false,
             "schema": {
@@ -3244,6 +3345,20 @@
     "/api/governance/requests": {
       "post": {
         "operationId": "api_governance_create_request_api_governance_requests_post",
+        "parameters": [
+          {
+            "description": "Return a minimal response for UI flows that already carry the selected asset context.",
+            "in": "query",
+            "name": "fast",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Return a minimal response for UI flows that already carry the selected asset context.",
+              "title": "Fast",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3252,6 +3367,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Api Governance Create Request",

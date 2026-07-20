@@ -219,6 +219,19 @@ def api_asset_detail(
     )
 
     _ensure_live_runtime()
+    # A malformed FQN is a client error (400), not a service outage (503).
+    # Returning 503 for a two-part name made monitoring and the frontend treat
+    # a bad request as a backend failure and inflated 5xx rates.
+    if len([part for part in str(asset_fqn or "").split(".") if part.strip()]) != 3:
+        return _error_response(
+            request,
+            status_code=400,
+            source="unity-catalog-detail",
+            detail="Expected a three-part Unity Catalog name (catalog.schema.table).",
+            entity_fqn=asset_fqn,
+            entity_id=asset_fqn,
+            capabilities={"visibilityState": "invalid-fqn"},
+        )
     visibility = _asset_visibility_record(asset_fqn, request)
     if visibility.get("visibilityState") == "loading":
         payload = asset_service.asset_loading_payload(asset_fqn)

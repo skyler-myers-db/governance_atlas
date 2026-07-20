@@ -2199,6 +2199,20 @@ def validate_no_completion_language_with_open_rows() -> None:
 
 
 def main() -> int:
+    if not VISUAL_QA_ROOT.exists():
+        # North Star visual QA evidence (screenshots, capture reports, side-by-side
+        # PNGs) is regenerable artifact state produced locally by the capture
+        # scripts. As of the 2026-07 repo-size cleanup it is gitignored and no
+        # longer tracked in git (it accounted for ~1.3GB and made the repo
+        # unpushable against GitHub's 2GB pack limit). Without the evidence checked
+        # out there is nothing for this contract to validate, so skip cleanly.
+        # Regenerate the evidence locally (frontend/scripts/atlas_*_qa.mjs, etc.)
+        # to run the full contract.
+        print(
+            "northstar audit contract skipped: visual QA evidence not checked out "
+            "(regenerable, gitignored). Regenerate via the capture scripts to validate."
+        )
+        return 0
     try:
         validate_manifest()
         validate_no_unregistered_current_evidence_reports()
