@@ -1667,7 +1667,7 @@ export function HomePage({
       window.setTimeout(() => revokeUrl(url), 0);
     }
     setExportStatus("Command Center brief export started.");
-  }, [activityRows, catalogRows, data.estate?.workspace, data.estate?.workspaceLabel, data.estate?.workspaceName, data.posture?.trend, evidenceKind, evidenceMeta, evidenceWarnings, kpis, postureTitle, postureValue, state]);
+  }, [activityRows, catalogRows, data.estate?.workspace, data.estate?.workspaceLabel, data.estate?.workspaceName, data.posture?.trend, databricksBackedMetadata, evidenceKind, evidenceMeta, evidenceWarnings, kpis, postureTitle, postureValue, state]);
   const togglePresentMode = useCallback(() => {
     if (typeof document === "undefined") {
       setPresentMode((current) => !current);

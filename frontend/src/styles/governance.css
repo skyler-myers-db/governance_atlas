@@ -284,17 +284,20 @@
   font-weight: 600;
   letter-spacing: 0.01em;
 }
-.gh-governance-lane-chip.tone-accent { background: #eef2ff; border-color: #c7d2fe; }
-.gh-governance-lane-chip.tone-accent .gh-governance-lane-count { color: #4338ca; }
-.gh-governance-lane-chip.tone-warn { background: #fef3c7; border-color: #fbd38d; }
-.gh-governance-lane-chip.tone-warn .gh-governance-lane-count { color: #b45309; }
-.gh-governance-lane-chip.tone-info { background: #ecfeff; border-color: #a5f3fc; }
-.gh-governance-lane-chip.tone-info .gh-governance-lane-count { color: #0e7490; }
-.gh-governance-lane-chip.tone-bad { background: #fef2f2; border-color: #fecaca; }
-.gh-governance-lane-chip.tone-bad .gh-governance-lane-count { color: #b91c1c; }
+/* Tone tints stay on the dark ga palette: translucent color washes over the
+   dark surface keep the near-white labels legible. Light pastel fills here
+   previously rendered white-on-cream and were unreadable. */
+.gh-governance-lane-chip.tone-accent { background: rgba(157, 124, 255, 0.14); border-color: rgba(157, 124, 255, 0.42); }
+.gh-governance-lane-chip.tone-accent .gh-governance-lane-count { color: var(--ga-purple); }
+.gh-governance-lane-chip.tone-warn { background: rgba(255, 181, 71, 0.14); border-color: rgba(255, 181, 71, 0.42); }
+.gh-governance-lane-chip.tone-warn .gh-governance-lane-count { color: var(--ga-warning); }
+.gh-governance-lane-chip.tone-info { background: rgba(102, 197, 255, 0.12); border-color: rgba(102, 197, 255, 0.4); }
+.gh-governance-lane-chip.tone-info .gh-governance-lane-count { color: var(--ga-bright-blue); }
+.gh-governance-lane-chip.tone-bad { background: rgba(255, 92, 108, 0.14); border-color: rgba(255, 92, 108, 0.42); }
+.gh-governance-lane-chip.tone-bad .gh-governance-lane-count { color: var(--ga-danger); }
 .gh-governance-lane-chip.is-active {
   border-color: var(--gh-accent);
-  box-shadow: 0 0 0 3px rgba(15, 92, 192, 0.12);
+  box-shadow: 0 0 0 3px var(--ga-focus, rgba(102, 197, 255, 0.42));
 }
 
 /* Phase 5-i.1 — Audit timeline drawer */

@@ -420,10 +420,13 @@
 }
 .gh-quality-runs-item + .gh-quality-runs-item { border-top: 1px solid var(--gh-border, #d8dee9); }
 
-.gh-chip-tone-positive { background: #ebf8ef; color: #067647; border-color: #a9d8b8; }
-.gh-chip-tone-danger   { background: #fdeeec; color: #b42318; border-color: #f2b5ab; }
-.gh-chip-tone-warning  { background: #fdf4e5; color: #b54708; border-color: #e8cb9d; }
-.gh-chip-tone-neutral  { background: var(--gh-surface-muted, #f3f6fb); color: var(--gh-text-muted, #5c6b82); }
+/* Tone chips use translucent ga-palette washes over the dark surface; the
+   previous light pastel fills rendered as cream patches on the dark theme. */
+.gh-chip-tone-positive { background: rgba(46, 230, 166, 0.14); color: var(--ga-success); border-color: rgba(46, 230, 166, 0.42); }
+.gh-chip-tone-danger   { background: rgba(255, 92, 108, 0.14); color: var(--ga-danger); border-color: rgba(255, 92, 108, 0.42); }
+.gh-chip-tone-warning  { background: rgba(255, 181, 71, 0.14); color: var(--ga-warning); border-color: rgba(255, 181, 71, 0.42); }
+.gh-chip-tone-info     { background: rgba(102, 197, 255, 0.12); color: var(--ga-bright-blue); border-color: rgba(102, 197, 255, 0.4); }
+.gh-chip-tone-neutral  { background: var(--ga-surface-muted); color: var(--ga-text-muted); border-color: var(--ga-border-muted); }
 
 /* ------------------------------------------------------------
    Phase 14 — AccessExplainerBanner
@@ -550,6 +553,7 @@
 .gh-chip.gh-chip-tone-positive,
 .gh-chip.gh-chip-tone-danger,
 .gh-chip.gh-chip-tone-warning,
+.gh-chip.gh-chip-tone-info,
 .gh-chip.gh-chip-tone-neutral {
   display: inline-flex;
   align-items: center;
