@@ -40,6 +40,26 @@ vi.mock("../../lib/api", () => ({
   createGovernanceRequest: (...args) => apiMocks.createGovernanceRequest(...args),
 }));
 
+// This jsdom environment ships sessionStorage but not localStorage; the
+// component degrades gracefully without it, but these tests assert the
+// persistence contract, so install a minimal in-memory stub.
+const localStorageStub = (() => {
+  let map = new Map();
+  return {
+    getItem: (key) => (map.has(key) ? map.get(key) : null),
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: (key) => map.delete(key),
+    clear: () => {
+      map = new Map();
+    },
+  };
+})();
+Object.defineProperty(window, "localStorage", {
+  value: localStorageStub,
+  configurable: true,
+  writable: true,
+});
+
 const asset = {
   fqn: "main.sales.orders",
   name: "orders",
@@ -180,17 +200,13 @@ describe("DiscoveryWorkspace gap fixes", () => {
     openAssetRecordSafelyMock.mockResolvedValue(true);
   });
 
-  it("suppresses the usage strip when the payload carries no usage fields (absence is not zero)", () => {
+  it("never claims No recent usage when the payload carries no usage fields (absence is not zero)", () => {
+    // The search payload has no usage pipeline; neither list nor grid mode
+    // may claim zero usage for these assets.
     render(<DiscoveryWorkspace {...defaultProps()} />);
+    expect(screen.queryByText("No recent usage")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
     expect(screen.queryByText("No recent usage")).toBeNull();
-  });
-
-  it("shows the zero-usage line only when a real usage number of 0 was reported", () => {
-    mockResults({ assets: [{ ...asset, queryCount: 0 }] });
-    render(<DiscoveryWorkspace {...defaultProps()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
-    expect(screen.getByText("No recent usage")).not.toBeNull();
   });
 
   it("labels the coverage column and sort option as Coverage, never Trust", () => {

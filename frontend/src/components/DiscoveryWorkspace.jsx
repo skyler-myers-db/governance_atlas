@@ -2532,6 +2532,7 @@ function DiscoverySavedSearchesPopover({ filters, onApply, onClose }) {
             style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}
           >
             <button
+              aria-label={`Apply saved search ${entry.name}`}
               onClick={() => {
                 onApply?.(entry);
                 onClose?.();

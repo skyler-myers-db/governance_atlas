@@ -226,9 +226,8 @@ describe("TaxonomyWorkspace", () => {
     expect(onOpenLineage).toHaveBeenCalledWith("finance_prod.curated.revenue_daily", "Data Lineage");
     fireEvent.click(within(detail).getByRole("button", { name: "Browse all associations" }));
     expect(within(detail).getByRole("heading", { name: "Associated assets" })).toBeDefined();
-    const reviewerWorkflow = within(detail).getByRole("button", { name: "Reviewer workflow unavailable" });
-    expect(reviewerWorkflow.disabled).toBe(true);
-    expect(reviewerWorkflow.getAttribute("title")).toMatch(/backed glossary task workflow/);
+    const reviewerWorkflow = within(detail).getByRole("button", { name: "Assign reviewer" });
+    expect(reviewerWorkflow.disabled).toBe(false);
     fireEvent.click(within(detail).getByRole("button", { name: "Close Net Revenue detail" }));
     expect(screen.queryByRole("complementary", { name: "Net Revenue detail" })).toBeNull();
   });
@@ -278,30 +277,25 @@ describe("TaxonomyWorkspace", () => {
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 3" }));
     const newCde = screen.getByRole("button", { name: "+ New CDE" });
     expect(newCde.disabled).toBe(false);
-    expect(newCde.getAttribute("title")).toBe("Show New CDE unavailable reason");
+    expect(newCde.getAttribute("title")).toBe("Flag an asset as a Critical Data Element");
     fireEvent.click(newCde);
-    expect(screen.getByText("New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created.")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Flag asset as CDE" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     const table = screen.getByRole("table", { name: "CDE registry table" });
     fireEvent.click(within(table).getByText("Net Revenue (USD)").closest("[role='row']"));
 
     const detail = screen.getByRole("complementary", { name: "Net Revenue (USD) detail" });
     expect(within(detail).getByRole("heading", { name: "Source-of-record column" })).toBeDefined();
     expect(within(detail).getByText("finance_prod.curated.revenue_daily.net_revenue_usd")).toBeDefined();
-    expect(within(detail).getByText("Quality, recertification, and Unity Catalog proof require returned backing evidence.")).toBeDefined();
 
     fireEvent.click(within(detail).getByRole("button", { name: "Open source asset" }));
     expect(onOpenAsset).toHaveBeenCalledWith("finance_prod.curated.revenue_daily", "Overview");
     fireEvent.click(within(detail).getByRole("button", { name: "Open lineage" }));
     expect(onOpenLineage).toHaveBeenCalledWith("finance_prod.curated.revenue_daily", "Data Lineage");
-    const recertRequest = within(detail).getByRole("button", { name: /Request recertification unavailable/i });
-    expect(recertRequest.disabled).toBe(true);
-    expect(recertRequest.getAttribute("title")).toMatch(/not backed/);
-    const ownerWorkflow = within(detail).getByRole("button", { name: /Owner workflow unavailable/i });
-    expect(ownerWorkflow.disabled).toBe(true);
-    expect(ownerWorkflow.getAttribute("title")).toMatch(/backed CDE registry mutation workflow/);
-    const recertWorkflow = within(detail).getByRole("button", { name: /Recertification evidence unavailable/i });
-    expect(recertWorkflow.disabled).toBe(true);
-    expect(recertWorkflow.getAttribute("title")).toMatch(/backed CDE registry mutation workflow/);
+    const ownerWorkflow = within(detail).getByRole("button", { name: "Assign owner" });
+    expect(ownerWorkflow.disabled).toBe(false);
+    expect(within(detail).getByRole("button", { name: "Request recertification" }).disabled).toBe(false);
+    expect(within(detail).queryByRole("button", { name: /Recertification evidence/i })).toBeNull();
     fireEvent.click(within(detail).getByRole("button", { name: "Close Net Revenue (USD) detail" }));
     expect(screen.queryByRole("complementary", { name: "Net Revenue (USD) detail" })).toBeNull();
   });
@@ -316,21 +310,13 @@ describe("TaxonomyWorkspace", () => {
       meta: { state: "available", warnings: [] },
     });
 
-    expect(screen.getAllByText("Glossary term unavailable")).toHaveLength(4);
-    expect(screen.getAllByText("Hierarchy unavailable")).toHaveLength(4);
-    fireEvent.click(screen.getAllByRole("button", { name: "0 assets" })[0]);
-    const unavailableTermDetail = screen.getByRole("complementary", { name: "Glossary term unavailable detail" });
-    expect(within(unavailableTermDetail).getByRole("heading", { name: "Associated assets" })).toBeDefined();
-    expect(within(unavailableTermDetail).getByRole("button", { name: "Open lineage" }).disabled).toBe(true);
-    fireEvent.click(within(unavailableTermDetail).getByRole("button", { name: "Close Glossary term unavailable detail" }));
+    // Fabricated "unavailable" records are gone: a genuinely empty registry
+    // renders honest empty states, never fake rows styled like data.
+    expect(screen.queryByText("Glossary term unavailable")).toBeNull();
+    expect(screen.getByText("No glossary terms yet")).toBeDefined();
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 0" }));
-    expect(screen.getAllByText("CDE evidence unavailable")).toHaveLength(5);
-    expect(screen.getAllByTitle("Recertification workflow evidence unavailable").length).toBeGreaterThan(0);
-    expect(screen.getAllByTitle("Quality/test-run evidence unavailable").length).toBeGreaterThan(0);
-    const cdeTable = screen.getByRole("table", { name: "CDE registry table" });
-    fireEvent.click(within(cdeTable).getAllByText("CDE evidence unavailable")[0].closest("[role='row']"));
-    const unavailableCdeDetail = screen.getByRole("complementary", { name: "CDE evidence unavailable detail" });
-    expect(within(unavailableCdeDetail).getByRole("button", { name: /Request recertification unavailable/i }).disabled).toBe(true);
+    expect(screen.queryByText("CDE evidence unavailable")).toBeNull();
+    expect(screen.getByText("No Critical Data Elements yet")).toBeDefined();
   });
 
   it("rejects non-authoritative taxonomy and CDE payload rows", async () => {
@@ -357,9 +343,9 @@ describe("TaxonomyWorkspace", () => {
 
     expect(screen.getByText("Non-authoritative glossary and taxonomy payload rejected.")).toBeDefined();
     expect(screen.queryByText("Net Revenue")).toBeNull();
-    expect(screen.getAllByText("Glossary term unavailable")).toHaveLength(4);
+    expect(screen.queryByText("Glossary term unavailable")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 0" }));
     expect(screen.queryByText("Flagged CDE")).toBeNull();
-    expect(screen.getAllByText("CDE evidence unavailable")).toHaveLength(5);
+    expect(screen.queryByText("CDE evidence unavailable")).toBeNull();
   });
 });
