@@ -2587,9 +2587,17 @@ h3.gh-asset-preview-header-name {
       overflow-hidden hero edge ("Advance|"). Wrap instead of clip.
    2. The "Sort:" label wrapped away from its dropdown into the filter-rail
       gutter, reading as a stray token under the facet counts. */
+/* display:flex !important is required: the base row is display:grid with
+   fixed auto tracks (northstar), so bare flex-wrap properties were inert
+   and the Advanced button still clipped at the hero's overflow edge. */
 .gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-row {
+  display: flex !important;
   flex-wrap: wrap;
   row-gap: 8px;
+}
+
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-row > * {
+  min-width: 0;
 }
 
 .gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-search-box {
@@ -2597,7 +2605,26 @@ h3.gh-asset-preview-header-name {
   flex: 1 1 240px;
 }
 
+/* Keep the sort control inside the results column when it narrows — it was
+   measured hanging 40px into the facet-rail gutter at 1280px. */
+.gh-discovery-shell .gh-discovery-main-grid[data-preview-open="true"] .gh-discovery-results-tabs {
+  flex-wrap: wrap;
+  margin-left: 0;
+  padding-left: 0;
+  justify-content: flex-end;
+}
+
 .gh-discovery-sort-inline {
   white-space: nowrap;
   flex-wrap: nowrap;
+}
+
+/* On the hover-tinted row background the faint-token FQN caption measured
+   4.27:1 — one tier up only while the row is hovered/focused keeps the
+   resting hierarchy but stays AA in every state. */
+.gh-discovery-table-row:hover .gh-discovery-result-fqn,
+.gh-discovery-table-row:focus-visible .gh-discovery-result-fqn,
+.gh-discovery-table-row:hover code,
+.gh-discovery-table-row:focus-visible code {
+  color: var(--ga-text-muted) !important;
 }

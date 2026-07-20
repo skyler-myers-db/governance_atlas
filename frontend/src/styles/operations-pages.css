@@ -5720,7 +5720,9 @@
 
 .gh-governance-ns-settings.is-primary {
   border-color: rgba(102, 197, 255, 0.54);
-  background: linear-gradient(180deg, rgba(102, 197, 255, 0.88), rgba(61, 132, 173, 0.98));
+  /* Bright-family fill (same family as Present mode): the old mid-blue
+     bottom stop measured 4.42:1 with the dark label. */
+  background: linear-gradient(180deg, rgba(102, 197, 255, 0.95), rgba(102, 197, 255, 0.68));
   color: var(--ga-navy-950);
   font-weight: 800;
 }
