@@ -133,7 +133,7 @@ describe("HomePage", () => {
     const kpiRow = screen.getByLabelText("Governance summary metrics");
     [
       "Governance coverage",
-      "Certified assets",
+      "Certified critical assets",
       "Open stewardship items",
       "High-risk exposures",
     ].forEach((label) => {
@@ -146,7 +146,7 @@ describe("HomePage", () => {
   it("renders the main prototype panel set from backed data", () => {
     render(<HomePage commandCenter={commandCenter} />);
 
-    expect(screen.getByText("Coverage trend · last 12 weeks")).not.toBeNull();
+    expect(screen.getByText("Posture trend · 26w")).not.toBeNull();
     expect(screen.getByText("Posture by domain")).not.toBeNull();
     expect(screen.getByText("Risk breakdown")).not.toBeNull();
     expect(screen.getByText("Top catalogs · health snapshot")).not.toBeNull();
@@ -171,10 +171,9 @@ describe("HomePage", () => {
     );
 
     expect(screen.getByText("Trend history unavailable")).not.toBeNull();
-    expect(screen.getByText("Projection unavailable")).not.toBeNull();
     expect(screen.getByText("Domain coverage signals unavailable.")).not.toBeNull();
     expect(screen.getByText("Catalog health rows unavailable until visible asset inventory hydrates.")).not.toBeNull();
-    expect(screen.getByText("Critical data element registry signals are unavailable in this command-center snapshot.")).not.toBeNull();
+    expect(screen.getByText(/No assets are tagged as Critical Data Elements yet/i)).not.toBeNull();
     expect(screen.getByText("No recent governance activity available.")).not.toBeNull();
   });
 
@@ -188,7 +187,7 @@ describe("HomePage", () => {
     );
 
     expect(screen.getByText("Showing app-principal view.")).not.toBeNull();
-    expect(screen.getByText("Coverage trend · last 12 weeks")).not.toBeNull();
+    expect(screen.getByText("Posture trend · 26w")).not.toBeNull();
 
     rerender(<HomePage state="error" message="Command center unavailable." commandCenter={commandCenter} />);
     expect(screen.getByText("Command center unavailable.")).not.toBeNull();
@@ -317,7 +316,7 @@ describe("HomePage", () => {
 
   it("switches trend ranges and routes catalog and activity rows", () => {
     const onNavigate = vi.fn();
-    const longTrend = Array.from({ length: 30 }, (_, index) => ({
+    const longTrend = Array.from({ length: 186 }, (_, index) => ({
       label: `W${index + 1}`,
       overall: 50 + index,
     }));
@@ -340,7 +339,7 @@ describe("HomePage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Open discovery filtered to Revenue & Sales domain/i }));
     expect(onNavigate).toHaveBeenCalledWith("discovery");
     fireEvent.click(screen.getByRole("button", { name: /Open stewardship for high-risk exposures/i }));
-    expect(onNavigate).toHaveBeenCalledWith("stewardship");
+    expect(onNavigate).toHaveBeenCalledWith("governance");
     fireEvent.click(screen.getByRole("button", { name: /Open audit evidence for medium-risk findings/i }));
     expect(onNavigate).toHaveBeenCalledWith("audit");
 
@@ -456,7 +455,7 @@ describe("HomePage", () => {
     render(<HomePage commandCenter={policyOnlyCommandCenter} />);
 
     expect(screen.getAllByText("Policy exception signals").length).toBeGreaterThan(0);
-    expect(screen.getByText("Policy exception count is backed; severity split is unavailable for this workspace.")).not.toBeNull();
+    expect(screen.getByText(/Policy exception count is backed by governance workflow evidence/i)).not.toBeNull();
     expect(screen.queryByText("High-risk exposures")).toBeNull();
   });
 

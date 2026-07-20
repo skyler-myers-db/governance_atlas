@@ -1,0 +1,193 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import AuditBrowserWorkspace from "../AuditBrowserWorkspace";
+import { fetchAuditEvidence } from "../../lib/api";
+
+vi.mock("../../lib/api", () => ({
+  fetchAuditEvidence: vi.fn(),
+}));
+
+const shell = { userEmail: "skyler@entrada.ai", role: "admin" };
+
+function auditEvent(id, overrides = {}) {
+  return {
+    audit_id: id,
+    displayAuditId: id,
+    entity_fqn: "main.customer.customer_dim",
+    entity_type: "table",
+    action: "metadata updated",
+    status: "success",
+    detail: "Owner changed",
+    created_at: "2026-07-19T12:00:00Z",
+    actor_email: "skyler@entrada.ai",
+    diffState: "unavailable",
+    diffReason: "No before/after metadata was recorded for this event.",
+    ...overrides,
+  };
+}
+
+function envelope(events, summaryOverrides = {}, metaOverrides = {}) {
+  return {
+    data: {
+      summary: {
+        totalChanges: events.length,
+        dateRange: "24h",
+        policyChanges: 0,
+        policyViolations: 0,
+        approvals: 0,
+        accessReviewsOpen: null,
+        reviewsResolved: null,
+        failedActions: 0,
+        lastEventAt: "",
+        hiddenRowsExcluded: 0,
+        sourceTable: "main.governance.metadata_audit_log",
+        summarySource: "governance audit log",
+        ...summaryOverrides,
+      },
+      events,
+      selectedEvent: events[0] || null,
+      evidence: null,
+    },
+    meta: {
+      state: "available",
+      authoritative: true,
+      source: "governance-store+metadata-audit-log",
+      ...metaOverrides,
+    },
+  };
+}
+
+function renderWorkspace(payload) {
+  fetchAuditEvidence.mockResolvedValue(payload);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <AuditBrowserWorkspace shell={shell} />
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("AuditBrowserWorkspace gap fixes", () => {
+  it("shows guidance and a 90d switch when the default range is empty", async () => {
+    renderWorkspace(envelope([], { lastEventAt: "2026-07-01T08:30:00Z" }));
+    await screen.findByText("No governance events in the last 24 hours");
+    expect(screen.getByText(/Most recent governance activity was recorded/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show last 90 days" }));
+    await waitFor(() => {
+      expect(fetchAuditEvidence).toHaveBeenCalledWith(expect.objectContaining({ dateRange: "90d" }));
+    });
+  });
+
+  it("paginates with Load more and reports Showing X of Y plus excluded rows", async () => {
+    const events = Array.from({ length: 20 }, (_, index) => auditEvent(`AUD-${String(index + 1).padStart(4, "0")}`));
+    const { container } = renderWorkspace(envelope(events, { hiddenRowsExcluded: 3 }));
+    await screen.findByText(/Showing 8 of 20 events/);
+    expect(container.querySelectorAll(".gh-audit-row")).toHaveLength(8);
+    expect(screen.getByText(/3 rows excluded by governance scoping/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await screen.findByText(/Showing 16 of 20 events/);
+    expect(container.querySelectorAll(".gh-audit-row")).toHaveLength(16);
+  });
+
+  it("reads policyViolations and accessReviewsOpen from the backed summary and drops the Retention tile", async () => {
+    renderWorkspace(
+      envelope([auditEvent("AUD-0001")], {
+        policyViolations: 4,
+        failedActions: 9,
+        accessReviewsOpen: 2,
+        reviewsResolved: 5,
+        accessReviewSource: "governance change requests",
+      }),
+    );
+    // Wait for the payload to land — the KPI labels render during loading too.
+    await screen.findByText(/Showing 1 of 1 events/);
+    const policyCard = screen.getByText("Policy violations").closest("article");
+    expect(policyCard.querySelector("strong").textContent).toBe("4");
+    const accessCard = screen.getByText("Access reviews · open").closest("article");
+    expect(accessCard.querySelector("strong").textContent).toBe("2");
+    expect(screen.getByText(/5 resolved · governance change requests/)).toBeTruthy();
+    expect(screen.queryByText("Retention")).toBeNull();
+    // The impossible "· 7d" label variant is gone for good.
+    expect(screen.queryByText("Policy violations · 7d")).toBeNull();
+  });
+
+  it("renders the whitelisted before/after diff and shows the reason when redacted", async () => {
+    const available = auditEvent("AUD-0001", {
+      request_id: "REQ-1",
+      displayRequestId: "REQ-1",
+      before_json: JSON.stringify({ owner: "old.owner@entrada.ai" }),
+      after_json: JSON.stringify({ owner: "skyler-new@entrada.ai" }),
+      diffState: "available",
+      diffReason: "",
+    });
+    renderWorkspace(envelope([available]));
+    await screen.findByText("old.owner@entrada.ai");
+    expect(screen.getByText("skyler-new@entrada.ai")).toBeTruthy();
+    expect(screen.queryByText(/No before\/after metadata diff was reported/)).toBeNull();
+  });
+
+  it("shows the redaction reason so an empty diff reads deliberate", async () => {
+    const redacted = auditEvent("AUD-0001", {
+      request_id: "REQ-1",
+      displayRequestId: "REQ-1",
+      before_json: "",
+      after_json: "",
+      diffState: "redacted",
+      diffReason: "Only internal store identifiers changed in this event; no customer-safe metadata fields remain after redaction.",
+    });
+    renderWorkspace(envelope([redacted]));
+    await screen.findByText(/Only internal store identifiers changed/);
+  });
+
+  it("suppresses the repeated No detail recorded placeholder", async () => {
+    renderWorkspace(envelope([
+      auditEvent("AUD-0001", { detail: "" }),
+      auditEvent("AUD-0002", { detail: "" }),
+    ]));
+    await screen.findByText(/Showing 2 of 2 events/);
+    expect(screen.queryByText("No detail recorded")).toBeNull();
+  });
+
+  it("renders a short GOV-<hex8> evidence id with the full id preserved on title", async () => {
+    const uuid = "a1b2c3d4-e5f6-4789-8abc-def012345678";
+    renderWorkspace(envelope([
+      auditEvent("AUD-0001", { request_id: uuid, displayRequestId: uuid }),
+    ]));
+    const shortIds = await screen.findAllByText(/GOV-a1b2c3d4/);
+    expect(shortIds.length).toBeGreaterThan(0);
+    // Exact match targets the Evidence ID <dd>; the Evidence summary <dd>
+    // embeds the short id inside a longer string.
+    const detailValue = screen.getByText("GOV-a1b2c3d4", { selector: "dd" });
+    expect(detailValue.getAttribute("title")).toBe(uuid);
+  });
+
+  it("keeps the loading skeleton up while the payload is hydrating", async () => {
+    renderWorkspace(
+      envelope([], { totalChanges: 0 }, {
+        state: "loading",
+        authoritative: false,
+        capabilities: { hydrating: true },
+      }),
+    );
+    await screen.findByText("Loading audit trail");
+    // Never final-looking zeros while hydrating.
+    expect(screen.queryByText("No governance events in the last 24 hours")).toBeNull();
+    expect(screen.getAllByText("Loading...").length).toBeGreaterThan(0);
+  });
+
+  it("shows the active date range on the trigger, tab counts, and real source-table provenance", async () => {
+    renderWorkspace(envelope([auditEvent("AUD-0001")], { sourceTable: "main.governance.metadata_audit_log" }));
+    // Wait for the payload to land first; the header renders during loading too.
+    await screen.findByText(/main\.governance\.metadata_audit_log/);
+    expect(screen.getByText("Date range · 24h")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /All events, 1 events/ })).toBeTruthy();
+    // Authoritative payload: the stale "Export and retention controls stay
+    // unavailable" placeholder sentence must be gone.
+    expect(screen.queryByText(/Export and retention controls stay unavailable/)).toBeNull();
+  });
+});

@@ -829,6 +829,37 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
             ) USING DELTA""",
         ),
     ),
+    Migration(
+        version=17,
+        name="governance_metrics_snapshots",
+        statements=(
+            # Daily governance-posture snapshots. One row per
+            # (scope_key, snapshot_date); the command-center payload
+            # builder upserts today's row and reads the series back to
+            # power trend lines, sparklines, and vs-previous deltas.
+            # Without this table every trend renders "unavailable"
+            # because no history exists anywhere.
+            """CREATE TABLE IF NOT EXISTS {metrics_snapshots_table} (
+                snapshot_id        STRING NOT NULL,
+                scope_key          STRING NOT NULL COMMENT 'visibility scope the metrics were computed under (app | obo-<hash>)',
+                snapshot_date      DATE NOT NULL,
+                governed_assets    BIGINT,
+                certified_assets   BIGINT,
+                critical_assets    BIGINT,
+                certified_critical_assets BIGINT,
+                metadata_coverage  DOUBLE,
+                posture_score      DOUBLE,
+                audit_readiness    DOUBLE,
+                open_requests      BIGINT,
+                policy_exceptions  BIGINT,
+                quality_sla        DOUBLE,
+                lineage_coverage   DOUBLE,
+                cde_count          BIGINT,
+                created_at         TIMESTAMP,
+                created_by         STRING
+            ) USING DELTA""",
+        ),
+    ),
 )
 
 
@@ -903,6 +934,7 @@ def apply_migrations(
                 notification_preferences_table=_fq_table(catalog, schema, "notification_preferences"),
                 governance_queue_projection_table=_fq_table(catalog, schema, "governance_queue_projection"),
                 glossary_summary_projection_table=_fq_table(catalog, schema, "glossary_summary_projection"),
+                metrics_snapshots_table=_fq_table(catalog, schema, "governance_metrics_snapshots"),
                 change_events_table=_fq_table(catalog, schema, "change_events"),
                 change_event_consumers_table=_fq_table(catalog, schema, "change_event_consumers"),
                 change_event_consumer_offsets_table=_fq_table(catalog, schema, "change_event_consumer_offsets"),

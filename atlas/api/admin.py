@@ -389,10 +389,25 @@ def _build_truth_check_payload() -> Dict[str, Any]:
         metastore_schemas = int(per_schema_counts.get(catalog, 0))
         ui_inventory_tables = int(ui_inventory_per_catalog.get(catalog, 0))
         ui_visible_tables = int(ui_visible_per_catalog.get(catalog, 0))
+        # An all-zero row is indistinguishable (from these probes alone)
+        # between "catalog is genuinely empty" and "app principal lacks
+        # information_schema/SELECT grants on it". Flag it explicitly so the
+        # UI can badge the row instead of rendering a wall of bare zeros
+        # that reads as a broken product.
+        all_zero = not any(
+            (metastore_tables, metastore_schemas, ui_inventory_tables, ui_visible_tables)
+        )
         per_catalog.append(
             {
                 "catalog": catalog,
                 "configured": catalog in discovery_set,
+                "state": "empty-or-unauthorized" if all_zero else "populated",
+                "stateReason": (
+                    "No schemas or tables are visible to the app principal in this catalog — "
+                    "it is either empty or the principal lacks information_schema grants."
+                    if all_zero
+                    else ""
+                ),
                 "metastore": {
                     "schemaCount": metastore_schemas,
                     "tableCount": metastore_tables,
@@ -416,6 +431,23 @@ def _build_truth_check_payload() -> Dict[str, Any]:
         state = "degraded"
         reason = warnings[0]
 
+    # Explain non-zero drift instead of leaving the operator staring at a
+    # bare delta. Only emitted when the underlying probes succeeded — a
+    # failed table/inventory query would make the delta itself meaningless.
+    inventory_delta = table_total - ui_inventory_total
+    drift_warnings = list(warnings)
+    if inventory_delta and not table_err and not ui_err:
+        if inventory_delta > 0:
+            drift_warnings.append(
+                f"{inventory_delta} metastore table(s) are not in the surfaced inventory — "
+                "likely a stale inventory cache or hidden-schema rules."
+            )
+        else:
+            drift_warnings.append(
+                f"The surfaced inventory reports {abs(inventory_delta)} more table(s) than "
+                "the metastore — likely a stale inventory cache holding dropped tables."
+            )
+
     return {
         "data": {
             "discoveryCatalogs": discovery_catalogs,
@@ -431,9 +463,9 @@ def _build_truth_check_payload() -> Dict[str, Any]:
                 "visibleTotal": ui_visible_total,
             },
             "drift": {
-                "inventoryDelta": table_total - ui_inventory_total,
+                "inventoryDelta": inventory_delta,
                 "hiddenByVisibility": ui_inventory_total - ui_visible_total,
-                "warnings": warnings,
+                "warnings": drift_warnings,
             },
             "queries": queries,
             "observedAt": _now_iso(),

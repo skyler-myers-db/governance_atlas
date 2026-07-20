@@ -151,11 +151,11 @@ describe("AppFrame", () => {
     // placeholder guidance used to live in a separate command-bar block; it
     // now reads from the input's placeholder attribute instead.
     const searchInput = screen.getByLabelText(
-      /Search assets, columns, glossary terms, owners/i,
+      /Search assets, glossary terms, owners/i,
     );
     expect(searchInput).not.toBeNull();
     expect(searchInput.getAttribute("placeholder")).toMatch(
-      /Search assets, columns, glossary terms, owners/i,
+      /Search assets, glossary terms, owners/i,
     );
   });
 
@@ -188,7 +188,7 @@ describe("AppFrame", () => {
       </AppFrame>,
     );
 
-    const searchInput = screen.getByLabelText(/Search assets, columns, glossary terms, owners/i);
+    const searchInput = screen.getByLabelText(/Search assets, glossary terms, owners/i);
     fireEvent.change(searchInput, { target: { value: "net revenue" } });
     fireEvent.keyDown(searchInput, { key: "Enter" });
     fireEvent.submit(searchInput.closest("form"));

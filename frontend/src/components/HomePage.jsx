@@ -1,8 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { feature } from "topojson-client";
-import land110m from "world-atlas/land-110m.json";
-import { fetchAtlasAiRecommendations } from "../lib/api";
-import { useAtlasAiConversation } from "../hooks/useAtlasAiConversation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import {
   DegradedBanner,
@@ -23,8 +19,6 @@ const EMPTY_COMMAND_CENTER = {
   posture: { overall: null, trend: [], byDomain: [], heatmap: [] },
   topDomains: [],
   recentEvents: [],
-  quickActions: [],
-  aiPrompts: [],
   meta: { state: "unknown", warnings: [] },
 };
 
@@ -37,54 +31,12 @@ const KPI_DEFS = [
   { key: "auditReadiness", label: "Audit Readiness", icon: "check", tooltip: "Composite audit readiness when the required control and evidence signals are available." },
 ];
 
-const QUICK_ACTIONS = [
-  { key: "discovery", label: "Browse Discovery", description: "Trusted assets", icon: "register", surface: "discovery" },
-  { key: "governance", label: "Review Queue", description: "Open requests", icon: "policy", surface: "governance" },
-  { key: "insights", label: "Review Quality", description: "Signals", icon: "quality", surface: "insights" },
-  { key: "governance-access", label: "Access Reviews", description: "Governance", icon: "access", surface: "governance" },
-  { key: "taxonomy", label: "Open Glossary", description: "Terms", icon: "glossary", surface: "taxonomy" },
-  { key: "audit", label: "Audit Trail", description: "Evidence", icon: "audit", surface: "audit" },
-];
-
-const DEFAULT_HEATMAP_COLUMNS = [
-  "Discoverability",
-  "Ownership",
-  "Classification",
-  "Criticality",
-  "Data Product",
-];
-
-const FALLBACK_AI_PROMPTS = [
-  "Which domains have the lowest metadata coverage?",
-  "Which critical assets are not certified?",
-  "What changed in governance metadata recently?",
-  "Which assets need stewardship attention?",
-  "Which governance issue should I prioritize next?",
-  "Which assets have incomplete ownership?",
-  "Where did policy exception activity increase?",
-  "Which domains need certification cleanup?",
-];
-
+// Trend windows slice the daily snapshot series (points are days).
 const TREND_WINDOWS = [
-  { key: "12w", label: "12w", points: 12 },
-  { key: "26w", label: "26w", points: 26 },
-  { key: "52w", label: "52w", points: 52 },
+  { key: "12w", label: "12w", points: 84 },
+  { key: "26w", label: "26w", points: 182 },
+  { key: "52w", label: "52w", points: 364 },
 ];
-
-const UNAVAILABLE_DOMAIN_ROWS = Array.from(
-  { length: 6 },
-  (_, index) => `Unavailable domain signal ${index + 1}`,
-);
-
-const UNAVAILABLE_CATALOG_ROWS = Array.from(
-  { length: 6 },
-  (_, index) => `Unavailable catalog signal ${index + 1}`,
-);
-
-const UNAVAILABLE_CDE_ROWS = Array.from(
-  { length: 4 },
-  (_, index) => `Unavailable CDE signal ${index + 1}`,
-);
 
 // ----- CountUp helper -----
 // Animates a numeric value from 0 to `to` over `dur` ms using cubic ease-out.
@@ -386,7 +338,9 @@ function formatMetricValue(kpi) {
   if (value === null || value === undefined || value === "") return "-";
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "-";
-  if (kpi?.format === "percent") return `${Math.round(numeric)}%`;
+  if (kpi?.format === "percent") {
+    return Number.isInteger(numeric) ? `${numeric.toFixed(0)}%` : `${numeric.toFixed(1)}%`;
+  }
   return formatCount(numeric);
 }
 
@@ -438,8 +392,6 @@ function normalizeCommandCenter(commandCenter, estate, recentAssets) {
     topDomains: Array.isArray(center.topDomains) ? center.topDomains : [],
     recentEvents: Array.isArray(center.recentEvents) ? center.recentEvents : [],
     recentAssets: Array.isArray(center.recentAssets) ? center.recentAssets : recentAssets || [],
-    quickActions: Array.isArray(center.quickActions) ? center.quickActions : [],
-    aiPrompts: Array.isArray(center.aiPrompts) ? center.aiPrompts : [],
     meta: center.meta && typeof center.meta === "object" ? center.meta : EMPTY_COMMAND_CENTER.meta,
   };
 }
@@ -543,258 +495,17 @@ function isDatabricksBackedCommandCenter(data, evidenceKind) {
   return sourceIsDatabricks && hasBackedSignal;
 }
 
-const FALLBACK_LAND_RINGS = [
-  [[-168, 72], [-145, 70], [-130, 58], [-125, 48], [-113, 40], [-105, 31], [-94, 28], [-82, 25], [-68, 45], [-54, 52], [-62, 63], [-92, 72], [-130, 74]],
-  [[-82, 12], [-76, 2], [-70, -14], [-63, -28], [-59, -45], [-70, -54], [-78, -38], [-84, -18], [-90, 4]],
-  [[-18, 36], [-8, 52], [16, 60], [42, 55], [52, 42], [36, 34], [18, 36], [2, 42]],
-  [[-18, 32], [5, 36], [28, 30], [44, 12], [36, -14], [24, -34], [10, -35], [-6, -12], [-14, 8]],
-  [[36, 55], [62, 62], [94, 58], [122, 48], [150, 52], [164, 36], [142, 18], [112, 8], [96, -5], [76, 18], [52, 22], [42, 38]],
-  [[112, -11], [154, -10], [154, -38], [134, -44], [114, -32]],
-  [[46, -14], [52, -20], [48, -25], [42, -20]],
-  [[-52, 74], [-26, 72], [-18, 64], [-38, 60], [-56, 64]],
-];
-
-function buildWorldLandRings() {
-  try {
-    const landFeature = feature(land110m, land110m.objects.land);
-    const geometry = landFeature?.geometry;
-    const polygons = geometry?.type === "MultiPolygon"
-      ? geometry.coordinates
-      : geometry?.type === "Polygon"
-        ? [geometry.coordinates]
-        : [];
-    return polygons
-      .flatMap((polygon) => polygon)
-      .filter((ring) => Array.isArray(ring) && ring.length >= 3)
-      .map((ring) => ring.map(([lon, lat]) => [Number(lon), Number(lat)]));
-  } catch {
-    return [];
-  }
-}
-
-const WORLD_LAND_RINGS = buildWorldLandRings();
-const GLOBE_LAND_RINGS = WORLD_LAND_RINGS.length ? WORLD_LAND_RINGS : FALLBACK_LAND_RINGS;
-
-const CITY_LIGHTS = [
-  [-74, 40], [-118, 34], [-87, 42], [-99, 19], [-58, -34], [-46, -23],
-  [-0.1, 51], [2, 49], [13, 52], [30, 60], [37, 56], [31, 30],
-  [77, 28], [72, 19], [116, 40], [121, 31], [139, 35], [103, 1],
-  [151, -34], [28, -26], [3, 6], [55, 25],
-];
-
-const NETWORK_ARCS = [
-  [[-74, 40], [-0.1, 51]],
-  [[-118, 34], [139, 35]],
-  [[2, 49], [77, 28]],
-  [[31, 30], [116, 40]],
-  [[-46, -23], [28, -26]],
-  [[103, 1], [151, -34]],
-];
-
-function drawProjectedPath(context, points, project) {
-  let open = false;
-  let visibleCount = 0;
-  points.forEach(([lon, lat]) => {
-    const point = project(lon, lat);
-    if (!point.visible) {
-      if (open) context.closePath();
-      open = false;
-      return;
-    }
-    if (!open) {
-      context.moveTo(point.x, point.y);
-      open = true;
-    } else {
-      context.lineTo(point.x, point.y);
-    }
-    visibleCount += 1;
-  });
-  if (open) context.closePath();
-  return visibleCount;
-}
-
-function GlobeNetworkVisual() {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || typeof window === "undefined" || typeof window.CanvasRenderingContext2D === "undefined") {
-      return undefined;
-    }
-    const context = canvas.getContext("2d");
-    if (!context) return undefined;
-
-    let frame = 0;
-    let stopped = false;
-    const reducedMotion = typeof window.matchMedia === "function"
-      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
-      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    };
-
-    const draw = (time = 0) => {
-      const width = canvas.clientWidth || 760;
-      const height = canvas.clientHeight || 260;
-      const radius = Math.min(width * 0.36, height * 0.9);
-      const cx = width * 0.64;
-      const cy = height * 0.72;
-      const rotation = reducedMotion ? -64 : -64 + (time / 1000) * 2.8;
-
-      context.clearRect(0, 0, width, height);
-      context.save();
-      context.beginPath();
-      context.arc(cx, cy, radius, 0, Math.PI * 2);
-      context.clip();
-
-      const ocean = context.createRadialGradient(cx - radius * 0.32, cy - radius * 0.44, radius * 0.08, cx, cy, radius);
-      ocean.addColorStop(0, "rgba(82, 185, 244, 0.86)");
-      ocean.addColorStop(0.44, "rgba(13, 103, 164, 0.7)");
-      ocean.addColorStop(1, "rgba(2, 25, 46, 0.92)");
-      context.fillStyle = ocean;
-      context.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
-      const project = (lon, lat) => {
-        const lambda = ((lon + rotation) * Math.PI) / 180;
-        const phi = (lat * Math.PI) / 180;
-        const cosPhi = Math.cos(phi);
-        const x = cosPhi * Math.sin(lambda);
-        const y = Math.sin(phi);
-        const z = cosPhi * Math.cos(lambda);
-        return {
-          x: cx + x * radius,
-          y: cy - y * radius,
-          z,
-          visible: z > -0.02,
-        };
-      };
-
-      context.strokeStyle = "rgba(142, 219, 255, 0.16)";
-      context.lineWidth = 1;
-      for (let lat = -60; lat <= 60; lat += 30) {
-        context.beginPath();
-        let active = false;
-        for (let lon = -180; lon <= 180; lon += 4) {
-          const point = project(lon, lat);
-          if (!point.visible) {
-            active = false;
-            continue;
-          }
-          if (!active) {
-            context.moveTo(point.x, point.y);
-            active = true;
-          } else {
-            context.lineTo(point.x, point.y);
-          }
-        }
-        context.stroke();
-      }
-      for (let lon = -150; lon <= 180; lon += 30) {
-        context.beginPath();
-        let active = false;
-        for (let lat = -80; lat <= 80; lat += 4) {
-          const point = project(lon, lat);
-          if (!point.visible) {
-            active = false;
-            continue;
-          }
-          if (!active) {
-            context.moveTo(point.x, point.y);
-            active = true;
-          } else {
-            context.lineTo(point.x, point.y);
-          }
-        }
-        context.stroke();
-      }
-
-      GLOBE_LAND_RINGS.forEach((land) => {
-        context.beginPath();
-        const visibleCount = drawProjectedPath(context, land, project);
-        if (visibleCount >= 3) {
-          context.fillStyle = "rgba(27, 142, 164, 0.5)";
-          context.strokeStyle = "rgba(184, 244, 255, 0.38)";
-          context.lineWidth = 0.72;
-          context.fill();
-          context.stroke();
-        }
-      });
-
-      context.strokeStyle = "rgba(102, 197, 255, 0.26)";
-      context.lineWidth = 1.1;
-      NETWORK_ARCS.forEach(([from, to]) => {
-        const a = project(from[0], from[1]);
-        const b = project(to[0], to[1]);
-        if (!a.visible || !b.visible) return;
-        context.beginPath();
-        const mx = (a.x + b.x) / 2;
-        const my = (a.y + b.y) / 2 - radius * 0.22;
-        context.moveTo(a.x, a.y);
-        context.quadraticCurveTo(mx, my, b.x, b.y);
-        context.stroke();
-      });
-
-      CITY_LIGHTS.forEach(([lon, lat], index) => {
-        const point = project(lon, lat);
-        if (!point.visible) return;
-        const pulse = 0.65 + 0.35 * Math.sin(time / 620 + index);
-        const opacity = Math.max(0.18, Math.min(0.92, point.z * pulse));
-        context.beginPath();
-        context.fillStyle = `rgba(214, 247, 255, ${opacity})`;
-        context.shadowColor = "rgba(102, 197, 255, 0.75)";
-        context.shadowBlur = 8;
-        context.arc(point.x, point.y, 1.2 + opacity * 1.4, 0, Math.PI * 2);
-        context.fill();
-        context.shadowBlur = 0;
-      });
-
-      const shade = context.createLinearGradient(cx - radius, cy, cx + radius, cy);
-      shade.addColorStop(0, "rgba(2, 10, 22, 0.66)");
-      shade.addColorStop(0.52, "rgba(2, 10, 22, 0.02)");
-      shade.addColorStop(1, "rgba(2, 10, 22, 0.32)");
-      context.fillStyle = shade;
-      context.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
-      context.restore();
-      context.beginPath();
-      context.arc(cx, cy, radius, Math.PI * 1.02, Math.PI * 1.98);
-      context.strokeStyle = "rgba(102, 197, 255, 0.62)";
-      context.lineWidth = 2;
-      context.stroke();
-      context.beginPath();
-      context.arc(cx, cy, radius * 0.98, Math.PI * 1.08, Math.PI * 1.86);
-      context.strokeStyle = "rgba(207, 239, 255, 0.16)";
-      context.lineWidth = 1;
-      context.stroke();
-
-      if (!stopped && !reducedMotion) frame = window.requestAnimationFrame(draw);
-    };
-
-    resize();
-    draw();
-    window.addEventListener("resize", resize);
-    if (!reducedMotion) frame = window.requestAnimationFrame(draw);
-    return () => {
-      stopped = true;
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
-
+function TrendUnavailableChart({ point = null, collectingSince = "" }) {
+  const hasPoint = Number.isFinite(point);
+  const pointY = hasPoint ? 8 + ((100 - Math.max(0, Math.min(100, point))) / 100) * 134 : null;
   return (
-    <div className="gh-home-globe" aria-hidden="true">
-      <canvas ref={canvasRef} />
-    </div>
-  );
-}
-
-function TrendUnavailableChart() {
-  return (
-    <div className="gh-home-trend-chart" role="img" aria-label="Governance posture trend unavailable">
+    <div
+      className="gh-home-trend-chart"
+      role="img"
+      aria-label={hasPoint
+        ? `Trend history collecting since ${collectingSince || "today"}`
+        : "Governance posture trend unavailable"}
+    >
       <div className="gh-home-trend-axis">
         <span>100%</span>
         <span>75%</span>
@@ -804,11 +515,17 @@ function TrendUnavailableChart() {
       </div>
       <div className="gh-home-trend-plot">
         <div className="gh-home-trend-grid" />
-        <svg className="gh-home-trend-placeholder" viewBox="0 0 360 156" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M34 126 C72 124 88 113 116 105 C154 94 172 74 214 66 C252 58 288 52 330 42 L330 156 L34 156 Z" />
-          <path d="M34 126 C72 124 88 113 116 105 C154 94 172 74 214 66 C252 58 288 52 330 42" />
-        </svg>
-        <div className="gh-home-chart-empty">Trend history unavailable</div>
+        {hasPoint ? (
+          <svg className="gh-home-trend-svg" viewBox="0 0 360 156" preserveAspectRatio="none" aria-hidden="true">
+            <line className="gh-home-trend-line tone-posture" x1="24" x2="336" y1={pointY} y2={pointY} strokeDasharray="4 6" opacity="0.5" />
+            <circle className="gh-home-trend-latest" cx="330" cy={pointY} r="4" />
+          </svg>
+        ) : null}
+        <div className="gh-home-chart-empty">
+          {hasPoint
+            ? `Daily snapshots recording — history since ${collectingSince || "today"}`
+            : "Trend history unavailable"}
+        </div>
       </div>
     </div>
   );
@@ -934,10 +651,18 @@ function visibleTrendTicks(points) {
   return points.filter((_, index) => index === 0 || index === points.length - 1 || index % cadence === 0);
 }
 
-function PostureTrendChart({ trend = [] }) {
+function PostureTrendChart({ trend = [], collectingSince = "" }) {
   const points = normalizeTrend(trend).filter((point) =>
     Number.isFinite(point.overall) || Number.isFinite(point.policy) || Number.isFinite(point.quality)
   );
+  if (points.length === 1) {
+    return (
+      <TrendUnavailableChart
+        point={points[0].overall}
+        collectingSince={collectingSince || points[0].label}
+      />
+    );
+  }
   if (points.length < 2) return <TrendUnavailableChart />;
 
   const width = 360;
@@ -949,7 +674,6 @@ function PostureTrendChart({ trend = [] }) {
   const linePath = smoothLinePath(pairs);
   const areaPath = smoothAreaPath(pairs, height);
   const latest = pairs[pairs.length - 1];
-  const slaY = trendY(90, scale, height);
   const ticks = visibleTrendTicks(points);
 
   return (
@@ -971,12 +695,10 @@ function PostureTrendChart({ trend = [] }) {
               <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <line className="gh-home-trend-sla" x1="0" x2={width} y1={slaY} y2={slaY} />
           <path className={`gh-home-trend-area ${series.className}`} d={areaPath} />
           <path className={`gh-home-trend-line ${series.className}`} d={linePath} />
           {latest ? <circle className="gh-home-trend-latest" cx={latest[0]} cy={latest[1]} r="4" /> : null}
         </svg>
-        <span className="gh-home-trend-sla-label">SLA 90%</span>
         <div className="gh-home-trend-months">
           {ticks.map((point) => <span key={point.label}>{String(point.label).slice(0, 8)}</span>)}
         </div>
@@ -1001,144 +723,6 @@ function trendForWindow(trend = [], windowKey = "12w") {
   return points.length > selectedWindow.points ? points.slice(-selectedWindow.points) : points;
 }
 
-function trendLegend(trend = []) {
-  const points = normalizeTrend(trend).filter((point) =>
-    Number.isFinite(point.overall) || Number.isFinite(point.policy) || Number.isFinite(point.quality)
-  );
-  const visibleSeries = [
-    { key: "overall", className: "tone-posture", label: "Overall Posture" },
-    { key: "policy", className: "tone-policy", label: "Policy Compliance" },
-    { key: "quality", className: "tone-quality", label: "Data Quality" },
-  ].filter((series) => points.filter((point) => Number.isFinite(point[series.key])).length >= 2);
-
-  if (!visibleSeries.length) return null;
-
-  return (
-    <div className="gh-home-chart-legend" aria-label="Governance posture legend">
-      {visibleSeries.map((series) => (
-        <span key={series.key}><i className={series.className} /> {series.label}</span>
-      ))}
-    </div>
-  );
-}
-
-function transformHeatmap(flatHeatmap, domains) {
-  const cells = Array.isArray(flatHeatmap) ? flatHeatmap : [];
-  const columns = Array.from(new Set(cells.map((cell) => cell.column).filter(Boolean)));
-  const domainNames = Array.from(new Set([
-    ...cells.map((cell) => cell.row).filter(Boolean),
-    ...(Array.isArray(domains) ? domains.map((item) => item.domain || item.label).filter(Boolean) : []),
-  ])).slice(0, 6);
-  const resolvedColumns = (columns.length ? columns : DEFAULT_HEATMAP_COLUMNS).slice(0, 6);
-  const rows = (domainNames.length ? domainNames : ["Unavailable"]).map((domain) => {
-    const values = {};
-    cells
-      .filter((cell) => cell.row === domain)
-      .forEach((cell) => {
-        values[cell.column] = cell.value;
-      });
-    return { domain, values };
-  });
-  return { rows, columns: resolvedColumns };
-}
-
-function HeatmapPreview({ heatmap = [], domains = [] }) {
-  const { rows, columns } = transformHeatmap(heatmap, domains);
-  const hasAnyValue = rows.some((row) => columns.some((column) => hasNumericValue(row.values[column])));
-  const gridStyle = { gridTemplateColumns: `86px repeat(${Math.max(1, columns.length)}, minmax(32px, 1fr))` };
-  return (
-    <div className="gh-home-heatmap" role="table" aria-label="Posture by domain">
-      <div className="gh-home-heatmap-row gh-home-heatmap-head" role="row" style={gridStyle}>
-        <span role="columnheader" />
-        {columns.map((column) => (
-          <span key={column} role="columnheader" title={column}>{column}</span>
-        ))}
-      </div>
-      {rows.map((row) => (
-        <div className="gh-home-heatmap-row" key={row.domain} role="row" style={gridStyle}>
-          <strong role="rowheader">{row.domain}</strong>
-          {columns.map((column) => {
-            const numeric = hasNumericValue(row.values[column]) ? Number(row.values[column]) : null;
-            const tone = numeric !== null
-              ? numeric >= 80 ? "high" : numeric >= 55 ? "mid" : "low"
-              : "empty";
-            return (
-              <span
-                aria-label={`${row.domain} ${column}: ${numeric !== null ? `${Math.round(numeric)}%` : "unavailable"}`}
-                className={`gh-home-heatmap-cell tone-${tone}`}
-                key={column}
-                role="cell"
-              />
-            );
-          })}
-        </div>
-      ))}
-      {!hasAnyValue ? <div className="gh-home-heatmap-empty">Domain signals unavailable</div> : null}
-    </div>
-  );
-}
-
-function relativeTimeLabel(value) {
-  if (!value) return "No timestamp";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  const deltaMs = Date.now() - date.getTime();
-  if (deltaMs >= 0) {
-    const minutes = Math.floor(deltaMs / 60_000);
-    if (minutes < 1) return `${Math.max(1, Math.floor(deltaMs / 1_000))}s ago`;
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
-  }
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function displayFirstName(value = "") {
-  const raw = String(value || "").trim();
-  if (!raw) return "there";
-  const local = raw.includes("@") ? raw.split("@")[0] : raw;
-  if (/^\d{6,}$/.test(local)) return "there";
-  const first = local.split(/[\s._+-]+/).filter(Boolean)[0] || local;
-  return first ? first[0].toUpperCase() + first.slice(1) : "there";
-}
-
-function isHighPriorityEvent(event) {
-  const value = String(event?.priority || event?.severity || "").toLowerCase();
-  return ["critical", "high", "p0", "p1"].includes(value);
-}
-
-function EventList({ events = [], emptyTitle = "No governance events available" }) {
-  if (!events.length) {
-    return (
-      <div className="gh-home-event-empty">
-        <span className="gh-home-event-icon tone-info"><Icon name="event" /></span>
-        <div>
-          <strong>{emptyTitle}</strong>
-          <span>Recent audit and governance events will appear here when available.</span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <ul className="gh-home-event-list">
-      {events.slice(0, 4).map((event, index) => (
-        <li key={event.id || `${event.title}-${index}`}>
-          <span className={`gh-home-event-icon tone-${event.tone || "info"}`}>
-            <Icon name="event" />
-          </span>
-          <div>
-            <strong>{event.title || "Governance event"}</strong>
-            <span>{event.detail || "No event detail provided."}</span>
-          </div>
-          <time>{relativeTimeLabel(event.createdAt)}</time>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function kpiByKey(kpis = [], key) {
   return kpis.find((item) => item?.key === key || item?.label === key) || null;
 }
@@ -1148,20 +732,29 @@ function numericValue(value) {
   return Number(value);
 }
 
+// One percent formatter everywhere: whole numbers stay whole, fractional
+// values keep one decimal. The ring, narrative, KPI tiles, and topbar badge
+// previously mixed Math.round with toFixed(1), so one screen showed the same
+// coverage as 95.5% and 96% simultaneously.
 function percentLabel(value, fallback = "-") {
-  const numeric = numericValue(value);
-  return numeric === null ? fallback : `${Math.round(numeric)}%`;
-}
-
-function percentPointLabel(value, fallback = "-") {
   const numeric = numericValue(value);
   if (numeric === null) return fallback;
   return Number.isInteger(numeric) ? `${numeric.toFixed(0)}%` : `${numeric.toFixed(1)}%`;
 }
 
+const percentPointLabel = percentLabel;
+
 function shortDelta(kpi, fallback = "Unavailable") {
   if (!kpi) return fallback;
-  return kpi.deltaText || kpi.delta || kpi.detail || kpi.reason || fallback;
+  const text = kpi.deltaText || kpi.delta || kpi.detail;
+  if (text) return text;
+  // A KPI with a real value but no trend history must never read "Signal
+  // unavailable" — the signal IS available, only its history is young.
+  if (kpi.trendState === "collecting") {
+    return kpi.collectingSince ? `History since ${kpi.collectingSince}` : "Trend history collecting";
+  }
+  if (metricState(kpi) === "available") return "No trend history yet";
+  return kpi.reason || fallback;
 }
 
 function summarizeCatalogs(assets = []) {
@@ -1308,6 +901,28 @@ function riskSummaryFromData(data, policyKpi, governedAssetsKpi) {
   };
 }
 
+function relativeTimeLabel(value) {
+  if (!value) return "No timestamp";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const deltaMs = Date.now() - date.getTime();
+  if (deltaMs >= 0) {
+    const minutes = Math.floor(deltaMs / 60_000);
+    if (minutes < 1) return `${Math.max(1, Math.floor(deltaMs / 1_000))}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function isHighPriorityEvent(event) {
+  const value = String(event?.priority || event?.severity || "").toLowerCase();
+  return ["critical", "high", "p0", "p1"].includes(value);
+}
+
 function eventRows(events = []) {
   return (Array.isArray(events) ? events : []).slice(0, 5).map((event, index) => ({
     id: event.id || `${event.title || "event"}-${index}`,
@@ -1356,7 +971,6 @@ export function HomePage({
   warnings = [],
   userName = "",
   hydrating = false,
-  atlasAiRequest = fetchAtlasAiRecommendations,
   onRetry,
   onNavigate,
   // When provided, activity-stream events whose `target` looks like a fully-
@@ -1372,8 +986,6 @@ export function HomePage({
   // optionalQuery?: string) => void.
   onOpenDiscoveryWithFilter = null,
 }) {
-  const atlasAi = useAtlasAiConversation({ request: atlasAiRequest });
-  const [suggestionPage, setSuggestionPage] = useState(0);
   const [trendWindow, setTrendWindow] = useState("26w");
   const [presentMode, setPresentMode] = useState(false);
   const [exportStatus, setExportStatus] = useState("");
@@ -1422,8 +1034,8 @@ export function HomePage({
   const evidenceWarnings = commandCenterWarnings(data, warnings);
   const isLiveEvidence = evidenceKind === "live";
   const databricksBackedMetadata = isDatabricksBackedCommandCenter(data, evidenceKind);
-  const commandCenterRefreshLabel = isLiveEvidence && (data.meta?.generatedAt || data.meta?.updatedAt)
-      ? `Live · refreshed ${relativeTimeLabel(data.meta.generatedAt || data.meta.updatedAt)}`
+  const commandCenterRefreshLabel = isLiveEvidence && (data.meta?.generatedAt || data.meta?.updatedAt || data.meta?.observedAt)
+      ? `Live · refreshed ${relativeTimeLabel(data.meta.generatedAt || data.meta.updatedAt || data.meta.observedAt)}`
       : isLiveEvidence
         ? "Live"
         : databricksBackedMetadata
@@ -1460,33 +1072,10 @@ export function HomePage({
     ? Number(data.posture.overall)
     : null;
   const topDomains = data.topDomains.length ? data.topDomains : data.posture?.byDomain || [];
-  const priorityEvents = data.recentEvents.filter(isHighPriorityEvent);
-  const eventTitle = "Recent High-Priority Events";
   const openSurface = (surfaceKey) => {
     if (!surfaceKey) return;
     onNavigate?.(surfaceKey);
   };
-  const aiPromptPool = useMemo(() => {
-    const merged = [
-      ...(Array.isArray(data.aiPrompts) ? data.aiPrompts : []),
-      ...FALLBACK_AI_PROMPTS,
-    ]
-      .map((prompt) => String(prompt || "").trim())
-      .filter(Boolean);
-    return Array.from(new Set(merged));
-  }, [data.aiPrompts]);
-  const visiblePromptCount = atlasAi.messages.length ? 1 : 4;
-  const aiPrompts = useMemo(() => {
-    if (!aiPromptPool.length) return [];
-    const start = (suggestionPage * visiblePromptCount) % aiPromptPool.length;
-    return Array.from({ length: Math.min(visiblePromptCount, aiPromptPool.length) }, (_, index) =>
-      aiPromptPool[(start + index) % aiPromptPool.length]
-    );
-  }, [aiPromptPool, suggestionPage, visiblePromptCount]);
-  const askAtlasAi = useCallback((question) => atlasAi.ask(question), [atlasAi]);
-  const showMoreSuggestions = useCallback(() => {
-    setSuggestionPage((current) => current + 1);
-  }, []);
   const isHydrating = hydrating || state === "loading";
   const governedAssetsKpi = availableKpi(kpis, "governedAssets", {
     value: data.estate.visibleAssetCount,
@@ -1515,6 +1104,16 @@ export function HomePage({
     : coverageValue !== null
       ? "Metadata coverage"
       : "Governance posture unavailable";
+  // Ring/trend caption: prefer a real delta; while snapshot history is
+  // young, say so with the collection start date instead of "unavailable".
+  const postureTrendLabel = (() => {
+    const label = trendDeltaLabel(data.posture?.trend || []);
+    if (label !== "Trend unavailable") return label;
+    if (data.posture?.trendState === "collecting") {
+      return `History since ${data.posture?.collectingSince || "today"}`;
+    }
+    return label;
+  })();
   const domainSignalTitle = postureOverall !== null ? "Posture by domain" : "Coverage by domain";
   const domainSignalName = postureOverall !== null ? "domain posture" : "domain coverage";
   const domainSignalUnavailableText = postureOverall !== null
@@ -1529,20 +1128,9 @@ export function HomePage({
   const catalogTooltip = catalogEvidenceAvailable
     ? "Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
     : "This panel keeps the catalog-health structure visible, but it does not infer catalog scores without live backed metadata.";
-  const displayCatalogRows = [
-    ...catalogRows,
-    ...UNAVAILABLE_CATALOG_ROWS
-      .filter((name) => !catalogRows.some((row) => row.name === name))
-      .slice(0, Math.max(0, 6 - catalogRows.length))
-      .map((name) => ({
-        name,
-        tables: null,
-        coverage: null,
-        classification: "Unavailable",
-        risk: "Unavailable",
-        state: "placeholder",
-      })),
-  ].slice(0, 6);
+  // Real rows only — padding the table with rows literally named
+  // "Unavailable catalog signal N" made a healthy estate look broken.
+  const displayCatalogRows = catalogRows.slice(0, 6);
   const cdeItems = cdeRows(data, data.recentAssets || recentAssets);
   const activityRows = eventRows(data.recentEvents);
   const riskSummary = riskSummaryFromData(data, policyKpi, governedAssetsKpi);
@@ -1711,7 +1299,7 @@ export function HomePage({
     {
       label: "Coverage",
       value: percentLabel(coverageKpi.value),
-      delta: shortDelta(coverageKpi, "Coverage signal unavailable"),
+      delta: shortDelta(coverageKpi, "Coverage evidence unavailable"),
       previous: coverageKpi.previousValue ?? coverageKpi.previous ?? null,
       previousFormat: "percent",
       tone: metricState(coverageKpi) === "unavailable" ? "muted" : "good",
@@ -1719,13 +1307,15 @@ export function HomePage({
     {
       label: "Quality SLA",
       value: percentLabel(data.insights?.qualitySla ?? data.qualitySla),
-      delta: data.insights?.qualitySignalAvailable ? "Latest quality expectations passing" : "Quality signal unavailable",
+      delta: data.insights?.qualitySignalAvailable
+        ? `${formatCount(data.insights?.qualityChecksEvaluated)} checks evaluated`
+        : "No quality checks run yet",
       previous: data.insights?.previousQualitySla ?? null,
       previousFormat: "percent",
       tone: data.insights?.qualitySignalAvailable ? "good" : "muted",
     },
     {
-      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exception signals",
+      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exceptions",
       value: riskSummary.severityAvailable
         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
         : formatMetricValue(policyKpi),
@@ -1734,12 +1324,18 @@ export function HomePage({
         : shortDelta(policyKpi, "Signal unavailable"),
       previous: policyKpi.previousValue ?? policyKpi.previous ?? null,
       previousFormat: "count",
-      tone: metricState(policyKpi) === "unavailable" ? "muted" : "warn",
+      tone: metricState(policyKpi) === "unavailable"
+        ? "muted"
+        : numericValue(policyKpi.value) === 0 && !riskSummary.severityAvailable
+          ? "good"
+          : "warn",
     },
     {
       label: "Lineage coverage",
       value: percentLabel(data.lineage?.coverage ?? data.insights?.lineageCoverage),
-      delta: data.signalAvailability?.lineage ? "Lineage signal available" : "Lineage signal unavailable",
+      delta: data.signalAvailability?.lineage
+        ? (data.lineage?.reason || "Backed by Unity Catalog lineage")
+        : "Lineage signal unavailable",
       previous: data.lineage?.previousCoverage ?? data.insights?.previousLineageCoverage ?? null,
       previousFormat: "percent",
       tone: data.signalAvailability?.lineage ? "info" : "muted",
@@ -1773,8 +1369,12 @@ export function HomePage({
     : governedCount !== null
     ? (
       <>
-        <strong>{formatMetricValue(governedAssetsKpi)}</strong> governed assets are in scope.
-        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")} when backed coverage evidence is returned.
+        <strong>{formatMetricValue(governedAssetsKpi)}</strong> governed assets are in scope
+        {coverageValue !== null ? (
+          <>{" "}with <strong>{percentLabel(coverageKpi.value)}</strong> metadata coverage across the visible estate.</>
+        ) : (
+          <>. Coverage evidence is still hydrating.</>
+        )}
       </>
     )
     : (
@@ -1783,31 +1383,40 @@ export function HomePage({
         {" "}Unavailable values stay blank until Unity Catalog or the governance store returns evidence.
       </>
     );
-  const heroCertifiedKpi = certifiedKpi;
   const heroFacts = [
     {
       icon: "shield",
-      label: "Certified assets",
-      value: formatMetricValue(heroCertifiedKpi),
+      // This count is certified AND critical assets — labelling it plain
+      // "Certified assets" contradicted the Insights tile (certified-only).
+      label: "Certified critical assets",
+      value: formatMetricValue(certifiedKpi),
       delta: shortDelta(certifiedKpi, "Signal unavailable"),
       tone: "good",
     },
     {
       icon: "flag",
-      label: riskSummary.severityAvailable ? "Open exposures" : "Policy exception signals",
+      label: riskSummary.severityAvailable ? "Open exposures" : "Policy exceptions",
       value: formatMetricValue(policyKpi),
       delta: metricState(policyKpi) === "degraded"
         ? "Text-derived signal"
         : shortDelta(policyKpi, "Signal unavailable"),
-      tone: metricState(policyKpi) === "unavailable" ? "muted" : "bad",
+      tone: metricState(policyKpi) === "unavailable"
+        ? "muted"
+        : numericValue(policyKpi.value) === 0
+          ? "good"
+          : "bad",
     },
     {
       icon: "key",
       label: "CDEs tracked",
       value: cdeTrackedCount === null ? "-" : formatCount(cdeTrackedCount),
-      delta: data.signalAvailability?.lineage
-          ? "Lineage-backed"
-          : "Lineage proof unavailable",
+      delta: cdeTrackedCount === null
+        ? "CDE registry unavailable"
+        : cdeTrackedCount === 0
+          ? "No assets tagged as CDEs yet"
+          : data.signalAvailability?.lineage
+            ? "Tag-governed · lineage-backed"
+            : "From governed CDE tags",
       tone: "info",
     },
   ];
@@ -1820,7 +1429,7 @@ export function HomePage({
       sparkline: coverageKpi.sparkline || [],
     },
     {
-      label: "Certified assets",
+      label: "Certified critical assets",
       value: formatMetricValue(certifiedKpi),
       delta: shortDelta(certifiedKpi, "Signal unavailable"),
       tone: metricState(certifiedKpi) === "unavailable" ? "muted" : "good",
@@ -1834,14 +1443,18 @@ export function HomePage({
       sparkline: stewardshipKpi.sparkline || [],
     },
     {
-      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exception signals",
+      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exceptions",
       value: riskSummary.severityAvailable
         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
         : formatMetricValue(policyKpi),
       delta: metricState(policyKpi) === "degraded"
         ? "Text-derived signal"
         : shortDelta(policyKpi, "Signal unavailable"),
-      tone: metricState(policyKpi) === "unavailable" ? "muted" : "bad",
+      tone: metricState(policyKpi) === "unavailable"
+        ? "muted"
+        : numericValue(policyKpi.value) === 0 && !riskSummary.severityAvailable
+          ? "good"
+          : "bad",
       sparkline: policyKpi.sparkline || [],
     },
   ];
@@ -1913,13 +1526,13 @@ export function HomePage({
                   <strong>-</strong>
                   <span>{postureTitle}</span>
                 </div>
-                <em>{trendDeltaLabel(data.posture?.trend || [])}</em>
+                <em>{postureTrendLabel}</em>
               </>
             ) : (
               <CommandCenterTrustRing
                 label={postureTitle}
                 value={postureValue}
-                trend={trendDeltaLabel(data.posture?.trend || []).replace(/^\+/, "")}
+                trend={postureTrendLabel.replace(/^\+/, "")}
               />
             )}
           </div>
@@ -1982,25 +1595,24 @@ export function HomePage({
               </strong>
               <em>{metric.delta}</em>
               <div className="gh-command-center-kpi-spark">
-                {metric.sparkline?.length >= 2 ? (
-                  (() => {
-                    const shape = metricSparklineShape(metric.sparkline);
-                    return shape ? (
+                {(() => {
+                  const shape = metric.sparkline?.length >= 2 ? metricSparklineShape(metric.sparkline) : null;
+                  if (shape) {
+                    return (
                       <svg viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
                         <path className="gh-command-center-kpi-spark-fill" d={shape.area} />
                         <path className="gh-command-center-kpi-spark-line" d={shape.line} />
                       </svg>
-                    ) : (
-                      <svg className="is-unavailable" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
-                        <path d="M0 30 C20 30 28 27 42 27 C56 27 66 22 78 20 C88 18 96 12 100 6" />
-                      </svg>
                     );
-                  })()
-                ) : (
-                  <svg className="is-unavailable" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M0 30 C20 30 28 27 42 27 C56 27 66 22 78 20 C88 18 96 12 100 6" />
-                  </svg>
-                )}
+                  }
+                  // No history yet: a flat dashed baseline, never an invented
+                  // upward curve dressed as data.
+                  return (
+                    <svg className="is-unavailable" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M0 28 L100 28" strokeDasharray="4 5" />
+                    </svg>
+                  );
+                })()}
               </div>
             </article>
             );
@@ -2010,8 +1622,8 @@ export function HomePage({
         <div className="gh-command-center-grid">
           <SectionCard
             className="gh-command-center-trend"
-            title="Coverage trend · last 12 weeks"
-            subtitle="Share of productionized assets meeting baseline policy"
+            title={postureOverall !== null ? `Posture trend · ${selectedTrendWindow.label}` : `Coverage trend · ${selectedTrendWindow.label}`}
+            subtitle="Daily governance snapshots recorded by Governance Atlas"
             tooltip="Historical posture snapshots are shown only when available."
             actions={(
               <div className="gh-command-center-window-group" role="group" aria-label="Coverage trend range">
@@ -2029,11 +1641,18 @@ export function HomePage({
               </div>
             )}
           >
-            <PostureTrendChart trend={visibleTrend} />
+            <PostureTrendChart trend={visibleTrend} collectingSince={data.posture?.collectingSince || ""} />
             <div className="gh-command-center-trend-footer">
-              <span><strong>{trendDeltaLabel(visibleTrend)}</strong> over the last 12 weeks</span>
-              <span>{`SLA: >=90% by end of Q2`}</span>
-              <span><strong>Projection unavailable</strong></span>
+              <span>
+                <strong>
+                  {data.posture?.trendState === "collecting"
+                    ? `Collecting since ${data.posture?.collectingSince || "today"}`
+                    : trendDeltaLabel(visibleTrend)}
+                </strong>
+                {data.posture?.trendState === "collecting"
+                  ? " · one snapshot per day"
+                  : ` over the last ${selectedTrendWindow.label.replace("w", " weeks")}`}
+              </span>
             </div>
           </SectionCard>
 
@@ -2046,11 +1665,7 @@ export function HomePage({
               : "Domain coverage scores use backed metadata coverage signals when available."}
           >
             <div className={`gh-command-center-domain-bars ${domainBarItems.length ? "" : "is-unavailable"}`.trim()}>
-              {(domainBarItems.length ? domainBarItems : UNAVAILABLE_DOMAIN_ROWS.map((label) => ({
-                label,
-                score: null,
-                count: null,
-              }))).map((domain) => (
+              {domainBarItems.map((domain) => (
                 <button
                   aria-label={domain.score === null ? `${domain.label} domain signal unavailable` : `Open discovery filtered to ${domain.label} domain`}
                   className={`gh-command-center-domain-row tone-${domain.tone || "empty"}`}
@@ -2090,16 +1705,32 @@ export function HomePage({
               : "Policy exception signals render without inferring unavailable severity."}
           >
             <div className="gh-command-center-risk-body">
-              <div className={`gh-command-center-risk-ring ${riskSummary.cleanScore === null ? "is-unavailable" : ""}`.trim()}>
-                <strong>{riskSummary.cleanScore === null ? "-" : `${Math.round(riskSummary.cleanScore)}%`}</strong>
-                <span>{riskSummary.severityAvailable ? "Risk-clean" : "Severity unavailable"}</span>
+              <div className={`gh-command-center-risk-ring ${riskSummary.cleanScore === null && riskSummary.openExposure === null ? "is-unavailable" : ""}`.trim()}>
+                {riskSummary.cleanScore !== null ? (
+                  <>
+                    <strong>{`${Math.round(riskSummary.cleanScore)}%`}</strong>
+                    <span>Risk-clean</span>
+                  </>
+                ) : riskSummary.openExposure !== null ? (
+                  // Zero open exceptions is a healthy, backed answer — show
+                  // the count, not a dash labelled "unavailable".
+                  <>
+                    <strong>{formatCount(riskSummary.openExposure)}</strong>
+                    <span>Open exceptions</span>
+                  </>
+                ) : (
+                  <>
+                    <strong>-</strong>
+                    <span>No severity data yet</span>
+                  </>
+                )}
               </div>
               <ul>
                 <li>
                   <button
                     aria-label={`Open stewardship for ${riskSummary.severityAvailable ? "high-risk exposures" : "policy exception signals"}`}
                     disabled={!riskSummary.sourceAvailable}
-                    onClick={() => openCommandCenterSurface("stewardship")}
+                    onClick={() => openCommandCenterSurface("governance")}
                     title={riskSummary.sourceAvailable ? "Open stewardship queue for policy exception review" : "Policy exception signal unavailable"}
                     type="button"
                   >
@@ -2121,7 +1752,7 @@ export function HomePage({
                     type="button"
                   >
                     <b className="tone-warn" />
-                    <span>{riskSummary.severityAvailable ? "Medium-risk findings" : "Medium severity unavailable"}</span>
+                    <span>Medium-risk findings</span>
                     <strong>{riskSummary.medium === null ? "-" : formatCount(riskSummary.medium)}</strong>
                   </button>
                 </li>
@@ -2134,7 +1765,7 @@ export function HomePage({
                     type="button"
                   >
                     <b className="tone-info" />
-                    <span>{riskSummary.severityAvailable ? "Informational" : "Informational severity unavailable"}</span>
+                    <span>Informational</span>
                     <strong>{riskSummary.informational === null ? "-" : formatCount(riskSummary.informational)}</strong>
                   </button>
                 </li>
@@ -2144,8 +1775,8 @@ export function HomePage({
               {riskSummary.severityAvailable
                   ? "Risk-clean score is derived from backed exposure counts across governed assets."
                   : riskSummary.openExposure !== null
-                  ? "Policy exception count is backed; severity split is unavailable for this workspace."
-                  : "Policy exception severity source unavailable for this workspace."}
+                  ? "Policy exception count is backed by governance workflow evidence; a severity split appears once quality checks record findings."
+                  : "A severity split appears once quality checks record findings."}
             </p>
           </SectionCard>
 
@@ -2200,15 +1831,7 @@ export function HomePage({
             actions={<button type="button" className="ga-link-button" onClick={() => openSurface("cde")}>View all</button>}
           >
             <div className={`gh-command-center-cde-grid ${cdeItems.length ? "" : "is-unavailable"}`.trim()}>
-              {(cdeItems.length ? cdeItems : UNAVAILABLE_CDE_ROWS.map((name) => ({
-                id: name,
-                name,
-                column: "Source-of-record column unavailable",
-                owner: "Owner unavailable",
-                status: "Unavailable",
-                sox: false,
-                state: "placeholder",
-              }))).map((item) => {
+              {cdeItems.map((item) => {
                 const isPlaceholder = item.state === "placeholder";
                 return (
                   <button
@@ -2235,7 +1858,7 @@ export function HomePage({
                 );
               })}
               {!cdeItems.length ? (
-                <div className="gh-command-center-inline-unavailable">Critical data element registry signals are unavailable in this command-center snapshot.</div>
+                <div className="gh-command-center-inline-unavailable">No assets are tagged as Critical Data Elements yet. Tag an asset with `cde` (or flag it from its asset page) to build the registry.</div>
               ) : null}
             </div>
           </SectionCard>

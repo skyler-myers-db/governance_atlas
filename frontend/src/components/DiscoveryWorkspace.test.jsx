@@ -1915,8 +1915,10 @@ describe("DiscoveryWorkspace", () => {
     expect(screen.getByText("Structured Search Helper")).not.toBeNull();
     expect(screen.getByLabelText("Query builder boolean operator")).not.toBeNull();
     expect(screen.getByText("Deleted and inaccessible assets")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Deleted assets unavailable" }).disabled).toBe(true);
-    expect(screen.getByRole("button", { name: "Inaccessible hidden" }).disabled).toBe(true);
+    // The dead disabled buttons became explanatory text lines — a disabled
+    // button implies a feature that should work.
+    expect(screen.queryByRole("button", { name: "Deleted assets unavailable" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Inaccessible hidden" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
@@ -1998,9 +2000,10 @@ describe("DiscoveryWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: /Saved searches/i }));
 
     expect(screen.getByRole("dialog", { name: "Saved searches" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: /Saved search inventory unavailable/i }).disabled).toBe(true);
-    expect(screen.getByRole("button", { name: /Pinned team searches unavailable/i }).disabled).toBe(true);
-    expect(screen.getByRole("button", { name: /Recent search shortcuts unavailable/i }).disabled).toBe(true);
+    // Saved searches are now a working localStorage-backed feature: an empty
+    // inventory shows a save control instead of disabled placeholders.
+    expect(screen.queryByRole("button", { name: /Saved search inventory unavailable/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /Save current search/i })).not.toBeNull();
     expect(setFilters).not.toHaveBeenCalled();
   });
 

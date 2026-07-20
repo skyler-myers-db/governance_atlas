@@ -443,6 +443,30 @@ function CanvasInner({
         <Background color="rgba(61, 132, 173, 0.18)" gap={24} size={1} />
         <Controls position="top-right" showInteractive={false} />
       </ReactFlow>
+      {/*
+        L8: the graph is intentionally bounded to 1 hop per fetch (backend
+        LINEAGE_GRAPH_DEPTH_LIMIT). Caption the limit so the boundary reads
+        as a designed behavior — clicking a node merges its neighbors into
+        the accumulated graph, which is the sanctioned way to go deeper.
+        Inline style uses ga-* tokens (this file cannot own lineage-v2.css).
+      */}
+      <div
+        role="note"
+        style={{
+          position: "absolute",
+          left: 14,
+          bottom: 10,
+          zIndex: 5,
+          pointerEvents: "none",
+          fontSize: 11,
+          letterSpacing: "0.02em",
+          color: "var(--ga-text-muted)",
+        }}
+      >
+        Showing {Number(graph.meta?.graphDepthLimit) > 1
+          ? `${graph.meta.graphDepthLimit} hops`
+          : "1 hop"} from focus — click a node to extend the graph
+      </div>
     </div>
   );
 }

@@ -281,7 +281,9 @@ describe("GovernanceWorkspace", () => {
       expectVisibleText("Owner missing");
     });
     expect(screen.getByRole("button", { name: "Filter" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Bulk assign" })).not.toBeNull();
+    // Bulk assign was removed: no backend assignee mutation exists, and a
+    // permanently disabled control is a dead control.
+    expect(screen.queryByRole("button", { name: "Bulk assign" })).toBeNull();
     expect(screen.getByRole("button", { name: "New work item" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "All 2" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "P1 critical 1" })).not.toBeNull();
@@ -350,13 +352,12 @@ describe("GovernanceWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Overdue 1" }));
     expect(screen.getByRole("heading", { name: "SI-2491" })).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Bulk assign" }));
-    expect(screen.getByRole("heading", { name: "Bulk assignment requires a backed workflow" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Submit assignment unavailable" }).disabled).toBe(true);
-
+    // New work item now opens a real creation form wired to
+    // createGovernanceRequest instead of an "unavailable" placeholder panel.
     fireEvent.click(screen.getByRole("button", { name: "New work item" }));
-    expect(screen.getByRole("heading", { name: "New work item creation is unavailable" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Create work item unavailable" }).disabled).toBe(true);
+    expect(screen.getByLabelText("New work item asset FQN")).not.toBeNull();
+    expect(screen.getByLabelText("New work item title")).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Create work item/ })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
   });
 

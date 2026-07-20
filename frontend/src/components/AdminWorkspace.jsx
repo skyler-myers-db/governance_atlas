@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAdminControlCenter, fetchAdminTruthCheck } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyState, StatusPill } from "./northstar";
+import { SkeletonBlock } from "./ShellStatePrimitives";
 import "../styles/operations-pages.css";
 
 const EMPTY_DASHBOARD = Object.freeze({});
@@ -43,6 +44,26 @@ function numberOrNull(value) {
 function percentValue(value) {
   const numeric = numberOrNull(value);
   return numeric == null ? "Unavailable" : `${Math.round(numeric)}%`;
+}
+
+/**
+ * Human-readable timestamp for backend ISO strings. Raw ISO ("2026-07-19T22:04:11Z")
+ * reads as machine output on an operator surface; fall back to the raw text when
+ * the value doesn't parse so we never fabricate a date.
+ */
+function humanTimestamp(value) {
+  const raw = text(value);
+  if (!raw) return "Unavailable";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
 }
 
 function statusTone(state) {
@@ -134,38 +155,33 @@ function normalizeJobs(dashboard) {
 }
 
 function normalizeIntegrations(dashboard) {
+  // The backend's rows ARE the source of truth. The previous fixed-slot
+  // regex mapping silently DROPPED real backend rows that matched no slot
+  // (aiCopilot: connected, lineageService) while rendering fabricated
+  // "Unavailable" placeholders for products the runtime never probes
+  // (Model Serving, Incident management) — the worst kind of trust bug.
   const candidates = Array.isArray(dashboard.integrations) ? dashboard.integrations : [];
-  const rows = candidates.map((item, index) => ({
+  return candidates.map((item, index) => ({
     id: label(item.key || item.id || item.label, `integration-${index}`),
     label: label(item.label || item.name),
     subtitle: label(item.subtitle || item.description || item.reason, "Runtime signal"),
     status: label(item.status || item.state, "unavailable"),
+    reason: text(item.reason),
     url: text(item.url || item.configUrl || item.workspaceUrl),
   }));
-  const byLabel = new Map(rows.map((row) => [row.label.toLowerCase(), row]));
-  return [
-    { id: "unity-catalog", label: "Unity Catalog", subtitle: "Runtime signal unavailable" },
-    { id: "sql-warehouse", label: "Databricks SQL Warehouse", subtitle: "Runtime signal unavailable" },
-    { id: "lakeflow-jobs", label: "Lakeflow Jobs", subtitle: "Runtime signal unavailable" },
-    { id: "model-serving", label: "Model Serving", subtitle: "Endpoint signal unavailable" },
-    { id: "notification-integration", label: "Notification integration", subtitle: "Integration not reported" },
-    { id: "incident-management", label: "Incident management", subtitle: "Integration not reported" },
-  ].map((fallback) => {
-    const existing = rows.find((row) =>
-      row.label.toLowerCase() === fallback.label.toLowerCase() ||
-      row.id.toLowerCase() === fallback.id ||
-      (fallback.label.toLowerCase().includes("databricks sql") && /warehouse/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("lakeflow") && /job|lakeflow/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("unity catalog") && /unity|catalog/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("model serving") && /model|serving|classifier/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("notification") && /slack|teams|notification|alert/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("incident") && /pagerduty|incident|pager/i.test(row.label))
-    );
-    return existing || { ...fallback, status: "unavailable", url: "", unavailable: true };
-  }).filter((row, index, allRows) => {
-    const key = row.label.toLowerCase();
-    return allRows.findIndex((candidate) => candidate.label.toLowerCase() === key) === index || byLabel.has(key);
-  });
+}
+
+function normalizeActivity(dashboard) {
+  const candidates = Array.isArray(dashboard.recentAdminActivity) ? dashboard.recentAdminActivity : [];
+  return candidates.map((row, index) => ({
+    id: label(row.id, `activity-${index}`),
+    title: label(row.title, "Governance event"),
+    detail: text(row.detail),
+    createdAt: text(row.createdAt),
+    actorEmail: text(row.actorEmail),
+    tone: text(row.tone),
+    status: text(row.status),
+  }));
 }
 
 function normalizePolicies(dashboard) {
@@ -180,12 +196,21 @@ function normalizePolicies(dashboard) {
     }));
   }
   const byDomain = Array.isArray(policy.byDomain) ? policy.byDomain : [];
-  const rows = byDomain.map((item, index) => ({
-    id: label(item.domain || item.label, `domain-policy-${index}`),
-    label: `${label(item.domain || item.label)} policy coverage`,
-    value: item.coverage,
-    status: item.coverage === null || item.coverage === undefined ? "unavailable" : "available",
-  }));
+  // byDomain rows carry METADATA coverage (coverageKind: "metadata"), not
+  // policy-enforcement coverage — surface the real number and let the panel
+  // retitle itself instead of rendering disabled "Unavailable" rows while
+  // the payload holds 100/97.8/… in metadataCoverage.
+  const rows = byDomain.map((item, index) => {
+    const coverage = item.coverage ?? item.metadataCoverage;
+    return {
+      id: label(item.domain || item.label, `domain-policy-${index}`),
+      label: label(item.domain || item.label),
+      value: coverage,
+      coverageKind: text(item.coverageKind) || (item.metadataCoverage != null ? "metadata" : ""),
+      note: text(item.reason),
+      status: coverage === null || coverage === undefined ? "unavailable" : "available",
+    };
+  });
   if (rows.length) return rows;
   return [];
 }
@@ -199,7 +224,7 @@ function UnavailableRow({ message }) {
   );
 }
 
-function JobTable({ activeId = "", jobs, onSelect }) {
+function JobTable({ activeId = "", emptyMessage = "", hydrating = false, jobs, onSelect }) {
   return (
     <section className="gh-admin-control-card gh-admin-control-jobs" aria-label="Scheduled jobs">
       <header>
@@ -216,7 +241,11 @@ function JobTable({ activeId = "", jobs, onSelect }) {
         <span aria-hidden="true" />
       </div>
       <div className="gh-admin-control-job-body">
-        {jobs.length ? jobs.map((job) => (
+        {/* While diagnostics hydrate, show skeletons — an "Unavailable" wall
+            during a background warm-up reads as a broken product. */}
+        {!jobs.length && hydrating ? (
+          <SkeletonBlock lines={4} message="Loading scheduled jobs" />
+        ) : jobs.length ? jobs.map((job) => (
           <button
             aria-disabled={job.unavailable || undefined}
             aria-current={activeId === job.id ? "true" : undefined}
@@ -235,21 +264,23 @@ function JobTable({ activeId = "", jobs, onSelect }) {
             <span aria-hidden="true" className="gh-admin-row-chevron" />
           </button>
         )) : (
-          <UnavailableRow message="No backed scheduled-job inventory is available yet." />
+          <UnavailableRow message={emptyMessage || "No backed scheduled-job inventory is available yet."} />
         )}
       </div>
     </section>
   );
 }
 
-function IntegrationList({ activeId = "", integrations, onSelect }) {
+function IntegrationList({ activeId = "", hydrating = false, integrations, onSelect }) {
   return (
     <section className="gh-admin-control-card gh-admin-control-integrations" aria-label="Integrations">
       <header>
         <h2>Integrations</h2>
       </header>
       <div>
-        {integrations.length ? integrations.map((item) => (
+        {!integrations.length && hydrating ? (
+          <SkeletonBlock lines={4} message="Loading integrations" />
+        ) : integrations.length ? integrations.map((item) => (
           <button
             aria-current={activeId === item.id ? "true" : undefined}
             className={`${item.unavailable ? "gh-admin-control-integration is-unavailable" : "gh-admin-control-integration"} ${activeId === item.id ? "is-selected" : ""}`.trim()}
@@ -270,22 +301,34 @@ function IntegrationList({ activeId = "", integrations, onSelect }) {
             <span aria-hidden="true" className="gh-admin-row-chevron" />
           </button>
         )) : (
-          <UnavailableRow message="Runtime integrations have not been reported by the admin API." />
+          <UnavailableRow message="Runtime signal unavailable" />
         )}
       </div>
     </section>
   );
 }
 
-function PolicyCoverage({ activeId = "", onSelect, policies }) {
+function PolicyCoverage({ activeId = "", hydrating = false, onSelect, policies }) {
+  // When every row carries metadata coverage (no policy-enforcement source
+  // exists), retitle the panel honestly instead of implying enforcement data.
+  const metadataScoped = policies.length > 0 && policies.every((policy) => policy.coverageKind === "metadata");
+  const panelTitle = metadataScoped ? "Metadata coverage by domain" : "Policy coverage";
   return (
-    <section className="gh-admin-control-card gh-admin-control-policy" aria-label="Policy coverage">
+    <section className="gh-admin-control-card gh-admin-control-policy" aria-label={panelTitle}>
       <header>
-        <h2>Policy coverage</h2>
-        <p>{policies.some((policy) => !policy.unavailable && numberOrNull(policy.value) !== null) ? "Coverage reported by diagnostics" : "Policy coverage unavailable"}</p>
+        <h2>{panelTitle}</h2>
+        <p>
+          {metadataScoped
+            ? "Metadata completeness per domain — not policy-enforcement coverage"
+            : policies.some((policy) => !policy.unavailable && numberOrNull(policy.value) !== null)
+              ? "Coverage reported by diagnostics"
+              : "Policy coverage unavailable"}
+        </p>
       </header>
       <div>
-        {policies.length ? policies.map((policy) => {
+        {!policies.length && hydrating ? (
+          <SkeletonBlock lines={4} message="Loading coverage rows" />
+        ) : policies.length ? policies.map((policy) => {
           const numeric = numberOrNull(policy.value);
           const available = numeric != null;
           const unavailable = policy.unavailable || !available;
@@ -315,6 +358,115 @@ function PolicyCoverage({ activeId = "", onSelect, policies }) {
           <UnavailableRow message="No backed policy-coverage rows are available yet." />
         )}
       </div>
+    </section>
+  );
+}
+
+/**
+ * OperationsSummary — headline strip for the Operations tab, built ONLY from
+ * fields already present in the control-center payload (runtimeSummary,
+ * access, coverage, environment, role). No new backend work; it just stops
+ * discarding rich data the API already ships.
+ */
+function OperationsSummary({ dashboard, hydrating = false }) {
+  const runtime = dashboard.runtimeSummary || dashboard.system || {};
+  const access = dashboard.access || {};
+  const coverage = dashboard.coverage || {};
+  const environment = dashboard.environment || {};
+  const role = dashboard.role || {};
+  const hasSignal = [
+    runtime.state,
+    coverage.metadataCoverage,
+    access.users?.value,
+    environment.catalog,
+    role.label,
+  ].some((value) => value !== null && value !== undefined && value !== "");
+  const namespace = [text(environment.catalog), text(environment.schema)].filter(Boolean).join(".");
+  const users = numberOrNull(access.users?.value);
+  const roles = numberOrNull(access.roles?.value);
+  return (
+    <section className="gh-admin-control-card" aria-label="Runtime summary">
+      <header>
+        <div>
+          <h2>Runtime summary</h2>
+          <p>Live diagnostics reported by the app runtime</p>
+        </div>
+      </header>
+      {hydrating && !hasSignal ? (
+        <SkeletonBlock lines={3} message="Loading runtime summary" />
+      ) : (
+        <div className="gh-admin-truth-check-totals" role="group" aria-label="Runtime summary tiles">
+          <div>
+            <small>Runtime</small>
+            <strong>{stateText(runtime.state)}</strong>
+            <span>{text(runtime.host) || text(runtime.authMode) || "workspace client"}</span>
+          </div>
+          <div>
+            <small>Catalogs</small>
+            <strong>{numberValue(runtime.catalogCount)}</strong>
+            <span>visible to runtime</span>
+          </div>
+          <div>
+            <small>SQL warehouse</small>
+            <strong>{label(runtime.warehouseId || environment.warehouseId)}</strong>
+            <span>bound warehouse</span>
+          </div>
+          <div>
+            <small>Metadata coverage</small>
+            <strong>{percentValue(coverage.metadataCoverage)}</strong>
+            <span>across visible assets</span>
+          </div>
+          <div>
+            <small>Access</small>
+            <strong>{users == null ? "Unavailable" : `${users.toLocaleString()} users`}</strong>
+            <span>{roles == null ? "roles unavailable" : `${roles.toLocaleString()} roles`}</span>
+          </div>
+          <div>
+            <small>Environment</small>
+            <strong>{label(namespace)}</strong>
+            <span>{text(environment.target) || "target unreported"}</span>
+          </div>
+          <div>
+            <small>Your role</small>
+            <strong>{label(role.label)}</strong>
+            <span>acting permissions</span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * ActivityFeed — renders recentAdminActivity, which the payload has always
+ * shipped but the Operations tab never consumed. The backend filters
+ * internal bookkeeping rows (identity-directory mirroring etc.) before
+ * this list, so what lands here is real governance activity.
+ */
+function ActivityFeed({ events, hydrating = false }) {
+  return (
+    <section className="gh-admin-control-card gh-admin-activity" aria-label="Recent admin activity">
+      <header>
+        <h2>Recent admin activity</h2>
+      </header>
+      {!events.length && hydrating ? (
+        <SkeletonBlock lines={4} message="Loading admin activity" />
+      ) : events.length ? (
+        <div className="gh-admin-activity-list">
+          {events.map((event) => (
+            <article key={event.id}>
+              <b aria-hidden="true">{(event.title || "?").charAt(0).toUpperCase()}</b>
+              <div>
+                <strong>{event.title}</strong>
+                <span>{event.detail || event.actorEmail || event.status || "No detail recorded"}</span>
+              </div>
+              <time dateTime={event.createdAt || undefined}>{humanTimestamp(event.createdAt)}</time>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <UnavailableRow message="No governance activity has been recorded in the audit stream yet." />
+      )}
     </section>
   );
 }
@@ -437,7 +589,7 @@ function TruthCheckPanel({ canReadAdmin }) {
   const perCatalog = Array.isArray(metastore.perCatalog) ? metastore.perCatalog : [];
   const queries = Array.isArray(data.queries) ? data.queries : [];
   const warnings = Array.isArray(drift.warnings) ? drift.warnings : [];
-  const observedAt = label(data.observedAt, "Unavailable");
+  const observedAt = humanTimestamp(data.observedAt);
   const discoveryCatalogs = Array.isArray(data.discoveryCatalogs) ? data.discoveryCatalogs : [];
 
   return (
@@ -489,9 +641,11 @@ function TruthCheckPanel({ canReadAdmin }) {
         </div>
       </header>
 
-      {warnings.length ? (
-        <div className="gh-admin-warning">{warnings[0]}</div>
-      ) : null}
+      {/* Render every warning: drift explanations ride alongside query
+          failures, and showing only the first hid the drift context. */}
+      {warnings.map((warning) => (
+        <div className="gh-admin-warning" key={warning}>{warning}</div>
+      ))}
 
       <div className="gh-admin-truth-check-meta">
         <span>
@@ -538,6 +692,14 @@ function TruthCheckPanel({ canReadAdmin }) {
                   <tr key={row.catalog}>
                     <th scope="row">
                       <code>{row.catalog}</code>
+                      {/* All-zero catalogs are ambiguous (empty vs. missing
+                          grants); badge them so the zeros don't read as a
+                          broken pipeline. */}
+                      {text(row.state) === "empty-or-unauthorized" ? (
+                        <span title={text(row.stateReason) || undefined}>
+                          <StatusPill tone="muted">No objects visible to app principal</StatusPill>
+                        </span>
+                      ) : null}
                     </th>
                     <td>
                       <StatusPill tone={row.configured ? "good" : "muted"}>
@@ -584,7 +746,9 @@ function TruthCheckPanel({ canReadAdmin }) {
               <header>
                 <strong>{label(entry.label, "Query")}</strong>
                 <span>
-                  {entry.elapsedMs ? `${entry.elapsedMs} ms` : "elapsed unavailable"} ·{" "}
+                  {/* `== null` (not truthiness): a legit 0 ms probe must
+                      render "0 ms", not "elapsed unavailable". */}
+                  {entry.elapsedMs == null ? "elapsed unavailable" : `${entry.elapsedMs} ms`} ·{" "}
                   rowCount {numberValue(entry.rowCount)}
                 </span>
               </header>
@@ -644,6 +808,17 @@ export default function AdminWorkspace({ shell = null } = {}) {
   const jobs = useMemo(() => normalizeJobs(safeDashboard), [safeDashboard]);
   const integrations = useMemo(() => normalizeIntegrations(safeDashboard), [safeDashboard]);
   const policies = useMemo(() => normalizePolicies(safeDashboard), [safeDashboard]);
+  const activity = useMemo(() => normalizeActivity(safeDashboard), [safeDashboard]);
+  // Hydrating = the backend is still warming its payload (meta.state
+  // "loading" / capabilities.hydrating) or the first fetch is in flight.
+  // In that window panels render skeletons — never "Unavailable" rows,
+  // which would misreport a temporary warm-up as missing capability.
+  const hydrating =
+    (canReadAdmin && query.isLoading) ||
+    (!nonAuthoritativeDiagnosticPayload && envelopeHydrating(query.data));
+  // Genuinely-empty jobs table explains itself with the backend's own
+  // jobsReason instead of a generic shrug.
+  const jobsEmptyMessage = text(safeDashboard.jobsReason);
   const warnings = Array.isArray(rawWarnings)
     ? [
         ...rawWarnings.filter((warning) => !isNonAuthoritativeWarning(warning)),
@@ -688,21 +863,25 @@ export default function AdminWorkspace({ shell = null } = {}) {
   };
   const handlePolicySelect = (policy) => {
     const coverage = percentValue(policy.value);
+    // Metadata-scoped rows must say so — presenting metadata completeness
+    // as policy-enforcement coverage would fabricate a capability.
+    const coverageNoun = policy.coverageKind === "metadata" ? "metadata coverage" : "coverage";
     setSelectedControl({
       kind: "Policy coverage",
       id: policy.id,
       title: policy.label,
-      subtitle: coverage === "Unavailable" ? "Coverage is unavailable in diagnostics." : `${coverage} coverage from diagnostics.`,
+      subtitle: coverage === "Unavailable" ? "Coverage is unavailable in diagnostics." : `${coverage} ${coverageNoun} from diagnostics.`,
       status: policy.status,
       url: policy.url || "",
       rows: [
-        { label: "Coverage", value: coverage },
+        { label: policy.coverageKind === "metadata" ? "Metadata coverage" : "Coverage", value: coverage },
         { label: "State", value: stateText(policy.status) },
+        ...(policy.note ? [{ label: "Note", value: policy.note }] : []),
         { label: "Evidence", value: policy.unavailable ? "Policy coverage not reported" : "Policy diagnostics payload" },
       ],
     });
     setStatus(
-      `${policy.label}: ${coverage === "Unavailable" ? "coverage unavailable" : `${coverage} coverage`} from policy diagnostics.`,
+      `${policy.label}: ${coverage === "Unavailable" ? "coverage unavailable" : `${coverage} ${coverageNoun}`} from policy diagnostics.`,
     );
   };
   const openSelectedControl = (detail) => {
@@ -759,25 +938,32 @@ export default function AdminWorkspace({ shell = null } = {}) {
               <div className="gh-admin-warning">{warnings[0]}</div>
             ) : null}
 
+            <OperationsSummary dashboard={safeDashboard} hydrating={hydrating} />
+
             <div className="gh-admin-control-layout">
               <JobTable
                 activeId={selectedControl?.kind === "Scheduled job" ? selectedControl.id : ""}
+                emptyMessage={jobsEmptyMessage}
+                hydrating={hydrating}
                 jobs={jobs}
                 onSelect={handleJobSelect}
               />
               <div className="gh-admin-control-side">
                 <IntegrationList
                   activeId={selectedControl?.kind === "Integration" ? selectedControl.id : ""}
+                  hydrating={hydrating}
                   integrations={integrations}
                   onSelect={handleIntegrationSelect}
                 />
                 <PolicyCoverage
                   activeId={selectedControl?.kind === "Policy coverage" ? selectedControl.id : ""}
+                  hydrating={hydrating}
                   policies={policies}
                   onSelect={handlePolicySelect}
                 />
               </div>
             </div>
+            <ActivityFeed events={activity} hydrating={hydrating} />
             {selectedControl ? <ControlDetail detail={selectedControl} onOpen={openSelectedControl} /> : null}
           </div>
         ) : (

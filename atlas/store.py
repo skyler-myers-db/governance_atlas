@@ -5,7 +5,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 import pandas as pd
 
@@ -354,6 +354,21 @@ ORDER BY requested_at DESC, job_id DESC
 LIMIT {int(limit)}"""
         )
 
+    # Internal bookkeeping rows (identity mirroring, registry/alias upkeep,
+    # notifications, projections) are excluded in SQL when callers ask for the
+    # customer-visible feed. The `%`-separated tokens match `-`, `_`, and space
+    # spellings (e.g. `identity-directory-upserted` and
+    # `identity_directory_entry`). Static constants only — never interpolate
+    # user input here.
+    _INTERNAL_AUDIT_LIKE_TOKENS = (
+        "identity%directory",
+        "entity%registry",
+        "entity%alias",
+        "notification",
+        "projection",
+        "mirror",
+    )
+
     def list_metadata_audit(
         self,
         *,
@@ -361,6 +376,7 @@ LIMIT {int(limit)}"""
         entity_id: str | None = None,
         entity_type: str | None = None,
         column_name: str | None = None,
+        exclude_internal: bool = False,
         limit: int = 50,
     ) -> pd.DataFrame:
         clauses: List[str] = []
@@ -372,6 +388,15 @@ LIMIT {int(limit)}"""
             clauses.append(f"entity_type = {sql_literal(entity_type)}")
         if column_name is not None:
             clauses.append(f"COALESCE(column_name, '') = {sql_literal(column_name)}")
+        if exclude_internal:
+            # Push the exclusion into the WHERE clause so LIMIT applies to
+            # customer-visible rows. Filtering after LIMIT let hundreds of
+            # identity-directory-upserted rows dominate the newest N rows and
+            # starve the audit evidence feed down to a handful of events.
+            for column in ("action", "entity_type"):
+                expression = f"LOWER(COALESCE({column}, ''))"
+                for token in self._INTERNAL_AUDIT_LIKE_TOKENS:
+                    clauses.append(f"{expression} NOT LIKE '%{token}%'")
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         return self.uc.query_df(
             f"""SELECT audit_id, entity_type, entity_id, entity_fqn, column_name,
@@ -3420,6 +3445,85 @@ WHERE run_id = {sql_literal(run_id)}"""
     statement_id, row_bytes_scanned, executed_at, detail
 FROM {self._fq('quality_run_results')} {where}
 ORDER BY executed_at DESC, result_id ASC
+LIMIT {int(limit)}"""
+        )
+
+    # ------------------------------------------------------------------
+    # Governance metrics snapshots (trend history)
+    # ------------------------------------------------------------------
+    def upsert_governance_metrics_snapshot(
+        self,
+        *,
+        scope_key: str,
+        snapshot_date: str,
+        metrics: Mapping[str, Any],
+        created_by: str = "atlas-metrics",
+    ) -> None:
+        """Record (or replace) the daily governance-posture snapshot for a scope.
+
+        One row per (scope_key, snapshot_date) — Delta has no uniqueness
+        constraint, so this deletes today's row before inserting. The
+        command-center payload builder is the only writer and throttles
+        to one write per scope per day.
+        """
+        numeric_columns = (
+            "governed_assets",
+            "certified_assets",
+            "critical_assets",
+            "certified_critical_assets",
+            "metadata_coverage",
+            "posture_score",
+            "audit_readiness",
+            "open_requests",
+            "policy_exceptions",
+            "quality_sla",
+            "lineage_coverage",
+            "cde_count",
+        )
+
+        def _num(key: str) -> str:
+            value = metrics.get(key)
+            if value is None:
+                return "NULL"
+            try:
+                return repr(float(value)) if isinstance(value, float) else repr(int(value))
+            except (TypeError, ValueError):
+                return "NULL"
+
+        ts = _utc_now_ts()
+        table = self._fq("governance_metrics_snapshots")
+        self.uc.execute(
+            f"DELETE FROM {table} WHERE scope_key = {sql_literal(scope_key)} "
+            f"AND snapshot_date = date({sql_literal(snapshot_date)})"
+        )
+        self.uc.execute(
+            f"""INSERT INTO {table} (
+    snapshot_id, scope_key, snapshot_date,
+    {', '.join(numeric_columns)},
+    created_at, created_by
+) VALUES (
+    {sql_literal(f"{scope_key}:{snapshot_date}")},
+    {sql_literal(scope_key)},
+    date({sql_literal(snapshot_date)}),
+    {', '.join(_num(column) for column in numeric_columns)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(created_by)}
+)"""
+        )
+
+    def list_governance_metrics_snapshots(
+        self,
+        *,
+        scope_key: str,
+        limit: int = 120,
+    ) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT snapshot_date, governed_assets, certified_assets, critical_assets,
+    certified_critical_assets, metadata_coverage, posture_score, audit_readiness,
+    open_requests, policy_exceptions, quality_sla, lineage_coverage, cde_count
+FROM {self._fq('governance_metrics_snapshots')}
+WHERE scope_key = {sql_literal(scope_key)}
+ORDER BY snapshot_date DESC
 LIMIT {int(limit)}"""
         )
 

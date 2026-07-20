@@ -10,7 +10,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchAssetHeaders } from "../../lib/api";
 
-const MAX_NODE_HEADERS = 18;
+// L7: match the backend graph node limit (LINEAGE_GRAPH_NODE_LIMIT = 48) so
+// cards beyond the 18th stop rendering bare footers. The batch endpoint
+// accepts up to 64 FQNs per request, so one request still covers the cap.
+const MAX_NODE_HEADERS = 48;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — header rarely changes intra-session
 
 // Module-scoped cache so multiple LineageWorkspace mounts share results

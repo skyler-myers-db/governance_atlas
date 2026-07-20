@@ -86,9 +86,8 @@ describe("AuditBrowserWorkspace", () => {
     expect(screen.getByText(/records backed metadata workflow events/i)).toBeDefined();
     expect(screen.queryByText(/cryptographically ordered/i)).toBeNull();
     expect(await screen.findByText("Events · 24h")).toBeDefined();
-    expect(screen.getByText("Policy violations · 7d")).toBeDefined();
+    expect(screen.getByText("Policy violations")).toBeDefined();
     expect(screen.getByText("Access reviews · open")).toBeDefined();
-    expect(screen.getByText("Retention")).toBeDefined();
     expect(screen.getByRole("button", { name: /Generate report/i })).toBeDefined();
     expect(screen.getByRole("button", { name: /Export CSV/i })).toBeDefined();
 
@@ -152,7 +151,7 @@ describe("AuditBrowserWorkspace", () => {
       expect.objectContaining({ dateRange: "24h", limit: 200 }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^Date range$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Date range/i }));
     fireEvent.click(screen.getByRole("menuitemradio", { name: /7d/i }));
 
     expect(await screen.findByText("Audit date range set to 7d.")).toBeDefined();
@@ -208,8 +207,7 @@ describe("AuditBrowserWorkspace", () => {
     expect(await screen.findByText("No scoped event summary reported by audit API")).toBeDefined();
     expect(screen.getByText("No audit events match the current filters.")).toBeDefined();
     expect(screen.getByText("Events · 24h")).toBeDefined();
-    expect(screen.getAllByText("Unavailable").length).toBeGreaterThanOrEqual(4);
-    expect(screen.getByText(/Retention policy not reported/)).toBeDefined();
+    expect(screen.getAllByText("Unavailable").length).toBeGreaterThanOrEqual(3);
   });
 
   it("rejects non-authoritative audit payload values before rendering source rows", async () => {

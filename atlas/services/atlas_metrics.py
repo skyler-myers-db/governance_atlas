@@ -327,9 +327,21 @@ def _policy_exception_count(request_rows: Sequence[Mapping[str, Any]], audit_row
 def _policy_exception_signal(
     request_rows: Sequence[Mapping[str, Any]],
     audit_rows: Sequence[Mapping[str, Any]],
+    *,
+    sources_available: bool = False,
 ) -> Dict[str, Any]:
     count = _policy_exception_count(request_rows, audit_rows)
     if count <= 0:
+        # Zero is a real (and good) governance answer when the request/audit
+        # sources responded. Rendering it as "unavailable" made a healthy
+        # estate look broken; only report unavailable when the sources
+        # themselves could not be read.
+        if sources_available:
+            return {
+                "value": 0,
+                "state": "available",
+                "reason": "No policy exceptions recorded in governance requests or the audit trail.",
+            }
         return {
             "value": None,
             "state": "unavailable",
@@ -406,11 +418,35 @@ def _audit_rows_with_state(
     return [], False, reason or fallback_reason or "Audit source is not available."
 
 
+# Internal bookkeeping actions (identity mirroring, projections, alias
+# upkeep) are real audit rows but operational noise in an executive
+# activity stream — six "Identity Directory Upserted" rows in a row read
+# as a broken feed, not governance activity.
+_INTERNAL_EVENT_TOKENS = (
+    "identity_directory",
+    "identity directory",
+    "entity_registry",
+    "entity registry",
+    "entity_alias",
+    "entity alias",
+    "notification",
+    "projection",
+    "mirror",
+)
+
+
 def _recent_events(audit_rows: Sequence[Mapping[str, Any]], limit: int = 8) -> List[Dict[str, Any]]:
     events: List[Dict[str, Any]] = []
-    for row in list(audit_rows)[:limit]:
+    for row in audit_rows:
+        if len(events) >= limit:
+            break
         status = _lower(row.get("status"))
         action = _text(row.get("action"))
+        # Live audit actions are hyphenated ("identity-directory-upserted");
+        # normalize separators so the underscore token list matches all forms.
+        normalized_action = action.lower().replace("-", "_").replace(" ", "_")
+        if any(token.replace(" ", "_") in normalized_action for token in _INTERNAL_EVENT_TOKENS):
+            continue
         event_text = " ".join(
             _lower(row.get(key))
             for key in ("action", "detail", "entity_fqn", "source", "status")
@@ -454,10 +490,10 @@ def _timestamp(value: Any) -> pd.Timestamp | None:
 
 
 def _series_anchor(timestamps: Sequence[pd.Timestamp]) -> pd.Timestamp:
-    values = [ts for ts in timestamps if ts is not None]
-    if values:
-        return max(values)
-    return pd.Timestamp.utcnow()
+    # Trend windows must end at NOW, not at the newest data timestamp.
+    # Anchoring at max(data) made a burst of activity months ago render
+    # today as "+40 vs 30 days ago" — a stale window presented as current.
+    return pd.Timestamp.now(tz="UTC")
 
 
 def _sparkline_points(anchor: pd.Timestamp, *, days: int = 30, buckets: int = 6) -> List[pd.Timestamp]:
@@ -820,6 +856,339 @@ def _risk_heatmap(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
     ]
 
 
+def _quality_sla_signal(store: Any) -> Dict[str, Any]:
+    """Pass rate over the recent quality-run result ledger.
+
+    SLA = passed / (passed + failed + errored) across the most recent
+    result rows (skipped cases excluded). Unavailable only when no
+    quality runs have ever recorded results.
+    """
+    frame = _call_store(store, "list_quality_run_results", limit=2000)
+    rows = _rows_or_empty(frame)
+    passed = failed = 0
+    failed_by_severity = {"high": 0, "medium": 0, "informational": 0}
+    for row in rows:
+        outcome = _lower(row.get("outcome"))
+        if outcome == "passed":
+            passed += 1
+        elif outcome in {"failed", "errored"}:
+            failed += 1
+            severity = _lower(row.get("severity"))
+            if severity in {"error", "critical", "high", "blocker"}:
+                failed_by_severity["high"] += 1
+            elif severity in {"info", "informational", "low"}:
+                failed_by_severity["informational"] += 1
+            else:
+                failed_by_severity["medium"] += 1
+    scored = passed + failed
+    if scored <= 0:
+        return {
+            "value": None,
+            "state": "unavailable",
+            "reason": "No quality checks have run yet. Configure expectations from an asset's Quality tab to activate this signal.",
+            "checksEvaluated": 0,
+            "failedBySeverity": None,
+        }
+    return {
+        "value": round(passed / scored * 100, 1),
+        "state": "available",
+        "reason": f"Pass rate across the {scored} most recent evaluated quality checks.",
+        "checksEvaluated": scored,
+        "failedBySeverity": failed_by_severity,
+    }
+
+
+def _rows_or_empty(frame: Any) -> List[Dict[str, Any]]:
+    try:
+        if frame is None:
+            return []
+        if isinstance(frame, pd.DataFrame):
+            return [] if frame.empty else frame.to_dict("records")
+        return [dict(row) for row in frame]
+    except Exception:
+        return []
+
+
+# system.access.table_lineage is workspace-sized; cache the distinct-FQN scan
+# per warehouse for an hour so the 45s command-center rebuild never repeats it.
+_LINEAGE_FQN_CACHE: Dict[str, tuple[float, set[str]]] = {}
+_LINEAGE_FQN_CACHE_TTL_S = 3600.0
+
+
+def _lineage_covered_fqns(system_uc: Any, catalogs: Sequence[str]) -> set[str] | None:
+    if system_uc is None or not catalogs:
+        return None
+    import time as _time
+
+    cache_key = f"{getattr(system_uc, 'warehouse_id', '')}:{','.join(sorted(catalogs))}"
+    cached = _LINEAGE_FQN_CACHE.get(cache_key)
+    if cached and _time.time() - cached[0] < _LINEAGE_FQN_CACHE_TTL_S:
+        return cached[1]
+    from atlas.util import sql_literal
+
+    catalog_list = ", ".join(sql_literal(catalog) for catalog in catalogs)
+    query = f"""
+SELECT DISTINCT asset_fqn FROM (
+  SELECT CAST(source_table_full_name AS STRING) AS asset_fqn
+  FROM system.access.table_lineage
+  WHERE source_table_full_name IS NOT NULL
+  UNION ALL
+  SELECT CAST(target_table_full_name AS STRING) AS asset_fqn
+  FROM system.access.table_lineage
+  WHERE target_table_full_name IS NOT NULL
+)
+WHERE asset_fqn IS NOT NULL AND split(asset_fqn, '[.]')[0] IN ({catalog_list})
+LIMIT 50000
+"""
+    try:
+        frame = system_uc.query_df(query)
+    except Exception:
+        return None
+    if frame is None or "asset_fqn" not in getattr(frame, "columns", []):
+        return None
+    covered = {str(value).lower() for value in frame["asset_fqn"].dropna().tolist()}
+    _LINEAGE_FQN_CACHE[cache_key] = (_time.time(), covered)
+    return covered
+
+
+def _lineage_coverage_signal(system_uc: Any, assets_df: pd.DataFrame) -> Dict[str, Any]:
+    """Share of visible assets that appear in system.access.table_lineage."""
+    fqns = [fqn.lower() for fqn in _extract_asset_fqns(assets_df)]
+    if not fqns:
+        return {"value": None, "state": "unavailable", "reason": "No visible assets to evaluate lineage coverage against."}
+    catalogs = sorted({fqn.split(".")[0] for fqn in fqns if "." in fqn})
+    covered = _lineage_covered_fqns(system_uc, catalogs)
+    if covered is None:
+        return {
+            "value": None,
+            "state": "unavailable",
+            "reason": "system.access.table_lineage is not readable from this warehouse.",
+        }
+    linked = sum(1 for fqn in fqns if fqn in covered)
+    return {
+        "value": round(linked / len(fqns) * 100, 1),
+        "state": "available",
+        "reason": f"{linked} of {len(fqns)} visible assets have recorded Unity Catalog lineage edges.",
+        "linkedAssets": linked,
+    }
+
+
+def _extract_asset_fqns(assets_df: pd.DataFrame) -> List[str]:
+    for column in ("fqn", "full_name", "fullName", "uc_full_name"):
+        if column in getattr(assets_df, "columns", []):
+            return [
+                _text(value)
+                for value in assets_df[column].dropna().astype(str).tolist()
+                if _text(value)
+            ]
+    return []
+
+
+def _cde_assets(assets_df: pd.DataFrame, *, limit: int = 4) -> tuple[int, List[Dict[str, Any]]]:
+    """Count CDE-tagged visible assets and surface the first few as
+    registry rows, so the Command Center CDE grid shows real Critical
+    Data Elements instead of keyword-matched lookalikes."""
+    count = 0
+    rows: List[Dict[str, Any]] = []
+    for _, row in assets_df.iterrows():
+        row_map = _row_dict(row)
+        # Same detection the CDE registry surface uses (_is_cde_asset), so
+        # the hero "CDEs tracked" count always matches the registry count.
+        if not _is_cde_asset(row_map):
+            continue
+        count += 1
+        if len(rows) >= limit:
+            continue
+        fqn = _normalize_asset_fqn(_row_value(row_map, "fqn", "full_name", "fullName"))
+        owners = row_map.get("owners")
+        owner = ""
+        if isinstance(owners, (list, tuple)) and owners:
+            first = owners[0]
+            owner = _text(first.get("name") or first.get("email")) if isinstance(first, Mapping) else _text(first)
+        if not owner:
+            owner = _row_text(row_map, "owner", "owner_email", "ownerEmail", "domain")
+        certification = _row_text(row_map, "certification")
+        tags_text = json.dumps(row_map.get("tags"), default=str) if row_map.get("tags") else ""
+        rows.append(
+            {
+                "id": fqn or _asset_name(fqn),
+                "name": _asset_name(fqn) or _row_text(row_map, "name"),
+                "assetFqn": fqn,
+                "column": fqn,
+                "owner": owner,
+                "status": certification if certification and _lower(certification) not in UNASSIGNED_VALUES else "Certification pending",
+                "sox": "sox" in tags_text.lower(),
+                "state": "available",
+            }
+        )
+    return count, rows
+
+
+POSTURE_FORMULA = (
+    "40% metadata coverage + 25% certification rate + 20% stewardship "
+    "responsiveness (open requests vs governed assets) + 15% policy-exception cleanliness"
+)
+
+
+def _posture_score(
+    *,
+    metadata_coverage: float | None,
+    total_assets: int,
+    certified_assets: int,
+    open_requests: int | None,
+    policy_exceptions: int | None,
+) -> Dict[str, Any]:
+    """Composite governance-posture score (0-100), formula documented in
+    POSTURE_FORMULA and surfaced to the UI so the number is auditable."""
+    if metadata_coverage is None or total_assets <= 0:
+        return {
+            "value": None,
+            "state": "unavailable",
+            "reason": "Posture requires visible assets with backed metadata coverage.",
+            "formula": POSTURE_FORMULA,
+        }
+    certification_component = certified_assets / total_assets * 100
+    stewardship_component = (
+        (1 - min((open_requests or 0) / total_assets, 1)) * 100
+        if open_requests is not None
+        else metadata_coverage
+    )
+    exception_component = (
+        max(0.0, 100.0 - 10.0 * policy_exceptions)
+        if policy_exceptions is not None
+        else metadata_coverage
+    )
+    score = round(
+        0.40 * metadata_coverage
+        + 0.25 * certification_component
+        + 0.20 * stewardship_component
+        + 0.15 * exception_component,
+        1,
+    )
+    return {
+        "value": score,
+        "state": "available",
+        "reason": "Composite posture across coverage, certification, stewardship, and exceptions.",
+        "formula": POSTURE_FORMULA,
+    }
+
+
+AUDIT_READINESS_FORMULA = (
+    "Share of governed assets that are audit-traceable: documented, owned, "
+    "and classified (certification, sensitivity, or tier)"
+)
+
+
+def _audit_readiness_score(assets_df: pd.DataFrame) -> Dict[str, Any]:
+    total = _safe_count(assets_df)
+    if total <= 0:
+        return {
+            "value": None,
+            "state": "unavailable",
+            "reason": "Audit readiness requires visible governed assets.",
+            "formula": AUDIT_READINESS_FORMULA,
+        }
+    ready = 0
+    for _, row in assets_df.iterrows():
+        dimensions = _metadata_dimensions_for_row(_row_dict(row))
+        if dimensions["Discoverability"] and dimensions["Ownership"] and dimensions["Classification"]:
+            ready += 1
+    return {
+        "value": round(ready / total * 100, 1),
+        "state": "available",
+        "reason": f"{ready} of {total} governed assets are documented, owned, and classified.",
+        "formula": AUDIT_READINESS_FORMULA,
+    }
+
+
+# One snapshot write per (scope, day) per process; the store dedupes on
+# (scope_key, snapshot_date) too, so restarts stay idempotent.
+_SNAPSHOT_WRITTEN: Dict[str, str] = {}
+
+
+def _record_daily_snapshot(store: Any, scope_key: str, metrics: Mapping[str, Any]) -> None:
+    if not hasattr(store, "upsert_governance_metrics_snapshot"):
+        return
+    today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    if _SNAPSHOT_WRITTEN.get(scope_key) == today:
+        return
+    try:
+        store.upsert_governance_metrics_snapshot(
+            scope_key=scope_key,
+            snapshot_date=today,
+            metrics=dict(metrics),
+        )
+        _SNAPSHOT_WRITTEN[scope_key] = today
+    except Exception:
+        # Trend persistence must never break the live payload.
+        pass
+
+
+def _snapshot_history(store: Any, scope_key: str) -> List[Dict[str, Any]]:
+    frame = _call_store(store, "list_governance_metrics_snapshots", scope_key=scope_key)
+    rows = _rows_or_empty(frame)
+    prepared: List[tuple[Any, Dict[str, Any]]] = []
+    for row in rows:
+        ts = _timestamp(row.get("snapshot_date"))
+        if ts is None:
+            continue
+        prepared.append((ts, row))
+    prepared.sort(key=lambda item: item[0])
+    return [
+        {**row, "snapshot_date": ts.strftime("%Y-%m-%d")}
+        for ts, row in prepared
+    ]
+
+
+def _trend_fields(history: Sequence[Mapping[str, Any]], column: str, *, suffix: str = "vs 30 days ago") -> Dict[str, Any]:
+    """Sparkline + previous-value fields for a KPI from snapshot history.
+
+    With a single snapshot the trend is honestly marked "collecting" (with
+    the start date) instead of "unavailable" — the signal exists, history
+    is simply young.
+    """
+    points = [
+        {"date": row["snapshot_date"], "value": _number(row.get(column))}
+        for row in history
+        if _number(row.get(column)) is not None
+    ]
+    if not points:
+        return {}
+    if len(points) == 1:
+        return {
+            "sparkline": [points[0]["value"]],
+            "trendPoints": points,
+            "trendState": "collecting",
+            "collectingSince": points[0]["date"],
+        }
+    latest = points[-1]["value"]
+    previous = points[0]["value"]
+    delta = latest - previous
+    span_days = max(
+        1,
+        (pd.Timestamp(points[-1]["date"]) - pd.Timestamp(points[0]["date"])).days,
+    )
+    resolved_suffix = suffix if span_days >= 25 else f"since {points[0]['date']}"
+    return {
+        "sparkline": [point["value"] for point in points[-12:]],
+        "trendPoints": points[-12:],
+        "trendState": "available",
+        "previousValue": previous,
+        "delta": _format_delta(int(round(delta)), suffix=resolved_suffix),
+        "deltaTone": "good" if delta >= 0 else "bad",
+    }
+
+
+def _number(value: Any) -> float | None:
+    try:
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return None
+        numeric = float(value)
+        return numeric if math.isfinite(numeric) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _estate_from_assets(
     assets_df: pd.DataFrame,
     *,
@@ -860,7 +1229,13 @@ def empty_command_center_payload() -> Dict[str, Any]:
     }
 
 
-def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[str, Any]:
+def command_center_payload(
+    *,
+    visible_assets: pd.DataFrame,
+    store: Any,
+    scope_key: str = "workspace",
+    system_uc: Any = None,
+) -> Dict[str, Any]:
     assets_df = _safe_df(visible_assets)
     total_assets = _safe_count(assets_df)
     coverage_values = [
@@ -928,7 +1303,11 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
     )
     audit, audit_available, audit_reason = _audit_rows_with_state(store, limit=50)
     audit = _trusted_command_rows(audit)
-    policy_exception_signal = _policy_exception_signal(all_requests, audit)
+    policy_exception_signal = _policy_exception_signal(
+        all_requests,
+        audit,
+        sources_available=requests_available or audit_available,
+    )
     policy_exceptions = policy_exception_signal["value"]
     open_request_trend = _open_request_trend(all_requests) if requests_available else {}
     policy_exception_trend = (
@@ -936,13 +1315,50 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
         if requests_available or audit_available
         else {}
     )
-    audit_readiness = None
     domains = _domain_summary(assets_df)
     catalog_health = _catalog_health_summary(assets_df)
-    posture_overall = None
     certified_critical_state = (
         "available" if certification_signal_present and criticality_signal_present else "unavailable"
     )
+
+    # Backed composite + operational signals. Each helper returns an honest
+    # unavailable state when its source cannot be read; none of them fabricate.
+    quality_signal = _quality_sla_signal(store)
+    lineage_signal = _lineage_coverage_signal(system_uc, assets_df)
+    cde_count, cde_rows = _cde_assets(assets_df)
+    audit_readiness_signal = _audit_readiness_score(assets_df)
+    posture_signal = _posture_score(
+        metadata_coverage=metadata_coverage,
+        total_assets=total_assets,
+        certified_assets=certified_assets,
+        open_requests=open_requests,
+        policy_exceptions=policy_exceptions,
+    )
+
+    _record_daily_snapshot(
+        store,
+        scope_key,
+        {
+            "governed_assets": total_assets,
+            "certified_assets": certified_assets,
+            "critical_assets": critical_assets,
+            "certified_critical_assets": certified_critical_assets,
+            "metadata_coverage": metadata_coverage,
+            "posture_score": posture_signal["value"],
+            "audit_readiness": audit_readiness_signal["value"],
+            "open_requests": open_requests,
+            "policy_exceptions": policy_exceptions,
+            "quality_sla": quality_signal["value"],
+            "lineage_coverage": lineage_signal["value"],
+            "cde_count": cde_count,
+        },
+    )
+    history = _snapshot_history(store, scope_key)
+    coverage_trend = _trend_fields(history, "metadata_coverage")
+    certified_trend = _trend_fields(history, "certified_critical_assets")
+    posture_trend_fields = _trend_fields(history, "posture_score")
+    quality_trend = _trend_fields(history, "quality_sla")
+    lineage_trend = _trend_fields(history, "lineage_coverage")
     source_warnings = [
         warning
         for warning in (request_reason if not requests_available else "", audit_reason if not audit_available else "")
@@ -973,6 +1389,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
                     if certified_critical_state == "available"
                     else "Certification and criticality signals are required before certified critical assets can be counted."
                 ),
+                **certified_trend,
             },
             {
                 "key": "metadataCoverage",
@@ -981,6 +1398,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
                 "format": "percent",
                 "progress": metadata_coverage,
                 "state": "available" if metadata_coverage is not None else "unavailable",
+                **coverage_trend,
             },
             {
                 "key": "openStewardship",
@@ -1003,18 +1421,23 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
             {
                 "key": "auditReadiness",
                 "label": "Audit Readiness",
-                "value": audit_readiness,
+                "value": audit_readiness_signal["value"],
                 "format": "percent",
-                "progress": audit_readiness,
-                "state": "unavailable",
-                "reason": "Audit readiness requires a documented control-coverage formula before it is shown as a score.",
+                "progress": audit_readiness_signal["value"],
+                "state": audit_readiness_signal["state"],
+                "reason": audit_readiness_signal["reason"],
+                "formula": audit_readiness_signal["formula"],
             },
         ],
         "posture": {
-            "overall": posture_overall,
-            "state": "unavailable",
-            "reason": "Overall posture requires a documented composite formula beyond metadata coverage.",
-            "trend": [],
+            "overall": posture_signal["value"],
+            "state": posture_signal["state"],
+            "reason": posture_signal["reason"],
+            "formula": posture_signal["formula"],
+            "trend": posture_trend_fields.get("trendPoints") or [],
+            "trendState": posture_trend_fields.get("trendState") or "collecting",
+            "collectingSince": posture_trend_fields.get("collectingSince") or "",
+            "previousValue": posture_trend_fields.get("previousValue"),
             "byDomain": domains[:8],
             "heatmap": _coverage_heatmap(domains),
         },
@@ -1026,6 +1449,14 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
             "openRequests": open_requests,
             "policyExceptions": policy_exceptions,
             "pendingRequests": pending_requests[:8],
+            "openRequestAssetCount": len(
+                {
+                    _lower(row.get("uc_full_name") or row.get("ucFullName") or row.get("entity_fqn"))
+                    for row in all_requests
+                    if _lower(row.get("status")) in {"", "pending", "open", "in_review", "new"}
+                    and _text(row.get("uc_full_name") or row.get("ucFullName") or row.get("entity_fqn"))
+                }
+            ) if requests_available else None,
         },
         "dataQuality": {
             "nonAuthoritativeRowsExcluded": len(excluded_non_authoritative_keys),
@@ -1037,32 +1468,49 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
                 "criticalAssets": critical_assets,
                 "metadataCoverage": metadata_coverage,
                 "policyExceptions": policy_exceptions,
+                "cdeCount": cde_count,
             },
-            "qualitySignalAvailable": False,
+            "qualitySla": quality_signal["value"],
+            "previousQualitySla": quality_trend.get("previousValue"),
+            "qualitySignalAvailable": quality_signal["state"] == "available",
+            "qualityReason": quality_signal["reason"],
+            "qualityChecksEvaluated": quality_signal["checksEvaluated"],
+            "lineageCoverage": lineage_signal["value"],
+            "previousLineageCoverage": lineage_trend.get("previousValue"),
         },
-        "quickActions": [
-            {"key": "discovery", "label": "Open Discovery", "surface": "discovery"},
-            {"key": "governance", "label": "Review Governance", "surface": "governance"},
-            {"key": "insights", "label": "View Insights", "surface": "insights"},
-            {"key": "audit", "label": "Open Audit Trail", "surface": "audit"},
-        ],
-        "aiPrompts": [
-            "Which domains have the lowest metadata coverage?",
-            "Which critical assets are not certified?",
-            "What changed in governance metadata recently?",
-            "Which assets need stewardship attention?",
-        ],
+        "lineage": {
+            "coverage": lineage_signal["value"],
+            "previousCoverage": lineage_trend.get("previousValue"),
+            "state": lineage_signal["state"],
+            "reason": lineage_signal["reason"],
+        },
+        # Real severity split from the quality-run result ledger; only
+        # emitted when quality checks have actually run, so the risk panel
+        # is backed evidence, never an inferred score.
+        "riskBreakdown": (
+            {
+                "high": quality_signal["failedBySeverity"]["high"],
+                "medium": quality_signal["failedBySeverity"]["medium"],
+                "informational": quality_signal["failedBySeverity"]["informational"],
+                "total": sum(quality_signal["failedBySeverity"].values()),
+                "source": "quality_run_results",
+            }
+            if quality_signal.get("failedBySeverity")
+            else None
+        ),
+        "cdes": cde_rows,
         "signalAvailability": {
             "visibleAssets": True,
             "audit": audit_available and bool(audit),
-            "quality": False,
-            "lineage": False,
+            "quality": quality_signal["state"] == "available",
+            "lineage": lineage_signal["state"] == "available",
         },
         "meta": {
             "warnings": source_warnings,
             "primaryCatalog": catalog_health[0]["catalog"] if catalog_health else "",
         },
     }
+    payload["estate"]["cdeCount"] = cde_count
     return _json_safe(_customer_safe_payload(payload))
 
 
@@ -1173,27 +1621,133 @@ def asset_360_payload(
     }
 
 
+# Default SLA policy applied when a change request carries no explicit
+# due date. Honest labeling: every derived field is marked as coming from
+# this default policy, never presented as a recorded due date.
+_DEFAULT_SLA_DAYS = 7
+
+
+def _request_timestamp(value: Any) -> dt.datetime | None:
+    """Parse a stored request timestamp to an aware UTC datetime (or None)."""
+    text = _text(value)
+    if not text:
+        return None
+    try:
+        ts = pd.Timestamp(text)
+    except (TypeError, ValueError):
+        return None
+    if ts is pd.NaT:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    return ts.to_pydatetime()
+
+
+def _synthesized_request_title(
+    row: Mapping[str, Any],
+    request_tags: Mapping[str, Any],
+    asset_fqn: str,
+) -> str:
+    """Build a meaningful title from the request's actual change content.
+
+    The legacy store rows often carry the literal placeholder
+    "Governance request" as new_comment, which rendered 40 identical
+    queue rows. Derive the intent from what the request actually changes.
+    """
+    asset_short = asset_fqn.split(".")[-1] if asset_fqn else ""
+    # Request-metadata keys stashed in new_uc_tags_json (migration-free
+    # storage) are not tag CHANGES; everything else in the map is.
+    meta_keys = {
+        "title", "priority", "dueat", "due_at", "slastate", "sla_state",
+        "assignedto", "assigned_to",
+    }
+    changed_tags = [
+        key for key in request_tags
+        if _text(key).lower() not in meta_keys and _has_value(request_tags.get(key))
+    ]
+    comment = _text(row.get("new_comment"))
+    if comment and comment != "Governance request":
+        # new_comment carries a proposed description for description
+        # requests; surface that intent with the asset name.
+        if asset_short:
+            return f"Update description for {asset_short}"
+        return "Update description"
+    if changed_tags:
+        return f"Tag change: {asset_short}" if asset_short else "Tag change"
+    if asset_short:
+        return f"Governance review: {asset_short}"
+    return "Governance request"
+
+
 def _request_record(row: Mapping[str, Any]) -> Dict[str, Any]:
     raw_request_id = _text(row.get("request_id")) or _text(row.get("requestId"))
     request_id = _customer_safe_text(raw_request_id) if raw_request_id else ""
     request_tags = _mapping_from_json(row.get("new_uc_tags") or row.get("new_uc_tags_json"))
-    title = _text(row.get("title")) or _text(row.get("new_comment")) or "Governance request"
+    # Title precedence: explicit column, then new_uc_tags_json (the
+    # migration-free stash for fields the table lacks), then the
+    # "title: note" convention in new_comment, then a synthesized title
+    # from the request's actual change content.
+    title = _text(row.get("title")) or _text(request_tags.get("title"))
+    if not title:
+        comment = _text(row.get("new_comment"))
+        title = comment.split(":", 1)[0].strip() if ":" in comment else comment
     note = _text(row.get("detail")) or _text(row.get("new_comment"))
     status = _text(row.get("status")) or "pending"
+    asset_fqn = _text(row.get("uc_full_name")) or _text(row.get("assetFqn"))
+    if not title or title == "Governance request":
+        title = _synthesized_request_title(row, request_tags, asset_fqn)
+
+    created_text = _text(row.get("created_at")) or _text(row.get("createdAt"))
+    due_text = (
+        _text(row.get("due_at"))
+        or _text(row.get("dueAt"))
+        or _text(request_tags.get("dueAt") or request_tags.get("due_at"))
+    )
+    sla_state = (
+        _text(row.get("sla_state"))
+        or _text(row.get("slaState"))
+        or _text(request_tags.get("slaState") or request_tags.get("sla_state"))
+    )
+    sla_label = ""
+    sla_policy = ""
+    # Default SLA: when no due date is recorded, derive one from
+    # created_at + 7 days and label it honestly as the default policy.
+    # Never fabricates when created_at itself is missing.
+    if not due_text:
+        created_ts = _request_timestamp(created_text)
+        if created_ts is not None:
+            derived_due = created_ts + dt.timedelta(days=_DEFAULT_SLA_DAYS)
+            due_text = derived_due.isoformat()
+            sla_policy = "default_7d"
+            if not sla_state:
+                now = dt.datetime.now(dt.timezone.utc)
+                if now > derived_due:
+                    sla_state = "overdue"
+                elif (derived_due - now) <= dt.timedelta(hours=24):
+                    sla_state = "warn"
+                else:
+                    sla_state = "good"
+            sla_label = (
+                "Overdue · 7d default SLA"
+                if sla_state in {"overdue", "crit", "critical", "breach"}
+                else f"Due {derived_due.strftime('%b %-d')} · 7d default SLA"
+            )
     return {
         "requestId": request_id,
         "id": request_id,
-        "title": title.split(":", 1)[0] if ":" in title else title,
+        "title": title,
         "detail": note,
         "type": _text(row.get("request_type")) or _text(row.get("type")),
         "priority": _text(row.get("priority")) or _text(request_tags.get("priority")),
         "status": status.title(),
         "requester": _text(row.get("created_by")) or _text(row.get("requester")),
-        "createdAt": _text(row.get("created_at")) or _text(row.get("createdAt")),
-        "dueAt": _text(row.get("due_at")) or _text(row.get("dueAt")) or _text(request_tags.get("dueAt") or request_tags.get("due_at")),
-        "assetFqn": _text(row.get("uc_full_name")) or _text(row.get("assetFqn")),
+        "createdAt": created_text,
+        "dueAt": due_text,
+        "assetFqn": asset_fqn,
         "domain": _text(row.get("domain")) or _text(request_tags.get("domain")),
-        "slaState": _text(row.get("sla_state")) or _text(row.get("slaState")) or _text(request_tags.get("slaState") or request_tags.get("sla_state")),
+        "sla": sla_label,
+        "slaPolicy": sla_policy,
+        "slaState": sla_state,
         "assignedTo": _text(row.get("assigned_to")) or _text(row.get("assignedTo")) or _text(request_tags.get("assignedTo") or request_tags.get("assigned_to")),
         "reviewedAt": _text(row.get("reviewed_at")),
         "reviewedBy": _text(row.get("reviewed_by")),
@@ -1263,13 +1817,89 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
         (raw for raw, record in open_pairs if _text(record.get("requestId")) == selected_id),
         None,
     )
-    selected = _governance_request_detail_from_row(selected_raw) if selected_raw else None
+    selected = (
+        _governance_request_detail_from_row(selected_raw, store=store)
+        if selected_raw
+        else None
+    )
+    # Overdue: computable now that every request with a created_at carries a
+    # (default-policy) due date + slaState from _request_record.
+    sla_basis_requests = [record for record in open_requests if _text(record.get("dueAt"))]
+    overdue_items = [
+        record
+        for record in open_requests
+        if _lower(record.get("slaState")) in {"overdue", "crit", "critical", "breach"}
+    ]
+    overdue_metric: Dict[str, Any] = (
+        {
+            "key": "overdueItems",
+            "label": "Overdue Items",
+            "value": len(overdue_items),
+            "state": "available",
+            "reason": (
+                "Counted against recorded due dates, falling back to the "
+                f"default {_DEFAULT_SLA_DAYS}-day SLA from created_at when no "
+                "due date is recorded."
+            ),
+        }
+        if sla_basis_requests
+        else {
+            "key": "overdueItems",
+            "label": "Overdue Items",
+            "value": None,
+            "state": "unavailable",
+            "reason": "No request carries a created_at or due date to evaluate an SLA against.",
+        }
+    )
+    # SLA performance: median resolution time over resolved requests
+    # (reviewed_at - created_at). Honest formula, no fabrication.
+    resolution_hours: List[float] = []
+    for _, record in request_pairs:
+        if _lower(record.get("status")) not in {"approved", "rejected", "resolved", "closed"}:
+            continue
+        created_ts = _request_timestamp(record.get("createdAt"))
+        reviewed_ts = _request_timestamp(record.get("reviewedAt"))
+        if created_ts is None or reviewed_ts is None or reviewed_ts < created_ts:
+            continue
+        resolution_hours.append((reviewed_ts - created_ts).total_seconds() / 3600.0)
+    if resolution_hours:
+        ordered = sorted(resolution_hours)
+        mid = len(ordered) // 2
+        median_hours = (
+            ordered[mid]
+            if len(ordered) % 2
+            else (ordered[mid - 1] + ordered[mid]) / 2.0
+        )
+        sla_metric: Dict[str, Any] = {
+            "key": "slaPerformance",
+            "label": "SLA Performance",
+            "value": (
+                f"{median_hours:.1f}h median"
+                if median_hours < 48
+                else f"{median_hours / 24.0:.1f}d median"
+            ),
+            "medianResolutionHours": round(median_hours, 2),
+            "state": "available",
+            "reason": (
+                "Median of reviewed_at - created_at across "
+                f"{len(resolution_hours)} resolved request"
+                f"{'' if len(resolution_hours) == 1 else 's'}."
+            ),
+        }
+    else:
+        sla_metric = {
+            "key": "slaPerformance",
+            "label": "SLA Performance",
+            "value": None,
+            "state": "unavailable",
+            "reason": "No resolved requests carry both created_at and reviewed_at yet.",
+        }
     payload = {
         "metrics": [
             {"key": "pendingApprovals", "label": "Pending Approvals", "value": len(open_requests)},
-            {"key": "overdueItems", "label": "Overdue Items", "value": None, "state": "unavailable"},
+            overdue_metric,
             {"key": "policyExceptions", "label": "Policy Exceptions", "value": len(policy_exceptions)},
-            {"key": "slaPerformance", "label": "SLA Performance", "value": None, "state": "unavailable"},
+            sla_metric,
         ],
         "requests": open_requests,
         "selectedRequest": selected,
@@ -1282,7 +1912,55 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
     return _json_safe(_customer_safe_payload(payload))
 
 
-def _governance_request_detail_from_row(row: Mapping[str, Any]) -> Dict[str, Any] | None:
+def _request_comment_records(
+    row: Mapping[str, Any],
+    record: Mapping[str, Any],
+    store: Any = None,
+) -> List[Dict[str, Any]]:
+    """Comment timeline for a request from data the store already holds.
+
+    - review_note (written by the workbench Comment/Resolve buttons)
+    - audit events that reference this request (metadata_audit_log rows for
+      the affected asset whose payload mentions the request id)
+    No synthetic entries: if neither source has anything, this is empty.
+    """
+    comments: List[Dict[str, Any]] = []
+    review_note = _text(row.get("review_note"))
+    if review_note:
+        comments.append({
+            "id": f"review-note-{_text(record.get('requestId'))}",
+            "author": _text(row.get("reviewed_by")),
+            "at": _text(row.get("reviewed_at")),
+            "text": review_note,
+            "kind": "review-note",
+        })
+    raw_request_id = _text(row.get("request_id")) or _text(row.get("requestId"))
+    asset_fqn = _text(record.get("assetFqn"))
+    if store is not None and raw_request_id and asset_fqn:
+        for audit_row in _audit_rows(store, limit=100, entity_fqn=asset_fqn):
+            if _is_non_authoritative_evidence_row(audit_row):
+                continue
+            serialized = json.dumps(audit_row, default=str)
+            if raw_request_id not in serialized:
+                continue
+            text = _text(audit_row.get("detail")) or _text(audit_row.get("action"))
+            if not text:
+                continue
+            comments.append({
+                "id": _text(audit_row.get("audit_id")) or f"audit-{len(comments)}",
+                "author": _text(audit_row.get("actor_email")),
+                "at": _text(audit_row.get("created_at")),
+                "text": text,
+                "kind": "audit",
+            })
+    comments.sort(key=lambda item: _text(item.get("at")))
+    return comments
+
+
+def _governance_request_detail_from_row(
+    row: Mapping[str, Any],
+    store: Any = None,
+) -> Dict[str, Any] | None:
     row = _row_dict(row)
     if not row:
         return None
@@ -1292,11 +1970,15 @@ def _governance_request_detail_from_row(row: Mapping[str, Any]) -> Dict[str, Any
         after = {}
     if row.get("new_comment"):
         after = {**after, "description": _text(row.get("new_comment"))}
+    # `before` stays empty on purpose: filling it would require a per-asset
+    # metadata fetch (fan-out) that this composite payload must not do. The
+    # client renders after-only rows honestly.
     diff_rows = [
         {"field": key, "label": key.replace("_", " ").title(), "before": "", "after": value}
         for key, value in sorted(after.items())
         if _has_value(value)
     ]
+    comments = _request_comment_records(row, record, store=store)
     return _json_safe(_customer_safe_payload({
         **record,
         "diff": {"before": {}, "after": after, "rows": diff_rows},
@@ -1316,8 +1998,11 @@ def _governance_request_detail_from_row(row: Mapping[str, Any]) -> Dict[str, Any
                 "at": _text(row.get("reviewed_at")),
             },
         ],
-        "comments": [],
-        "commentsState": "unavailable",
+        # "unavailable" when empty keeps the honest legacy contract; the
+        # timeline flips to available the moment a real review note or
+        # request-linked audit event exists.
+        "comments": comments,
+        "commentsState": "available" if comments else "unavailable",
         "evidence": [],
         "evidenceState": "unavailable",
     }))
@@ -1340,7 +2025,7 @@ def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[st
         return None
     if _is_non_authoritative_evidence_row(row):
         return None
-    return _governance_request_detail_from_row(row)
+    return _governance_request_detail_from_row(row, store=store)
 
 
 def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[str, Any]:
@@ -1564,6 +2249,66 @@ def _customer_safe_payload(value: Any) -> Any:
     return value
 
 
+def _is_internal_audit_diff_key(key: Any) -> bool:
+    # Mirror of the frontend's isInternalAuditField deny-list: store ids,
+    # actor plumbing, and audit timestamps are not customer evidence even when
+    # they appear inside before/after JSON payloads.
+    normalized = re.sub(r"(?<!^)(?=[A-Z])", "_", _text(key)).lower()
+    return bool(
+        re.search(
+            r"(^|_)(audit_id|entity_id|request_id|entry_id|uc_full_name|identity_key|"
+            r"row_hash|created_at|updated_at|created_by|updated_by|actor_email|"
+            r"actor_role|actor|timestamp|before_json|after_json|requested_payload_json)(_|$)",
+            normalized,
+        )
+    )
+
+
+def _customer_safe_audit_diff_value(value: Any, *, depth: int = 0) -> Any:
+    """Field-whitelisted copy of a before/after payload: internal keys dropped,
+    strings sanitized, size capped so a pathological payload cannot flood the API."""
+    if depth > 3:
+        return None
+    if isinstance(value, Mapping):
+        safe: Dict[str, Any] = {}
+        for key, item in list(value.items())[:24]:
+            if _is_internal_audit_diff_key(key):
+                continue
+            safe[str(key)] = _customer_safe_audit_diff_value(item, depth=depth + 1)
+        return safe
+    if isinstance(value, (list, tuple)):
+        return [_customer_safe_audit_diff_value(item, depth=depth + 1) for item in list(value)[:8]]
+    if isinstance(value, str):
+        return _customer_safe_text(value)[:240]
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    return _customer_safe_text(str(value))[:240]
+
+
+def _audit_diff_has_content(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        # Any surviving whitelisted key counts as content — an empty-string
+        # value is still a real "field cleared" side of a diff.
+        return len(value) > 0
+    if isinstance(value, (list, tuple)):
+        return len(value) > 0
+    if isinstance(value, str):
+        return value.strip() != ""
+    return value is not None
+
+
+def _parse_audit_json(value: Any) -> Any:
+    if isinstance(value, (Mapping, list, tuple)):
+        return value
+    text_value = _text(value)
+    if not text_value:
+        return None
+    try:
+        return json.loads(text_value)
+    except (json.JSONDecodeError, TypeError):
+        return text_value
+
+
 def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str, Any]:
     safe = _customer_safe_payload(dict(row))
     raw_audit_id = _text(row.get("audit_id") or row.get("auditId"))
@@ -1576,15 +2321,34 @@ def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str
     if raw_request_id:
         safe["displayRequestId"] = _customer_safe_text(raw_request_id)
         safe["request_id"] = safe["displayRequestId"]
-    # Raw before/after JSON often contains internal store keys and
-    # actor-routing metadata. The customer API exposes event identity and status,
-    # but the raw diff is intentionally redacted until a governed evidence-export
-    # contract can decide which fields are safe to show.
+    # Before/after JSON is exposed through a field whitelist rather than
+    # blanked wholesale: internal store keys and actor plumbing are dropped,
+    # and only rows where nothing customer-safe remains stay redacted.
+    raw_before = _parse_audit_json(row.get("before_json") or row.get("beforeJson") or row.get("before"))
+    raw_after = _parse_audit_json(row.get("after_json") or row.get("afterJson") or row.get("after"))
+    safe_before = _customer_safe_audit_diff_value(raw_before)
+    safe_after = _customer_safe_audit_diff_value(raw_after)
     for key in ("before_json", "beforeJson", "before", "after_json", "afterJson", "after"):
         if key in safe:
             safe[key] = ""
-    safe["diffState"] = "redacted"
-    safe["diffReason"] = "Raw before/after metadata is redacted from the customer API; use the event ID to retrieve governed evidence through an approved export path."
+    def _diff_json(value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        if not _audit_diff_has_content(value):
+            return ""
+        return json.dumps(value)
+
+    if _audit_diff_has_content(safe_before) or _audit_diff_has_content(safe_after):
+        safe["before_json"] = _diff_json(safe_before)
+        safe["after_json"] = _diff_json(safe_after)
+        safe["diffState"] = "available"
+        safe["diffReason"] = ""
+    elif raw_before is not None or raw_after is not None:
+        safe["diffState"] = "redacted"
+        safe["diffReason"] = "Only internal store identifiers changed in this event; no customer-safe metadata fields remain after redaction."
+    else:
+        safe["diffState"] = "unavailable"
+        safe["diffReason"] = "No before/after metadata was recorded for this event."
     entity_fqn = _text(row.get("entity_fqn") or row.get("entityFqn") or row.get("asset_fqn") or row.get("assetFqn"))
     entity_id = _text(row.get("entity_id") or row.get("entityId"))
     if entity_fqn:
@@ -1602,6 +2366,12 @@ def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str
         safe["display_source"] = "Glossary governance workflow"
     else:
         safe["display_source"] = _customer_safe_text(row.get("source")) or "Governance audit log"
+    # Synthesize a display detail from action + target when the row recorded
+    # none — a column of rows all reading "No detail recorded" is placeholder
+    # spam, not evidence. When there is no target either, leave it empty; the
+    # UI suppresses the sub-line instead of repeating a placeholder.
+    if not _text(row.get("detail")) and entity_fqn:
+        safe["display_detail"] = f"{_event_title(_text(row.get('action')))} for {entity_fqn}"
     return safe
 
 
@@ -1646,6 +2416,34 @@ def _is_cde_asset(row: Mapping[str, Any]) -> bool:
     )
 
 
+def _cde_last_review(row: Mapping[str, Any]) -> str:
+    # A dedicated CDE review log doesn't exist yet, but the inventory row
+    # usually carries a real change timestamp (governance-store updated_at or
+    # information_schema last_altered). Surfacing that honestly beats the old
+    # hardcoded "Unavailable", which made every registry row look dead.
+    explicit = _row_tag_text(row, "cde_last_review", "last_review", "lastReview", "reviewed_at", "reviewedAt")
+    if explicit:
+        return explicit
+    return _row_text(row, "updated_at", "updatedAt", "last_altered", "lastAltered", "last_updated", "lastUpdated")
+
+
+def _recert_window_days(value: Any) -> int | None:
+    # Recert windows arrive as free-form tags ("90d", "6m", "1y", "180").
+    # Parse conservatively; anything unparseable means "window unknown" so we
+    # never fabricate an overdue verdict from a value we didn't understand.
+    raw = _lower(value)
+    match = re.match(r"^(\d+)\s*(d|day|days|m|mo|month|months|y|yr|year|years)?$", raw)
+    if not match:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2) or "d"
+    if unit.startswith("d"):
+        return amount
+    if unit.startswith("m"):
+        return amount * 30
+    return amount * 365
+
+
 def _cde_item(row: Mapping[str, Any]) -> Dict[str, Any]:
     fqn = _row_text(row, "fqn")
     name = _row_text(row, "table_name") or _asset_name(fqn)
@@ -1664,6 +2462,8 @@ def _cde_item(row: Mapping[str, Any]) -> Dict[str, Any]:
     source_column_fqn = f"{fqn}.{source_column}" if fqn and source_column and "." not in source_column else source_column
     recert_window = _row_tag_text(row, "cde_recert_window", "recert", "reviewWindow")
     source_backed = bool(source_column_fqn)
+    last_review = _cde_last_review(row)
+    certification_assigned = _lower(certification) not in UNASSIGNED_VALUES
     return {
         "id": fqn or name,
         "name": name,
@@ -1680,9 +2480,17 @@ def _cde_item(row: Mapping[str, Any]) -> Dict[str, Any]:
         "linkedPolicyState": "unavailable",
         "downstreamImpact": "Unavailable",
         "certification": certification,
-        "lastReview": "Unavailable",
+        "lastReview": last_review or "Unavailable",
+        "lastReviewSource": "asset-metadata" if last_review else "unavailable",
         "recert": recert_window or "Unavailable",
-        "status": "Source backed" if source_backed else "Control evidence unavailable",
+        # Status is the real certification value. Source backing used to be
+        # conflated into this field ("Source backed" / "Control evidence
+        # unavailable"), which hid the actual certification and read as a fake
+        # health verdict. It is now reported separately via sourceBacked /
+        # sourceStatus so the UI can render an honest, actionable indicator.
+        "status": certification if certification_assigned else "Certification pending",
+        "sourceBacked": source_backed,
+        "sourceStatus": "tagged" if source_backed else "untagged",
         "recertEvidence": (
             "Review cadence is backed by Unity Catalog CDE registry tags; mutation workflow evidence is unavailable."
             if recert_window
@@ -1691,7 +2499,7 @@ def _cde_item(row: Mapping[str, Any]) -> Dict[str, Any]:
         "healthEvidence": (
             "Source-of-record column is backed by Unity Catalog CDE registry tags."
             if source_backed
-            else "Quality/test-run evidence unavailable."
+            else "Tag cde_source_column on the asset to back this CDE with a source-of-record column."
         ),
     }
 
@@ -1712,12 +2520,32 @@ def cde_dashboard_payload(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
         if _lower(item.get("sensitivity")) not in UNASSIGNED_VALUES
         and _lower(item.get("sensitivity")) != "internal"
     ]
+    # Overdue reviews: only computable for rows that carry BOTH a parseable
+    # recert window and a real last-review timestamp. Rows missing either are
+    # excluded rather than guessed at; if no row qualifies the signal stays
+    # None so the API can report it as genuinely missing instead of "0".
+    now = pd.Timestamp.now(tz="UTC")
+    evaluated = 0
+    overdue_count = 0
+    for item in items:
+        window_days = _recert_window_days(item.get("recert"))
+        last_review_ts = _timestamp(item.get("lastReview"))
+        if window_days is None or last_review_ts is None:
+            continue
+        evaluated += 1
+        if (now - last_review_ts) > pd.Timedelta(days=window_days):
+            overdue_count += 1
     return {
         "summary": {
             "totalCdes": len(items),
-            "protectedCdes": None,
+            # Protected = sensitivity assigned and stronger than "internal" —
+            # the same population the sensitiveCandidates signal counts. This
+            # was previously hardcoded to None, which forced the route into a
+            # permanent degraded state.
+            "protectedCdes": len(protected),
             "sensitiveCandidates": len(protected),
-            "overdueReviews": None,
+            "overdueReviews": overdue_count if evaluated else None,
+            "reviewsEvaluated": evaluated,
             "domainsCovered": len(grouped),
         },
         "groups": groups,
@@ -1754,6 +2582,10 @@ def _audit_window_start(date_range: str | None) -> pd.Timedelta | None:
         return pd.Timedelta(days=7)
     if value in {"30d", "1m"}:
         return pd.Timedelta(days=30)
+    # 90d was silently falling through to "all time", so the widest range in
+    # the UI applied no filter at all while claiming a 90-day scope.
+    if value in {"90d", "3m"}:
+        return pd.Timedelta(days=90)
     return None
 
 
@@ -1761,7 +2593,8 @@ def _filter_audit_rows_by_range(rows: Sequence[Mapping[str, Any]], date_range: s
     window = _audit_window_start(date_range)
     if window is None:
         return [dict(row) for row in rows]
-    now = pd.Timestamp.utcnow()
+    # Timestamp.utcnow() is deprecated in pandas 4; now(tz=...) is equivalent.
+    now = pd.Timestamp.now(tz="UTC")
     cutoff = now - window
     filtered: List[Dict[str, Any]] = []
     for row in rows:
@@ -1792,17 +2625,86 @@ def _filter_audit_rows_by_visible_assets(
     return filtered
 
 
+def _audit_evidence_rows(store: Any, *, limit: int) -> List[Dict[str, Any]]:
+    # Prefer the SQL-side internal-action exclusion so LIMIT applies to
+    # customer-visible rows (identity-directory bookkeeping rows can dominate
+    # the newest N and starve the feed). Stores without the parameter fall
+    # back to the shared unfiltered fetch; the Python-side visibility filter
+    # below still guarantees correctness either way.
+    rows = _call_store(store, "list_metadata_audit", limit=limit, exclude_internal=True)
+    if rows is not None:
+        return _records(rows, limit=limit)
+    return _audit_rows(store, limit=limit)
+
+
+def _audit_last_event_at(rows: Sequence[Mapping[str, Any]]) -> str:
+    newest: pd.Timestamp | None = None
+    for row in rows:
+        timestamp = _timestamp(row.get("created_at") or row.get("createdAt") or row.get("updated_at") or row.get("updatedAt"))
+        if timestamp is not None and (newest is None or timestamp > newest):
+            newest = timestamp
+    return newest.isoformat() if newest is not None else ""
+
+
+def _is_policy_violation_audit_row(row: Mapping[str, Any]) -> bool:
+    action = _lower(row.get("action"))
+    if "policy-exception-detected" in action or "policy_exception_detected" in action:
+        return True
+    haystack = f"{action} {_lower(row.get('detail'))} {_lower(row.get('status'))}"
+    return "policy" in haystack and bool(
+        re.search(r"violation|exception|breach|denied|failed", haystack)
+    )
+
+
+def _audit_access_review_summary(store: Any) -> Dict[str, Any]:
+    """Back the 'Access reviews · open' KPI with real change-request state
+    instead of a text match on 'approv' in audit rows."""
+    request_rows, available, reason = _store_records(store, "list_change_requests", limit=500)
+    if not available:
+        return {"open": None, "resolved": None, "reason": reason or "Change-request source unavailable."}
+    trusted = [row for row in request_rows if not _is_non_authoritative_evidence_row(row)]
+    open_statuses = {"", "pending", "open", "new", "in review", "in_review"}
+    resolved_statuses = {"approved", "rejected", "closed", "resolved", "cancelled", "canceled"}
+    open_count = sum(1 for row in trusted if _lower(row.get("status")) in open_statuses)
+    resolved_count = sum(1 for row in trusted if _lower(row.get("status")) in resolved_statuses)
+    return {"open": open_count, "resolved": resolved_count, "reason": ""}
+
+
+def _audit_source_table(store: Any) -> str:
+    # Real provenance for the footer: the governed Delta table the evidence is
+    # read from, not an internal source slug.
+    catalog = _text(getattr(store, "catalog", ""))
+    schema = _text(getattr(store, "schema", ""))
+    if catalog and schema:
+        return f"{catalog}.{schema}.metadata_audit_log"
+    return ""
+
+
+AUDIT_EVIDENCE_DEFAULT_LIMIT = 500
+
+
 def audit_evidence_payload(
     *,
     store: Any,
     audit_id: str | None = None,
     date_range: str | None = None,
-    limit: int = 200,
+    # 500, not 200: visibility scoping legitimately withholds rows about
+    # assets outside the actor's scope, so a small fetch window starves the
+    # surviving feed of older updated/status events.
+    limit: int = AUDIT_EVIDENCE_DEFAULT_LIMIT,
     visible_asset_fqns: Sequence[str] | None = None,
 ) -> Dict[str, Any]:
-    ranged_audit = _filter_audit_rows_by_range(_audit_rows(store, limit=limit), date_range)
+    fetched = _audit_evidence_rows(store, limit=limit)
+    ranged_audit = _filter_audit_rows_by_range(fetched, date_range)
     scoped_audit = _filter_audit_rows_by_visible_assets(ranged_audit, visible_asset_fqns)
     audit = [row for row in scoped_audit if _is_customer_visible_audit_row(row)]
+    # Newest customer-visible event regardless of the selected range, so an
+    # empty 24h window can point the user at where the activity actually is.
+    visible_any_range = [
+        row
+        for row in _filter_audit_rows_by_visible_assets(fetched, visible_asset_fqns)
+        if _is_customer_visible_audit_row(row)
+    ]
     safe_audit = [_customer_safe_audit_row(row, index) for index, row in enumerate(audit)]
     selected = None
     if audit_id:
@@ -1821,22 +2723,37 @@ def audit_evidence_payload(
     failed = [row for row in audit if _lower(row.get("status")) == "failed"]
     policy = [row for row in audit if "policy" in _lower(row.get("action")) or "policy" in _lower(row.get("detail"))]
     approvals = [row for row in audit if "approv" in _lower(row.get("action")) or "approv" in _lower(row.get("detail"))]
+    policy_violations = [row for row in audit if _is_policy_violation_audit_row(row)]
+    access_reviews = _audit_access_review_summary(store)
     return {
         "summary": {
             "totalChanges": len(audit),
             "dateRange": _text(date_range),
             "policyChanges": len(policy),
+            "policyViolations": len(policy_violations),
             "approvals": len(approvals),
+            "accessReviewsOpen": access_reviews["open"],
+            "reviewsResolved": access_reviews["resolved"],
+            "accessReviewSource": (
+                "governance change requests" if access_reviews["open"] is not None else access_reviews["reason"]
+            ),
             "failedActions": len(failed),
+            "lastEventAt": _audit_last_event_at(visible_any_range),
             "summarySource": "governance audit log",
+            "sourceTable": _audit_source_table(store),
             "rowScope": "visible-assets" if visible_asset_fqns is not None else "governance audit log",
             "hiddenRowsExcluded": max(0, len(ranged_audit) - len(audit)),
+            # Split the exclusion so the UI can say WHY rows were withheld:
+            # visibility scoping (row-level security on assets outside the
+            # actor's scope) is a different story than internal bookkeeping.
+            "visibilityScopedRowsExcluded": max(0, len(ranged_audit) - len(scoped_audit)),
+            "internalRowsExcluded": max(0, len(scoped_audit) - len(audit)),
         },
         "events": safe_audit,
         "selectedEvent": selected,
         "evidence": {
-            "before": "",
-            "after": "",
+            "before": selected.get("before_json") or "",
+            "after": selected.get("after_json") or "",
             "diffState": selected.get("diffState") if selected else "unavailable",
             "diffReason": selected.get("diffReason") if selected else "No selected audit event.",
             "approvalChain": [],
@@ -1846,6 +2763,19 @@ def audit_evidence_payload(
         if selected
         else None,
     }
+
+
+def _admin_internal_audit_row(row: Mapping[str, Any]) -> bool:
+    """True for internal bookkeeping audit rows (identity mirroring etc.).
+
+    Live audit actions arrive hyphenated ("identity-directory-upserted");
+    the shared _INTERNAL_EVENT_TOKENS list is underscore/space-form, so
+    _recent_events' own substring check never matched them and the admin
+    activity feed rendered 100% internal noise. Normalize separators here
+    before matching.
+    """
+    action = _lower(row.get("action")).replace("-", "_").replace(" ", "_")
+    return any(token.replace(" ", "_") in action for token in _INTERNAL_EVENT_TOKENS)
 
 
 def _admin_policy_requirements(command: Mapping[str, Any]) -> Dict[str, Any]:
@@ -1873,34 +2803,42 @@ def _admin_policy_requirements(command: Mapping[str, Any]) -> Dict[str, Any]:
             "reason": _text(policy_kpi.get("reason")) or "Derived only from backed policy-exception audit/request text.",
         },
     ]
-    by_domain = [
-        {
-            "domain": _text(row.get("domain") or row.get("label")) or "Unassigned",
-            "required": None,
-            "enforced": None,
-            "coverage": None,
-            "trend": [],
-            "state": "unavailable",
-            "metadataCoverage": row.get("score", row.get("value")),
-            "assetCount": row.get("assetCount"),
-            "reason": unavailable_reason,
-        }
-        for row in command.get("posture", {}).get("byDomain", [])[:5]
-        if isinstance(row, Mapping)
-    ]
+    by_domain = []
+    for row in command.get("posture", {}).get("byDomain", [])[:5]:
+        if not isinstance(row, Mapping):
+            continue
+        metadata_coverage = row.get("score", row.get("value"))
+        by_domain.append(
+            {
+                "domain": _text(row.get("domain") or row.get("label")) or "Unassigned",
+                "required": None,
+                "enforced": None,
+                # `coverage` is METADATA coverage (backed by visible-asset
+                # diagnostics), not policy-enforcement coverage — there is no
+                # policy library/enforcement source yet. Surfacing the real
+                # per-domain number (with coverageKind so the UI can label it
+                # honestly) replaces the previous hard-coded None that forced
+                # the Control Center to render five disabled "Unavailable"
+                # rows despite real data sitting in metadataCoverage.
+                "coverage": metadata_coverage,
+                "coverageKind": "metadata",
+                "trend": [],
+                "state": "available" if metadata_coverage is not None else "unavailable",
+                "metadataCoverage": metadata_coverage,
+                "assetCount": row.get("assetCount"),
+                "reason": (
+                    "Metadata coverage from visible-asset diagnostics; policy-enforcement coverage is not yet backed."
+                    if metadata_coverage is not None
+                    else unavailable_reason
+                ),
+            }
+        )
+    # NOTE: the all-null `compliance` block that used to live here was
+    # pruned — nothing in the frontend or tests consumed it, and emitting
+    # a permanently-null structure invites the UI to render fake rows.
     return {
         "cards": cards,
         "byDomain": by_domain,
-        "compliance": {
-            "score": None,
-            "state": "unavailable",
-            "reason": unavailable_reason,
-            "segments": [
-                {"key": "compliant", "label": "Compliant", "value": None, "state": "unavailable"},
-                {"key": "atRisk", "label": "At Risk", "value": None, "state": "unavailable"},
-                {"key": "nonCompliant", "label": "Non-Compliant", "value": None, "state": "unavailable"},
-            ],
-        },
         "capabilities": {
             "policyLibrary": False,
             "policyCoverage": False,
@@ -1963,8 +2901,21 @@ def _admin_integrations(
     audit_rows: Sequence[Mapping[str, Any]],
     pending_requests: Sequence[Mapping[str, Any]],
     ai_status: Mapping[str, Any] | None = None,
+    runtime: Mapping[str, Any] | None = None,
+    jobs: Sequence[Mapping[str, Any]] | None = None,
 ) -> List[Dict[str, Any]]:
     ai_state = _text(ai_status.get("state") if ai_status else "") or "unavailable"
+    # SQL Warehouse state comes from the live runtime diagnostics: the app is
+    # bound to a warehouse (client.warehouseId) and runtime.state says whether
+    # the SQL client is actually serving queries. Reporting this as a real row
+    # (instead of leaving the frontend to render a fabricated "Unavailable"
+    # slot) is what makes the Integrations panel trustworthy.
+    runtime = runtime if isinstance(runtime, Mapping) else {}
+    client = runtime.get("client") if isinstance(runtime.get("client"), Mapping) else {}
+    warehouse_id = _text(client.get("warehouseId"))
+    runtime_state = _lower(runtime.get("state"))
+    warehouse_live = runtime_state == "live" and bool(warehouse_id)
+    job_rows = [row for row in (jobs or []) if isinstance(row, Mapping)]
     return [
         {
             "key": "unityCatalog",
@@ -1996,6 +2947,42 @@ def _admin_integrations(
             "health": "Unavailable",
             "reason": "Notification delivery health is not exposed by the current Admin payload.",
         },
+        # New rows are appended (not inserted) so existing consumers that
+        # address integrations by index keep working.
+        {
+            "key": "sqlWarehouse",
+            "label": "Databricks SQL Warehouse",
+            "subtitle": (
+                f"Warehouse {warehouse_id}" if warehouse_id else "No warehouse binding reported"
+            ),
+            "state": "connected" if warehouse_live else (runtime_state or "unavailable"),
+            "health": "Healthy" if warehouse_live else "Unavailable",
+            **(
+                {}
+                if warehouse_live
+                else {"reason": "Runtime diagnostics did not report a live SQL warehouse binding."}
+            ),
+        },
+        {
+            "key": "lakeflowJobs",
+            "label": "Lakeflow Jobs",
+            "subtitle": (
+                f"{len(job_rows)} job{'s' if len(job_rows) != 1 else ''} in workspace inventory"
+                if job_rows
+                else "Jobs API returned no rows"
+            ),
+            "state": "connected" if job_rows else "unavailable",
+            "health": "Healthy" if job_rows else "Unavailable",
+            **(
+                {}
+                if job_rows
+                else {"reason": "The Databricks Jobs API returned no scheduled-job rows for the app principal."}
+            ),
+        },
+        # Deliberately NO "Model Serving" / "Incident management" rows: no
+        # runtime probe backs those products, and emitting permanent
+        # "Unavailable" placeholders for aspirational integrations destroys
+        # trust in the rows that ARE real.
     ]
 
 
@@ -2010,7 +2997,15 @@ def admin_control_center_payload(
     jobs: Sequence[Mapping[str, Any]] | None = None,
 ) -> Dict[str, Any]:
     command = command_center_payload(visible_assets=visible_assets, store=store)
-    audit = _audit_rows(store, limit=10)
+    # Fetch a deep audit window: _recent_events drops internal bookkeeping
+    # rows (identity_directory/entity_registry/alias/notification/projection/
+    # mirror upserts), and with only 10 raw rows the whole activity feed was
+    # routinely 100% internal noise — leaving zero real governance events.
+    audit = _audit_rows(store, limit=50)
+    # Pre-filter with separator-normalized matching (see
+    # _admin_internal_audit_row): live actions are hyphenated and slip past
+    # _recent_events' underscore-form token check.
+    governance_audit = [row for row in audit if not _admin_internal_audit_row(row)]
     pending_requests = command.get("governance", {}).get("pendingRequests", [])
     visible_asset_count = command.get("estate", {}).get("visibleAssetCount")
     return {
@@ -2052,11 +3047,13 @@ def admin_control_center_payload(
             audit_rows=audit,
             pending_requests=pending_requests,
             ai_status=ai_status,
+            runtime=runtime,
+            jobs=jobs,
         ),
         "access": _admin_access_summary(store),
         "runtimeSummary": _admin_runtime_summary(runtime, ai_status=ai_status),
         "system": _admin_runtime_summary(runtime, ai_status=ai_status),
-        "recentAdminActivity": _recent_events(audit, limit=5),
+        "recentAdminActivity": _recent_events(governance_audit, limit=10),
     }
 
 

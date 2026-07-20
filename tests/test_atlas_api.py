@@ -285,7 +285,8 @@ class AtlasApiTests(unittest.TestCase):
         self.assertNotIn("quality-runner", dashboard["meta"]["source"])
         self.assertEqual(dashboard["meta"]["state"], "degraded")
         self.assertFalse(dashboard["meta"]["capabilities"]["controlCoverage"])
-        self.assertIsNone(dashboard["summary"]["protectedCdes"])
+        # protectedCdes is now computed from real sensitivity metadata.
+        self.assertEqual(dashboard["summary"]["protectedCdes"], 1)
         self.assertEqual(dashboard["summary"]["sensitiveCandidates"], 1)
 
         self.assertEqual(detail_response.status_code, 200)

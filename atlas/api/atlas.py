@@ -104,6 +104,8 @@ def _databricks_job_inventory(
     include_latest_runs: bool = False,
     workspace_host: str = "",
 ) -> list[dict[str, Any]]:
+    # Callers may pass None when the app-principal client could not be
+    # constructed; degrade to an empty inventory instead of raising.
     jobs_api = getattr(getattr(uc_client, "w", None), "jobs", None)
     list_jobs = getattr(jobs_api, "list", None)
     if not callable(list_jobs):
@@ -588,6 +590,11 @@ def api_command_center(
         return atlas_metrics.command_center_payload(
             visible_assets=visible_assets,
             store=_store_for_read(),
+            # Snapshot history and lineage coverage are partitioned by the
+            # same scope as the payload cache so trends always match the
+            # numbers the viewer actually sees.
+            scope_key=cache_scope,
+            system_uc=uc_client,
         )
 
     # Stale-while-revalidate: when the TTL lapses, serve the last good payload
@@ -1075,15 +1082,26 @@ def api_cde_dashboard(
         60,
         lambda: atlas_metrics.cde_dashboard_payload(visible_assets=_visible_assets(request)),
     )
+    # The route used to wrap EVERY response as state=degraded, so /atlas/cde
+    # looked permanently broken even when items were fully backed by
+    # actor-visible inventory. Now: degraded only when the registry has no
+    # backed rows; otherwise available, with warnings listing which signals
+    # are still partial.
+    items_backed = bool(isinstance(payload, dict) and payload.get("items"))
+    summary = payload.get("summary") if isinstance(payload, dict) else None
     warnings = [
         "Dedicated CDE control coverage is unavailable; controls are marked unavailable rather than inferred."
     ]
+    if items_backed and isinstance(summary, dict) and summary.get("overdueReviews") is None:
+        warnings.append(
+            "Overdue-review counts require both a recert window tag and a last-review timestamp; no visible CDE row carries both yet."
+        )
     return _wrap(
         payload,
         request,
         source="unity-catalog-inventory+governance-store",
-        state="degraded",
-        authoritative=False,
+        state="available" if items_backed else "degraded",
+        authoritative=items_backed,
         warnings=warnings,
         capabilities={"controlCoverage": False},
     )
@@ -1128,7 +1146,9 @@ def api_audit_evidence(
     request: Request,
     audit_id: Optional[str] = Query(default=None),
     date_range: Optional[str] = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=500),
+    # Default matches AUDIT_EVIDENCE_DEFAULT_LIMIT: visibility scoping drops
+    # rows about out-of-scope assets, so a 200-row fetch starved the feed.
+    limit: int = Query(default=500, ge=1, le=500),
     refresh: Optional[str] = Query(default=None),
 ) -> JSONResponse:
     from runtime_app import _ensure_live_runtime, _store_for_read, _visible_assets
@@ -1289,8 +1309,8 @@ def api_admin_control_center(
         _fast_bootstrap_inventory_summary,
         _request_cache_scope,
         _store_for_read,
+        _uc,
         _uc_runtime_status_fast,
-        _uc_for_request,
         _visible_assets,
     )
 
@@ -1329,6 +1349,16 @@ def api_admin_control_center(
                 "provider": "genie",
                 "message": f"{exc.__class__.__name__}: {exc}",
             }
+        # Jobs inventory MUST use the app-principal client: the per-request
+        # OBO token frequently lacks the `jobs` scope, so the SDK pager
+        # raised and the Scheduled-jobs table rendered empty even though 10+
+        # real jobs exist. Jobs inventory is read-only workspace metadata —
+        # the same app-principal pattern as `system_uc` reads elsewhere.
+        try:
+            jobs_uc = _uc()
+        except Exception:
+            # _databricks_job_inventory degrades None to an empty inventory.
+            jobs_uc = None
         return atlas_metrics.admin_control_center_payload(
             visible_assets=_visible_assets(request),
             store=_store_for_read(),
@@ -1345,7 +1375,9 @@ def api_admin_control_center(
             actor_role=role,
             ai_status=ai_status,
             jobs=_databricks_job_inventory(
-                _uc_for_request(request),
+                jobs_uc,
+                limit=12,
+                include_latest_runs=True,
                 workspace_host=cfg.workspace_host,
             ),
         )

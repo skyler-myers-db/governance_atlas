@@ -5,7 +5,6 @@ import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { workspaceAccessBanner } from "../lib/capabilities";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { InlineStatusBanner } from "./ShellStatePrimitives";
-import { PRODUCT } from "../config/product";
 import { GlobalHeader } from "./primitives/GlobalHeader";
 import { TopbarSearch } from "./primitives/TopbarSearch";
 import { InboxPanel } from "./primitives/InboxPanel";
@@ -302,14 +301,13 @@ function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
 
 // Atlas AI thinking-stage. Renders while a question is in-flight to show
 // the user that the agent is preparing a query plan against governed metadata.
-// The plan lines below are illustrative of the system tables the runtime
-// inspects (governance_state.*, system.access.table_lineage, etc.) and are
-// rotated as the request proceeds. The real backend may return a structured
-// plan in the future; until then this stage gives the operator a visible
-// "How I'm answering this" affordance instead of an opaque spinner.
+// Progress copy while the AI provider responds. These lines describe the
+// governed-metadata pipeline in general terms only — never name a specific
+// table or claim a query happened, because the backend does not return a
+// real execution plan and fabricated evidence violates the honesty rule.
 const AI_PLAN_LINES = [
-  ["Reading governance_state.kpi_snapshot", "joined to UC inventory"],
-  ["Walking system.access.table_lineage", "for citation candidates"],
+  ["Scoping the question", "governed metadata only"],
+  ["Querying governed metadata", "Unity Catalog + governance store"],
   ["Filtering by actor visibility", "permission-aware metadata only"],
   ["Composing grounded answer", "no raw rows read"],
 ];
@@ -552,18 +550,6 @@ export default function AppFrame({
     onModuleChange?.("home");
   };
 
-  const openFooterDestination = (destination) => {
-    if (destination === "status") {
-      onOpenCapabilities?.();
-      return;
-    }
-    onModuleChange?.("help");
-    if (typeof window !== "undefined") {
-      window.setTimeout(() => {
-        window.location.hash = destination;
-      }, 0);
-    }
-  };
 
   const handleSignOut = () => {
     if (typeof window === "undefined") return;
@@ -933,7 +919,7 @@ export default function AppFrame({
                 void openSearchResult(assetFqn);
               }}
               topDirectResult={topDirectResult}
-              placeholder="Search assets, columns, glossary terms, owners..."
+              placeholder="Search assets, glossary terms, owners..."
             />
           )}
         />
@@ -956,23 +942,6 @@ export default function AppFrame({
         {children}
       </main>
 
-      <footer className="ga-shell-footer" aria-label="Governance Atlas footer" hidden>
-        <span className="ga-shell-footer-copyright">{PRODUCT.copyright}</span>
-        <div className="ga-shell-footer-links">
-          <button type="button" onClick={() => openFooterDestination("privacy")}>Privacy</button>
-          <button type="button" onClick={() => openFooterDestination("terms")}>Terms</button>
-          <button type="button" onClick={() => openFooterDestination("support")}>Support</button>
-          <button
-            aria-label={footerStatusLabel ? `System Status: ${footerStatusLabel}` : "System Status"}
-            className={`ga-system-status ${footerStatusTone ? `tone-${footerStatusTone}` : ""}`.trim()}
-            type="button"
-            onClick={() => openFooterDestination("status")}
-          >
-            System Status
-            {footerStatusTone ? <i aria-hidden="true" /> : null}
-          </button>
-        </div>
-      </footer>
 
       {/* ⌘K hint pill in the bottom-right. The floating dark-mode
           toggle was removed 2026-04-19 round 3 — operator asked for
