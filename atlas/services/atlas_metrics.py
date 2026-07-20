@@ -442,7 +442,10 @@ def _recent_events(audit_rows: Sequence[Mapping[str, Any]], limit: int = 8) -> L
             break
         status = _lower(row.get("status"))
         action = _text(row.get("action"))
-        if any(token in action.lower() for token in _INTERNAL_EVENT_TOKENS):
+        # Live audit actions are hyphenated ("identity-directory-upserted");
+        # normalize separators so the underscore token list matches all forms.
+        normalized_action = action.lower().replace("-", "_").replace(" ", "_")
+        if any(token.replace(" ", "_") in normalized_action for token in _INTERNAL_EVENT_TOKENS):
             continue
         event_text = " ".join(
             _lower(row.get(key))
@@ -989,7 +992,9 @@ def _cde_assets(assets_df: pd.DataFrame, *, limit: int = 4) -> tuple[int, List[D
     rows: List[Dict[str, Any]] = []
     for _, row in assets_df.iterrows():
         row_map = _row_dict(row)
-        if not asset_service._asset_is_cde(row_map):
+        # Same detection the CDE registry surface uses (_is_cde_asset), so
+        # the hero "CDEs tracked" count always matches the registry count.
+        if not _is_cde_asset(row_map):
             continue
         count += 1
         if len(rows) >= limit:
