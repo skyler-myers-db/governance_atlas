@@ -245,10 +245,10 @@ describe("DiscoveryWorkspace — honest card rendering (Tranche C)", () => {
       initialSelectedAssetFqn: noStewardAsset.fqn,
     });
 
+    // The "Steward team" row is dropped entirely when no steward-role owner
+    // exists — a permanent "Unassigned" metric row reads as broken data.
     await waitFor(() => {
-      const stewardValue = previewMetricValue(container, "Steward team");
-      expect(stewardValue).toContain("Unassigned");
-      expect(stewardValue).not.toContain("David Lin");
+      expect(previewMetricValue(container, "Steward team")).toBe("");
     });
   });
 });
