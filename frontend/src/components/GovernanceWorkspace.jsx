@@ -632,7 +632,11 @@ export default function GovernanceWorkspace({
     success: "",
   });
   const [northstarWorkbench, setNorthstarWorkbench] = useState(null);
-  const [northstarLoading, setNorthstarLoading] = useState(false);
+  // Starts true: the workbench fetch begins on mount, and initializing to
+  // false let the first frames render definitive "0 open work items" zeros
+  // while the request was in flight (the hydration-zero bug the perf
+  // verifier BLOCKed on). Loading must be true until real data or an error.
+  const [northstarLoading, setNorthstarLoading] = useState(true);
   const [northstarError, setNorthstarError] = useState("");
   const [northstarSelectedRequestId, setNorthstarSelectedRequestId] = useState("");
   const [northstarDetail, setNorthstarDetail] = useState(null);
@@ -1207,6 +1211,10 @@ export default function GovernanceWorkspace({
   const selectedDiffRows = Array.isArray(northstarSelectedDetail?.diff?.rows)
     ? northstarSelectedDetail.diff.rows.filter((row) => textValue(row?.after) || textValue(row?.before))
     : [];
+  // Hydrating = fetch in flight with no payload yet. Every count on this
+  // surface must show a loading placeholder in that window — never a
+  // definitive zero that flips to the real number when the response lands.
+  const northstarHydrating = northstarLoading && !northstarWorkbench;
   const northstarCanMutate = canMutateGovernanceRequests(currentUser || {}, bootstrap || {});
   const northstarCanFileWorkItems = canFileGovernanceWorkItems(currentUser || {}, bootstrap || {});
   const northstarMutationRole = governanceMutationRole(currentUser || {}, bootstrap || {}) || "Reader";
@@ -1229,8 +1237,10 @@ export default function GovernanceWorkspace({
       <header className="gh-governance-ns-hero">
         <div>
           <span className="gh-governance-ns-eyebrow">Stewardship Workbench</span>
-          <h1>
-            {`${openWorkItemCount.toLocaleString()} open work items · ${northstarSlaSummary}`}
+          <h1 aria-busy={northstarHydrating || undefined}>
+            {northstarHydrating
+              ? "Loading work queue…"
+              : `${openWorkItemCount.toLocaleString()} open work items · ${northstarSlaSummary}`}
           </h1>
           <p>
             {northstarPrototypeEvidence
@@ -1437,7 +1447,7 @@ export default function GovernanceWorkspace({
             onClick={() => setNorthstarQueueFilter(tab.key)}
             type="button"
           >
-            {tab.label} <span>{tab.count}</span>
+            {tab.label} <span>{northstarHydrating ? "…" : tab.count}</span>
           </button>
         ))}
       </div>
@@ -1447,7 +1457,11 @@ export default function GovernanceWorkspace({
           <div className="gh-governance-ns-panel-head">
             <div>
               <h2>Work queue</h2>
-              <span>{northstarRequests.length} item{northstarRequests.length === 1 ? "" : "s"} · sorted by {northstarQueueSortLabel}</span>
+              <span aria-busy={northstarHydrating || undefined}>
+                {northstarHydrating
+                  ? "Loading work items…"
+                  : `${northstarRequests.length} item${northstarRequests.length === 1 ? "" : "s"} · sorted by ${northstarQueueSortLabel}`}
+              </span>
               {openScopeSummary && !northstarPrototypeEvidence ? (
                 <span className="gh-governance-ns-scope-caption">{openScopeSummary}</span>
               ) : null}
