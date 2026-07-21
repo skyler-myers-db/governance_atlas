@@ -815,15 +815,25 @@ def api_asset_360(asset_fqn: str, request: Request) -> JSONResponse:
 
 
 def api_governance_workbench(request: Request) -> JSONResponse:
-    from runtime_app import _ensure_live_runtime, _store_for_read
+    from runtime_app import _ensure_live_runtime, _store_for_read, _visible_assets
 
     _ensure_live_runtime()
     cache_key = _route_cache_key("atlas_governance_workbench_payload", _request_scope_key(request))
-    payload = _ttl_value(
-        cache_key,
-        30,
-        lambda: atlas_metrics.governance_workbench_payload(store=_store_for_read()),
-    )
+
+    def load_workbench_payload() -> dict[str, Any]:
+        # Visible-asset scope powers the honest "N target assets outside the
+        # visible estate" caption. If the inventory read fails, the payload
+        # simply omits the scope split (never fabricates a count of 0).
+        try:
+            visible_asset_fqns = _extract_visible_asset_fqns(_visible_assets(request)) or None
+        except Exception:
+            visible_asset_fqns = None
+        return atlas_metrics.governance_workbench_payload(
+            store=_store_for_read(),
+            visible_asset_fqns=visible_asset_fqns,
+        )
+
+    payload = _ttl_value(cache_key, 30, load_workbench_payload)
     payload_meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
     source_available = payload_meta.get("sourceAvailable") is not False
     source_reason = _normalize_str(payload_meta.get("sourceReason")) or "Governance store requests are unavailable."

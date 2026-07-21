@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import threading
 import time
 import uuid
 import json
@@ -14,15 +15,52 @@ from atlas.services import assets as asset_service
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
+_TTL_REFRESHING: set[str] = set()
+_TTL_REFRESH_LOCK = threading.Lock()
 _OWNER_TYPES = {"business", "technical", "steward"}
 _ASSET_CLASSIFICATION_TAG_KEYS = {"domain", "tier", "certification", "sensitivity"}
 _GLOSSARY_TERM_STATUSES = {"draft", "in_review", "approved", "rejected", "deprecated"}
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
+    """TTL cache with stale-while-revalidate.
+
+    The governance summary loader chains ~8 serial warehouse SQL statements
+    (inventory + change requests + activity + glossary frames), which is a
+    20-33s rebuild on the live warehouse. Blocking the request thread on that
+    rebuild every time the TTL lapsed is exactly the 20-33s "warm" latency
+    the perf audit measured on /api/governance/summary. On expiry we now
+    serve the last good value immediately and rebuild in a background thread;
+    only the first-ever call (no stale value) pays the full build cost.
+    """
     now = time.time()
     cached = _TTL_CACHE.get(key)
     if cached and now - cached[0] < ttl_s:
+        return cached[1]
+    if cached is not None:
+        # Stale value exists: kick off (at most one) background refresh and
+        # serve stale. Failures leave the stale value in place — governance
+        # reads must degrade to slightly-old data, never to an error page.
+        with _TTL_REFRESH_LOCK:
+            should_refresh = key not in _TTL_REFRESHING
+            if should_refresh:
+                _TTL_REFRESHING.add(key)
+        if should_refresh:
+            def _refresh() -> None:
+                try:
+                    try:
+                        _TTL_CACHE[key] = (time.time(), loader())
+                    except Exception:
+                        pass
+                finally:
+                    with _TTL_REFRESH_LOCK:
+                        _TTL_REFRESHING.discard(key)
+
+            threading.Thread(
+                target=_refresh,
+                name=f"governance-ttl-refresh-{key[:40]}",
+                daemon=True,
+            ).start()
         return cached[1]
     value = loader()
     _TTL_CACHE[key] = (now, value)
@@ -285,6 +323,10 @@ def _queue_summary_from_live_requests(request_records: List[Dict[str, Any]]) -> 
         "source": "live",
         "laneCounts": lane_counts,
         "openTaskCount": len(request_records),
+        # The queue is built from visible-estate-scoped request records; ship
+        # the scope with the data so the UI captions it correctly.
+        "scope": "visible-estate",
+        "scopeCaption": "Open requests on assets in the visible estate",
         "observedAt": "",
         "staleAfter": "",
     }
@@ -1005,10 +1047,9 @@ def governance_summary(
             visible_asset_keys,
         )
         pending_request_scope_safe = len(raw_pending_request_records) == len(pending_request_records)
-        try:
-            requests = store.list_change_requests(limit=5000)
-        except Exception:
-            requests = pd.DataFrame()
+        # NOTE (perf): a second unfiltered list_change_requests(limit=5000)
+        # fetch used to run here and was never read — one whole warehouse
+        # round-trip per cold build for nothing. Removed.
         try:
             activity_events = store.list_activity_events(limit=200)
         except Exception:
@@ -1076,6 +1117,16 @@ def governance_summary(
             {
                 "label": "Open requests",
                 "value": int(queue_summary.get("openTaskCount") or 0),
+                # Scope caption: this KPI counts only requests targeting
+                # assets in the actor-visible estate. The workbench counts
+                # ALL open requests — both are correct, and each surface now
+                # says which population it counts (the audit found 21 vs 40
+                # with no caption on either side).
+                "scope": "visible-estate",
+                "caption": "in visible estate",
+                "outOfScopeOpenCount": max(
+                    0, len(raw_pending_request_records) - len(pending_request_records)
+                ),
             },
         ]
 

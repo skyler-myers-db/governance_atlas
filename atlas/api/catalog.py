@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from atlas.api.identity import _request_auth_mode, _user_email
+from atlas.services import atlas_metrics
 from atlas.services import capabilities as capability_service
 from atlas.services import custom_properties as cp_service
 from atlas.services import databricks_evidence
@@ -1082,6 +1083,48 @@ def api_get_logical_column_group(group_id: str, request: Request) -> JSONRespons
 # -----------------------------------------------------------------------------
 
 
+# Only these keys leave /api/audit/events. The endpoint previously returned
+# raw store rows (uc_full_name, new_uc_tags_json, pandas-NaN "nan" strings)
+# with no visibility scoping, while the Audit Evidence browser whitelisted —
+# the same event looked different (and leaked more) depending on the URL.
+_AUDIT_EVENT_FIELD_WHITELIST = (
+    "displayAuditId",
+    "audit_id",
+    "auditEventId",
+    "entity_type",
+    "entity_fqn",
+    "column_name",
+    "action",
+    "source",
+    "display_source",
+    "status",
+    "detail",
+    "display_detail",
+    "actor_email",
+    "actor_role",
+    "created_at",
+    "request_id",
+    "displayRequestId",
+    "before",
+    "after",
+    "diffState",
+    "diffReason",
+    "object_label",
+)
+
+
+def _scrub_audit_value(value: Any) -> Any:
+    """Drop pandas NaN leakage: real NaN/NaT and their stringified forms
+    ("nan"/"None"/"NaT") must never reach a customer payload."""
+    if value is None:
+        return None
+    if isinstance(value, float) and value != value:
+        return None
+    if isinstance(value, str) and value.strip().lower() in {"nan", "none", "nat", "null"}:
+        return ""
+    return value
+
+
 def api_audit_events(
     request: Request,
     actorEmail: str | None = None,
@@ -1094,6 +1137,29 @@ def api_audit_events(
 ) -> JSONResponse:
     # Gate to admins + stewards. Readers should not see audit trails.
     _steward_or_admin(request)
+    from runtime_app import _visible_assets
+
+    # Same row-level security as the Audit Evidence browser: fail closed when
+    # the visibility scope cannot be established rather than serving the
+    # whole unscoped audit ledger.
+    try:
+        assets_frame = _visible_assets(request)
+        visible_fqns = [
+            _normalize_str(value)
+            for value in (
+                assets_frame["fqn"].dropna().astype(str).tolist()
+                if assets_frame is not None
+                and not getattr(assets_frame, "empty", True)
+                and "fqn" in assets_frame.columns
+                else []
+            )
+            if _normalize_str(value)
+        ]
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Audit visibility scope could not be verified; audit events are unavailable rather than unscoped.",
+        )
     store = _store_read()
     try:
         frame = store.list_audit_events(
@@ -1108,17 +1174,47 @@ def api_audit_events(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read audit events: {exc}")
     import json
+
     rows = _df_records(frame)
-    for row in rows:
-        row["created_at"] = _ts(row.get("created_at"))
+    # Asset-linked events are scoped to the actor-visible estate; events with
+    # no entity_fqn (glossary, custom-property definitions) are store-level
+    # governance records and stay visible to stewards/admins.
+    scoped_rows = atlas_metrics._filter_audit_rows_by_visible_assets(rows, visible_fqns)
+    hidden_rows_excluded = len(rows) - len(scoped_rows)
+    safe_rows: List[Dict[str, Any]] = []
+    for row in scoped_rows:
+        if not atlas_metrics._is_customer_visible_audit_row(row):
+            continue
+        # Shared sanitizer: same displayAuditId derivation ("AUD-" + first 8
+        # hex of the event UUID) and diff whitelist as the Audit Evidence
+        # browser, so events are joinable across both surfaces.
+        safe = atlas_metrics._customer_safe_audit_row(row)
         for key in ("before_json", "after_json"):
-            raw = row.pop(key, None)
+            raw = safe.get(key)
+            parsed = None
             if raw:
                 try:
-                    row[key.replace("_json", "")] = json.loads(raw)
+                    parsed = json.loads(raw)
                 except Exception:
-                    row[key.replace("_json", "")] = None
-    return JSONResponse(status_code=200, content=_envelope(rows))
+                    parsed = None
+            safe[key.replace("_json", "")] = parsed
+        filtered = {
+            key: _scrub_audit_value(safe.get(key))
+            for key in _AUDIT_EVENT_FIELD_WHITELIST
+            if key in safe
+        }
+        safe_rows.append(filtered)
+    return JSONResponse(
+        status_code=200,
+        content=_envelope(
+            safe_rows,
+            extra={
+                "rowScope": "visible-assets",
+                "hiddenRowsExcluded": hidden_rows_excluded,
+                "fieldWhitelist": True,
+            },
+        ),
+    )
 
 
 # -----------------------------------------------------------------------------

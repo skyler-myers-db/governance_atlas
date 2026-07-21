@@ -185,9 +185,15 @@ class SummarySemanticsTests(unittest.TestCase):
                 )
 
         payload = atlas_metrics.audit_evidence_payload(store=AuditStore(), limit=25)
-        self.assertEqual(payload["summary"]["accessReviewsOpen"], 2)
-        self.assertEqual(payload["summary"]["reviewsResolved"], 1)
-        self.assertEqual(payload["summary"]["accessReviewSource"], "governance change requests")
+        # Renamed tile: these are governance change requests, not access
+        # reviews. Open + resolved both come from the same ledger, and the
+        # label ships in the payload so the UI cannot mislabel the tile.
+        requests_block = payload["summary"]["governanceRequests"]
+        self.assertEqual(requests_block["label"], "Governance requests")
+        self.assertEqual(requests_block["open"], 2)
+        self.assertEqual(requests_block["resolved"], 1)
+        self.assertEqual(requests_block["source"], "governance change requests")
+        self.assertNotIn("accessReviewsOpen", payload["summary"])
 
     def test_access_reviews_stay_unavailable_without_change_request_source(self) -> None:
         class AuditStore:
@@ -195,8 +201,8 @@ class SummarySemanticsTests(unittest.TestCase):
                 return pd.DataFrame()
 
         payload = atlas_metrics.audit_evidence_payload(store=AuditStore(), limit=25)
-        self.assertIsNone(payload["summary"]["accessReviewsOpen"])
-        self.assertIsNone(payload["summary"]["reviewsResolved"])
+        self.assertIsNone(payload["summary"]["governanceRequests"]["open"])
+        self.assertIsNone(payload["summary"]["governanceRequests"]["resolved"])
 
     def test_source_table_reports_real_fqn(self) -> None:
         class AuditStore:
@@ -301,6 +307,264 @@ class DetailSynthesisTests(unittest.TestCase):
         self.assertEqual(by_id["AUD-1"]["display_detail"], "Task Created for main.customer.customer_dim")
         # Rows with a real detail keep it; nothing synthesized on top.
         self.assertNotIn("display_detail", by_id["AUD-2"])
+
+
+class StableAuditIdTests(unittest.TestCase):
+    """A1 — display IDs derive from the real event UUID, never a row's position."""
+
+    def test_display_id_is_first_8_hex_of_the_event_uuid(self) -> None:
+        self.assertEqual(
+            atlas_metrics.audit_display_id("2f8a41c6-9b7d-4e21-a5c3-000011112222"),
+            "AUD-2F8A41C6",
+        )
+
+    def test_human_aud_ids_pass_through_verbatim(self) -> None:
+        self.assertEqual(atlas_metrics.audit_display_id("AUD-1"), "AUD-1")
+
+    def test_non_hex_ids_hash_stably(self) -> None:
+        first = atlas_metrics.audit_display_id("zz-strange-id")
+        second = atlas_metrics.audit_display_id("zz-strange-id")
+        self.assertEqual(first, second)
+        self.assertTrue(first.startswith("AUD-"))
+
+    def test_payload_ids_do_not_change_when_the_window_changes(self) -> None:
+        rows = [
+            {
+                "audit_id": f"0000000{index}-9b7d-4e21-a5c3-00001111222{index}",
+                "entity_fqn": "main.customer.customer_dim",
+                "action": "metadata updated",
+                "status": "success",
+                "detail": "Owner changed",
+                "created_at": _ts(0.1 * (index + 1)),
+            }
+            for index in range(3)
+        ]
+
+        class AuditStore:
+            def __init__(self, keep: int) -> None:
+                self.keep = keep
+
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return _audit_frame(rows[: self.keep])
+
+        full = atlas_metrics.audit_evidence_payload(store=AuditStore(3), limit=25)
+        narrowed = atlas_metrics.audit_evidence_payload(store=AuditStore(1), limit=25)
+        # The first event keeps the same display ID no matter how many other
+        # rows the current filter window happens to contain.
+        self.assertEqual(
+            full["events"][0]["displayAuditId"],
+            narrowed["events"][0]["displayAuditId"],
+        )
+        self.assertEqual(full["events"][0]["displayAuditId"], "AUD-00000000")
+        # The full backing UUID stays in the payload for cross-surface joins.
+        self.assertEqual(
+            full["events"][0]["auditEventId"],
+            "00000000-9b7d-4e21-a5c3-000011112220",
+        )
+
+
+class WindowTruncationTests(unittest.TestCase):
+    """A3 — when the raw fetch fills the limit, the payload must say so."""
+
+    def _store(self, count: int):
+        class AuditStore:
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return _audit_frame(
+                    [
+                        {
+                            "audit_id": f"AUD-{index}",
+                            "entity_fqn": "main.customer.customer_dim",
+                            "action": "metadata updated",
+                            "status": "success",
+                            "detail": "Owner changed",
+                            "created_at": _ts(0.01 * (index + 1)),
+                        }
+                        for index in range(count)
+                    ]
+                )
+
+        return AuditStore()
+
+    def test_full_window_reports_truncation(self) -> None:
+        payload = atlas_metrics.audit_evidence_payload(store=self._store(5), limit=5)
+        self.assertTrue(payload["summary"]["windowTruncated"])
+        self.assertEqual(payload["summary"]["fetchedRows"], 5)
+        self.assertEqual(payload["summary"]["fetchLimit"], 5)
+
+    def test_partial_window_is_not_truncated(self) -> None:
+        payload = atlas_metrics.audit_evidence_payload(store=self._store(3), limit=25)
+        self.assertFalse(payload["summary"]["windowTruncated"])
+        self.assertEqual(payload["summary"]["fetchedRows"], 3)
+
+
+class ExclusionReconciliationTests(unittest.TestCase):
+    """A2 — exclusion captions must reconcile: every count is computed on the
+    same in-range, in-scope population, split by reason."""
+
+    def _store(self):
+        class AuditStore:
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return _audit_frame(
+                    [
+                        {
+                            "audit_id": "AUD-KEEP",
+                            "entity_fqn": "main.customer.customer_dim",
+                            "action": "metadata updated",
+                            "status": "success",
+                            "detail": "Owner changed",
+                            "created_at": _ts(0.1),
+                        },
+                        {
+                            # Internal bookkeeping row INSIDE the 24h range.
+                            "audit_id": "AUD-INTERNAL",
+                            "entity_type": "identity_directory_entry",
+                            "action": "identity-directory-upserted",
+                            "status": "success",
+                            "created_at": _ts(0.2),
+                        },
+                        {
+                            # Internal row OUTSIDE the 24h range: must not
+                            # count against the 24h caption.
+                            "audit_id": "AUD-INTERNAL-OLD",
+                            "entity_type": "identity_directory_entry",
+                            "action": "identity-directory-upserted",
+                            "status": "success",
+                            "created_at": _ts(30),
+                        },
+                        {
+                            # Non-authoritative mock row inside the range.
+                            "audit_id": "AUD-MOCK",
+                            "entity_fqn": "main.customer.customer_dim",
+                            "action": "prototype seed refresh",
+                            "source": "mock-api",
+                            "status": "success",
+                            "created_at": _ts(0.3),
+                        },
+                    ]
+                )
+
+        return AuditStore()
+
+    def test_counts_are_range_scoped_and_split_by_reason(self) -> None:
+        day = atlas_metrics.audit_evidence_payload(store=self._store(), date_range="24h", limit=25)
+        self.assertEqual(day["summary"]["totalChanges"], 1)
+        self.assertEqual(day["summary"]["internalRowsExcluded"], 1)
+        self.assertEqual(day["summary"]["nonAuthoritativeRowsExcluded"], 1)
+        # hiddenRowsExcluded is the same population's total exclusions.
+        self.assertEqual(day["summary"]["hiddenRowsExcluded"], 2)
+
+        quarter = atlas_metrics.audit_evidence_payload(store=self._store(), date_range="90d", limit=25)
+        self.assertEqual(quarter["summary"]["internalRowsExcluded"], 2)
+        self.assertEqual(quarter["summary"]["nonAuthoritativeRowsExcluded"], 1)
+        # The 24h counts are a subset of the 90d counts — captions reconcile.
+        self.assertLessEqual(
+            day["summary"]["internalRowsExcluded"],
+            quarter["summary"]["internalRowsExcluded"],
+        )
+
+
+class AuditEventsRouteScopeTests(unittest.TestCase):
+    """A5 — /api/audit/events applies the same visibility scoping and field
+    whitelist as the Audit Evidence browser, and scrubs pandas-NaN leakage."""
+
+    def _rows(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "audit_id": "2f8a41c6-9b7d-4e21-a5c3-000011112222",
+                    "entity_type": "asset",
+                    "entity_id": "internal-entity-id",
+                    "entity_fqn": "main.customer.customer_dim",
+                    "column_name": None,
+                    "action": "metadata updated",
+                    "source": "store",
+                    "status": "success",
+                    "before_json": json.dumps({"owner": "old@entrada.ai", "uc_full_name": "main.customer.customer_dim"}),
+                    "after_json": json.dumps({"owner": "new@entrada.ai"}),
+                    "actor_email": "skyler@entrada.ai",
+                    "actor_role": "admin",
+                    "detail": "Owner changed",
+                    "created_at": "2026-07-01 12:00:00",
+                    "reviewed_by": "nan",
+                    "uc_full_name": "main.customer.customer_dim",
+                    "new_uc_tags_json": "{\"secret\":true}",
+                },
+                {
+                    "audit_id": "aaaa41c6-9b7d-4e21-a5c3-000011119999",
+                    "entity_type": "asset",
+                    "entity_fqn": "restricted.payroll.salary_raw",
+                    "action": "grant changed",
+                    "status": "success",
+                    "actor_email": "hidden.admin@entrada.ai",
+                    "detail": "Privilege changed",
+                    "created_at": "2026-07-01 13:00:00",
+                },
+            ]
+        )
+
+    def _call(self, visible_frame, rows: pd.DataFrame):
+        import runtime_app
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from atlas.api import catalog as catalog_api
+
+        class EventsStore:
+            def list_audit_events(self, **_: object) -> pd.DataFrame:
+                return rows
+
+        request = SimpleNamespace(headers={}, state=SimpleNamespace())
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _ensure_governance_store=lambda: None,
+            _store=lambda: EventsStore(),
+            _user_role_slug=lambda request: "steward",
+            _visible_assets=(
+                visible_frame
+                if callable(visible_frame)
+                else (lambda request: visible_frame)
+            ),
+        ):
+            return catalog_api.api_audit_events(request)
+
+    def test_rows_are_scoped_whitelisted_and_nan_scrubbed(self) -> None:
+        visible = pd.DataFrame([{"fqn": "main.customer.customer_dim"}])
+        response = self._call(visible, self._rows())
+        payload = json.loads(response.body.decode("utf-8"))
+        rows = payload["data"]
+        serialized = json.dumps(payload)
+
+        # Visibility scope: the out-of-scope asset's event is gone.
+        self.assertEqual(len(rows), 1)
+        self.assertNotIn("hidden.admin@entrada.ai", serialized)
+        self.assertEqual(payload["meta"]["hiddenRowsExcluded"], 1)
+        self.assertEqual(payload["meta"]["rowScope"], "visible-assets")
+
+        row = rows[0]
+        # Field whitelist: raw internal store fields never leave the API.
+        for blocked in ("uc_full_name", "new_uc_tags_json", "entity_id", "reviewed_by"):
+            self.assertNotIn(blocked, row)
+        # NaN-string leakage is scrubbed everywhere in the payload.
+        self.assertNotIn('"nan"', serialized)
+        # Stable ID contract shared with the Audit Evidence browser.
+        self.assertEqual(row["displayAuditId"], "AUD-2F8A41C6")
+        self.assertEqual(row["audit_id"], "2f8a41c6-9b7d-4e21-a5c3-000011112222")
+        # Diff is the whitelist-redacted object form; internal keys dropped.
+        self.assertEqual(row["after"], {"owner": "new@entrada.ai"})
+        self.assertNotIn("uc_full_name", json.dumps(row["before"]))
+        # Timestamps are explicit-UTC ISO with Z.
+        self.assertTrue(row["created_at"].endswith("Z"))
+
+    def test_fails_closed_when_visibility_scope_unavailable(self) -> None:
+        from fastapi import HTTPException
+
+        def _raise(request):
+            raise RuntimeError("inventory unavailable")
+
+        with self.assertRaises(HTTPException) as ctx:
+            self._call(_raise, self._rows())
+        self.assertEqual(ctx.exception.status_code, 503)
 
 
 if __name__ == "__main__":

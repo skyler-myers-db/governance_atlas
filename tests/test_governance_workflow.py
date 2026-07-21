@@ -1510,3 +1510,46 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GovernanceSummaryStaleWhileRevalidateTests(unittest.TestCase):
+    """G1 (perf) — an expired governance TTL entry serves the stale value
+    immediately and rebuilds in the background, instead of blocking the
+    request thread on the 20-33s multi-query summary rebuild."""
+
+    def setUp(self) -> None:
+        governance_service._TTL_CACHE.clear()
+        with governance_service._TTL_REFRESH_LOCK:
+            governance_service._TTL_REFRESHING.clear()
+
+    def test_expired_entry_serves_stale_and_refreshes_in_background(self) -> None:
+        import threading
+        import time as _time
+
+        refreshed = threading.Event()
+
+        def loader():
+            refreshed.set()
+            return "fresh-value"
+
+        # Seed an entry that is already past its TTL.
+        governance_service._TTL_CACHE["swr-test"] = (_time.time() - 999, "stale-value")
+
+        started = _time.time()
+        value = governance_service._ttl_value("swr-test", 300, loader)
+        elapsed = _time.time() - started
+
+        # The caller gets the stale value instantly (never blocks on loader).
+        self.assertEqual(value, "stale-value")
+        self.assertLess(elapsed, 0.5)
+        # ...and the background refresh replaces it shortly after.
+        self.assertTrue(refreshed.wait(timeout=5))
+        for _ in range(50):
+            if governance_service._TTL_CACHE["swr-test"][1] == "fresh-value":
+                break
+            _time.sleep(0.05)
+        self.assertEqual(governance_service._TTL_CACHE["swr-test"][1], "fresh-value")
+
+    def test_cold_key_still_builds_synchronously(self) -> None:
+        value = governance_service._ttl_value("swr-cold", 300, lambda: "built")
+        self.assertEqual(value, "built")

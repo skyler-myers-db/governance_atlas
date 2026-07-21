@@ -663,6 +663,58 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(pending_kpi["value"], 1)
         self.assertEqual(policy_kpi["value"], 0)
 
+    def test_governance_workbench_reports_out_of_scope_open_requests(self) -> None:
+        # S3: the workbench shows ALL open requests; when given the visible
+        # estate it must also say how many target assets sit outside it so the
+        # 40-vs-21 split reads as scoping, not contradiction.
+        class TwoAssetStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "REQ-VISIBLE",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "main.customer.customer_dim",
+                            "new_comment": "Assign owner: needs review",
+                        },
+                        {
+                            "request_id": "REQ-HIDDEN-TARGET",
+                            "created_at": "2026-04-24 02:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "datapact.ops.run_history",
+                            "new_comment": "Cleanup: dedupe tasks",
+                        },
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+        payload = atlas_metrics.governance_workbench_payload(
+            store=TwoAssetStore(),
+            visible_asset_fqns=["main.customer.customer_dim"],
+        )
+
+        scope = payload["openRequestScope"]
+        self.assertEqual(scope["totalOpen"], 2)
+        self.assertEqual(scope["visibleOpenCount"], 1)
+        self.assertEqual(scope["outOfScopeOpenCount"], 1)
+        self.assertEqual(scope["outOfScopeAssetCount"], 1)
+        self.assertIn("outside the visible estate", scope["caption"])
+        # All open requests still ship — the scope block captions, it never
+        # hides the out-of-estate queue from the workbench.
+        self.assertEqual(len(payload["requests"]), 2)
+
+    def test_governance_workbench_omits_scope_split_without_visibility(self) -> None:
+        payload = atlas_metrics.governance_workbench_payload(store=FakeStore())
+        scope = payload["openRequestScope"]
+        self.assertEqual(scope["scope"], "all-requests")
+        # No fabricated 0s when the visible estate is unknown.
+        self.assertNotIn("outOfScopeOpenCount", scope)
+
     def test_governance_workbench_rejects_seed_and_prototype_request_rows(self) -> None:
         class SeededRequestStore(FakeStore):
             def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
@@ -745,9 +797,12 @@ class AtlasMetricsTests(unittest.TestCase):
         payload = atlas_metrics.cde_dashboard_payload(visible_assets=_assets_df())
 
         self.assertEqual(payload["summary"]["totalCdes"], 1)
-        # protectedCdes is now computed from real sensitivity metadata
-        # (customer_dim carries sensitivity=Confidential in this fixture).
-        self.assertEqual(payload["summary"]["protectedCdes"], 1)
+        # Honest rename: a sensitivity label is not a protection control, so
+        # the count ships as sensitivityLabeledCdes (customer_dim carries
+        # sensitivity=Confidential in this fixture). `protectedCdes` must be
+        # gone — the payload may never claim protection from a label.
+        self.assertEqual(payload["summary"]["sensitivityLabeledCdes"], 1)
+        self.assertNotIn("protectedCdes", payload["summary"])
         self.assertEqual(payload["summary"]["sensitiveCandidates"], 1)
         self.assertEqual(payload["groups"][0]["domain"], "Customer")
         self.assertIsNone(payload["groups"][0]["items"][0]["controlCoverage"])
