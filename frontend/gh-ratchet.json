@@ -17,10 +17,6 @@
     "components/CapabilityDashboard.jsx": {
       "gh": 31
     },
-    "components/CdeWorkspace.jsx": {
-      "gh": 53,
-      "cssImport": 1
-    },
     "components/HelpPage.jsx": {
       "gh": 18
     },
@@ -33,10 +29,6 @@
     },
     "components/ShellStatePrimitives.jsx": {
       "gh": 24
-    },
-    "components/TaxonomyWorkspace.jsx": {
-      "gh": 174,
-      "cssImport": 1
     },
     "components/WorkspaceDiagnosticsSurface.jsx": {
       "gh": 130
@@ -193,7 +185,7 @@
       "important": 432
     },
     "styles/operations-pages.css": {
-      "gh": 1076,
+      "gh": 600,
       "hex": 3,
       "important": 5
     },
