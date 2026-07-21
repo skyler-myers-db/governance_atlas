@@ -137,21 +137,30 @@ describe("DiscoveryDiagnosticsStrip (pure)", () => {
 
     const strip = container.querySelector(".gh-discovery-diagnostics-strip");
     expect(strip).not.toBeNull();
-    expect(screen.getByTestId("gh-discovery-diagnostics-runtime").textContent).toBe("live");
-    expect(screen.getByTestId("gh-discovery-diagnostics-auth").textContent).toBe("OBO");
+    // Intended behavior (persona-audit jargon purge): every value is human
+    // copy — no raw runtime enums ("OBO", "no_visible_assets"), no raw ISO
+    // timestamps.
+    expect(screen.getByTestId("gh-discovery-diagnostics-runtime").textContent).toBe("Live");
+    expect(screen.getByTestId("gh-discovery-diagnostics-auth").textContent).toBe(
+      "Permission-aware (your access)",
+    );
     expect(screen.getByTestId("gh-discovery-diagnostics-source").textContent).toBe(
-      "Unity Catalog (actor-scoped)",
+      "Live Unity Catalog inventory · permission-aware",
     );
     expect(screen.getByTestId("gh-discovery-diagnostics-visible").textContent).toBe("42");
     expect(screen.getByTestId("gh-discovery-diagnostics-observed").textContent).toBe(
-      "2026-04-20T12:34:56Z",
+      "Apr 20, 2026, 12:34 UTC",
     );
+    // Raw ISO stays reachable on the title attribute for operators.
+    expect(
+      screen.getByTestId("gh-discovery-diagnostics-observed").getAttribute("title"),
+    ).toBe("2026-04-20T12:34:56Z");
     expect(screen.getByTestId("gh-discovery-diagnostics-state").textContent).toBe(
-      "no_visible_assets",
+      "No assets are visible to your account",
     );
   });
 
-  it("formats app-principal auth mode as 'app-principal' and falls back to em dash on missing values", () => {
+  it("humanizes app-principal access and falls back to em dash on missing values", () => {
     render(
       <DiscoveryDiagnosticsStrip
         runtimeState=""
@@ -163,13 +172,27 @@ describe("DiscoveryDiagnosticsStrip (pure)", () => {
       />,
     );
     expect(screen.getByTestId("gh-discovery-diagnostics-auth").textContent).toBe(
-      "app-principal",
+      "Workspace service view",
     );
     expect(screen.getByTestId("gh-discovery-diagnostics-source").textContent).toBe(
-      "Unity Catalog (app-principal)",
+      "Live Unity Catalog inventory · workspace service view",
     );
     expect(screen.getByTestId("gh-discovery-diagnostics-visible").textContent).toBe("—");
     expect(screen.getByTestId("gh-discovery-diagnostics-observed").textContent).toBe("—");
+  });
+
+  it("humanizes the no_matches state enum", () => {
+    render(
+      <DiscoveryDiagnosticsStrip
+        runtimeState="live"
+        authMode="obo-available"
+        visibleAssets={12}
+        discoveryState="no_matches"
+      />,
+    );
+    expect(screen.getByTestId("gh-discovery-diagnostics-state").textContent).toBe(
+      "No results match the current filters",
+    );
   });
 });
 
@@ -240,23 +263,24 @@ describe("DiscoveryWorkspace — diagnostics strip integration", () => {
     expect(strip).not.toBeNull();
 
     // Each audit-required field is present with bootstrap/envelope data.
+    // Humanized values only (persona-audit jargon purge).
     expect(within(strip).getByTestId("gh-discovery-diagnostics-runtime").textContent).toBe(
-      "live",
+      "Live",
     );
     expect(within(strip).getByTestId("gh-discovery-diagnostics-auth").textContent).toBe(
-      "OBO",
+      "Permission-aware (your access)",
     );
     expect(within(strip).getByTestId("gh-discovery-diagnostics-source").textContent).toBe(
-      "Unity Catalog (actor-scoped)",
+      "Live Unity Catalog inventory · permission-aware",
     );
     expect(within(strip).getByTestId("gh-discovery-diagnostics-visible").textContent).toBe(
       "0",
     );
     expect(within(strip).getByTestId("gh-discovery-diagnostics-observed").textContent).toBe(
-      "2026-04-20T12:34:56Z",
+      "Apr 20, 2026, 12:34 UTC",
     );
     expect(within(strip).getByTestId("gh-discovery-diagnostics-state").textContent).toBe(
-      "no_visible_assets",
+      "No assets are visible to your account",
     );
 
     // Empty-state card still renders — the strip is additive, not a replacement.

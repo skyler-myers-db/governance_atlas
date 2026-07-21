@@ -368,6 +368,92 @@ class LakebaseServiceTests(unittest.TestCase):
         finally:
             runtime_app._store.cache_clear()
 
+    def test_dual_write_set_request_status_passes_assignee_and_priority(self) -> None:
+        # Regression: PATCH /api/governance/requests/<id> with assignee/priority
+        # 500'd with "unexpected keyword argument 'assignee'" because the base
+        # store's set_request_status grew triage kwargs while this wrapper's
+        # explicit signature silently dropped them.
+        class DeltaStore:
+            catalog = "main"
+            schema = "atlas"
+
+            def __init__(self) -> None:
+                self.kwargs: dict = {}
+
+            def set_request_status(self, **kwargs):
+                self.kwargs = kwargs
+                return None
+
+        class Mirror:
+            def __init__(self) -> None:
+                self.workflow_calls: list[str] = []
+
+            def status(self):
+                return {"state": "active"}
+
+            def mirror_workflow(self, request_id: str) -> None:
+                self.workflow_calls.append(request_id)
+
+        delta = DeltaStore()
+        mirror = Mirror()
+        wrapped = lakebase_store.DualWriteGovernanceStore(delta, mirror)
+
+        wrapped.set_request_status(
+            "req-123",
+            "in_review",
+            "steward@example.com",
+            review_note="triaged",
+            actor_role="steward",
+            assignee="owner@example.com",
+            priority="high",
+        )
+
+        self.assertEqual(delta.kwargs["request_id"], "req-123")
+        self.assertEqual(delta.kwargs["assignee"], "owner@example.com")
+        self.assertEqual(delta.kwargs["priority"], "high")
+        # The Delta primary write succeeded, so the shadow mirror must fire.
+        self.assertEqual(mirror.workflow_calls, ["req-123"])
+
+    def test_dual_write_wrapper_signatures_never_drift_from_base_store(self) -> None:
+        # Guard against the whole failure class: every explicitly-typed
+        # wrapper method must accept AT LEAST the parameters of the base
+        # GovernanceStore method it delegates to. Wrappers that take
+        # *args/**kwargs are pass-through by construction and are skipped.
+        import inspect
+
+        from atlas.store import GovernanceStore
+
+        wrapper_methods = [
+            name
+            for name, member in vars(lakebase_store.DualWriteGovernanceStore).items()
+            if callable(member) and not name.startswith("_")
+        ]
+        for name in wrapper_methods:
+            base_fn = getattr(GovernanceStore, name, None)
+            if base_fn is None or not callable(base_fn):
+                continue
+            wrapper_params = inspect.signature(
+                getattr(lakebase_store.DualWriteGovernanceStore, name)
+            ).parameters
+            if any(
+                param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+                for param in wrapper_params.values()
+            ):
+                continue
+            base_params = inspect.signature(base_fn).parameters
+            missing = [
+                param_name
+                for param_name, param in base_params.items()
+                if param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+                and param_name not in wrapper_params
+            ]
+            self.assertEqual(
+                missing,
+                [],
+                f"DualWriteGovernanceStore.{name} is missing base-store parameters "
+                f"{missing}; keep wrapper signatures in lockstep with GovernanceStore.",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

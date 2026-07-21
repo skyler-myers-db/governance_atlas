@@ -57,15 +57,22 @@ def _enum_text(value: Any) -> str:
 
 
 def _job_timestamp_label(value: Any) -> str:
+    # Empty means "no timestamp": the frontend renders its own honest
+    # fallback ("Not yet run"); baking placeholder sentences server-side
+    # defeated that. The year is included because Databricks job created /
+    # run times routinely cross year boundaries — "Aug 25, 23:47" read as
+    # current-year data when the source epoch was 2025.
     try:
         if value is None or value == "":
-            return "No run recorded"
+            return ""
         numeric = float(value)
         if numeric > 10_000_000_000:
             numeric = numeric / 1000.0
-        return dt.datetime.fromtimestamp(numeric, tz=dt.timezone.utc).strftime("%b %-d, %H:%M UTC")
+        return dt.datetime.fromtimestamp(numeric, tz=dt.timezone.utc).strftime(
+            "%b %-d, %Y %H:%M UTC"
+        )
     except Exception:
-        return _normalize_str(value) or "No run recorded"
+        return _normalize_str(value)
 
 
 def _job_schedule_label(settings: Any) -> str:
@@ -91,10 +98,20 @@ def _job_status_label(job: Any, latest_run: Any | None = None) -> str:
         return result.title()
     if lifecycle:
         return lifecycle.title()
-    pause_status = _normalize_str(_sdk_get(_sdk_get(job, "settings"), "schedule", "pause_status")).upper()
-    if pause_status == "PAUSED":
-        return "Paused"
-    return "Scheduled"
+    # No run history: derive the status from the job's ACTUAL trigger
+    # configuration instead of defaulting to "Scheduled" — manual jobs
+    # (no schedule/trigger/continuous config) were mislabeled as scheduled.
+    settings = _sdk_get(job, "settings")
+    schedule = _sdk_get(settings, "schedule")
+    if schedule is not None:
+        pause_status = _normalize_str(_sdk_get(schedule, "pause_status")).upper()
+        return "Paused" if pause_status == "PAUSED" else "Scheduled"
+    if _sdk_get(settings, "continuous") is not None:
+        return "Continuous"
+    if _sdk_get(settings, "trigger") is not None:
+        # File-arrival / table-update triggers: event-driven, not cron.
+        return "Triggered"
+    return "Manual"
 
 
 def _databricks_job_inventory(
@@ -150,11 +167,19 @@ def _databricks_job_inventory(
                 "id": str(job_id),
                 "name": name,
                 "schedule": _job_schedule_label(settings),
+                # lastRun comes ONLY from a real run. The old created_time
+                # fallback rendered a job's CREATION timestamp under "Last
+                # run" for never-run jobs; empty lets the UI show its honest
+                # "Not yet run" state instead.
                 "lastRun": _job_timestamp_label(
                     _sdk_get(latest_run, "start_time")
                     or _sdk_get(latest_run, "end_time")
-                    or _sdk_get(job, "created_time")
                 ),
+                # The Jobs list API exposes the cron config but not the next
+                # fire time, and we never fabricate timestamps — nextRun is
+                # therefore only populated when a future scheduled run is
+                # actually known (empty until then; the UI renders a dash).
+                "nextRun": "",
                 "status": _job_status_label(job, latest_run),
                 "url": f"{host}/jobs/{job_id}" if host else "",
                 "source": "databricks-jobs-api",

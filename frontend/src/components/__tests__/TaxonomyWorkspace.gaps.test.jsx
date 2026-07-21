@@ -403,4 +403,32 @@ describe("TaxonomyWorkspace gap fixes", () => {
     expect(within(hierarchy).getByText("Revenue")).toBeDefined();
     expect(within(hierarchy).queryByText("Parent term recorded")).toBeNull();
   });
+
+  it("humanizes raw taxonomy-node parent ids instead of rendering them verbatim", () => {
+    // Persona-audit jargon purge: a parent id that references a taxonomy NODE
+    // ("ga-taxonomy-node-revenue") is outside the term lookup; the Hierarchy
+    // card used to print the raw internal id. It now title-cases the slug
+    // tail ("Revenue").
+    const payload = {
+      data: {
+        glossaryTerms: [
+          term("child-term", "Adjusted Revenue", {
+            parentTermId: "ga-taxonomy-node-revenue",
+            childCount: 0,
+          }),
+        ],
+        cdes: [],
+        summary: { termCount: 1 },
+      },
+      meta: { state: "available", warnings: [] },
+    };
+    renderTaxonomy(payload);
+
+    const cards = screen.getByLabelText("Glossary cards");
+    fireEvent.click(within(cards).getByRole("heading", { name: "Adjusted Revenue" }).closest("article"));
+    const detail = screen.getByRole("complementary", { name: "Adjusted Revenue detail" });
+    const hierarchy = within(detail).getByRole("heading", { name: "Hierarchy" }).closest("section");
+    expect(within(hierarchy).getByText("Revenue")).toBeDefined();
+    expect(within(hierarchy).queryByText("ga-taxonomy-node-revenue")).toBeNull();
+  });
 });

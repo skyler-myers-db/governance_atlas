@@ -173,6 +173,87 @@ describe("AuditBrowserWorkspace gap fixes", () => {
     expect(detailValue.getAttribute("title")).toBe(uuid);
   });
 
+  it("renders backlog aging on the governance-requests tile from oldestOpenCreatedAt", async () => {
+    renderWorkspace(
+      envelope([auditEvent("AUD-0001")], {
+        governanceRequests: {
+          label: "Governance requests",
+          open: 2,
+          resolved: 5,
+          source: "governance change requests",
+          // Backend now ships the created-at of the oldest open request so
+          // the tile can show how long the backlog has been sitting.
+          oldestOpenCreatedAt: "2026-05-05T02:26:52Z",
+        },
+      }),
+    );
+    await screen.findByText(/Showing 1 of 1 events/);
+    expect(
+      screen.getByText(/5 resolved · oldest open since May 5, 2026 · governance change requests/),
+    ).toBeTruthy();
+  });
+
+  it("shows an aria-busy skeleton (never the real-empty copy) while the payload loads", async () => {
+    // Deferred payload: the query stays pending until we resolve it.
+    let resolvePayload;
+    fetchAuditEvidence.mockReturnValue(new Promise((resolve) => { resolvePayload = resolve; }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <AuditBrowserWorkspace shell={shell} />
+      </QueryClientProvider>,
+    );
+
+    // Loading phase: skeleton rows, no "no events match" claim, and the
+    // governance tile support line reads as loading rather than settled
+    // source text.
+    expect(screen.getByLabelText("Loading audit events")).toBeTruthy();
+    expect(screen.getByLabelText("Loading audit events").getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByText("No audit events match the current filters.")).toBeNull();
+    expect(screen.getByText("Reading governance requests")).toBeTruthy();
+
+    resolvePayload(envelope([auditEvent("AUD-0001")]));
+    await screen.findByText(/Showing 1 of 1 events/);
+    expect(screen.queryByLabelText("Loading audit events")).toBeNull();
+  });
+
+  it("treats governanceRequests.state === 'loading' as a hydrating tile (feature-detected)", async () => {
+    renderWorkspace(
+      envelope([auditEvent("AUD-0001")], {
+        governanceRequests: {
+          label: "Governance requests",
+          state: "loading",
+          open: null,
+          resolved: null,
+          source: "governance change requests",
+        },
+      }),
+    );
+    await screen.findByText(/Showing 1 of 1 events/);
+    const requestsCard = screen.getByText("Governance requests · open").closest("article");
+    expect(requestsCard.querySelector("strong").textContent).toBe("Loading...");
+    expect(screen.getByText("Reading governance requests")).toBeTruthy();
+    // The settled source/reason text must not render mid-hydration.
+    expect(screen.queryByText(/governance change requests/)).toBeNull();
+  });
+
+  it("keeps tab counts consistent with the free-text filtered set", async () => {
+    renderWorkspace(envelope([
+      auditEvent("AUD-0001", { detail: "Bulk import committed" }),
+      auditEvent("AUD-0002", { detail: "Owner changed" }),
+      auditEvent("AUD-0003", { detail: "Owner changed" }),
+    ]));
+    await screen.findByText(/Showing 3 of 3 events/);
+    expect(screen.getByRole("button", { name: /All events, 3 events/ })).toBeTruthy();
+
+    // Apply a free-text filter that matches only one row: the caption AND the
+    // tab counts must agree (the audit caught caption=20 vs tab=24).
+    fireEvent.change(screen.getByLabelText("Search audit events"), { target: { value: "bulk" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+    await screen.findByText(/Showing 1 of 1 events/);
+    expect(screen.getByRole("button", { name: /All events, 1 events/ })).toBeTruthy();
+  });
+
   it("keeps the loading skeleton up while the payload is hydrating", async () => {
     renderWorkspace(
       envelope([], { totalChanges: 0 }, {

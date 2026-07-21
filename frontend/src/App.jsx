@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import AppFrame from "./components/AppFrame";
 import { SurfaceHeader } from "./components/ShellLayoutPrimitives";
 import { WorkspaceStateCard } from "./components/ShellStatePrimitives";
@@ -9,7 +10,12 @@ import { useBootstrap } from "./hooks/useBootstrap";
 import { useCommandCenter } from "./hooks/useCommandCenter";
 import { useGovernanceSummary } from "./hooks/useGovernanceSummary";
 import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
-import { normalizeGovernancePayload, updateGovernanceNotification } from "./lib/api";
+import {
+  fetchGovernanceGlossary,
+  fetchGovernanceWorkbench,
+  normalizeGovernancePayload,
+  updateGovernanceNotification,
+} from "./lib/api";
 import { openAssetRecordSafely } from "./lib/assetRecordNavigation";
 import { diagnosticsRecoveryAvailable, diagnosticsSurfaceAvailable } from "./lib/capabilities";
 import { isNonAuthoritativeMockEvidence } from "./lib/nonAuthoritativeEvidence";
@@ -80,6 +86,33 @@ function normalizeInboxState(value) {
 function isUnreadInboxState(value) {
   const normalized = normalizeInboxState(value);
   return normalized === "new" || normalized === "seen" || normalized === "unread";
+}
+
+// Actionable-inbox status sets. MUST stay in sync with InboxPage.jsx, which
+// renders the same sources as sections ("Open stewardship requests" /
+// "Glossary terms awaiting review"). The nav badge counts what that page
+// shows — notifications alone were almost always 0 on this estate, so the
+// badge never appeared despite actionable work (persona-audit P2).
+const ACTIONABLE_REQUEST_STATUSES = new Set(["", "pending", "open", "in_review", "new"]);
+const ACTIONABLE_TERM_STATUSES = new Set(["proposed", "draft", "in_review", "review", "pending"]);
+
+function inboxEnvelopeData(payload) {
+  return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+}
+
+function countActionableRequests(payload) {
+  const data = inboxEnvelopeData(payload) || {};
+  const requests = Array.isArray(data.requests) ? data.requests : [];
+  return requests.filter((request) =>
+    ACTIONABLE_REQUEST_STATUSES.has(String(request?.status ?? "").trim().toLowerCase()),
+  ).length;
+}
+
+function countActionableTerms(payload) {
+  const terms = Array.isArray(payload?.glossary) ? payload.glossary : [];
+  return terms.filter((term) =>
+    ACTIONABLE_TERM_STATUSES.has(String(term?.reviewState || term?.status || "").trim().toLowerCase()),
+  ).length;
 }
 
 function updateGovernanceInbox(governance, notificationId, action) {
@@ -364,6 +397,29 @@ export default function App() {
     enabled: shouldLoadGovernanceSummary,
     sections: ["inbox"],
   });
+  // Actionable inbox work for the left-nav badge. Same query keys/staleTime
+  // as InboxPage so react-query shares one cache entry between the badge and
+  // the Inbox surface (no duplicate fetch when the user opens the inbox).
+  const inboxWorkbenchQuery = useQuery({
+    queryKey: ["inbox", "governance-workbench"],
+    queryFn: ({ signal }) => fetchGovernanceWorkbench({ signal }),
+    enabled: shouldLoadGovernanceSummary,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const inboxGlossaryQuery = useQuery({
+    queryKey: ["inbox", "governance-glossary"],
+    queryFn: () => fetchGovernanceGlossary(),
+    enabled: shouldLoadGovernanceSummary,
+    staleTime: 60_000,
+    retry: false,
+  });
+  // null until BOTH sources settle — a definitive 0 while loading would hide
+  // the badge and then pop it in, the hydration-zero bug class.
+  const inboxActionableCount =
+    inboxWorkbenchQuery.isSuccess || inboxGlossaryQuery.isSuccess
+      ? countActionableRequests(inboxWorkbenchQuery.data) + countActionableTerms(inboxGlossaryQuery.data)
+      : null;
   const runtimeRolloutFlags =
     (!runtimeStatusLoading ? runtimeStatus.data?.diagnostics?.featureFlags : null) ||
     diagnosticsSource?.featureFlags ||
@@ -1054,6 +1110,7 @@ export default function App() {
       bootState={effectiveBootState}
       currentAssetFqn={shellAsset360Fqn}
       governanceInbox={shellGovernance.inbox || null}
+      inboxActionableCount={inboxActionableCount}
       inboxOpen={shellInboxOpen}
       liveCatalogVisibleCount={liveCatalogVisibleCount}
       ucCoverageScore={commandCenter.hasLiveData ? commandCenter.data?.estate?.coverageScore : null}

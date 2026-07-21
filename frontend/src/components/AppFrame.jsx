@@ -398,6 +398,9 @@ export default function AppFrame({
   diagnosticsStatus = null,
   diagnosticsOpen = false,
   governanceInbox = null,
+  // Actionable inbox work (open stewardship requests + terms awaiting
+  // review) counted by App from the same sources the Inbox surface renders.
+  inboxActionableCount = null,
   inboxOpen = false,
   onModuleChange,
   onOpenAsset360,
@@ -495,6 +498,14 @@ export default function AppFrame({
   const inboxUnreadCount = Number.isFinite(Number(governanceInbox?.unreadCount))
     ? Math.max(0, Math.trunc(Number(governanceInbox.unreadCount)))
     : 0;
+  // Nav badge = unread notifications + actionable work items. The unread
+  // count alone is almost always 0 on this estate, so the Inbox entry showed
+  // no badge while the Inbox surface listed real actionable rows.
+  const inboxBadgeCount =
+    inboxUnreadCount +
+    (Number.isFinite(Number(inboxActionableCount))
+      ? Math.max(0, Math.trunc(Number(inboxActionableCount)))
+      : 0);
   const stewardshipCount = Number.isFinite(Number(governanceInbox?.stewardshipCount))
     ? Math.max(0, Math.trunc(Number(governanceInbox.stewardshipCount)))
     : null;
@@ -868,7 +879,7 @@ export default function AppFrame({
         currentAssetFqn={currentAssetFqn}
         collapsed={railCollapsed}
         stewardshipCount={stewardshipCount}
-        inboxCount={showInbox ? inboxUnreadCount : null}
+        inboxCount={showInbox ? inboxBadgeCount : null}
         userName={shell?.userName || shell?.displayName || shell?.userEmail || ""}
         userEmail={shell?.userEmail || ""}
         userRole={shell?.role || ""}

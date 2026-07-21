@@ -636,7 +636,13 @@ describe("GovernanceWorkspace", () => {
       expect(screen.getByText("Governance workbench degraded")).not.toBeNull();
     });
 
-    expect(screen.getByText("Governance store unavailable")).not.toBeNull();
+    // Intended behavior (persona-audit fix): load failures render HUMAN copy,
+    // never the raw error/exception text from the transport layer — a 500
+    // body's "TypeError: DualWriteGovernanceStore…" must not reach the banner.
+    expect(
+      screen.getByText("Unable to load the governance workbench right now."),
+    ).not.toBeNull();
+    expect(screen.queryByText("Governance store unavailable")).toBeNull();
     expectVisibleText("Fallback ownership review");
   });
 
@@ -722,6 +728,41 @@ describe("GovernanceWorkspace", () => {
       }, { fast: true });
     });
     expect(await screen.findByText("Priority set to P2.")).not.toBeNull();
+  });
+
+  it("renders a failed triage PATCH as an error toast with human copy, never raw exception text", async () => {
+    // Persona-audit P0-adjacent: a backend 500 whose body carried
+    // "TypeError: DualWriteGovernanceStore…" used to render verbatim inside
+    // the ✓ success-styled toast.
+    const apiError = Object.assign(
+      new Error("TypeError: DualWriteGovernanceStore.update_request() got an unexpected keyword argument"),
+      {
+        status: 500,
+        detailMessage: "TypeError: DualWriteGovernanceStore.update_request() got an unexpected keyword argument",
+        httpRequestId: "req-err-42",
+      },
+    );
+    apiMocks.updateGovernanceRequest.mockRejectedValue(apiError);
+    renderGovernance({ currentUser: { name: "Skyler Myers", email: "skyler.myers@entrada.ai" } });
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
+
+    const toastText = await screen.findByText(
+      "Couldn't update the assignment — the server rejected the change. (Request ID: req-err-42)",
+    );
+    // Error styling, not the success chrome.
+    const toast = toastText.closest(".gh-discovery-preview-action-toast");
+    expect(toast.classList.contains("is-error")).toBe(true);
+    expect(toast.getAttribute("role")).toBe("alert");
+    // The raw exception text never reaches the DOM.
+    expect(screen.queryByText(/DualWriteGovernanceStore/)).toBeNull();
+    // The optimistic assignee update never committed — the detail rail still
+    // shows the stored assignment.
+    expect(screen.queryByText(/Assigned to you/)).toBeNull();
   });
 
   it("bulk-resolves selected work items with confirmation and per-request PATCH calls", async () => {

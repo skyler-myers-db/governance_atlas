@@ -302,14 +302,30 @@ _is_certified = semantics.is_certified
 _is_critical = semantics.is_critical
 
 
+# Statuses that mean a governance request is still an OPEN exposure. A
+# resolved/approved/rejected exception request is closed history — counting it
+# made Insights report "Critical Policy Exceptions 2" while the Command Center
+# (which only tracks open work) honestly said 0.
+_OPEN_EXCEPTION_STATUSES = frozenset({"", "pending", "open", "in_review", "new"})
+
+
 def _policy_exception_count(request_rows: Sequence[Mapping[str, Any]], audit_rows: Sequence[Mapping[str, Any]]) -> int:
     count = 0
     for row in [*request_rows, *audit_rows]:
+        # Rows that carry a status (change requests / workflow tasks) only
+        # count while open. Audit rows have no status field, which lowers to
+        # "" and passes through.
+        if _lower(row.get("status")) not in _OPEN_EXCEPTION_STATUSES:
+            continue
+        # Match the row's OWN semantics (title / comment / action / detail),
+        # never the target asset FQN: assets legitimately named
+        # "*_exception_*" (e.g. risk_policy_exception_register) made every
+        # request touching them read as a live policy exception.
         text = " ".join(
             _text(row.get(key))
-            for key in ("title", "new_comment", "detail", "action", "entity_fqn")
+            for key in ("title", "task_type", "request_type", "new_comment", "detail", "action")
         ).lower()
-        if "policy exception" in text or "exception" in text and "policy" in text:
+        if "policy exception" in text or ("exception" in text and "policy" in text):
             count += 1
     return count
 
@@ -2167,7 +2183,12 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
     audit, audit_available, _audit_reason = _audit_rows_with_state(store, limit=100)
     audit_readiness = None
     quality_df = _call_store(store, "list_quality_run_results", limit=1000)
-    quality_health = None
+    # Quality health comes from the SAME pass-rate signal the Command Center
+    # publishes (quality_run_results ledger). Hardcoding None here while the
+    # Command Center showed "quality SLA 66.7%" made the Insights banner claim
+    # the score was unavailable on one surface and available on another.
+    quality_signal = _quality_sla_signal(store)
+    quality_health = quality_signal.get("value")
     policy_compliance = None
     policy_exception_signal = _policy_exception_signal(
         request_rows,
@@ -2189,7 +2210,8 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
         if available_weight
         else None
     )
-    quality_evidence_at = _quality_sla_signal(store).get("evidenceAt") or ""
+    # Reuse the signal computed above — one ledger read, one evidence stamp.
+    quality_evidence_at = quality_signal.get("evidenceAt") or ""
     domains = _domain_summary(assets_df)
     recommendations = []
     if domains:
@@ -2900,9 +2922,21 @@ def _is_policy_violation_audit_row(row: Mapping[str, Any]) -> bool:
 def _audit_access_review_summary(store: Any) -> Dict[str, Any]:
     """Back the 'Access reviews · open' KPI with real change-request state
     instead of a text match on 'approv' in audit rows."""
+    if store is None:
+        # App hydration serves audit_evidence_payload(store=None) while the
+        # real payload warms in the background. That is a transient loading
+        # state, NOT terminal unavailability — returning a reason string here
+        # leaked "list_change_requests is not available on the governance
+        # store." into the tile's source label during every cold start.
+        return {"open": None, "resolved": None, "reason": "", "state": "loading"}
     request_rows, available, reason = _store_records(store, "list_change_requests", limit=500)
     if not available:
-        return {"open": None, "resolved": None, "reason": reason or "Change-request source unavailable."}
+        return {
+            "open": None,
+            "resolved": None,
+            "reason": reason or "Change-request source unavailable.",
+            "state": "unavailable",
+        }
     trusted = [row for row in request_rows if not _is_non_authoritative_evidence_row(row)]
     open_statuses = {"", "pending", "open", "new", "in review", "in_review"}
     resolved_statuses = {"approved", "rejected", "closed", "resolved", "cancelled", "canceled"}
@@ -2921,6 +2955,7 @@ def _audit_access_review_summary(store: Any) -> Dict[str, Any]:
         "open": open_count,
         "resolved": resolved_count,
         "reason": "",
+        "state": "available",
         "oldestOpenCreatedAt": oldest_open,
     }
 
@@ -3016,10 +3051,21 @@ def audit_evidence_payload(
                 "open": governance_requests["open"],
                 "resolved": governance_requests["resolved"],
                 "oldestOpenCreatedAt": governance_requests.get("oldestOpenCreatedAt", ""),
+                # Transient hydration must present as loading, never as a
+                # diagnostic sentence in the tile's source line. Reason
+                # strings are reserved for terminal unavailability.
+                "state": governance_requests.get(
+                    "state",
+                    "available" if governance_requests["open"] is not None else "unavailable",
+                ),
                 "source": (
                     "governance change requests"
                     if governance_requests["open"] is not None
-                    else governance_requests["reason"]
+                    else (
+                        governance_requests["reason"]
+                        if governance_requests.get("state") != "loading"
+                        else ""
+                    )
                 ),
             },
             "failedActions": len(failed),

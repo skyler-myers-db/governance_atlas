@@ -2369,6 +2369,13 @@ function PrototypeDiscoveryFilterRail({
   const activeCertifications = filters.certifications || [];
   const activeDomains = filters.domains || [];
   const activeClassifications = filters.sensitivities || [];
+  // Facet-bucket honesty: the backend emits EVERY bucket (including
+  // "Unassigned") summing to the result total. The old hard `.slice(0, 6)` /
+  // `.slice(0, 4)` silently dropped buckets — domains beyond the sixth were
+  // unreachable and the visible counts didn't add up. Full lists render with
+  // an explicit "Show all N" expander past the visual cap; nothing truncates
+  // silently.
+  const [expandedFacets, setExpandedFacets] = useState({});
   // Zero-count options are hidden: a filter button that can only produce an
   // empty result set is noise. Actively-selected values stay visible even at
   // zero so the user can un-toggle them.
@@ -2382,19 +2389,38 @@ function PrototypeDiscoveryFilterRail({
       .filter((option) => !/^all\s+domains$/i.test(String(option || ""))),
     "domains",
     activeDomains,
-  ).slice(0, 6);
+  );
   const classificationOptions = withLiveCounts(
     facetValues(facets, "sensitivities", [], activeClassifications)
       .filter((option) => !/^all\s+(sensitivit|classificat)/i.test(String(option || ""))),
     "sensitivities",
     activeClassifications,
-  ).slice(0, 4);
+  );
   const certificationOptions = withLiveCounts(
     facetValues(facets, "certifications", ["Certified", "In Review", "Uncertified"], activeCertifications)
       .filter((option) => !/^all\s+(certificat|workflow)/i.test(String(option || ""))),
     "certifications",
     activeCertifications,
-  ).slice(0, 4);
+  );
+  const FACET_VISUAL_CAPS = { domains: 6, sensitivities: 4, certifications: 4 };
+  const visibleFacetOptions = (facetKey, options) =>
+    expandedFacets[facetKey] ? options : options.slice(0, FACET_VISUAL_CAPS[facetKey]);
+  const facetExpander = (facetKey, options) => {
+    if (options.length <= FACET_VISUAL_CAPS[facetKey]) return null;
+    const expanded = Boolean(expandedFacets[facetKey]);
+    return (
+      <button
+        aria-expanded={expanded}
+        className="gh-discovery-filter-show-all"
+        onClick={() =>
+          setExpandedFacets((current) => ({ ...current, [facetKey]: !current[facetKey] }))
+        }
+        type="button"
+      >
+        {expanded ? "Show fewer" : `Show all ${options.length}`}
+      </button>
+    );
+  };
   // Header count matches the options actually shown in the group (sum of
   // their facet counts) instead of the unrelated total result count.
   const certificationShownCount = certificationOptions.reduce(
@@ -2411,7 +2437,7 @@ function PrototypeDiscoveryFilterRail({
   return (
     <aside className="gh-discovery-prototype-filter-rail" aria-label="Discovery filters">
       <FilterRailGroup eyebrow="Certification" count={certificationShownCount}>
-        {certificationOptions.map((option) => {
+        {visibleFacetOptions("certifications", certificationOptions).map((option) => {
           const active = activeCertifications.includes(option);
           return (
             <button
@@ -2426,9 +2452,10 @@ function PrototypeDiscoveryFilterRail({
             </button>
           );
         })}
+        {facetExpander("certifications", certificationOptions)}
       </FilterRailGroup>
       <FilterRailGroup eyebrow="Domain">
-        {domainOptions.map((option) => {
+        {visibleFacetOptions("domains", domainOptions).map((option) => {
           const active = activeDomains.includes(option);
           return (
             <button
@@ -2443,9 +2470,10 @@ function PrototypeDiscoveryFilterRail({
             </button>
           );
         })}
+        {facetExpander("domains", domainOptions)}
       </FilterRailGroup>
       <FilterRailGroup eyebrow="Classification">
-        {classificationOptions.map((option) => {
+        {visibleFacetOptions("sensitivities", classificationOptions).map((option) => {
           const active = activeClassifications.includes(option);
           return (
             <button
@@ -2461,6 +2489,7 @@ function PrototypeDiscoveryFilterRail({
             </button>
           );
         })}
+        {facetExpander("sensitivities", classificationOptions)}
       </FilterRailGroup>
       <FilterRailGroup eyebrow="Attributes">
         <button type="button" onClick={() => appendAttributeQuery("tag:CDE")}>
@@ -4520,25 +4549,46 @@ function SelectionPreviewTabs({
  * count, and when the envelope was observed. It is only rendered on
  * empty-state paths so the regular catalog grid remains uncluttered.
  */
+// Human copy only — the strip used to print raw runtime enums ("AUTH MODE
+// OBO · STATE no_matches") at customers, which the persona audit flagged as
+// engineering jargon on a customer surface.
 function labelForAuthMode(authMode) {
   const raw = String(authMode || "").trim().toLowerCase();
-  if (raw === "obo-available") return "OBO";
-  if (raw === "app-principal-only") return "app-principal";
-  if (raw === "no-identity") return "no-identity";
-  return raw || "unknown";
+  if (raw === "obo-available") return "Permission-aware (your access)";
+  if (raw === "app-principal-only") return "Workspace service view";
+  if (raw === "no-identity") return "No signed-in identity";
+  return raw ? humanizeEnumLabel(raw) : "Unknown";
 }
 
 function labelForInventorySource(source, authMode) {
   const normalizedSource = String(source || "").trim();
   const normalizedMode = String(authMode || "").trim().toLowerCase();
   if (normalizedMode === "obo-available") {
-    return "Unity Catalog (actor-scoped)";
+    return "Live Unity Catalog inventory · permission-aware";
   }
   if (normalizedMode === "app-principal-only") {
-    return "Unity Catalog (app-principal)";
+    return "Live Unity Catalog inventory · workspace service view";
   }
-  if (normalizedSource) return normalizedSource;
-  return "Unity Catalog";
+  if (normalizedSource) return humanizeEnumLabel(normalizedSource);
+  return "Unity Catalog inventory";
+}
+
+// "no_visible_assets" → "No visible assets"; also used for source slugs.
+function humanizeEnumLabel(value) {
+  const raw = String(value || "").trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (!raw) return "";
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+// Discovery-state enums the strip may receive, mapped to plain language.
+function labelForDiscoveryState(state) {
+  const raw = String(state || "").trim().toLowerCase();
+  if (!raw) return "";
+  if (raw === "no_matches") return "No results match the current filters";
+  if (raw === "no_visible_assets") return "No assets are visible to your account";
+  if (raw === "live") return "Live";
+  if (raw === "degraded") return "Partially available";
+  return humanizeEnumLabel(raw);
 }
 
 function isDatabricksBackedDiscoveryMeta(meta = {}) {
@@ -4563,11 +4613,11 @@ function isDatabricksBackedDiscoveryMeta(meta = {}) {
 
 function labelForRuntimeState(state) {
   const raw = String(state || "").trim().toLowerCase();
-  if (raw === "live") return "live";
-  if (raw === "degraded") return "degraded";
-  if (raw === "unavailable" || raw === "error") return "unavailable";
-  if (raw === "loading" || raw === "warming") return "loading";
-  return raw || "unknown";
+  if (raw === "live") return "Live";
+  if (raw === "degraded") return "Partially available";
+  if (raw === "unavailable" || raw === "error") return "Unavailable";
+  if (raw === "loading" || raw === "warming") return "Loading";
+  return raw ? humanizeEnumLabel(raw) : "Unknown";
 }
 
 export function DiscoveryDiagnosticsStrip({
@@ -4585,11 +4635,28 @@ export function DiscoveryDiagnosticsStrip({
     inventorySource || visibilityScope,
     authMode,
   );
+  const stateLabel = labelForDiscoveryState(discoveryState);
   const visibleCountLabel =
     visibleAssets === null || visibleAssets === undefined || Number.isNaN(Number(visibleAssets))
       ? "—"
       : Number(visibleAssets).toLocaleString();
-  const observedLabel = observedAt ? String(observedAt) : "—";
+  // Raw ISO timestamps read as debug output; render a compact UTC-labeled
+  // form and keep the raw value on the title attribute.
+  const observedDate = observedAt ? new Date(String(observedAt)) : null;
+  const observedLabel = observedDate && !Number.isNaN(observedDate.getTime())
+    ? observedDate.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "UTC",
+        timeZoneName: "short",
+      })
+    : observedAt
+      ? String(observedAt)
+      : "—";
   return (
     <div
       aria-label="Discovery diagnostics"
@@ -4608,7 +4675,8 @@ export function DiscoveryDiagnosticsStrip({
       </span>
       <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
       <span className="gh-discovery-diagnostics-item">
-        <span className="gh-discovery-diagnostics-label">Auth mode</span>
+        {/* "Access", not "Auth mode": customer-facing wording, no OBO enum. */}
+        <span className="gh-discovery-diagnostics-label">Access</span>
         <span
           className="gh-discovery-diagnostics-value"
           data-testid="gh-discovery-diagnostics-auth"
@@ -4618,7 +4686,7 @@ export function DiscoveryDiagnosticsStrip({
       </span>
       <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
       <span className="gh-discovery-diagnostics-item">
-        <span className="gh-discovery-diagnostics-label">Inventory source</span>
+        <span className="gh-discovery-diagnostics-label">Inventory</span>
         <span
           className="gh-discovery-diagnostics-value"
           data-testid="gh-discovery-diagnostics-source"
@@ -4642,20 +4710,22 @@ export function DiscoveryDiagnosticsStrip({
         <span
           className="gh-discovery-diagnostics-value"
           data-testid="gh-discovery-diagnostics-observed"
+          title={observedAt ? String(observedAt) : undefined}
         >
           {observedLabel}
         </span>
       </span>
-      {discoveryState ? (
+      {stateLabel ? (
         <>
           <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
           <span className="gh-discovery-diagnostics-item">
-            <span className="gh-discovery-diagnostics-label">State</span>
+            {/* Humanized state — never the raw enum ("no_matches"). */}
+            <span className="gh-discovery-diagnostics-label">Status</span>
             <span
               className="gh-discovery-diagnostics-value"
               data-testid="gh-discovery-diagnostics-state"
             >
-              {discoveryState}
+              {stateLabel}
             </span>
           </span>
         </>

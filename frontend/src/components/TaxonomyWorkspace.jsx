@@ -106,6 +106,16 @@ function text(value) {
   return String(value).trim();
 }
 
+// Internal taxonomy ids ("ga-taxonomy-node-revenue") must never render as
+// user-facing labels. Strip the machine prefix and title-case the slug tail
+// ("Revenue"). Non-prefixed values just get title-cased.
+function humanizeTaxonomyRef(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  const tail = raw.replace(/^ga-taxonomy-(?:node|term)-/i, "");
+  return titleFromValue(tail) || raw;
+}
+
 function titleFromValue(value) {
   const normalized = text(value).replace(/[_-]+/g, " ").trim();
   if (!normalized) return "";
@@ -1752,9 +1762,12 @@ function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, o
   const firstAsset = term.assets[0] || null;
   const reviewers = term.reviewers.length ? term.reviewers : [];
   const history = term.termHistory.length ? term.termHistory : [];
-  // G10: resolve the parent term's real name; fall back to the raw id.
+  // G10 + persona-audit jargon purge: resolve the parent term's real name;
+  // when the id references a taxonomy node outside the term lookup
+  // ("ga-taxonomy-node-revenue"), humanize the slug tail ("Revenue") instead
+  // of rendering the raw internal id.
   const parentTermName = term.parentTermId
-    ? termLookup?.get?.(term.parentTermId)?.term || term.parentTermId
+    ? termLookup?.get?.(term.parentTermId)?.term || humanizeTaxonomyRef(term.parentTermId)
     : "";
   useEffect(() => {
     setShowAssociations(Boolean(associationBrowserOpen));
@@ -2556,7 +2569,14 @@ function TechnicalTab({ selectedTerm }) {
       <h3>Technical Metadata</h3>
       <dl>
         <div><dt>Term ID</dt><dd>{selectedTerm.termId}</dd></div>
-        <div><dt>Parent term</dt><dd>{selectedTerm.parentTermId || "None recorded"}</dd></div>
+        {/* Humanized parent label; the raw internal id stays on title for
+            operators who need the exact key. */}
+        <div>
+          <dt>Parent term</dt>
+          <dd title={selectedTerm.parentTermId || undefined}>
+            {selectedTerm.parentTermId ? humanizeTaxonomyRef(selectedTerm.parentTermId) : "None recorded"}
+          </dd>
+        </div>
         <div><dt>Domain</dt><dd>{selectedTerm.domain}</dd></div>
         <div><dt>Version</dt><dd>{selectedTerm.currentVersion || "Unavailable"}</dd></div>
         <div><dt>Created</dt><dd>{compactDate(selectedTerm.createdAt) || "Unavailable"}</dd></div>

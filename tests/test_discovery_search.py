@@ -329,6 +329,89 @@ class DiscoverySemanticsAndTypoToleranceTests(unittest.TestCase):
         self.assertEqual(payload["didYouMean"], "")
         self.assertFalse(payload["queryState"]["nearMatch"])
 
+    def test_structured_mode_bare_typo_still_gets_did_you_mean(self) -> None:
+        # Regression: the Discover UI sends EVERY search as
+        # queryMode=structured, so gating didYouMean on plain mode left the
+        # suggestion permanently empty in the live product ("custmer" -> 0
+        # results, no rewrite). A structured AST with no field selectors is
+        # semantically plain text and gets the same typo tolerance.
+        payload = assets.discovery_search_payload(
+            _inventory_df(), query="invoces", query_mode="structured"
+        )
+        self.assertEqual(payload["didYouMean"], "invoices")
+        self.assertIn(
+            "main.finance.invoices",
+            [asset["fqn"] for asset in payload["assets"]],
+        )
+        self.assertTrue(payload["queryState"]["nearMatch"])
+
+    def test_structured_field_scoped_typo_keeps_exact_semantics(self) -> None:
+        # Field-scoped queries must never be fuzzily rewritten — owner:invoces
+        # means exactly that, and zero results is the honest answer.
+        payload = assets.discovery_search_payload(
+            _inventory_df(), query="owner:invoces", query_mode="structured"
+        )
+        self.assertEqual(payload["count"], 0)
+        self.assertEqual(payload["didYouMean"], "")
+
+    def test_suggest_discovery_query_corrects_single_token_misspellings(self) -> None:
+        # Unit-level guarantees for the two live-verified misspellings.
+        entries = [
+            {"haystack": "customer profile gold customer 360", "asset": {}, "fields": {}},
+            {"haystack": "payments daily finance curated", "asset": {}, "fields": {}},
+        ]
+        self.assertEqual(assets.suggest_discovery_query("custmer", entries), "customer")
+        self.assertEqual(assets.suggest_discovery_query("paymnts", entries), "payments")
+
+    def test_owner_search_matches_uc_table_owner_and_summary(self) -> None:
+        # Regression: owner:"<uc owner email>" returned 0 results because the
+        # owner search field only indexed local steward/business owner names.
+        # The UC table_owner (authoritative) and the assignment roll-up
+        # (owners_summary) must both be searchable.
+        frame = _inventory_df()
+        frame["uc_owner"] = ["skyler@entrada.ai", "", ""]
+        frame["owners_summary"] = ["", "steward@entrada.ai", ""]
+
+        by_uc_owner = assets.discovery_search_payload(
+            frame, query='owner:"skyler@entrada.ai"', query_mode="structured"
+        )
+        self.assertEqual(
+            [asset["fqn"] for asset in by_uc_owner["assets"]],
+            ["main.finance.orders"],
+        )
+
+        by_summary = assets.discovery_search_payload(
+            frame, query='owner:"steward@entrada.ai"', query_mode="structured"
+        )
+        self.assertEqual(
+            [asset["fqn"] for asset in by_summary["assets"]],
+            ["main.finance.invoices"],
+        )
+
+        # Local owner names keep working.
+        by_name = assets.discovery_search_payload(
+            frame, query='owner:"Lina Park"', query_mode="structured"
+        )
+        self.assertEqual(
+            [asset["fqn"] for asset in by_name["assets"]],
+            ["main.support.tickets"],
+        )
+
+    def test_domain_facet_emits_every_domain_bucket(self) -> None:
+        # The API must ship ALL domain values (plus Unassigned) — any cap
+        # belongs to no layer. Chips summing below the All total is a defect.
+        frame = _inventory_df()
+        payload = assets.discovery_search_payload(frame)
+        domain_rows = payload["facets"]["domains"]
+        values = [row["value"] for row in domain_rows]
+        self.assertEqual(values[0], "All domains")
+        for expected in ("Finance", "Support", "Unassigned"):
+            self.assertIn(expected, values)
+        self.assertEqual(
+            sum(row["count"] for row in domain_rows[1:]),
+            domain_rows[0]["count"],
+        )
+
     def test_certified_view_is_strict(self) -> None:
         # D6: only certification == "Certified" counts; Draft/Trusted and
         # Unassigned are excluded from the Certified view.

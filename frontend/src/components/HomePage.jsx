@@ -1358,8 +1358,19 @@ export function HomePage({
     }
     setPresentMode((current) => !current);
   }, []);
-  const openCommandCenterSurface = useCallback((surfaceKey) => {
+  const openCommandCenterSurface = useCallback((surfaceKey, intent) => {
     if (!surfaceKey) return;
+    // Risk drill-downs land on Insights, which scrolls to the risk heatmap
+    // when this intent is staged (InsightsWorkspace consumes ga-insights-focus
+    // on mount) — without it the user lands at the top of the page with no
+    // pointer to the findings they clicked through for.
+    if (surfaceKey === "insights" && intent === "risk") {
+      try {
+        sessionStorage.setItem("ga-insights-focus", "risk");
+      } catch {
+        // sessionStorage unavailable (private mode) — navigation still works.
+      }
+    }
     onNavigate?.(surfaceKey);
   }, [onNavigate]);
   const explicitChanges = explicitChangeRows(data.changesToday || data.changes || data.deltaRows);
@@ -1593,7 +1604,7 @@ export function HomePage({
       info: riskSummary.severityAvailable
         ? `High-severity findings from the most recent quality runs (${data.riskBreakdown?.source || "quality run results"}).`
         : policyKpi.formula || "Explicit policy-exception signals from governed workflow and audit records.",
-      onOpen: () => openCommandCenterSurface(riskSummary.severityAvailable ? "insights" : "governance"),
+      onOpen: () => openCommandCenterSurface(riskSummary.severityAvailable ? "insights" : "governance", "risk"),
       openLabel: riskSummary.severityAvailable
         ? "Open governance insights for quality risk evidence"
         : "Open the stewardship queue for policy exception evidence",
@@ -1965,7 +1976,7 @@ export function HomePage({
                       ? "Open quality risk evidence for high-severity findings"
                       : "Open stewardship for policy exception signals"}
                     disabled={!riskSummary.sourceAvailable}
-                    onClick={() => openCommandCenterSurface(riskSummary.severityAvailable ? "insights" : "governance")}
+                    onClick={() => openCommandCenterSurface(riskSummary.severityAvailable ? "insights" : "governance", "risk")}
                     title={riskSummary.sourceAvailable
                       ? (riskSummary.severityAvailable
                         ? "Open governance insights for quality risk evidence"
@@ -1986,7 +1997,7 @@ export function HomePage({
                   <button
                     aria-label={riskSummary.severityAvailable ? "Open quality risk evidence for medium-severity findings" : "Medium severity source unavailable"}
                     disabled={!riskSummary.severityAvailable}
-                    onClick={() => openCommandCenterSurface("insights")}
+                    onClick={() => openCommandCenterSurface("insights", "risk")}
                     title={riskSummary.severityAvailable ? "Open governance insights for quality risk evidence" : "Risk severity source unavailable"}
                     type="button"
                   >
@@ -1999,7 +2010,7 @@ export function HomePage({
                   <button
                     aria-label={riskSummary.severityAvailable ? "Open quality risk evidence for informational findings" : "Informational severity source unavailable"}
                     disabled={!riskSummary.severityAvailable}
-                    onClick={() => openCommandCenterSurface("insights")}
+                    onClick={() => openCommandCenterSurface("insights", "risk")}
                     title={riskSummary.severityAvailable ? "Open governance insights for quality risk evidence" : "Risk severity source unavailable"}
                     type="button"
                   >

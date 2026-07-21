@@ -80,12 +80,20 @@ function humanTimestamp(value) {
  */
 function splitJobRunTimes(rawLastRun) {
   const raw = text(rawLastRun);
-  if (!raw) return { lastRun: "Unavailable", nextRun: "" };
+  // Backend contract (persona-audit wave): lastRun is empty ONLY when the
+  // job has never run — say so, instead of the ambiguous "Unavailable".
+  if (!raw) return { lastRun: "Not yet run", nextRun: "" };
   const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime()) && parsed.getTime() > Date.now()) {
+  if (Number.isNaN(parsed.getTime())) {
+    // Relative strings ("4 min ago") pass through untouched.
+    return { lastRun: raw, nextRun: "" };
+  }
+  if (parsed.getTime() > Date.now()) {
     return { lastRun: "Not yet run", nextRun: humanTimestamp(raw) };
   }
-  return { lastRun: raw, nextRun: "" };
+  // Parseable past timestamp: render the same UTC-labeled, year-carrying
+  // form as every other governance surface (raw ISO read as debug output).
+  return { lastRun: humanTimestamp(raw), nextRun: "" };
 }
 
 // Job names can embed raw run hashes ("[RUNNER] pixels | 0f1f0a3b2a5f…").

@@ -331,18 +331,31 @@ def _iso_timestamp(value: Any) -> str:
         return ""
 
 
-def _catalog_last_altered_map(uc, catalog: str) -> Dict[str, str]:
-    """fqn -> ISO-8601 `last_altered` for every table in one catalog.
+def _catalog_info_schema_map(uc, catalog: str) -> Dict[str, Dict[str, str]]:
+    """fqn -> {"last_altered": ISO-8601, "table_owner": principal} per catalog.
 
     Sourced from the SAME information_schema.tables relation the inventory
     query reads, as a single per-catalog query cached for 600s — this keeps
-    the discovery index freshness enrichment cheap (no per-asset fan-out).
-    Any failure degrades to an empty map so freshness is simply absent,
-    never fabricated.
+    the discovery index enrichment cheap (no per-asset fan-out). The UC
+    `table_owner` rides along here because the catalog inventory query does
+    not select it, yet discovery owner search must match the authoritative
+    UC owner (not just the local stewardship assignments). Any failure
+    degrades to an empty map so both fields are simply absent, never
+    fabricated.
     """
 
-    def _load() -> Dict[str, str]:
+    def _load() -> Dict[str, Dict[str, str]]:
+        # table_owner is a standard information_schema.tables column, but keep
+        # owner-less fallbacks so freshness enrichment survives a workspace
+        # that denies/omits that column for the acting principal.
         queries = [
+            f"""SELECT table_catalog, table_schema, table_name, last_altered, table_owner
+FROM {quote_ident(catalog)}.information_schema.tables
+WHERE table_schema <> 'information_schema'""",
+            f"""SELECT table_catalog, table_schema, table_name, last_altered, table_owner
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema <> 'information_schema'""",
             f"""SELECT table_catalog, table_schema, table_name, last_altered
 FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema <> 'information_schema'""",
@@ -358,20 +371,23 @@ WHERE table_catalog = {sql_literal(catalog)}
                 continue
             if df is None or df.empty:
                 continue
-            mapping: Dict[str, str] = {}
+            mapping: Dict[str, Dict[str, str]] = {}
             for _, row in df.iterrows():
                 fqn = ".".join(
                     normalize_str(row.get(col))
                     for col in ("table_catalog", "table_schema", "table_name")
                 )
+                if not fqn:
+                    continue
                 iso = _iso_timestamp(row.get("last_altered"))
-                if fqn and iso:
-                    mapping[fqn] = iso
+                owner = normalize_str(row.get("table_owner"))
+                if iso or owner:
+                    mapping[fqn] = {"last_altered": iso, "table_owner": owner}
             return mapping
         return {}
 
     return _ttl_value(
-        f"catalog_last_altered:{_warehouse_key(uc)}:{normalize_str(catalog)}",
+        f"catalog_info_schema:{_warehouse_key(uc)}:{normalize_str(catalog)}",
         600,
         _load,
     )
@@ -412,14 +428,14 @@ def build_inventory(
             else:
                 raise
         try:
-            altered_map = _catalog_last_altered_map(uc, catalog)
+            info_map = _catalog_info_schema_map(uc, catalog)
         except Exception:
-            # Freshness enrichment is best-effort; absence degrades to an
-            # empty updatedAt, never an aborted inventory.
-            altered_map = {}
-        return inv, tags_df, altered_map
+            # Freshness/owner enrichment is best-effort; absence degrades to
+            # empty updatedAt / uc_owner, never an aborted inventory.
+            info_map = {}
+        return inv, tags_df, info_map
 
-    last_altered_map: Dict[str, str] = {}
+    info_schema_map: Dict[str, Dict[str, str]] = {}
     for catalog, result, exc in metadata_service.parallel_catalog_scan(
         catalogs, _fetch_catalog
     ):
@@ -427,8 +443,8 @@ def build_inventory(
             if is_skippable_metadata_error(exc):
                 continue
             raise exc
-        inv, tags_df, altered_map = result
-        last_altered_map.update(altered_map)
+        inv, tags_df, info_map = result
+        info_schema_map.update(info_map)
         if not inv.empty:
             inv = inv.copy()
             inv["comment"] = inv["comment"].map(normalize_str)
@@ -480,7 +496,23 @@ def build_inventory(
     # parallel catalog scan above. This lights up the discovery card
     # freshness, "Recently updated" sort, and preview freshness.
     inventory["last_altered"] = inventory["fqn"].map(
-        lambda fqn: last_altered_map.get(str(fqn), "") if pd.notna(fqn) else ""
+        lambda fqn: (
+            info_schema_map.get(str(fqn), {}).get("last_altered", "")
+            if pd.notna(fqn)
+            else ""
+        )
+    )
+    # UC table_owner enrichment: the authoritative Unity Catalog owner must be
+    # discoverable via owner:"..." search even when the local governance store
+    # has no steward/business assignment for the asset (which is the common
+    # case). Sourced from the same cached per-catalog information_schema pass
+    # as last_altered — no extra queries.
+    inventory["uc_owner"] = inventory["fqn"].map(
+        lambda fqn: (
+            info_schema_map.get(str(fqn), {}).get("table_owner", "")
+            if pd.notna(fqn)
+            else ""
+        )
     )
     # D8: rows/size/files enrichment from ALREADY-WARM per-table caches only
     # (DESCRIBE DETAIL / COUNT(*) results a prior detail view paid for).
@@ -693,6 +725,10 @@ def build_inventory(
         "business_owner",
         "technical_owner",
         "steward",
+        # UC owner participates in plain-text search too, matching the
+        # structured owner: field semantics (defect: owner:"<uc owner email>"
+        # returned 0 results while UC owned many assets).
+        "uc_owner",
     ]
     inventory["search_text"] = (
         inventory[search_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
@@ -1267,6 +1303,12 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         or "Unassigned",
         "openRequests": safe_int(row.get("pending_requests")),
         "owners": owner_entries(row),
+        # Authoritative Unity Catalog owner (information_schema.tables
+        # table_owner) + the local assignment roll-up. Both feed the
+        # discovery owner: search field so searching a UC owner email/name
+        # matches even when no steward/business owner is assigned locally.
+        "ucOwner": normalize_str(row.get("uc_owner")),
+        "ownersSummary": normalize_str(row.get("owners_summary")),
         "tags": raw_tags,
         "tagLabels": tag_labels,
         "relatedAssets": [],
@@ -1716,11 +1758,23 @@ def discovery_search_fields(asset: Dict[str, Any]) -> Dict[str, str]:
         for term in asset.get("glossaryTerms", [])
         if normalize_str(term.get("term") if isinstance(term, dict) else term)
     ]
+    # Owner search must match every owner representation the asset carries:
+    # local assignment names AND emails, the assignment roll-up summary, and
+    # the authoritative UC table_owner (defect: owner:"<uc owner email>"
+    # returned 0 results because only steward/business names were indexed).
     owner_terms = [
-        normalize_str(owner.get("name"))
+        term
         for owner in asset.get("owners", [])
-        if isinstance(owner, dict) and normalize_str(owner.get("name"))
+        if isinstance(owner, dict)
+        for term in (
+            normalize_str(owner.get("name")),
+            normalize_str(owner.get("email")),
+        )
+        if term
     ]
+    for extra_owner in (asset.get("ucOwner"), asset.get("ownersSummary")):
+        if normalize_str(extra_owner):
+            owner_terms.append(normalize_str(extra_owner))
     fields = {
         "name": normalized_search_text(asset.get("name")),
         "fqn": normalized_search_text(asset.get("fqn")),
@@ -2125,6 +2179,28 @@ def compile_discovery_query(query: str) -> Dict[str, Any]:
     }
     compiled["clauseChips"] = discovery_query_clause_chips(compiled)
     return compiled
+
+
+def _structured_query_is_plain_text(node: Dict[str, Any]) -> bool:
+    """True when a compiled structured query has NO field selectors.
+
+    The Discover UI submits every search as queryMode=structured; a bare
+    typo like "custmer" therefore arrives as a structured AST of unfielded
+    terms. Such a query is semantically plain text and is eligible for the
+    didYouMean typo rewrite; anything with a field-scoped term (owner:...)
+    keeps exact structured semantics.
+    """
+    if not isinstance(node, dict):
+        return False
+    kind = normalize_str(node.get("kind")).lower()
+    if kind == "term":
+        return not normalize_str(node.get("field"))
+    if kind in {"and", "or"}:
+        children = [child for child in node.get("children", []) if isinstance(child, dict)]
+        return bool(children) and all(
+            _structured_query_is_plain_text(child) for child in children
+        )
+    return False
 
 
 def _structured_discovery_query_matches(
@@ -2773,9 +2849,19 @@ def discovery_search_payload(
         or selected_business_criticalities
         or require_cde
     )
+    # The Discover UI always sends queryMode=structured, even for a bare
+    # typo like "custmer" — so gating the rewrite on plain mode alone left
+    # didYouMean permanently empty in the product. A structured query whose
+    # AST carries no field selectors is semantically plain text; give it the
+    # same typo tolerance. Genuinely field-scoped queries (owner:..., tag:...)
+    # keep exact semantics with no fuzzy rewrite.
+    plain_like_query = normalized_query_mode != "structured" or (
+        isinstance(compiled_query, dict)
+        and _structured_query_is_plain_text(compiled_query.get("ast") or {})
+    )
     if (
         query_text
-        and normalized_query_mode != "structured"
+        and plain_like_query
         and not matched_assets
         and not filters_selected
     ):
@@ -2858,8 +2944,10 @@ def discovery_search_payload(
         # collapse ordering to tiebreakers.
         query=did_you_mean if near_match_applied else query_text,
         query_mode=normalized_query_mode,
+        # After a near-match rewrite the misspelled AST would zero every
+        # structured score; rank by the corrected plain terms instead.
         compiled_query=compiled_query
-        if normalized_query_mode == "structured"
+        if normalized_query_mode == "structured" and not near_match_applied
         else None,
         search_fields_by_fqn=search_fields_by_fqn,
     )

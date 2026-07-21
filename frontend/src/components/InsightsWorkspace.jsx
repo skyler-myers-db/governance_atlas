@@ -524,7 +524,9 @@ function RecommendationRail({ recommendations, onNavigate }) {
               <span className="gh-insights-rec-icon" aria-hidden="true" />
               <span>
                 <strong>{rows.length ? "No additional evidence-backed recommendation" : "No evidence-backed recommendation available"}</strong>
-                <small>Atlas AI did not return an actor-visible recommendation for this slot.</small>
+                {/* Plain-language empty copy — "actor-visible recommendation
+                    for this slot" was implementation jargon (persona audit). */}
+                <small>No recommendation available for this slot yet.</small>
               </span>
             </div>
           ))}
@@ -598,6 +600,40 @@ export function InsightsWorkspace({
     return () => {
       document.title = previous;
     };
+  }, []);
+
+  // Risk-drill anchor: when another surface navigates here with risk intent
+  // (URL hash #risk / #insights-risk-heatmap, or the staged
+  // sessionStorage/"ga:insights-focus" handoff pattern the glossary uses),
+  // scroll the risk heatmap card into view instead of landing at the top.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const consumePendingFocus = () => {
+      let staged = "";
+      try {
+        staged = window.sessionStorage?.getItem("ga-insights-focus") || "";
+        if (staged) window.sessionStorage?.removeItem("ga-insights-focus");
+      } catch {
+        /* Hash + event paths still work when storage is blocked. */
+      }
+      const hash = String(window.location?.hash || "").toLowerCase();
+      return staged === "risk" || hash === "#risk" || hash === "#insights-risk-heatmap";
+    };
+    const scrollToRisk = () => {
+      document.getElementById("insights-risk-heatmap")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+    if (consumePendingFocus()) {
+      // Defer one frame so the card exists before we scroll.
+      window.requestAnimationFrame(scrollToRisk);
+    }
+    const onFocusEvent = (event) => {
+      if (String(event?.detail?.section || "") === "risk") scrollToRisk();
+    };
+    window.addEventListener("ga:insights-focus", onFocusEvent);
+    return () => window.removeEventListener("ga:insights-focus", onFocusEvent);
   }, []);
 
   const meta = {
@@ -786,7 +822,7 @@ export function InsightsWorkspace({
             />
           </section>
 
-          <section className="gh-insights-card gh-insights-risk-card">
+          <section className="gh-insights-card gh-insights-risk-card" id="insights-risk-heatmap">
             <CardHeader title="Risk Heatmap" tooltip="Risk counts from live criticality and metadata-gap evidence." />
             {/* Date-stamp quality-derived evidence when the payload carries a
                 timestamp so stale runs never masquerade as today's signal. */}

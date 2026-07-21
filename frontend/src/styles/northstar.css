@@ -8047,3 +8047,56 @@ input.gh-input,
   color: var(--ga-text-muted);
   font-size: 0.76rem;
 }
+
+/* ---------------------------------------------------------------------------
+ * Stewardship status toast — error tone.
+ * The shared .gh-discovery-preview-action-toast chrome is success-styled
+ * (blue gradient + teal ✓). Failed mutations reuse the layout but must read
+ * unambiguously as failures (persona-audit P0-adjacent: raw backend errors
+ * rendered inside the success toast).
+ * ------------------------------------------------------------------------ */
+.gh-discovery-preview-action-toast.is-error {
+  background: color-mix(in srgb, var(--ga-danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ga-danger) 45%, transparent);
+}
+.gh-discovery-preview-action-toast.is-error .gh-discovery-preview-action-toast-icon {
+  background: color-mix(in srgb, var(--ga-danger) 24%, transparent);
+  color: var(--ga-danger);
+}
+
+/* ---------------------------------------------------------------------------
+ * Command palette — live-search status rows.
+ * ------------------------------------------------------------------------ */
+.gh-cmdk-live-status {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+  border-top: 1px solid var(--ga-border, rgba(255, 255, 255, 0.08));
+}
+.gh-cmdk-empty.is-loading {
+  color: var(--ga-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Discovery filter rail — "Show all N" facet expander.
+ * The rail no longer silently truncates facet buckets; past the visual cap
+ * this quiet control reveals the full server-emitted list.
+ * ------------------------------------------------------------------------ */
+.gh-discovery-filter-show-all {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ga-bright-blue);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.gh-discovery-filter-show-all:hover,
+.gh-discovery-filter-show-all:focus-visible {
+  background: color-mix(in srgb, var(--ga-bright-blue) 12%, transparent);
+}

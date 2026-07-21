@@ -116,6 +116,20 @@ function compactDateTime(value) {
   });
 }
 
+// Date-only UTC form for backlog aging captions ("May 5, 2026").
+function compactDate(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function parseJsonValue(value) {
   if (value == null || value === "") return null;
   if (typeof value === "object") return value;
@@ -554,15 +568,12 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
     [events, filteredQueryFailed, serverFilteredEvents, serverFiltersActive],
   );
   const summary = payload.summary || {};
-  const filteredEvents = useMemo(() => {
-    return baseEvents
-      .filter((event) => {
-        if (activeFilter === "Violations") return /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`);
-        if (activeFilter === "By users") return !isServiceActor(event.actor);
-        if (activeFilter === "By services") return isServiceActor(event.actor);
-        return true;
-      })
-      .filter((event) => filterByText(event, appliedFilters.search, [
+  // Free-text search applies BEFORE the actor-kind tabs so the tab counts and
+  // the "Showing X of Y" caption always describe the same filtered set — the
+  // audit found the caption saying 20 while the "All events" tab said 24.
+  const searchedEvents = useMemo(
+    () =>
+      baseEvents.filter((event) => filterByText(event, appliedFilters.search, [
         "actor",
         "action",
         "detail",
@@ -571,8 +582,17 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
         "source",
         "displayAuditId",
         "displayRequestId",
-      ]));
-  }, [activeFilter, appliedFilters.search, baseEvents]);
+      ])),
+    [appliedFilters.search, baseEvents],
+  );
+  const filteredEvents = useMemo(() => {
+    return searchedEvents.filter((event) => {
+      if (activeFilter === "Violations") return /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`);
+      if (activeFilter === "By users") return !isServiceActor(event.actor);
+      if (activeFilter === "By services") return isServiceActor(event.actor);
+      return true;
+    });
+  }, [activeFilter, searchedEvents]);
 
   const pageRows = filteredEvents.slice(0, visibleCount);
   const selectedInFiltered = selectedId ? filteredEvents.find((event) => event.id === selectedId) : null;
@@ -670,18 +690,35 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
       summary.summarySource,
     "Policy summary unavailable unless reported by audit API",
   );
+  // Feature-detect the backend's per-tile loading marker: while the
+  // governance-request summary is still hydrating, the tile must not render
+  // its source/reason text as if it were settled data.
+  const governanceRequestsLoading =
+    loading || normalizeStatus(governanceRequests.state) === "loading";
+  // Backlog aging: the payload now ships the created-at of the OLDEST open
+  // request so the tile can say how long the backlog has been sitting.
+  const oldestOpenCreatedAt = text(governanceRequests.oldestOpenCreatedAt);
+  const oldestOpenLabel = oldestOpenCreatedAt
+    ? `oldest open since ${compactDate(oldestOpenCreatedAt)}`
+    : "";
   // Backed by store change-request state; when unavailable the KPI stays an
   // honest "Unavailable" instead of falling back to an audit-text match.
   const governanceRequestsSupport = governanceRequestsOpen == null
     ? text(governanceRequests.source, "Governance request summary unavailable unless reported by audit API")
-    : `${governanceRequestsResolved == null ? "Resolved count unavailable" : `${governanceRequestsResolved} resolved`} · ${text(governanceRequests.source, "governance change requests")}`;
+    : [
+        governanceRequestsResolved == null ? "Resolved count unavailable" : `${governanceRequestsResolved} resolved`,
+        oldestOpenLabel,
+        text(governanceRequests.source, "governance change requests"),
+      ].filter(Boolean).join(" · ");
   const scopedEventMetric = events24h ?? null;
   const eventsMetricLabel = `Events · ${dateRange}`;
+  // Tab counts reflect the search-filtered population (see searchedEvents) so
+  // they can never disagree with the visible row caption.
   const filters = [
-    ["All events", baseEvents.length],
-    ["By users", baseEvents.filter((event) => !isServiceActor(event.actor)).length],
-    ["By services", baseEvents.filter((event) => isServiceActor(event.actor)).length],
-    ["Violations", baseEvents.filter((event) => /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`)).length],
+    ["All events", searchedEvents.length],
+    ["By users", searchedEvents.filter((event) => !isServiceActor(event.actor)).length],
+    ["By services", searchedEvents.filter((event) => isServiceActor(event.actor)).length],
+    ["Violations", searchedEvents.filter((event) => /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`)).length],
   ];
   const dateRanges = ["24h", "7d", "30d", "90d"];
   const auditExportUnavailableReason = loading
@@ -897,9 +934,12 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
               unbackable Retention tile removed, override to 3 so the row has
               no dead cell. Layout-only inline style, no palette values. */}
           <div className="gh-audit-kpis gh-audit-prototype-kpis" aria-label="Audit metrics" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+            {/* While loading, every tile's support line reads as loading —
+                rendering the settled source/reason text next to a "Loading..."
+                value made the tiles look like final data mid-hydration. */}
             <KpiCard icon="▦" label={eventsMetricLabel} value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(scopedEventMetric)} support={loading ? "Reading audit rows" : eventSupport} tone="info" />
-            <KpiCard icon="!" label="Policy violations" value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(policyViolations)} support={policySupport} tone="bad" />
-            <KpiCard icon="✓" label={`${governanceRequestsLabel} · open`} value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(governanceRequestsOpen)} support={governanceRequestsSupport} tone="good" />
+            <KpiCard icon="!" label="Policy violations" value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(policyViolations)} support={loading ? "Reading audit rows" : policySupport} tone="bad" />
+            <KpiCard icon="✓" label={`${governanceRequestsLabel} · open`} value={governanceRequestsLoading ? "Loading..." : queryError ? "Unavailable" : metricValue(governanceRequestsOpen)} support={governanceRequestsLoading ? "Reading governance requests" : governanceRequestsSupport} tone="good" />
           </div>
 
           {loading ? (
@@ -1058,10 +1098,22 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                     </button>
                   </span>
                 </div>
-              )) : (
-                <div className="gh-audit-empty">
-                  {filtersLoading ? "Loading filtered audit events..." : "No audit events match the current filters."}
+              )) : loading || filtersLoading ? (
+                // Honest loading state: while the payload (or the server-side
+                // filtered query) is in flight the table renders an aria-busy
+                // skeleton, never the REAL-empty "no events match" copy.
+                <div aria-busy="true" aria-label="Loading audit events" className="gh-audit-loading-rows" role="row">
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <div aria-hidden="true" className="gh-audit-skeleton-row" key={index}>
+                      <span /><span /><span /><span /><span />
+                    </div>
+                  ))}
+                  <span className="gh-visually-hidden">
+                    {filtersLoading ? "Loading filtered audit events" : "Loading audit events"}
+                  </span>
                 </div>
+              ) : (
+                <div className="gh-audit-empty">No audit events match the current filters.</div>
               )}
             </div>
             {truncationWarning ? (

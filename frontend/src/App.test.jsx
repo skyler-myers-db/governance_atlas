@@ -108,6 +108,9 @@ vi.mock("./lib/api", () => ({
     answer: "No evidence-backed recommendations are available from the current visible metadata.",
     evidence: [],
   }),
+  // Shell-level inbox badge sources (actionable requests + review terms).
+  fetchGovernanceWorkbench: vi.fn().mockResolvedValue({ requests: [] }),
+  fetchGovernanceGlossary: vi.fn().mockResolvedValue({ glossary: [] }),
   normalizeGovernancePayload: (payload) => payload,
   updateGovernanceNotification: (...args) => updateGovernanceNotificationMock(...args),
   getRuntimeDiagnostics: () => ({
@@ -125,7 +128,15 @@ vi.mock("./lib/assetRecordNavigation", () => ({
   openAssetRecordSafely: (...args) => openAssetRecordSafelyMock(...args),
 }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+
+// App now mounts react-query hooks at the shell level (inbox badge sources),
+// so every render needs a QueryClientProvider like main.jsx provides.
+function TestQueryProvider({ children }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
 
 describe("App", () => {
   beforeEach(() => {
@@ -241,7 +252,7 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     expect(screen.getByText("Preparing the workspace surface.")).not.toBeNull();
     expect(
@@ -315,7 +326,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     expect(useRuntimeStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -396,7 +407,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     expect(screen.getByText("Workspace Unavailable")).not.toBeNull();
     expect(screen.getByText("Setup Diagnostics")).not.toBeNull();
@@ -467,7 +478,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     expect(screen.getByText("Workspace Unavailable")).not.toBeNull();
     expect(screen.queryByText("Setup Diagnostics")).toBeNull();
@@ -520,7 +531,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsAvailable).toBe(true);
@@ -587,7 +598,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsAvailable).toBe(true);
@@ -697,7 +708,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsStatus).toEqual({
@@ -757,7 +768,7 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.bootState).toBe("live");
@@ -803,7 +814,7 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.bootState).toBe("unavailable");
@@ -853,7 +864,7 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.bootState).toBe("unavailable");
@@ -901,7 +912,7 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.bootState).toBe("unavailable");
@@ -976,7 +987,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -1033,7 +1044,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -1118,7 +1129,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.currentAssetFqn).toBe("main.sales.returns");
@@ -1205,7 +1216,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     appFrameMock.mock.calls.at(-1)?.[0]?.onOpenAsset360();
 
@@ -1281,7 +1292,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     appFrameProps?.onBrowseCatalog?.("customers");
@@ -1322,7 +1333,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -1407,7 +1418,7 @@ describe("App", () => {
       refreshActorScope: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       expect(screen.getByText("42")).not.toBeNull();
@@ -1473,12 +1484,16 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       expect(screen.getByTestId("admin-workspace")).not.toBeNull();
     });
-    expect(adminWorkspaceMock).toHaveBeenCalledTimes(1);
+    // The shell may legitimately re-render as the inbox-badge queries settle;
+    // the invariant is that admin routed DIRECTLY (no detour through another
+    // workspace), not the literal render count.
+    expect(adminWorkspaceMock).toHaveBeenCalled();
+    expect(discoveryWorkspaceMock).not.toHaveBeenCalled();
     expect(appFrameMock.mock.calls.at(-1)?.[0]?.activeModule).toBe("admin");
   });
 
@@ -1611,7 +1626,7 @@ describe("App", () => {
       onModuleChange: moduleChange,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     expect(screen.getByTestId("inbox-count").textContent).toBe("2");
 
@@ -1693,7 +1708,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const governanceProps = governanceWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -1792,7 +1807,7 @@ describe("App", () => {
       refresh: vi.fn(),
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const governanceProps = governanceWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -1914,7 +1929,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const entityProps = entityWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -2033,7 +2048,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const lineageProps = lineageWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -2143,7 +2158,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     await waitFor(() => {
       const governanceProps = governanceWorkspaceMock.mock.calls.at(-1)?.[0];
@@ -2191,7 +2206,7 @@ describe("App", () => {
       data: null,
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsAvailable).toBe(false);
@@ -2280,7 +2295,7 @@ describe("App", () => {
       },
     });
 
-    const { container } = render(<App />);
+    const { container } = render(<App />, { wrapper: TestQueryProvider });
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle workspace setup" }));
 
@@ -2377,7 +2392,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsAvailable).toBe(false);
@@ -2463,7 +2478,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    render(<App />, { wrapper: TestQueryProvider });
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsAvailable).toBe(false);

@@ -356,17 +356,50 @@ function formatShortDate(value = "") {
   if (!text) return "";
   const date = new Date(text);
   if (Number.isNaN(date.getTime())) return text;
-  return date.toLocaleString(undefined, {
+  // Always UTC with an explicit label, matching the audit surface. The old
+  // browser-local, year-less rendering made two adjacent stored timestamps
+  // (02:26Z / 02:51Z → "May 4, 10:26 PM" / "May 4, 10:51 PM" in EDT) read
+  // as ONE timestamp drifting with the wall clock — a P2 the persona audit
+  // filed as "timestamps track the current time". Fixed absolute values only.
+  return date.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
+    year: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+    timeZoneName: "short",
   });
 }
 
 function dueLabel(request = {}) {
   const due = formatShortDate(request.dueAt);
   return due ? `Due ${due}` : "Due not set";
+}
+
+// ---- Mutation failure copy -------------------------------------------------
+// Backend 5xx bodies can carry raw exception text ("TypeError:
+// DualWriteGovernanceStore…"). That text must never reach the UI: keep the
+// request id for support correlation, swap the message for human copy.
+function looksLikeRawException(message) {
+  return /\b[A-Z][A-Za-z]*(?:Error|Exception)\b|Traceback|\bNoneType\b/.test(String(message || ""));
+}
+
+function humanMutationError(error, fallback) {
+  const requestId = textValue(
+    error?.httpRequestId || error?.clientRequestId || error?.meta?.httpRequestId,
+  );
+  const detail = textValue(error?.detailMessage);
+  const status = Number(error?.status);
+  // Server copy is kept only for deliberate 4xx messages (permissions,
+  // validation) that do not look like a stringified exception; everything
+  // else gets the human fallback.
+  const base =
+    detail && Number.isFinite(status) && status > 0 && status < 500 && !looksLikeRawException(detail)
+      ? detail
+      : fallback;
+  return requestId ? `${base} (Request ID: ${requestId})` : base;
 }
 
 function slaTone(request = {}) {
@@ -652,8 +685,14 @@ export default function GovernanceWorkspace({
   const [newWorkSubmitting, setNewWorkSubmitting] = useState(false);
   const [newWorkError, setNewWorkError] = useState("");
   // Toast-style status surface for staged actions (New work item, etc.).
-  // Cleared on next action panel open or after a 6s timeout.
-  const [statusMessage, setStatusMessage] = useState("");
+  // Carries a tone so FAILURES render as errors — a raw backend exception
+  // inside the success-styled ✓ toast was the P0-adjacent defect the persona
+  // audit filed. Success auto-dismisses; errors stay until dismissed.
+  const [status, setStatus] = useState({ text: "", tone: "success" });
+  const statusMessage = status.text;
+  const statusTone = status.tone;
+  const setStatusMessage = (text) => setStatus({ text: String(text || ""), tone: "success" });
+  const setStatusError = (text) => setStatus({ text: String(text || ""), tone: "error" });
   // Bulk triage: selected queue-row ids, the confirm dialog flag, and live
   // progress while the resolve loop runs (visible feedback, never a dead
   // multi-second silence).
@@ -663,9 +702,12 @@ export default function GovernanceWorkspace({
   const [triageBusy, setTriageBusy] = useState(false);
   useEffect(() => {
     if (!statusMessage) return undefined;
-    const handle = window.setTimeout(() => setStatusMessage(""), 6000);
+    // Errors persist until the user dismisses them — auto-dismissing a
+    // failure notice would hide the fact that nothing was saved.
+    if (statusTone === "error") return undefined;
+    const handle = window.setTimeout(() => setStatus({ text: "", tone: "success" }), 6000);
     return () => window.clearTimeout(handle);
-  }, [statusMessage]);
+  }, [statusMessage, statusTone]);
 
   useEffect(() => {
     const nextAssetFqn = initialAssetFqn || "";
@@ -714,7 +756,9 @@ export default function GovernanceWorkspace({
       })
       .catch((error) => {
         if (cancelled || error?.name === "AbortError") return;
-        setNorthstarError(error?.message || "Unable to load governance workbench.");
+        // Human copy + request id; a 500 body's raw exception text must not
+        // render in the degraded banner.
+        setNorthstarError(humanMutationError(error, "Unable to load the governance workbench right now."));
       })
       .finally(() => {
         if (!cancelled) setNorthstarLoading(false);
@@ -768,7 +812,8 @@ export default function GovernanceWorkspace({
       setMutationState({
         kind,
         loading: false,
-        error: error?.message || "Unable to update governance right now.",
+        // Human copy + request id only — never raw backend exception text.
+        error: humanMutationError(error, "Couldn't update the work item — the server rejected the change."),
         success: "",
       });
       throw error;
@@ -964,7 +1009,8 @@ export default function GovernanceWorkspace({
       // Pull the fresh queue so the new request appears without a reload.
       refreshNorthstarWorkbench();
     } catch (error) {
-      setNewWorkError(error?.message || "Unable to create the work item right now.");
+      // Human copy + request id — never raw backend exception text.
+      setNewWorkError(humanMutationError(error, "Couldn't create the work item — the server rejected the change."));
     } finally {
       setNewWorkSubmitting(false);
     }
@@ -988,15 +1034,22 @@ export default function GovernanceWorkspace({
   const updateNorthstarRequestStatus = async (status, reviewNote) => {
     if (!northstarSelectedDetail?.requestId) return;
     setNorthstarActionPanel(null);
-    await runGovernanceMutation(
-      "request-status",
-      () =>
-        updateGovernanceRequest(northstarSelectedDetail.requestId, {
-          status: status === "commented" ? northstarSelectedDetail.status : status,
-          reviewNote,
-        }, { fast: true }),
-      status === "approved" ? "Request approved." : "Request updated.",
-    );
+    try {
+      await runGovernanceMutation(
+        "request-status",
+        () =>
+          updateGovernanceRequest(northstarSelectedDetail.requestId, {
+            status: status === "commented" ? northstarSelectedDetail.status : status,
+            reviewNote,
+          }, { fast: true }),
+        status === "approved" ? "Request approved." : "Request updated.",
+      );
+    } catch {
+      // runGovernanceMutation already surfaced the error banner. Bail out so
+      // the optimistic status/success updates below never run on failure —
+      // and so the rejection doesn't escape as an unhandled promise error.
+      return;
+    }
     setNorthstarWorkbench((current) => {
       if (!current?.requests) return current;
       const statusLabel =
@@ -1066,8 +1119,10 @@ export default function GovernanceWorkspace({
 
   // Triage PATCH (assign / priority). Re-sends the current status unchanged —
   // the backend treats empty triage fields as "no change", so this never
-  // mutates workflow state beyond the requested field.
-  const applyTriageUpdate = async ({ assignee = "", priority = "" }, successMessage) => {
+  // mutates workflow state beyond the requested field. Local state commits
+  // ONLY after the PATCH succeeds; on failure the controlled selects re-render
+  // back to the stored value and an error toast says nothing was saved.
+  const applyTriageUpdate = async ({ assignee = "", priority = "" }, successMessage, failureMessage) => {
     const detail = northstarSelectedDetail;
     if (!detail?.requestId || triageBusy) return;
     setTriageBusy(true);
@@ -1103,7 +1158,15 @@ export default function GovernanceWorkspace({
       ));
       setStatusMessage(successMessage);
     } catch (error) {
-      setStatusMessage(error?.message || "Unable to update the work item right now.");
+      // Error-toned toast with human copy + request id. The raw error
+      // message (potentially "TypeError: DualWriteGovernanceStore…") used to
+      // land inside the ✓ success toast here.
+      setStatusError(
+        humanMutationError(
+          error,
+          failureMessage || "Couldn't update the work item — the server rejected the change.",
+        ),
+      );
     } finally {
       setTriageBusy(false);
     }
@@ -1112,15 +1175,23 @@ export default function GovernanceWorkspace({
   const assignSelectedToMe = () => {
     const email = normalizeCurrentUser(currentUser || {}).email;
     if (!email) {
-      setStatusMessage("Assign to me is unavailable because no signed-in user email was resolved.");
+      setStatusError("Assign to me is unavailable because no signed-in user email was resolved.");
       return;
     }
-    applyTriageUpdate({ assignee: email }, `Assigned to you (${email}).`);
+    applyTriageUpdate(
+      { assignee: email },
+      `Assigned to you (${email}).`,
+      "Couldn't update the assignment — the server rejected the change.",
+    );
   };
 
   const setSelectedPriority = (priority) => {
     if (!priority) return;
-    applyTriageUpdate({ priority }, `Priority set to ${priority.toUpperCase()}.`);
+    applyTriageUpdate(
+      { priority },
+      `Priority set to ${priority.toUpperCase()}.`,
+      "Couldn't update the priority — the server rejected the change.",
+    );
   };
 
   const toggleBulkSelected = (id) => {
@@ -1156,11 +1227,12 @@ export default function GovernanceWorkspace({
     }
     setBulkProgress(null);
     setBulkSelection(new Set());
-    setStatusMessage(
-      failed
-        ? `Bulk resolve finished: ${targets.length - failed} resolved, ${failed} failed.`
-        : `${targets.length} work item${targets.length === 1 ? "" : "s"} resolved.`,
-    );
+    // Partial failure is a failure notice, not a ✓ success toast.
+    if (failed) {
+      setStatusError(`Bulk resolve finished: ${targets.length - failed} resolved, ${failed} failed.`);
+    } else {
+      setStatusMessage(`${targets.length} work item${targets.length === 1 ? "" : "s"} resolved.`);
+    }
     refreshNorthstarWorkbench();
   };
 
@@ -1306,18 +1378,23 @@ export default function GovernanceWorkspace({
       ) : null}
 
       {statusMessage ? (
+        // Tone-aware toast: the ✓ success chrome renders ONLY on success.
+        // Failures get error styling + role="alert" so a rejected PATCH can
+        // never masquerade as a saved change.
         <div
-          aria-live="polite"
-          className="gh-discovery-preview-action-toast"
-          role="status"
+          aria-live={statusTone === "error" ? "assertive" : "polite"}
+          className={`gh-discovery-preview-action-toast ${statusTone === "error" ? "is-error" : ""}`.trim()}
+          role={statusTone === "error" ? "alert" : "status"}
           style={{ marginBottom: 12 }}
         >
-          <span aria-hidden="true" className="gh-discovery-preview-action-toast-icon">✓</span>
+          <span aria-hidden="true" className="gh-discovery-preview-action-toast-icon">
+            {statusTone === "error" ? "!" : "✓"}
+          </span>
           <span>{statusMessage}</span>
           <button
             aria-label="Dismiss notice"
             className="gh-discovery-preview-action-toast-close"
-            onClick={() => setStatusMessage("")}
+            onClick={() => setStatus({ text: "", tone: "success" })}
             type="button"
           >
             ×

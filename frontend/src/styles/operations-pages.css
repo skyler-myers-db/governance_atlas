@@ -8039,3 +8039,54 @@
   color: var(--ga-text-muted);
   font-size: 0.86rem;
 }
+
+/* ---------------------------------------------------------------------------
+ * Audit table loading skeleton (persona-audit fix).
+ * While the evidence payload (or a server-side filtered query) is in flight
+ * the table body renders shimmering placeholder rows instead of the
+ * REAL-empty "No audit events match the current filters." copy.
+ * ------------------------------------------------------------------------ */
+.gh-audit-loading-rows {
+  display: grid;
+  gap: 0;
+}
+
+.gh-audit-skeleton-row {
+  display: grid;
+  grid-template-columns:
+    minmax(126px, 0.9fr)
+    minmax(150px, 1fr)
+    minmax(240px, 1.55fr)
+    minmax(280px, 1.65fr)
+    minmax(250px, 1.35fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ga-border) 55%, transparent);
+}
+
+.gh-audit-skeleton-row span {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ga-text-muted) 12%, transparent) 25%,
+    color-mix(in srgb, var(--ga-text-muted) 24%, transparent) 50%,
+    color-mix(in srgb, var(--ga-text-muted) 12%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: gh-audit-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes gh-audit-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-audit-skeleton-row span {
+    animation: none;
+  }
+}

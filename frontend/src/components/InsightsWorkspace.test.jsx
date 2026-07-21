@@ -100,6 +100,10 @@ describe("InsightsWorkspace", () => {
     expect(screen.getAllByText("No evidence-backed recommendation available")).toHaveLength(4);
     expect(document.querySelectorAll(".gh-insights-rec-card")).toHaveLength(4);
     expect(screen.queryByText(/Assign owner/)).toBeNull();
+    // Jargon purge (persona audit): plain-language empty copy, no
+    // "actor-visible recommendation for this slot".
+    expect(screen.getAllByText("No recommendation available for this slot yet.").length).toBe(4);
+    expect(screen.queryByText(/actor-visible/)).toBeNull();
   });
 
   it("shows degraded warnings from the live response metadata", () => {

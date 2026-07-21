@@ -921,6 +921,11 @@ class AtlasMetricsTests(unittest.TestCase):
         )
 
     def test_insights_quality_availability_tracks_score_not_raw_rows(self) -> None:
+        # Intended behavior changed: insights_dashboard_payload now derives
+        # quality_health from the SAME _quality_sla_signal pass-rate the
+        # Command Center publishes (it was previously hardcoded None, which
+        # made Insights claim "Quality health score is unavailable" while the
+        # Command Center showed a real SLA). Evaluated rows => available score.
         class QualityRowsOnlyStore(FakeStore):
             def list_quality_run_results(self, limit: int = 1000) -> pd.DataFrame:
                 return pd.DataFrame([{"asset_fqn": "main.customer.customer_dim", "outcome": "passed"}])
@@ -930,9 +935,104 @@ class AtlasMetricsTests(unittest.TestCase):
             store=QualityRowsOnlyStore(),
         )
 
+        self.assertTrue(payload["signalAvailability"]["quality"])
+        self.assertTrue(payload["signalAvailability"]["qualityRowsAvailable"])
+        self.assertIn("qualityHealth", payload["scoring"]["availableSignals"])
+
+    def test_insights_quality_unavailable_when_rows_have_no_evaluated_outcomes(self) -> None:
+        # The spirit of the original test still holds: raw row presence alone
+        # is not availability. Rows without evaluated outcomes (e.g. skipped)
+        # produce no pass rate, so the signal stays honestly unavailable.
+        class SkippedOnlyStore(FakeStore):
+            def list_quality_run_results(self, limit: int = 1000) -> pd.DataFrame:
+                return pd.DataFrame([{"asset_fqn": "main.customer.customer_dim", "outcome": "skipped"}])
+
+        payload = atlas_metrics.insights_dashboard_payload(
+            visible_assets=_assets_df(),
+            store=SkippedOnlyStore(),
+        )
+
         self.assertFalse(payload["signalAvailability"]["quality"])
         self.assertTrue(payload["signalAvailability"]["qualityRowsAvailable"])
         self.assertNotIn("qualityHealth", payload["scoring"]["availableSignals"])
+
+    def test_policy_exceptions_ignore_resolved_requests_and_asset_fqn_substrings(self) -> None:
+        # Regression: Insights said "Critical Policy Exceptions 2" while the
+        # Command Center said 0. The two counted rows were RESOLVED change
+        # requests whose target FQNs merely contain "exception"
+        # (risk_policy_exception_register / finance_exception_review). Closed
+        # requests are not open exposures, and an asset's NAME is not an
+        # exception signal.
+        class ResolvedExceptionFqnStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "REQ-A",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "approved",
+                            "uc_full_name": "main.risk.risk_policy_exception_register",
+                            "new_comment": "Certify table",
+                        },
+                        {
+                            "request_id": "REQ-B",
+                            "created_at": "2026-04-24 02:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "rejected",
+                            "uc_full_name": "main.finance.finance_exception_review",
+                            "new_comment": "Grant policy exception for quarterly load",
+                        },
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "AUD-X",
+                            "entity_fqn": "main.risk.risk_policy_exception_register",
+                            "action": "change-request-status-updated",
+                            "status": "success",
+                            "detail": "Approved",
+                            "created_at": "2026-04-24 03:00:00",
+                            "actor_email": "skyler@entrada.ai",
+                        }
+                    ]
+                )
+
+        insights = atlas_metrics.insights_dashboard_payload(
+            visible_assets=_assets_df(),
+            store=ResolvedExceptionFqnStore(),
+        )
+        exception_kpi = next(item for item in insights["kpis"] if item["key"] == "criticalExceptions")
+        self.assertEqual(exception_kpi["value"], 0)
+        self.assertEqual(exception_kpi["state"], "available")
+
+        # Same-store parity with the Command Center signal: both must say 0.
+        command = atlas_metrics.command_center_payload(
+            visible_assets=_assets_df(),
+            store=ResolvedExceptionFqnStore(),
+        )
+        self.assertEqual(command["governance"]["policyExceptions"], 0)
+
+    def test_policy_exceptions_still_count_open_requests_by_their_own_text(self) -> None:
+        # An OPEN request that itself asks for a policy exception remains a
+        # live exposure and must keep counting.
+        count = atlas_metrics._policy_exception_count(
+            [
+                {
+                    "request_id": "REQ-OPEN",
+                    "status": "pending",
+                    "new_comment": "Policy exception requested for PII export",
+                }
+            ],
+            [],
+        )
+        self.assertEqual(count, 1)
 
     def test_ai_recommendations_route_certification_questions_to_certification_evidence(self) -> None:
         assets = _assets_df().copy()

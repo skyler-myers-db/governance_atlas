@@ -278,6 +278,40 @@ describe("AdminWorkspace", () => {
     expect(jobName.getAttribute("title")).toBe("[RUNNER] pixels | 0f1f0a3b2a5f8c7d6e5f4a3b2c1d0e9f");
   });
 
+  it("renders empty lastRun as 'Not yet run' and formats past ISO timestamps in UTC", async () => {
+    // Backend contract (persona-audit wave): lastRun is empty ONLY when the
+    // job has never run — the old "Unavailable" copy implied missing data.
+    fetchAdminControlCenter.mockResolvedValue({
+      ...controlCenterPayload,
+      scheduledJobs: [
+        {
+          id: "job-10",
+          name: "Quality profiler",
+          schedule: "Manual",
+          lastRun: "",
+          status: "Manual",
+        },
+        {
+          id: "job-11",
+          name: "UC metadata sweeper",
+          schedule: "Daily 03:00 UTC",
+          lastRun: "2026-07-19T03:00:00Z",
+          status: "Scheduled",
+        },
+      ],
+    });
+    renderAdmin();
+
+    expect(await screen.findByText("Not yet run")).toBeDefined();
+    // Year-carrying, UTC-labeled timestamp — never raw ISO.
+    expect(screen.getByText("Jul 19, 2026, 03:00 AM UTC")).toBeDefined();
+    expect(screen.queryByText("2026-07-19T03:00:00Z")).toBeNull();
+    // Honest Manual/Scheduled statuses render as shipped by the backend
+    // (schedule column + status pill may both say "Manual").
+    expect(screen.getAllByText("Manual").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
+  });
+
   it("renders activity timestamps in UTC, never the browser's local zone", async () => {
     fetchAdminControlCenter.mockResolvedValue({
       ...controlCenterPayload,

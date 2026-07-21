@@ -203,6 +203,25 @@ class SummarySemanticsTests(unittest.TestCase):
         payload = atlas_metrics.audit_evidence_payload(store=AuditStore(), limit=25)
         self.assertIsNone(payload["summary"]["governanceRequests"]["open"])
         self.assertIsNone(payload["summary"]["governanceRequests"]["resolved"])
+        # A real store that terminally lacks the ledger keeps its reason as
+        # the source line — that IS the honest terminal state.
+        self.assertEqual(
+            payload["summary"]["governanceRequests"]["state"], "unavailable"
+        )
+        self.assertTrue(payload["summary"]["governanceRequests"]["source"])
+
+    def test_hydration_store_none_reports_loading_not_reason_string(self) -> None:
+        # Regression: during app hydration the endpoint serves
+        # audit_evidence_payload(store=None) while the real payload warms in
+        # the background. The tile leaked "list_change_requests is not
+        # available on the governance store." as its SOURCE line. Transient
+        # hydration must present as loading with no diagnostic sentence.
+        payload = atlas_metrics.audit_evidence_payload(store=None, limit=25)
+        requests_block = payload["summary"]["governanceRequests"]
+        self.assertIsNone(requests_block["open"])
+        self.assertEqual(requests_block["state"], "loading")
+        self.assertEqual(requests_block["source"], "")
+        self.assertNotIn("is not available", str(requests_block))
 
     def test_source_table_reports_real_fqn(self) -> None:
         class AuditStore:
