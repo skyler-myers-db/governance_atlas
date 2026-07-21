@@ -1,14 +1,14 @@
-export { ActionTile } from "./ActionTile";
+/*
+ * northstar/ — LEGACY component kit, shrinking wave by wave (COHESION C8
+ * deletes the directory). Wave C2 removed the modules orphaned by the
+ * HomePage/Insights migration (ActionTile, BarList, DataTable, DonutMetric,
+ * HeatmapMatrix, MetricCard, PageHero, RightInspector, SectionCard,
+ * Sparkline — the system kit absorbed their contracts). The survivors below
+ * still have legacy importers (CdeWorkspace, TaxonomyWorkspace,
+ * AdminWorkspace, AuditBrowserWorkspace, AtlasAiDock) and die with their
+ * consumers' waves (C4/C5/C6).
+ */
 export { AtlasAiPanel } from "./AtlasAiPanel";
-export { BarList } from "./BarList";
-export { DataTable } from "./DataTable";
 export { DegradedBanner } from "./DegradedBanner";
-export { DonutMetric } from "./DonutMetric";
 export { EmptyState } from "./EmptyState";
-export { HeatmapMatrix } from "./HeatmapMatrix";
-export { MetricCard } from "./MetricCard";
-export { PageHero } from "./PageHero";
-export { RightInspector } from "./RightInspector";
-export { SectionCard } from "./SectionCard";
-export { Sparkline } from "./Sparkline";
 export { StatusPill } from "./StatusPill";

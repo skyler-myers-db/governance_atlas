@@ -32,16 +32,8 @@
     "components/HelpPage.jsx": {
       "gh": 18
     },
-    "components/HomePage.jsx": {
-      "gh": 86,
-      "hex": 3
-    },
     "components/InboxPage.jsx": {
       "gh": 20
-    },
-    "components/InsightsWorkspace.jsx": {
-      "gh": 86,
-      "hex": 7
     },
     "components/LineageWorkspace.jsx": {
       "gh": 10,
@@ -177,6 +169,9 @@
     "lib/exportLineagePng.js": {
       "hex": 2
     },
+    "lib/prefs.js": {
+      "gh": 5
+    },
     "lib/renderMarkdown.js": {
       "gh": 4
     },
@@ -201,11 +196,6 @@
     "styles/governance.css": {
       "gh": 42
     },
-    "styles/insights.css": {
-      "gh": 259,
-      "hex": 10,
-      "important": 5
-    },
     "styles/lineage-v2.css": {
       "gh": 1,
       "important": 24
@@ -214,9 +204,9 @@
       "gh": 44
     },
     "styles/northstar.css": {
-      "gh": 1395,
-      "hex": 132,
-      "important": 433
+      "gh": 1086,
+      "hex": 124,
+      "important": 432
     },
     "styles/operations-pages.css": {
       "gh": 1505,
@@ -227,6 +217,9 @@
       "gh": 514,
       "hex": 65,
       "important": 148
+    },
+    "surfaces/discovery/DiscoverySavedSearches.jsx": {
+      "gh": 1
     }
   }
 }

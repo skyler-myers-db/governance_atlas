@@ -52,7 +52,9 @@ vi.mock("../../hooks/useAtlasAiConversation", () => ({
   }),
 }));
 
-vi.mock("../../components/HomePage", () => ({ default: (props) => homePageMock(props) }));
+// Wave C2: the Command Center lives at surfaces/home (components/HomePage
+// was deleted with the legacy dashboard).
+vi.mock("../../surfaces/home/HomePage.jsx", () => ({ default: (props) => homePageMock(props) }));
 vi.mock("../../components/DiscoveryWorkspace", () => ({ default: (props) => discoveryMock(props) }));
 vi.mock("../../surfaces/asset/AssetHubPage.jsx", () => ({ default: (props) => entityMock(props) }));
 vi.mock("../../components/LineageWorkspace", () => ({ default: (props) => lineageMock(props) }));

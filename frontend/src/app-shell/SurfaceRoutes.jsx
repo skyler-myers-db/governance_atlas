@@ -12,7 +12,6 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { WorkspaceStateCard } from "../components/ShellStatePrimitives";
-import { useCommandCenter } from "../hooks/useCommandCenter";
 import { useGovernanceSummary } from "../hooks/useGovernanceSummary";
 import { normalizeGovernancePayload } from "../lib/api";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
@@ -25,7 +24,7 @@ const LineageWorkspace = lazy(() => import("../components/LineageWorkspace"));
 const GovernanceWorkspace = lazy(() => import("../components/GovernanceWorkspace"));
 const AuditBrowserWorkspace = lazy(() => import("../components/AuditBrowserWorkspace"));
 const TaxonomyWorkspace = lazy(() => import("../components/TaxonomyWorkspace"));
-const HomePage = lazy(() => import("../components/HomePage"));
+const HomePage = lazy(() => import("../surfaces/home/HomePage.jsx"));
 const AdminWorkspace = lazy(() => import("../components/AdminWorkspace"));
 const CapabilityDashboard = lazy(() => import("../components/CapabilityDashboard"));
 const HelpPage = lazy(() => import("../components/HelpPage"));
@@ -56,106 +55,15 @@ function useSplatParam() {
 /* Home (Command Center)                                                */
 /* ------------------------------------------------------------------ */
 
-function finiteNumberOrNull(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function averageAssetCoverageScore(assets = []) {
-  const scores = [];
-  for (const asset of Array.isArray(assets) ? assets : []) {
-    const score =
-      finiteNumberOrNull(asset?.coverageScore) ??
-      finiteNumberOrNull(asset?.metadataCoverage) ??
-      finiteNumberOrNull(asset?.coverage);
-    if (score !== null) scores.push(score);
-  }
-  if (!scores.length) return null;
-  const total = scores.reduce((sum, score) => sum + score, 0);
-  return Math.round((total / scores.length) * 10) / 10;
-}
-
 function HomeRoute() {
-  const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
-  const { bootstrap, shell, contextSeedAssets, bootstrapNonAuthoritative } = shellCtx;
-
-  // Command-center seed, ported from App.jsx:707-765 minus the live-discovery
-  // overlay (that bus died with the shell rewrite; on any fresh page load the
-  // seed came from bootstrap alone anyway). Seed values are marked
-  // non-authoritative + loading so HomePage never renders them as evidence.
-  const commandCenterSeed = useMemo(() => {
-    const discoveryPayload = bootstrapNonAuthoritative ? {} : bootstrap?.discovery || {};
-    const bootstrapSummary = discoveryPayload.summary || {};
-    const visibleAssetCount = Number.isFinite(Number(discoveryPayload.defaultCount))
-      ? Number(discoveryPayload.defaultCount)
-      : Number.isFinite(Number(bootstrapSummary.visibleAssets))
-        ? Number(bootstrapSummary.visibleAssets)
-        : contextSeedAssets.length || null;
-    const bootCatalogsFacet = Array.isArray(discoveryPayload.defaultFacets?.catalogs)
-      ? discoveryPayload.defaultFacets.catalogs
-      : [];
-    const catalogCount =
-      bootCatalogsFacet.filter((c) => {
-        const label = typeof c === "string" ? c : c?.value || c?.label || "";
-        return label && !/^all\s+catalogs$/i.test(String(label));
-      }).length ||
-      Number(bootstrapSummary.catalogCount) ||
-      Number(bootstrap?.inventory?.catalogCount) ||
-      (Array.isArray(discoveryPayload.catalogs) ? discoveryPayload.catalogs.length : 0);
-    const coverageScore =
-      finiteNumberOrNull(bootstrapSummary.averageCoverage) ??
-      finiteNumberOrNull(bootstrap?.governance?.summary?.coverageScore) ??
-      averageAssetCoverageScore(discoveryPayload.defaultResults || contextSeedAssets);
-    return {
-      estate: {
-        visibleAssetCount,
-        catalogCount: Number.isFinite(Number(catalogCount)) ? Number(catalogCount) : null,
-        openRequests: null,
-        coverageScore,
-      },
-      recentAssets: [],
-      authoritative: false,
-      meta: {
-        state: "loading",
-        authoritative: false,
-        warnings: [
-          "Command-center metrics are hydrating from live metadata; shell preview values are not displayed as evidence.",
-        ],
-      },
-    };
-  }, [bootstrap, bootstrapNonAuthoritative, contextSeedAssets]);
-
-  const commandCenter = useCommandCenter({
-    enabled: shellCtx.bootstrapReady,
-    seedData: commandCenterSeed,
-  });
-  const homeState = commandCenter.error
-    ? "error"
-    : commandCenter.loading
-      ? "loading"
-      : commandCenter.degraded
-        ? "degraded"
-        : "ready";
-
+  // Wave-C2 flipped: the rebuilt Command Center is router-self-sufficient —
+  // it calls useCommandCenter/useInsightsDashboard itself and renders real
+  // anchors through the system refs contract, so no legacy adapter props or
+  // bootstrap seed synthesis are threaded. (/insights is an alias of /home
+  // in nav/routes.js; AppShell's canonical gate 301s it before this tree.)
   return (
     <Suspense fallback={<RouteFallback eyebrow="Loading home" message="Preparing your governance overview." />}>
-      <HomePage
-        commandCenter={commandCenter.data}
-        estate={commandCenter.data.estate}
-        state={homeState}
-        message={commandCenter.oboFallbackReason || ""}
-        hydrating={commandCenter.hydrating}
-        refreshing={commandCenter.refreshing}
-        refreshError={commandCenter.refreshError}
-        warnings={commandCenter.warnings}
-        userName={shell.userName || shell.userEmail}
-        onRetry={commandCenter.oboScopeFallback ? commandCenter.refreshActorScope : commandCenter.refresh}
-        recentAssets={commandCenter.data.recentAssets}
-        onNavigate={adapters.onNavigate}
-        onOpenAsset360Drawer={adapters.openPeek}
-        onOpenDiscoveryWithFilter={adapters.onOpenDiscoveryWithFilter}
-      />
+      <HomePage />
     </Suspense>
   );
 }

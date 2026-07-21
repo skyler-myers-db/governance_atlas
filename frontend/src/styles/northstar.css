@@ -75,22 +75,22 @@ body {
   .gh-app.gh-app-with-rail,
 .ga-shell-app {
     --ga-responsive-ai-reserve: 60px;
-  }
-}
+  }}
+
 
 @media (max-width: 980px) {
   .gh-app.gh-app-with-rail,
 .ga-shell-app {
     --ga-responsive-ai-reserve: 0px;
-  }
-}
+  }}
+
 
 @media (max-width: 1320px) and (min-width: 981px) {
   .gh-app.gh-app-with-rail,
 .ga-shell-app {
     --ga-responsive-ai-reserve: 52px;
-  }
-}
+  }}
+
 
 @media (min-width: 1800px) {
   .gh-app.gh-app-with-rail[data-ai-open="true"],
@@ -102,25 +102,8 @@ body {
 .ga-shell-app[data-ai-open="true"] .ga-shell-main {
     overflow-x: hidden !important;
     padding-right: var(--ga-ai-dock-reserve);
-  }
-}
+  }}
 
-@media (min-width: 1800px) {
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-state-card,
-.ga-shell-app[data-ai-open="true"] .gh-command-center-state-card {
-    grid-template-columns: 170px minmax(0, 1fr);
-    gap: 28px;
-  }
-
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-changes,
-.ga-shell-app[data-ai-open="true"] .gh-command-center-changes {
-    grid-column: 1 / -1;
-    padding-top: 18px;
-    padding-left: 0;
-    border-top: 1px solid var(--ga-border);
-    border-left: 0;
-  }
-}
 
 @media (min-width: 2200px) {
   .gh-app.gh-app-with-rail[data-ai-open="true"],
@@ -129,23 +112,8 @@ body {
     --ga-ai-dock-reserve: calc(min(440px, calc(100vw - 24px)) + 40px);
     --ga-prototype-wide-offset: 0px;
     --ga-prototype-wide-rail: 1760px;
-  }
+  }}
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-state-card,
-.ga-shell-app[data-ai-open="true"] .gh-command-center-state-card {
-    grid-template-columns: 220px minmax(0, 1fr) 360px;
-    gap: 36px;
-  }
-
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-changes,
-.ga-shell-app[data-ai-open="true"] .gh-command-center-changes {
-    grid-column: auto;
-    padding-top: 0;
-    padding-left: 28px;
-    border-top: 0;
-    border-left: 1px solid var(--ga-border);
-  }
-}
 
 .gh-ai-message-markdown p {
   margin: 0 0 0.45em;
@@ -998,1446 +966,8 @@ body {
   color: var(--ga-text);
 }
 
-.gh-command-center-page.ga-page {
-  display: block;
-  min-height: 100%;
-  height: auto;
-  padding: 0;
-  overflow: visible;
-  background: transparent;
-}
-
 .ga-lineage-explorer {
   background: var(--ga-bg) !important;
-}
-
-.gh-command-center-shell {
-  width: min(1120px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 12px 0 56px;
-}
-
-@media (min-width: 2200px) {
-  .gh-command-center-shell {
-    width: min(var(--ga-prototype-wide-rail, 1544px), calc(100% - 40px));
-    max-width: var(--ga-prototype-wide-rail, 1544px);
-    transform: translateX(var(--ga-prototype-wide-offset, 0px));
-  }
-}
-
-.gh-command-center-hero {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 18px;
-}
-
-.gh-command-center-hero > div:first-child {
-  min-width: 0;
-}
-
-.gh-command-center-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.gh-command-center-kicker .ga-eyebrow {
-  line-height: 1;
-}
-
-.gh-command-center-kicker-sep {
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--ga-text-muted);
-  opacity: 0.7;
-}
-
-.gh-command-center-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 0;
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-}
-
-.gh-command-center-live span {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--ga-success);
-  box-shadow: 0 0 12px rgba(46, 230, 166, 0.58);
-}
-
-.gh-command-center-live span::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-  border: 1px solid rgba(46, 230, 166, 0.65);
-  animation: ga-live-dot-pulse 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gh-command-center-live span::after { animation: none; opacity: 0.4; }
-}
-
-.gh-command-center-live em {
-  font-style: normal;
-}
-
-.gh-command-center-hero h1 {
-  margin: 0;
-  color: var(--ga-text);
-  font-family: var(--ga-font-heading);
-  font-size: clamp(2rem, 2.8vw, 2.25rem);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: 0;
-}
-
-.gh-command-center-hero h1::after {
-  content: " at a glance";
-  background: linear-gradient(90deg, #66c5ff, #cfefff 55%, #5ce1e6);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-
-.gh-command-center-hero h1 {
-  font-size: 0;
-}
-
-.gh-command-center-hero h1::before {
-  content: "Governance posture,";
-  color: var(--ga-text);
-  font-size: clamp(2rem, 2.8vw, 2.25rem);
-}
-
-.gh-command-center-hero h1::after {
-  font-size: clamp(2rem, 2.8vw, 2.25rem);
-}
-
-.gh-command-center-hero p {
-  max-width: 720px;
-  margin: 7px 0 0;
-  color: var(--ga-text-muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.gh-command-center-actions {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  flex: 0 0 auto;
-  padding-top: 26px;
-}
-
-.gh-command-center-actions button,
-.gh-command-center-window,
-.gh-command-center-window-group button {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 12px;
-  border: 1px solid var(--ga-border);
-  border-radius: 8px;
-  background: rgba(102, 197, 255, 0.08);
-  color: var(--ga-text-soft);
-  font: inherit;
-  font-size: 0.78rem;
-}
-
-.gh-command-center-actions button svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* Interactive states per the global contract: subtle dark tint on
-   hover (text stays legible), pressed dims, focus gets the ga ring. */
-.gh-command-center-actions button:hover:not(:disabled):not(:last-child) {
-  border-color: rgba(102, 197, 255, 0.4);
-  background: rgba(102, 197, 255, 0.14);
-  color: var(--ga-text);
-}
-
-.gh-command-center-actions button:last-child:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.gh-command-center-actions button:active:not(:disabled) {
-  filter: brightness(0.94);
-}
-
-.gh-command-center-actions button:focus-visible,
-.gh-command-center-window-group button:focus-visible {
-  outline: 2px solid var(--ga-focus, rgba(102, 197, 255, 0.42));
-  outline-offset: 2px;
-}
-
-.gh-command-center-window-group button:hover:not(:disabled):not(.is-active) {
-  background: rgba(102, 197, 255, 0.1);
-  color: var(--ga-text);
-}
-
-.gh-command-center-window-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px;
-  border: 1px solid var(--ga-border);
-  border-radius: 10px;
-  background: rgba(2, 16, 31, 0.28);
-}
-
-.gh-command-center-window-group button {
-  min-height: 26px;
-  padding: 0 10px;
-  border-color: transparent;
-  background: transparent;
-  cursor: pointer;
-}
-
-.gh-command-center-window-group button.is-active,
-.gh-command-center-window-group button[aria-pressed="true"] {
-  border-color: rgba(102, 197, 255, 0.26);
-  background: rgba(102, 197, 255, 0.16);
-  color: var(--ga-text);
-}
-
-.gh-command-center-actions button:last-child {
-  border-color: rgba(102, 197, 255, 0.36);
-  /* Bottom stop stays in the bright-blue family: the old rgba(61,132,173)
-     composite put the dark label at 3.7:1 (below AA for this 12.7px text). */
-  background: linear-gradient(180deg, rgba(102, 197, 255, 0.95), rgba(102, 197, 255, 0.68));
-  color: #041d31;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.gh-command-center-actions button:first-child {
-  cursor: pointer;
-}
-
-.gh-command-center-present-note {
-  flex-basis: 100%;
-  color: var(--ga-warning);
-  font-size: 0.66rem;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: right;
-}
-
-.gh-command-center-state-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 360px;
-  gap: 36px;
-  align-items: center;
-  margin-bottom: 14px;
-  padding: 28px 34px;
-  overflow: hidden;
-  border: 1px solid var(--ga-border);
-  border-radius: 16px;
-  background:
-    radial-gradient(800px 280px at 92% 52%, rgba(92, 225, 230, 0.1), transparent 60%),
-    linear-gradient(135deg, rgba(15, 34, 54, 0.98) 0%, rgba(10, 28, 46, 0.99) 58%, rgba(7, 16, 26, 0.99) 100%);
-  box-shadow: var(--ga-glass-highlight), var(--ga-shadow-sm);
-}
-
-.gh-command-center-state-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at 1px 1px, rgba(61, 132, 173, 0.08) 1px, transparent 0);
-  background-size: 24px 24px;
-  opacity: 0.58;
-  pointer-events: none;
-}
-
-.gh-command-center-score,
-.gh-command-center-narrative,
-.gh-command-center-changes {
-  position: relative;
-  z-index: 1;
-}
-
-.gh-command-center-score {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-}
-
-.gh-command-center-trust-ring {
-  position: relative;
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 0 26px rgba(102, 197, 255, 0.28));
-}
-
-.gh-command-center-trust-glow {
-  position: absolute;
-  inset: 18px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(102, 197, 255, 0.18), rgba(102, 197, 255, 0.02) 58%, transparent 72%);
-  pointer-events: none;
-}
-
-.gh-command-center-trust-ring svg {
-  position: relative;
-  z-index: 1;
-  overflow: visible;
-}
-
-.gh-command-center-trust-ring line {
-  stroke: rgba(61, 132, 173, 0.22);
-  stroke-width: 1;
-}
-
-.gh-command-center-trust-ring line.is-major {
-  stroke: rgba(61, 132, 173, 0.55);
-}
-
-.gh-command-center-trust-outer,
-.gh-command-center-trust-track,
-.gh-command-center-trust-value {
-  fill: none;
-}
-
-.gh-command-center-trust-outer {
-  stroke: rgba(61, 132, 173, 0.12);
-  stroke-width: 1;
-}
-
-.gh-command-center-trust-track {
-  stroke: rgba(255, 255, 255, 0.05);
-  stroke-width: 14;
-}
-
-.gh-command-center-trust-value {
-  stroke: url("#commandCenterRingGrad");
-  stroke-linecap: round;
-  stroke-width: 14;
-}
-
-.gh-command-center-trust-center {
-  position: absolute;
-  z-index: 2;
-  /* Inset by ~14% — generous horizontal room so the eyebrow
-     ("METADATA COVERAGE", "GOVERNANCE POSTURE") and trend caption
-     ("Trend unavailable") both fit fully inside the gauge without
-     clipping. Earlier insets at 26% and 18% truncated the eyebrow
-     right edge, e.g. "METADATA COVERAG[E]". */
-  inset: 14%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--ga-text);
-  text-align: center;
-  pointer-events: none;
-}
-
-.gh-command-center-trust-center > span {
-  margin-bottom: 2px;
-  color: var(--ga-bright-blue);
-  font-size: 0.54rem;
-  font-weight: 800;
-  /* Tightened letter-spacing 0.18em → 0.10em — at 0.18em
-     "METADATA COVERAGE" was ~12% wider than the inner content
-     box and clipped the trailing "E". Combined with the wider
-     14% inset above, both eyebrows fit cleanly now. */
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.gh-command-center-trust-center strong {
-  color: var(--ga-text);
-  font-family: var(--ga-font-heading);
-  font-size: 2.4rem;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-.gh-command-center-trust-center small {
-  margin-left: 2px;
-  color: var(--ga-text-muted);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.gh-command-center-trust-center em {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  color: var(--ga-success);
-  font-size: 0.62rem;
-  font-style: normal;
-  font-weight: 700;
-  /* The caption sits BELOW ring center where the circle narrows, so a
-     full-width (100%) line ran under the gauge stroke and clipped
-     ("History since 2026-07-…" cut by the ring). 76% keeps the
-     ellipsis inside the dial face. */
-  max-width: 76%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.gh-command-center-trust-center em::before {
-  content: "+";
-  width: 12px;
-  height: 12px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid rgba(46, 230, 166, 0.34);
-  border-radius: 999px;
-  color: var(--ga-success);
-  font-size: 0.58rem;
-  line-height: 1;
-}
-
-/* Suppress the green "+" badge when the trend value is genuinely
-   unavailable — the badge against an "Unavailable" string is misleading
-   (looks like a positive delta) and was visually colliding with the
-   gauge stroke at narrow widths. */
-.gh-command-center-trust-center em[data-trend-state="unavailable"],
-.gh-command-center-trust-center em[data-trend-state="history"] {
-  color: var(--ga-text-muted, #b2bdc2);
-  font-weight: 600;
-  /* compact enough that "History since 2026-07-20" fits the dial face
-     without truncating */
-  font-size: 0.56rem;
-  margin-top: 4px;
-  letter-spacing: 0;
-  max-width: 86%;
-}
-.gh-command-center-trust-center em[data-trend-state="unavailable"]::before,
-.gh-command-center-trust-center em[data-trend-state="history"]::before {
-  display: none;
-}
-
-.gh-command-center-score em {
-  color: var(--ga-success);
-  font-size: 0.74rem;
-  font-style: normal;
-  font-weight: 700;
-}
-
-.gh-command-center-score-unavailable {
-  width: 150px;
-  height: 150px;
-  display: grid;
-  place-items: center;
-  gap: 4px;
-  border: 13px solid rgba(207, 239, 255, 0.12);
-  border-radius: 999px;
-  color: var(--ga-text-muted);
-  text-align: center;
-}
-
-.gh-command-center-score-unavailable strong {
-  color: var(--ga-text);
-  font-size: 2.2rem;
-  line-height: 1;
-}
-
-.gh-command-center-narrative > span {
-  display: block;
-  margin-bottom: 9px;
-  color: var(--ga-bright-blue);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.gh-command-center-narrative h2 {
-  margin: 0;
-  color: var(--ga-text);
-  font-family: var(--ga-font-heading);
-  font-size: 1.36rem;
-  font-weight: 650;
-  line-height: 1.34;
-}
-
-.gh-command-center-narrative h2 strong {
-  color: var(--ga-success);
-}
-
-.gh-command-center-narrative h2 span {
-  color: var(--ga-bright-blue);
-}
-
-.gh-command-center-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin-top: 18px;
-}
-
-.gh-command-center-facts span {
-  min-width: 136px;
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 3px 7px;
-  align-items: center;
-}
-
-.gh-command-center-facts i {
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ga-bright-blue);
-}
-
-.gh-command-center-facts i svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2;
-}
-
-.gh-command-center-facts b {
-  grid-column: 2;
-  grid-row: 2;
-  color: var(--ga-text);
-  font-size: 1.58rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.gh-command-center-facts small {
-  grid-column: 2;
-  grid-row: 1;
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.gh-command-center-facts em {
-  grid-column: 2;
-  grid-row: 3;
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-style: normal;
-}
-
-.gh-command-center-facts .tone-good i,
-.gh-command-center-facts .tone-good b,
-.gh-command-center-facts .tone-good em {
-  color: var(--ga-success);
-}
-
-.gh-command-center-facts .tone-bad i,
-.gh-command-center-facts .tone-bad em {
-  color: var(--ga-danger);
-}
-
-.gh-command-center-changes {
-  padding-left: 28px;
-  border-left: 1px solid var(--ga-border);
-}
-
-.gh-command-center-changes h3 {
-  margin: 0 0 12px;
-  color: var(--ga-text-muted);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.gh-command-center-change {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 8px;
-  margin-bottom: 10px;
-  font-size: 0.76rem;
-}
-
-.gh-command-center-change span {
-  color: var(--ga-text-soft);
-  font-weight: 600;
-}
-
-.gh-command-center-change strong {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--ga-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.gh-command-center-change strong small {
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-weight: 500;
-}
-
-.gh-command-center-change strong small::after {
-  content: "→";
-  margin-left: 6px;
-  color: var(--ga-text-muted);
-}
-
-.gh-command-center-change em {
-  grid-column: 1 / -1;
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-style: normal;
-}
-
-.gh-command-center-change.tone-good strong { color: var(--ga-success); }
-.gh-command-center-change.tone-warn strong { color: var(--ga-warning); }
-.gh-command-center-change.tone-bad strong { color: var(--ga-danger); }
-.gh-command-center-change.tone-info strong { color: var(--ga-bright-blue); }
-
-.gh-command-center-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.gh-command-center-kpi {
-  position: relative;
-  min-height: 92px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  grid-template-rows: auto auto 1fr;
-  gap: 2px 10px;
-  padding: 15px 16px;
-  overflow: hidden;
-  border: 1px solid var(--ga-border);
-  border-radius: 10px;
-  background: rgba(12, 33, 56, 0.96);
-  box-shadow: var(--ga-glass-highlight);
-}
-
-.gh-command-center-kpi::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto auto 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, var(--ga-bright-blue), transparent 80%);
-  opacity: 0.55;
-}
-
-.gh-command-center-kpi span {
-  grid-column: 1 / -1;
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.gh-command-center-kpi strong {
-  color: var(--ga-text);
-  font-family: var(--ga-font-heading);
-  font-size: 1.82rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.gh-command-center-kpi em {
-  width: fit-content;
-  /* Single-line compact pill: "History since 2026-07-20" used to wrap
-     into an awkward two-line pill inside the KPI tile. Cap to the
-     text column and ellipsize instead of wrapping. */
-  max-width: 100%;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  align-self: end;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(207, 239, 255, 0.06);
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-style: normal;
-  font-weight: 700;
-}
-
-.gh-command-center-kpi.tone-good em { background: rgba(46, 230, 166, 0.12); color: var(--ga-success); }
-.gh-command-center-kpi.tone-warn em { background: rgba(255, 181, 71, 0.12); color: var(--ga-warning); }
-.gh-command-center-kpi.tone-bad em { background: rgba(255, 92, 108, 0.12); color: var(--ga-danger); }
-.gh-command-center-kpi.tone-muted em { background: rgba(255, 181, 71, 0.1); color: var(--ga-warning); }
-
-.gh-command-center-kpi-spark {
-  grid-row: 2 / 4;
-  grid-column: 2;
-  align-self: end;
-  min-height: 36px;
-  color: var(--ga-bright-blue);
-}
-
-.gh-command-center-kpi-spark svg {
-  width: 100%;
-  height: 36px;
-  display: block;
-}
-
-.gh-command-center-kpi-spark svg path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.86;
-}
-
-.gh-command-center-kpi-spark svg .gh-command-center-kpi-spark-fill {
-  fill: currentColor;
-  stroke: none;
-  opacity: 0.14;
-}
-
-.gh-command-center-kpi-spark svg .gh-command-center-kpi-spark-line {
-  filter: drop-shadow(0 0 7px rgba(102, 197, 255, 0.36));
-}
-
-.gh-command-center-kpi-spark svg.is-unavailable {
-  opacity: 0.52;
-}
-
-.gh-command-center-kpi-spark svg.is-unavailable path {
-  stroke: currentColor;
-}
-
-.gh-command-center-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.gh-command-center-grid .ga-section-card {
-  background: rgba(12, 33, 56, 0.96);
-  border-radius: 10px;
-}
-
-.gh-command-center-trend {
-  grid-column: span 8;
-  min-height: 250px;
-}
-
-.gh-command-center-domain {
-  grid-column: span 4;
-}
-
-.gh-command-center-risk {
-  grid-column: span 4;
-}
-
-.gh-command-center-catalogs {
-  grid-column: span 8;
-}
-
-.gh-command-center-cdes {
-  grid-column: span 7;
-}
-
-.gh-command-center-activity {
-  grid-column: span 5;
-}
-
-.gh-command-center-trend .gh-home-trend-chart {
-  grid-template-columns: minmax(0, 1fr);
-  height: 210px;
-  margin: 0;
-}
-
-.gh-command-center-trend .gh-home-trend-axis {
-  display: none;
-}
-
-.gh-command-center-trend .gh-home-trend-plot {
-  border-left: 0;
-}
-
-.gh-command-center-trend .gh-home-trend-placeholder {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0.34;
-}
-
-.gh-command-center-trend .gh-home-trend-placeholder path:first-child {
-  fill: rgba(102, 197, 255, 0.12);
-  stroke: none;
-}
-
-.gh-command-center-trend .gh-home-trend-placeholder path:last-child {
-  fill: none;
-  stroke: rgba(102, 197, 255, 0.52);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 12px rgba(102, 197, 255, 0.26));
-}
-
-.gh-command-center-trend .gh-home-trend-grid {
-  opacity: 0.28;
-  background:
-    linear-gradient(rgba(207, 239, 255, 0.055) 1px, transparent 1px) 0 0 / 100% 33.33%,
-    linear-gradient(90deg, rgba(207, 239, 255, 0.028) 1px, transparent 1px) 0 0 / 20% 100%;
-}
-
-.gh-command-center-trend .gh-home-trend-svg {
-  color: var(--ga-bright-blue);
-}
-
-.gh-command-center-trend .gh-home-trend-svg .gh-home-trend-area {
-  fill: url(#gh-command-center-trend-area);
-  stroke: none;
-  filter: none;
-}
-
-.gh-command-center-trend .gh-home-trend-svg .gh-home-trend-line {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 12px rgba(102, 197, 255, 0.5));
-}
-
-.gh-command-center-trend .gh-home-trend-svg .gh-home-trend-sla {
-  stroke: rgba(255, 181, 71, 0.58);
-  stroke-width: 1;
-  stroke-dasharray: 4 5;
-}
-
-.gh-command-center-trend .gh-home-trend-svg .gh-home-trend-latest {
-  fill: #06172a;
-  stroke: var(--ga-bright-blue);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 8px rgba(102, 197, 255, 0.62));
-}
-
-.gh-command-center-trend .gh-home-trend-sla-label {
-  position: absolute;
-  top: 19px;
-  right: 22%;
-  color: var(--ga-warning);
-  font-size: 0.62rem;
-  letter-spacing: 0.02em;
-}
-
-.gh-command-center-trend-footer,
-.gh-command-center-risk p {
-  margin: 8px 0 0;
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-}
-
-.gh-command-center-trend-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 28px;
-}
-
-.gh-command-center-trend-footer strong {
-  color: var(--ga-success);
-}
-
-.gh-command-center-domain-bars {
-  display: grid;
-  gap: 12px;
-}
-
-.gh-command-center-domain-bars.is-unavailable {
-  opacity: 0.82;
-}
-
-.gh-command-center-domain-row {
-  appearance: none;
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(110px, 1fr) minmax(120px, 1.5fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.gh-command-center-domain-row:disabled {
-  cursor: not-allowed;
-}
-
-.gh-command-center-domain-row:not(:disabled):hover span,
-.gh-command-center-domain-row:not(:disabled):focus-visible span {
-  color: var(--ga-text);
-}
-
-.gh-command-center-domain-row:focus-visible {
-  outline: 1px solid rgba(102, 197, 255, 0.32);
-  outline-offset: 4px;
-  border-radius: 6px;
-}
-
-.gh-command-center-domain-row span {
-  color: var(--ga-text-soft);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.gh-command-center-domain-row i {
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(207, 239, 255, 0.1);
-}
-
-.gh-command-center-domain-row b {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--ga-teal), var(--ga-success));
-}
-
-.gh-command-center-domain-row.tone-high b,
-.gh-command-center-domain-row.tone-good b {
-  background: linear-gradient(90deg, var(--ga-teal), var(--ga-success));
-}
-
-.gh-command-center-domain-row.tone-mid b {
-  background: linear-gradient(90deg, var(--ga-bright-blue), #3d84ad);
-}
-
-.gh-command-center-domain-row.tone-warn b {
-  background: linear-gradient(90deg, var(--ga-warning), #ffd36d);
-}
-
-.gh-command-center-domain-row strong {
-  color: var(--ga-text);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.gh-command-center-domain-row em {
-  grid-column: 2 / -1;
-  margin-top: -6px;
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-style: normal;
-}
-
-.gh-command-center-domain-bars.is-unavailable i {
-  background: rgba(207, 239, 255, 0.07);
-}
-
-.gh-command-center-domain-bars.is-unavailable i b {
-  width: 28% !important;
-  background: rgba(102, 197, 255, 0.18);
-}
-
-.gh-command-center-inline-unavailable {
-  grid-column: 1 / -1;
-  margin-top: 2px;
-  color: var(--ga-warning);
-  font-size: 0.72rem;
-}
-
-.gh-command-center-risk-body {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.gh-command-center-risk-ring {
-  width: 112px;
-  height: 112px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border: 10px solid rgba(46, 230, 166, 0.72);
-  border-left-color: rgba(46, 230, 166, 0.18);
-  border-radius: 999px;
-  text-align: center;
-}
-
-.gh-command-center-risk-ring.is-unavailable {
-  border-color: rgba(207, 239, 255, 0.16);
-  border-left-color: rgba(102, 197, 255, 0.46);
-}
-
-.gh-command-center-risk-ring strong {
-  color: var(--ga-text);
-  font-size: 1.4rem;
-  line-height: 1;
-}
-
-.gh-command-center-risk-ring span {
-  color: var(--ga-text-muted);
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.gh-command-center-risk-body ul,
-.gh-command-center-activity-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.gh-command-center-risk-body li {
-  display: block;
-  margin-bottom: 8px;
-}
-
-.gh-command-center-risk-body li button {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ga-text-soft);
-  text-align: left;
-  font-size: 0.78rem;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.gh-command-center-risk-body li button:disabled {
-  cursor: not-allowed;
-}
-
-.gh-command-center-risk-body li button:not(:disabled):hover span,
-.gh-command-center-risk-body li button:not(:disabled):focus-visible span {
-  color: var(--ga-text);
-}
-
-.gh-command-center-risk-body li button:focus-visible {
-  outline: 1px solid rgba(102, 197, 255, 0.32);
-  outline-offset: 4px;
-  border-radius: 6px;
-}
-
-.gh-command-center-risk-body li button b,
-.gh-command-center-activity-list li > b {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-}
-
-.gh-command-center-risk-body li button b.tone-bad { background: var(--ga-danger); box-shadow: 0 0 8px rgba(255, 92, 108, 0.6); }
-.gh-command-center-risk-body li button b.tone-warn { background: var(--ga-warning); }
-.gh-command-center-risk-body li button b.tone-info { background: var(--ga-bright-blue); }
-
-.gh-command-center-risk-body li button strong {
-  color: var(--ga-text);
-}
-
-.gh-command-center-catalog-table {
-  display: grid;
-}
-
-.gh-command-center-catalog-table [role="row"] {
-  display: grid;
-  grid-template-columns: minmax(160px, 1.5fr) 80px minmax(130px, 1fr) 130px 90px;
-  align-items: center;
-  gap: 12px;
-  min-height: 40px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--ga-border-muted);
-}
-
-.gh-command-center-catalog-table [role="row"]:first-child {
-  min-height: 34px;
-  color: var(--ga-text-muted);
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.gh-command-center-catalog-table strong {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--ga-text);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.8rem;
-}
-
-.gh-command-center-catalog-table strong svg {
-  width: 14px;
-  height: 14px;
-  color: var(--ga-bright-blue);
-}
-
-.gh-command-center-catalog-table span {
-  color: var(--ga-text-soft);
-  font-size: 0.76rem;
-}
-
-.gh-command-center-catalog-table [role="row"]:last-child {
-  border-bottom: 0;
-}
-
-.gh-command-center-catalog-table [role="row"].is-clickable {
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.gh-command-center-catalog-table [role="row"].is-placeholder {
-  opacity: 0.56;
-}
-
-.gh-command-center-catalog-table [role="row"].is-clickable:hover,
-.gh-command-center-catalog-table [role="row"].is-clickable:focus-visible {
-  background: rgba(102, 197, 255, 0.07);
-  outline: 1px solid rgba(102, 197, 255, 0.28);
-  outline-offset: -1px;
-}
-
-.gh-command-center-catalog-coverage {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.gh-command-center-catalog-coverage b {
-  min-width: 34px;
-  color: var(--ga-text);
-  font-size: 0.76rem;
-}
-
-.gh-command-center-catalog-coverage i {
-  width: 92px;
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(207, 239, 255, 0.1);
-}
-
-.gh-command-center-catalog-coverage i em {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--ga-teal), var(--ga-success));
-}
-
-.gh-command-center-chip-cell {
-  width: fit-content;
-  padding: 2px 8px;
-  border: 1px solid rgba(102, 197, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(102, 197, 255, 0.08);
-}
-
-.gh-command-center-catalog-table.is-unavailable .gh-command-center-catalog-coverage i em {
-  background: rgba(102, 197, 255, 0.18);
-}
-
-.gh-command-center-cde-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.gh-command-center-cde-card {
-  min-height: 98px;
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--ga-border-muted);
-  border-radius: 9px;
-  background: rgba(19, 63, 97, 0.72);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.gh-command-center-cde-card:hover:not(:disabled),
-.gh-command-center-cde-card:focus-visible:not(:disabled) {
-  border-color: rgba(102, 197, 255, 0.42);
-  background: rgba(25, 73, 110, 0.82);
-  outline: none;
-}
-
-.gh-command-center-cde-card:disabled {
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.gh-command-center-cde-card > span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.gh-command-center-cde-card svg {
-  width: 14px;
-  height: 14px;
-  color: var(--ga-teal);
-  flex: 0 0 auto;
-}
-
-.gh-command-center-cde-card strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ga-text);
-  font-size: 0.82rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-command-center-cde-card > span em {
-  margin-left: auto;
-  padding: 2px 6px;
-  border: 1px solid rgba(255, 92, 108, 0.34);
-  border-radius: 4px;
-  color: var(--ga-danger);
-  font-size: 0.58rem;
-  font-style: normal;
-  font-weight: 800;
-}
-
-.gh-command-center-cde-card code {
-  overflow: hidden;
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-command-center-cde-card small {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-}
-
-.gh-command-center-cde-card small b {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-command-center-cde-card small i {
-  color: var(--ga-success);
-  font-style: normal;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.gh-command-center-cde-grid.is-unavailable .gh-command-center-cde-card small i {
-  color: var(--ga-warning);
-}
-
-.gh-command-center-activity-list {
-  display: grid;
-  gap: 13px;
-}
-
-.gh-command-center-activity-list li {
-  display: block;
-}
-
-.gh-command-center-activity-list button {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 11px;
-  align-items: start;
-  padding: 1px 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.gh-command-center-activity-list button:hover span,
-.gh-command-center-activity-list button:focus-visible span {
-  color: var(--ga-text);
-}
-
-.gh-command-center-activity-list button:disabled {
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.gh-command-center-activity-list button:disabled span {
-  color: var(--ga-text-muted);
-}
-
-.gh-command-center-activity-list button:focus-visible {
-  outline: 1px solid rgba(102, 197, 255, 0.3);
-  outline-offset: 4px;
-  border-radius: 6px;
-}
-
-.gh-command-center-activity-list li b {
-  margin-top: 6px;
-  background: var(--ga-bright-blue);
-}
-
-.gh-command-center-activity-list li.tone-bad b { background: var(--ga-danger); }
-.gh-command-center-activity-list li.tone-warn b { background: var(--ga-warning); }
-.gh-command-center-activity-list li.tone-good b { background: var(--ga-success); }
-
-.gh-command-center-activity-list span {
-  color: var(--ga-text-soft);
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
-
-.gh-command-center-activity-line {
-  display: inline;
-}
-
-.gh-command-center-activity-list strong {
-  color: var(--ga-text);
-}
-
-.gh-command-center-activity-list code,
-.gh-command-center-activity-list small {
-  display: block;
-  margin-top: 1px;
-  overflow-wrap: anywhere;
-  color: var(--ga-bright-blue);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.76rem;
-  line-height: 1.28;
-}
-
-.gh-command-center-activity-list small {
-  color: var(--ga-text-muted);
-  font-family: inherit;
-}
-
-.gh-command-center-activity-list em {
-  display: block;
-  margin-top: 3px;
-  color: var(--ga-text-muted);
-  font-size: 0.7rem;
-  font-style: normal;
-}
-
-.gh-command-center-page .ga-chart-empty {
-  min-height: 92px;
-  display: flex;
-  align-items: center;
-  padding: 18px;
-  border: 1px dashed var(--ga-border-muted);
-  border-radius: 8px;
-  background: rgba(207, 239, 255, 0.04);
-  font-size: 0.8rem;
-}
-
-@media (max-width: 1380px) {
-  .gh-command-center-shell {
-    width: min(100% - 32px, 1120px);
-  }
-
-  .gh-command-center-state-card {
-    grid-template-columns: 220px minmax(0, 1fr);
-  }
-
-  .gh-command-center-changes {
-    grid-column: 1 / -1;
-    padding-top: 18px;
-    padding-left: 0;
-    border-top: 1px solid var(--ga-border);
-    border-left: 0;
-  }
-}
-
-@media (max-width: 980px) {
-  .gh-command-center-hero,
-  .gh-command-center-state-card,
-  .gh-command-center-kpi-row,
-  .gh-command-center-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .gh-command-center-actions {
-    padding-top: 0;
-  }
-
-  .gh-command-center-trend,
-  .gh-command-center-domain,
-  .gh-command-center-risk,
-  .gh-command-center-catalogs,
-  .gh-command-center-cdes,
-  .gh-command-center-activity {
-    grid-column: 1;
-  }
-}
-
-@media (max-height: 760px) and (min-width: 981px) {
-  .gh-command-center-page.gh-home-page.ga-page {
-    display: block;
-    min-height: max-content;
-    height: auto;
-    padding: 0;
-    overflow: visible;
-  }
-
-  .gh-command-center-shell {
-    padding: 22px 0 42px;
-  }
-
-  .gh-command-center-hero h1::before,
-  .gh-command-center-hero h1::after {
-    font-size: clamp(1.62rem, 2.45vw, 2.05rem);
-  }
-
-  .gh-command-center-state-card {
-    padding: 20px 24px;
-  }
-
-  .gh-command-center-kpi {
-    min-height: 84px;
-  }
 }
 
 .ga-page-hero {
@@ -2912,8 +1442,8 @@ body {
   .ga-kpi-grid.six,
   .ga-cde-layout {
     grid-template-columns: 1fr;
-  }
-}
+  }}
+
 
 @media (max-width: 1440px) {
   .gh-app.gh-app-with-rail,
@@ -2932,8 +1462,8 @@ body {
     grid-template-columns: minmax(170px, 0.8fr) minmax(300px, 1fr) minmax(300px, 0.9fr);
     gap: 12px;
     padding: 0 16px 0 18px;
-  }
-}
+  }}
+
 
 /* Final shell authority for the Atlas North Star visual contract.
    Older shell-rail rules still carry !important declarations from the
@@ -3126,8 +1656,8 @@ body {
 
   .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-prototype-filter-rail {
     margin-top: 188px;
-  }
-}
+  }}
+
 
 .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"]:not([data-preview-open="true"]) > .gh-selection-preview {
   display: none !important;
@@ -4307,8 +2837,8 @@ body {
 .ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-prototype-meta-line {
     gap: 5px 10px;
     font-size: 0.64rem;
-  }
-}
+  }}
+
 
 .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-row-menu-wrap {
   position: absolute;
@@ -4687,8 +3217,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .gh-discovery-globe-shine,
   .gh-discovery-globe-pulses {
     animation: none;
-  }
-}
+  }}
+
 
 .gh-discovery-preview-actions .gh-primary-button {
   background: rgba(11, 93, 143, 0.78) !important;
@@ -4888,8 +3418,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 
   .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"][data-preview-open="true"] .gh-discovery-prototype-filter-rail {
     margin-top: 188px;
-  }
-}
+  }}
+
 
 .gh-discovery-preview-metric span {
   color: rgba(168, 190, 208, 0.78);
@@ -5071,8 +3601,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 
   .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-results-panel[data-display-mode="grid"] .gh-discovery-table-grid {
     grid-template-columns: 1fr;
-  }
-}
+  }}
+
 
 @media (max-width: 1320px) {
   .gh-discovery-shell .gh-discovery-main-grid,
@@ -5124,8 +3654,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .gh-discovery-bottom-grid {
     grid-template-columns: 0.92fr 0.98fr 1.2fr;
     gap: 8px;
-  }
-}
+  }}
+
 
 @media (max-height: 940px) {
   .gh-discovery-shell .gh-discovery-main-grid,
@@ -5256,8 +3786,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 
   .gh-discovery-preview-card .gh-asset-preview-metadata {
     gap: 5px;
-  }
-}
+  }}
+
 
 @media (max-height: 760px) {
   .gh-discovery-shell .gh-discovery-main-grid,
@@ -5402,8 +3932,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .gh-discovery-preview-actions .gh-secondary-button {
     min-height: 30px;
     font-size: 0.56rem;
-  }
-}
+  }}
+
 
 @media (max-width: 980px) {
   .gh-discovery-shell .gh-discovery-main-grid,
@@ -5430,8 +3960,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .gh-discovery-table-head,
   .gh-discovery-table-row {
     min-width: 980px;
-  }
-}
+  }}
+
 
 @media (max-width: 1600px) and (min-width: 1281px) {
   .gh-shell-topbar.ga-topbar,
@@ -5468,8 +3998,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .gh-shell-topbar.ga-topbar .ga-icon-button,
 .ga-shell-topbar.ga-topbar .ga-icon-button {
     width: 36px !important;
-  }
-}
+  }}
+
 
 @media (max-width: 1280px) {
   .gh-shell-topbar.ga-topbar,
@@ -5494,8 +4024,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 .ga-shell-topbar.ga-topbar .ga-env-chip,
 .ga-shell-topbar.ga-topbar .ga-ai-chip {
     padding-inline: 10px !important;
-  }
-}
+  }}
+
 
 @media (max-width: 980px) {
   .gh-app.gh-app-with-rail,
@@ -5533,8 +4063,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 .ga-shell-topbar.ga-topbar .ga-topbar-actions {
     flex-wrap: wrap !important;
     justify-content: flex-start !important;
-  }
-}
+  }}
+
 
 @media (max-height: 760px) and (min-width: 981px) {
   .gh-app.gh-app-with-rail,
@@ -5613,8 +4143,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
     gap: 22px;
     padding: 0 22px;
     font-size: 0.72rem;
-  }
-}
+  }}
+
 
 /* Asset 360 must inherit the North Star dark product shell when opened from
    Discovery. Older OpenMetadata-parity overrides still force white cards in
@@ -6328,8 +4858,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .ga-asset360-governance-card {
     min-height: 222px;
     max-height: 222px;
-  }
-}
+  }}
+
 
 @media (max-height: 920px) {
   .ga-asset360-description-card,
@@ -6353,8 +4883,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
     min-height: 50px;
     padding-top: 7px;
     padding-bottom: 7px;
-  }
-}
+  }}
+
 
 @media (max-height: 760px) {
   .gh-entity-workspace .gh-entity-record-shell {
@@ -6416,8 +4946,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   .ga-asset360-rail-list button {
     min-height: 36px;
     padding: 6px 8px;
-  }
-}
+  }}
+
 
 @media (max-width: 1180px) {
   .ga-asset360-hero-main {
@@ -6439,8 +4969,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 
   .ga-asset360-primary {
     grid-template-columns: 1fr;
-  }
-}
+  }}
+
 
 @media (max-width: 1440px) {
   .gh-app.gh-app-with-rail,
@@ -6453,8 +4983,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
     grid-template-columns: minmax(140px, auto) minmax(260px, 1fr) max-content !important;
     gap: 12px !important;
     padding: 0 16px 0 18px !important;
-  }
-}
+  }}
+
 
 /* Current North Star shell authority. Keep these variables late in the cascade
    because legacy shell rules still carry fixed header assumptions. */
@@ -6471,8 +5001,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 .ga-shell-app {
     --gh-side-rail-w: clamp(240px, 10.15vw, 298px);
     --ga-topbar-h: clamp(56px, 2.39vw, 70px);
-  }
-}
+  }}
+
 
 .gh-app.gh-app-with-rail > .gh-shell-header,
 .ga-shell-app > .ga-shell-header {
@@ -6527,8 +5057,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
     grid-template-columns: minmax(170px, 0.72fr) minmax(300px, 480px) minmax(0, max-content) !important;
     gap: 12px !important;
     padding-right: 12px !important;
-  }
-}
+  }}
+
 
 @media (max-width: 1280px) {
   .gh-shell-topbar.ga-topbar,
@@ -6536,8 +5066,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
     grid-template-columns: minmax(180px, auto) minmax(240px, 1fr) auto !important;
     gap: 12px !important;
     padding: 0 16px !important;
-  }
-}
+  }}
+
 
 /* ==========================================================================
    Design-pass primitives
@@ -6573,8 +5103,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   100% { transform: scale(1.6); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ga-live-dot::after { animation: none; opacity: 0.4; }
-}
+  .ga-live-dot::after { animation: none; opacity: 0.4; }}
+
 
 /* ---------- KPI tile glow on hover ----------
    Subtle highlight crown on top edge that reveals on hover. */
@@ -6787,8 +5317,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   letter-spacing: 0.04em;
 }
 @media (prefers-reduced-motion: reduce) {
-  .ga-area-chart-endpoint-halo { animation: none; opacity: 0.5; }
-}
+  .ga-area-chart-endpoint-halo { animation: none; opacity: 0.5; }}
+
 
 /* ---------- Score bar (used in catalog table & policy coverage) ---------- */
 .ga-score-bar {
@@ -6912,8 +5442,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 @media (max-width: 1180px) {
   .ga-stewardship-pane {
     grid-template-columns: 1fr;
-  }
-}
+  }}
+
 .ga-stewardship-filters {
   display: flex;
   gap: 6px;
@@ -7037,8 +5567,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 @media (prefers-reduced-motion: reduce) {
   .ga-ai-stage-plan-line { animation: none; opacity: 1; }
-  .ga-ai-stage-caret { animation: none; }
-}
+  .ga-ai-stage-caret { animation: none; }}
+
 
 /* ==========================================================================
    GLOBAL DARK-THEME OVERRIDES — clean up legacy cream backgrounds
@@ -7226,134 +5756,9 @@ input.gh-input,
   gap: 2px 8px;
 }
 
-/* ============================================================
-   Persona-audit fixes — Command Center evidence affordances
-   ============================================================ */
-
-/* Hero stats + headline KPI tiles are real clicks into filtered evidence.
-   The overlay button keeps the existing grid markup intact. */
-.gh-command-center-facts span {
-  position: relative;
-}
-
-.gh-command-center-fact-open,
-.gh-command-center-kpi-open {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.gh-command-center-fact-open:hover,
-.gh-command-center-kpi-open:hover {
-  background: rgba(102, 197, 255, 0.06);
-}
-
-.gh-command-center-fact-open:focus-visible,
-.gh-command-center-kpi-open:focus-visible {
-  outline: 2px solid var(--ga-bright-blue);
-  outline-offset: 2px;
-}
-
-/* Info glyph sits above the tile overlay so both stay clickable. */
-.gh-command-center-kpi-info {
-  position: relative;
-  z-index: 2;
-  width: 15px;
-  height: 15px;
-  margin-left: 7px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--ga-border);
-  border-radius: 999px;
-  background: rgba(207, 239, 255, 0.05);
-  color: var(--ga-text-muted);
-  font-size: 0.6rem;
-  font-style: italic;
-  font-weight: 800;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.gh-command-center-kpi-info:hover,
-.gh-command-center-kpi-info[aria-expanded="true"] {
-  border-color: var(--ga-bright-blue);
-  color: var(--ga-bright-blue);
-}
-
-.gh-command-center-kpi-info:focus-visible {
-  outline: 2px solid var(--ga-bright-blue);
-  outline-offset: 1px;
-}
-
-.gh-command-center-kpi-popover {
-  position: absolute;
-  top: 34px;
-  left: 12px;
-  right: 12px;
-  z-index: 3;
-  padding: 9px 11px;
-  border: 1px solid var(--ga-border);
-  border-radius: 8px;
-  background: var(--ga-surface-strong, rgba(6, 22, 38, 0.98));
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-  color: var(--ga-text);
-  font-size: 0.72rem;
-  font-weight: 500;
-  line-height: 1.45;
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-/* Honest zero-delta state for "What changed today". */
-.gh-command-center-no-changes {
-  display: grid;
-  gap: 4px;
-  padding: 12px 0;
-}
-
-.gh-command-center-no-changes strong {
-  color: var(--ga-text);
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.gh-command-center-no-changes em {
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-  font-style: normal;
-}
-
-/* Explicit truncation caption for the catalog-health table. */
-.gh-command-center-catalog-cap {
-  margin: 8px 0 0;
-  color: var(--ga-text-muted);
-  font-size: 0.7rem;
-}
-
-/* Hydration: values are visibly "still loading", never definitive zeros. */
-.gh-command-center-page.is-hydrating .gh-command-center-kpi strong,
-.gh-command-center-page.is-hydrating .gh-command-center-facts b {
-  opacity: 0.45;
-  animation: ga-kpi-hydrate-pulse 1.4s ease-in-out infinite;
-}
-
 @keyframes ga-kpi-hydrate-pulse {
   0%, 100% { opacity: 0.45; }
   50% { opacity: 0.75; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gh-command-center-page.is-hydrating .gh-command-center-kpi strong,
-  .gh-command-center-page.is-hydrating .gh-command-center-facts b {
-    animation: none;
-  }
 }
 
 /* ============================================================
