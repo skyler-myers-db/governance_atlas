@@ -1102,6 +1102,7 @@ _AUDIT_EVENT_FIELD_WHITELIST = (
     "display_detail",
     "actor_email",
     "actor_role",
+    "actorKind",
     "created_at",
     "request_id",
     "displayRequestId",

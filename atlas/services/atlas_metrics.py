@@ -2176,6 +2176,7 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
         if available_weight
         else None
     )
+    quality_evidence_at = _quality_sla_signal(store).get("evidenceAt") or ""
     domains = _domain_summary(assets_df)
     recommendations = []
     if domains:
@@ -2217,6 +2218,10 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
         "resolutionTrend": [],
         "metadataCoverageHeatmap": _coverage_heatmap(domains),
         "certificationCoverageByTier": _certification_coverage_by_tier(assets_df),
+        # Evidence dates so quality/risk tiles can say WHEN the backing runs
+        # executed — May-dated failures must never read as today's signal.
+        "qualityEvidenceAt": quality_evidence_at,
+        "riskEvidenceAt": quality_evidence_at,
         "riskHeatmap": _risk_heatmap(assets_df),
         "domainLeaderboard": domains,
         "recommendations": recommendations,
@@ -2498,8 +2503,33 @@ def _utc_z_timestamp(value: Any) -> str:
     return ts.isoformat().replace("+00:00", "Z")
 
 
+# Known service-principal local-parts in the estate. The "By services" audit
+# chip previously used a /^svc-|bot|service/ regex that matched zero real
+# actors; classification now ships in the payload so the frontend never
+# guesses. Extend this set when new automation principals are provisioned.
+_SERVICE_ACTOR_LOCALPARTS = {
+    "metadata.quality",
+    "taxonomy.curator",
+    "quality.runner",
+    "governance.sweeper",
+}
+
+
+def _actor_kind(actor: Any) -> str:
+    email = _lower(actor)
+    if not email:
+        return ""
+    local = email.split("@", 1)[0]
+    if local in _SERVICE_ACTOR_LOCALPARTS or local.startswith(("svc-", "bot.", "service.")):
+        return "service"
+    return "user"
+
+
 def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str, Any]:
     safe = _customer_safe_payload(dict(row))
+    safe["actorKind"] = _actor_kind(
+        row.get("actor_email") or row.get("actorEmail") or row.get("actor")
+    )
     raw_audit_id = _text(row.get("audit_id") or row.get("auditId"))
     # Identity contract: audit_id keeps the FULL backing event id (sanitized)
     # so events stay joinable across surfaces/exports; displayAuditId is the
@@ -2865,7 +2895,21 @@ def _audit_access_review_summary(store: Any) -> Dict[str, Any]:
     resolved_statuses = {"approved", "rejected", "closed", "resolved", "cancelled", "canceled"}
     open_count = sum(1 for row in trusted if _lower(row.get("status")) in open_statuses)
     resolved_count = sum(1 for row in trusted if _lower(row.get("status")) in resolved_statuses)
-    return {"open": open_count, "resolved": resolved_count, "reason": ""}
+    # Oldest open createdAt lets the tile say how long the backlog has aged —
+    # a 76-day-old "open" queue reads very differently from a fresh one.
+    open_created = sorted(
+        _text(row.get("created_at") or row.get("createdAt"))
+        for row in trusted
+        if _lower(row.get("status")) in open_statuses
+        and _text(row.get("created_at") or row.get("createdAt"))
+    )
+    oldest_open = _utc_z_timestamp(open_created[0]) if open_created else ""
+    return {
+        "open": open_count,
+        "resolved": resolved_count,
+        "reason": "",
+        "oldestOpenCreatedAt": oldest_open,
+    }
 
 
 def _audit_source_table(store: Any) -> str:
@@ -2958,6 +3002,7 @@ def audit_evidence_payload(
                 "label": "Governance requests",
                 "open": governance_requests["open"],
                 "resolved": governance_requests["resolved"],
+                "oldestOpenCreatedAt": governance_requests.get("oldestOpenCreatedAt", ""),
                 "source": (
                     "governance change requests"
                     if governance_requests["open"] is not None
@@ -3244,7 +3289,19 @@ def admin_control_center_payload(
     # Pre-filter with separator-normalized matching (see
     # _admin_internal_audit_row): live actions are hyphenated and slip past
     # _recent_events' underscore-form token check.
-    governance_audit = [row for row in audit if not _admin_internal_audit_row(row)]
+    # One scoping policy across every door to the audit log: the compliance
+    # audit caught this feed showing out-of-scope events that the Audit
+    # Evidence surface withholds, so apply the same visibility filter and
+    # non-authoritative drop here before rendering admin activity.
+    # Empty inventory (cold hydration) must mean "scope unknown", not "hide
+    # everything" — pass None so the filter is a no-op until inventory warms.
+    visible_admin_fqns = _extract_asset_fqns(visible_assets) or None
+    audit = _filter_audit_rows_by_visible_assets(audit, visible_admin_fqns)
+    governance_audit = [
+        row
+        for row in audit
+        if not _admin_internal_audit_row(row) and not _is_non_authoritative_evidence_row(row)
+    ]
     pending_requests = command.get("governance", {}).get("pendingRequests", [])
     visible_asset_count = command.get("estate", {}).get("visibleAssetCount")
     return {
