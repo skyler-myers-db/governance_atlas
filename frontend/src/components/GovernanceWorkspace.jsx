@@ -1473,7 +1473,10 @@ export default function GovernanceWorkspace({
                 onChange={(event) => selectAssetFilter(event.target.value)}
                 value={focusedAssetFqn}
               >
-                <option value="">{`All assets (${northstarTrustworthyRows.length})`}</option>
+                {/* "(…)" while hydrating — a definitive "(0)" that flips to the
+                    real count is the same hydration-zero bug class the perf
+                    verifier blocked on the headline. */}
+                <option value="">{`All assets (${northstarHydrating ? "…" : northstarTrustworthyRows.length})`}</option>
                 {assetFacetOptions.map(([fqn, count]) => (
                   <option key={fqn} value={fqn}>{`${fqn} (${count})`}</option>
                 ))}

@@ -1254,7 +1254,7 @@ function GlossaryCdeRegistry({
             role="tab"
             type="button"
           >
-            Glossary <span>{glossaryCount}</span>
+            Glossary <span>{loading && !glossaryCount ? "…" : glossaryCount}</span>
           </button>
           <button
             aria-selected={activeTab === "cdes"}
@@ -1279,8 +1279,12 @@ function GlossaryCdeRegistry({
                 value={termQuery}
               />
             </label>
-            <p className="gh-taxonomy-prototype-cde-provenance" role="status">
-              Showing {visibleTerms.length} of {glossaryCount} governed glossary terms
+            <p aria-busy={loading && !glossaryCount ? true : undefined} className="gh-taxonomy-prototype-cde-provenance" role="status">
+              {/* "Showing … of …" while hydrating — definitive "0 of 0" that
+                  flips to real counts is the hydration-zero bug class. */}
+              {loading && !glossaryCount
+                ? "Loading governed glossary terms…"
+                : `Showing ${visibleTerms.length} of ${glossaryCount} governed glossary terms`}
             </p>
           {/* Panel renders only when a REAL parent/child structure exists —
               a flat glossary gets no hierarchy panel instead of N duplicate
