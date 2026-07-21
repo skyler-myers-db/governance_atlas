@@ -269,8 +269,11 @@ class _HashedAssetStaticFiles(StaticFiles):
         try:
             return await super().get_response(path, scope)
         except StarletteHTTPException as exc:
-            last_segment = path.rsplit("/", 1)[-1]
-            if exc.status_code == 404 and "." not in last_segment:
+            # Asset FQNs are dotted (catalog.schema.table), so "has a dot"
+            # cannot distinguish a page from a chunk — only misses that end
+            # in a real static-file extension stay 404.
+            static_ext = (".js", ".css", ".map", ".png", ".svg", ".ico", ".woff", ".woff2", ".txt", ".json")
+            if exc.status_code == 404 and not path.lower().endswith(static_ext):
                 return HTMLResponse(_render_index())
             raise
 
