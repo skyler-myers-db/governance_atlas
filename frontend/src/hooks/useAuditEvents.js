@@ -1,8 +1,7 @@
-// Wave B/C surface hooks (unused until AuditBrowserWorkspace's rewrite):
-// extracted from the two inline useQuery declarations in
-// AuditBrowserWorkspace.jsx (evidence feed + server-filtered events). Query
-// keys deliberately mirror the inline ones so Wave C adoption is a drop-in
-// with cache continuity.
+// Audit-evidence hooks for the Evidence surface (surfaces/evidence, Wave C5):
+// the evidence feed + server-filtered events extracted from the deleted
+// AuditBrowserWorkspace's inline useQuery declarations. Query keys mirror the
+// legacy inline ones for cache continuity.
 import { fetchAuditEvents, fetchAuditEvidence } from "../lib/api";
 import { useAtlasQuery } from "./useAtlasQuery";
 

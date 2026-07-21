@@ -1550,6 +1550,23 @@ export function fetchAuditEvents(filters = {}, options = {}) {
   return request(`/audit/events${qs ? `?${qs}` : ""}`, { signal: options.signal }).then(unwrapEnvelope);
 }
 
+export function fetchQualityFindings(filters = {}, options = {}) {
+  // Wave C5 — the Evidence quality tab. GET /api/quality/findings returns a
+  // FLAT envelope ({findings, summary, state, reason, windowTruncated,
+  // visibilityScopedRowsExcluded, meta}); deliberately NOT unwrapEnvelope'd
+  // so useAtlasQuery's envelope-status resolution (lib/envelope.js flat-payload
+  // fallbacks) can honor state/meta/warnings.
+  const params = new URLSearchParams();
+  if (filters.asset) params.set("asset", filters.asset);
+  if (filters.severity) params.set("severity", filters.severity);
+  if (filters.outcome) params.set("outcome", filters.outcome);
+  if (filters.since) params.set("since", filters.since);
+  if (filters.until) params.set("until", filters.until);
+  if (filters.limit) params.set("limit", String(filters.limit));
+  const qs = params.toString();
+  return request(`/quality/findings${qs ? `?${qs}` : ""}`, { signal: options.signal });
+}
+
 export function fetchAdminExportJobs(filters = {}, options = {}) {
   const params = new URLSearchParams();
   Object.entries(filters || {}).forEach(([key, value]) => {
