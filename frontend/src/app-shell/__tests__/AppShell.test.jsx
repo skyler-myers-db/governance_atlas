@@ -28,8 +28,10 @@ const taxonomyMock = vi.fn(() => <div data-testid="taxonomy-workspace" />);
 const adminMock = vi.fn(() => <div data-testid="admin-workspace" />);
 const capabilityMock = vi.fn(() => <div data-testid="capability-dashboard" />);
 const helpMock = vi.fn(() => <div data-testid="help-page" />);
-const asset360DrawerMock = vi.fn(({ assetFqn }) =>
-  assetFqn ? <div data-testid="asset360-drawer">{assetFqn}</div> : null,
+// Wave-B2 contract: the peek panel receives {fqn, open, onClose} and owns
+// its own drawer chrome.
+const asset360DrawerMock = vi.fn(({ fqn, open }) =>
+  open && fqn ? <div data-testid="asset360-drawer">{fqn}</div> : null,
 );
 
 vi.mock("../../hooks/useBootstrap", () => ({ useBootstrap: (...args) => useBootstrapMock(...args) }));
@@ -52,7 +54,7 @@ vi.mock("../../hooks/useAtlasAiConversation", () => ({
 
 vi.mock("../../components/HomePage", () => ({ default: (props) => homePageMock(props) }));
 vi.mock("../../components/DiscoveryWorkspace", () => ({ default: (props) => discoveryMock(props) }));
-vi.mock("../../components/EntityWorkspace", () => ({ default: (props) => entityMock(props) }));
+vi.mock("../../surfaces/asset/AssetHubPage.jsx", () => ({ default: (props) => entityMock(props) }));
 vi.mock("../../components/LineageWorkspace", () => ({ default: (props) => lineageMock(props) }));
 vi.mock("../../components/GovernanceWorkspace", () => ({ default: (props) => governanceMock(props) }));
 vi.mock("../../components/AuditBrowserWorkspace", () => ({ default: (props) => auditMock(props) }));
@@ -60,7 +62,10 @@ vi.mock("../../components/TaxonomyWorkspace", () => ({ default: (props) => taxon
 vi.mock("../../components/AdminWorkspace", () => ({ default: (props) => adminMock(props) }));
 vi.mock("../../components/CapabilityDashboard", () => ({ default: (props) => capabilityMock(props) }));
 vi.mock("../../components/HelpPage", () => ({ default: (props) => helpMock(props) }));
-vi.mock("../../components/Asset360Drawer", () => ({ default: (props) => asset360DrawerMock(props) }));
+vi.mock("../../surfaces/asset/AssetPeekPanel.jsx", () => ({
+  AssetPeekPanel: (props) => asset360DrawerMock(props),
+  default: (props) => asset360DrawerMock(props),
+}));
 vi.mock("../../components/WorkspaceSetupWizard", () => ({ default: () => <div data-testid="setup-wizard" /> }));
 vi.mock("../../components/WorkspaceDiagnosticsSurface", () => ({
   default: () => <div data-testid="diagnostics-surface" />,
@@ -220,8 +225,9 @@ describe("AppShell routing", () => {
   it("redirects legacy /entity/* deep links to /assets and mounts the hub with the decoded FQN", async () => {
     renderApp("/entity/main.core.orders");
     expect(await screen.findByTestId("entity-workspace")).toBeTruthy();
+    // The rebuilt hub reads :fqn from the router itself — the URL, not a
+    // drilled prop, is the contract now.
     expect(lastLocation.pathname).toBe("/assets/main.core.orders");
-    expect(entityMock.mock.calls.at(-1)[0].assetFqn).toBe("main.core.orders");
   });
 
   it("promotes transient /glossary?term= links to the durable term path", async () => {

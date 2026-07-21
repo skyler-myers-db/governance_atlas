@@ -10,10 +10,6 @@
     "components/AppErrorBoundary.jsx": {
       "gh": 8
     },
-    "components/Asset360Drawer.jsx": {
-      "gh": 2,
-      "hex": 10
-    },
     "components/AuditBrowserWorkspace.jsx": {
       "gh": 48,
       "cssImport": 1
@@ -28,9 +24,6 @@
     "components/DiscoveryWorkspace.jsx": {
       "gh": 682,
       "hex": 24
-    },
-    "components/EntityWorkspace.jsx": {
-      "gh": 260
     },
     "components/GovernanceWorkspace.jsx": {
       "gh": 81,

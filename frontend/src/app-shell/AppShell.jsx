@@ -41,7 +41,9 @@ import {
 import { useShellRuntime } from "./useShellRuntime.js";
 
 // Peek drawer content: the existing Asset 360 drawer, now URL-bound (?peek=).
-const Asset360Drawer = lazy(() => import("../components/Asset360Drawer"));
+const AssetPeekPanel = lazy(() =>
+  import("../surfaces/asset/AssetPeekPanel.jsx").then((m) => ({ default: m.AssetPeekPanel ?? m.default }))
+);
 
 const GOOD_HEALTH_STATES = ["ready", "complete", "healthy", "available", "live"];
 
@@ -428,24 +430,10 @@ export function AppShell({ children }) {
         ) : null}
 
         {/* Global asset preview, URL-bound to ?peek= (usePeek) so it is
-            addressable and shareable from ANY surface. The Asset360Drawer is
-            a complete drawer (own scrim/panel/tabs), so it mounts directly
-            instead of nesting a second dialog inside the system Drawer.
-            WAVE-B2 FLIP: swap this for the B2 asset preview content rendered
-            inside components/system Drawer once surfaces/asset lands. */}
+            addressable and shareable from ANY surface. Wave-B2 flipped: the
+            rebuilt AssetPeekPanel owns its own system Drawer + shared hero. */}
         <Suspense fallback={null}>
-          <Asset360Drawer
-            assetFqn={peekFqn}
-            onClose={closePeek}
-            onExpand={(fqn) => {
-              closePeek();
-              adapters.onOpenAsset(fqn || peekFqn, "Overview");
-            }}
-            onOpenLineage={(fqn) => {
-              closePeek();
-              adapters.onOpenLineage(fqn || peekFqn, "Data Lineage");
-            }}
-          />
+          <AssetPeekPanel fqn={peekFqn} open={Boolean(peekFqn)} onClose={closePeek} />
         </Suspense>
 
         {/* One toast host for the whole product (system kit contract). */}

@@ -20,7 +20,7 @@ import { useShellContext } from "./ShellContext.jsx";
 import { useLegacyNavAdapters, compactDiscoveryFilterGroups } from "./legacyAdapters.js";
 
 const DiscoveryWorkspace = lazy(() => import("../components/DiscoveryWorkspace"));
-const EntityWorkspace = lazy(() => import("../components/EntityWorkspace"));
+const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
 const LineageWorkspace = lazy(() => import("../components/LineageWorkspace"));
 const GovernanceWorkspace = lazy(() => import("../components/GovernanceWorkspace"));
 const AuditBrowserWorkspace = lazy(() => import("../components/AuditBrowserWorkspace"));
@@ -328,23 +328,10 @@ function AssetHubRoute() {
         />
       }
     >
-      {/* WAVE-B2 FLIP: replace this legacy EntityWorkspace mount with the
-          rebuilt hub at surfaces/asset once the B2 sibling lands — the route,
-          params (?tab=/&col=), and adapters above stay identical. */}
-      <EntityWorkspace
-        assetFqn={fqn}
-        bootstrap={shellCtx.bootstrap}
-        contextSeedAssets={shellCtx.contextSeedAssets}
-        effectiveBootState={shellCtx.effectiveBootState}
-        sharedVisibleAssetSet={shellCtx.visibleAssetSet}
-        onBack={() => adapters.openDiscovery({}, { fresh: false })}
-        onOpenGovernance={adapters.onOpenGovernance}
-        onOpenLineage={(assetFqn, nextContext = "Data Lineage") =>
-          adapters.onOpenLineage(assetFqn || fqn, nextContext)}
-        onSelectAsset={adapters.onSelectAsset}
-        runtimeFeatureFlags={shellCtx.runtimeFeatureFlags}
-        workspaceAccess={shellCtx.surfaceWorkspaceAccess}
-      />
+      {/* Wave-B2 flipped: the rebuilt hub is router-self-sufficient — it
+          reads :fqn via useParams and ?tab=/?col= via useSurfaceParams, so
+          no legacy adapter props are threaded. */}
+      <AssetHubPage />
     </Suspense>
   );
 }
