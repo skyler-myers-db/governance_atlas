@@ -352,8 +352,10 @@ export default function App() {
             identity: resolvedIdentity,
           }
         : data;
+  // Load the inbox summary once bootstrap is ready (not only when the inbox
+  // is open): the left-nav Inbox badge needs a truthful unread count on every
+  // surface, and the endpoint is a cheap sections=inbox slice.
   const shouldLoadGovernanceSummary =
-    (surface === "inbox" || shellInboxOpen) &&
     !loading &&
     !error &&
     Boolean(data) &&
@@ -954,6 +956,18 @@ export default function App() {
             governanceInbox={shellGovernance.inbox}
             onInboxItemAction={handleInboxItemAction}
             onBack={() => openDiscoveryWorkspace("", { fresh: false })}
+            onOpenGovernance={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
+            onOpenGlossaryTerm={(term) => {
+              // Stage the term for the glossary surface's pending-term
+              // consumer (same handoff the command palette uses).
+              try {
+                window.sessionStorage?.setItem("ga-pending-glossary-term", term);
+              } catch {
+                /* Event below still covers the mounted case. */
+              }
+              window.dispatchEvent(new CustomEvent("ga:select-glossary-term", { detail: { term } }));
+              handleModuleSurfaceChange("taxonomy");
+            }}
           />
         </Suspense>
       );
@@ -986,8 +1000,10 @@ export default function App() {
             recentAssets={commandCenter.data.recentAssets}
             onNavigate={(surfaceKey) => handleModuleSurfaceChange(surfaceKey)}
             onOpenAsset360Drawer={openAsset360Drawer}
-            onOpenDiscoveryWithFilter={(filterGroups, query = "") => {
-              openDiscoveryWorkspace(query, { fresh: true, filterGroups });
+            onOpenDiscoveryWithFilter={(filterGroups, query = "", options = {}) => {
+              // Command-center evidence clicks can also request a sort or a
+              // saved view (e.g. Certified) alongside filter groups.
+              openDiscoveryWorkspace(query, { fresh: true, filterGroups, ...options });
             }}
           />
         </Suspense>

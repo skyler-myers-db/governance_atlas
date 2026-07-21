@@ -868,6 +868,7 @@ export default function AppFrame({
         currentAssetFqn={currentAssetFqn}
         collapsed={railCollapsed}
         stewardshipCount={stewardshipCount}
+        inboxCount={showInbox ? inboxUnreadCount : null}
         userName={shell?.userName || shell?.displayName || shell?.userEmail || ""}
         userEmail={shell?.userEmail || ""}
         userRole={shell?.role || ""}
@@ -919,7 +920,9 @@ export default function AppFrame({
                 void openSearchResult(assetFqn);
               }}
               topDirectResult={topDirectResult}
-              placeholder="Search assets, glossary terms, owners..."
+              // Honest promise: the topbar quick-search returns assets; the
+              // ⌘K palette is where glossary terms and owners are searched.
+              placeholder="Search assets… (⌘K: terms, owners)"
             />
           )}
         />
@@ -1118,10 +1121,28 @@ export default function AppFrame({
       {commandOpen ? (
         <CommandPalette
           assets={searchSeedAssets}
-          navigate={({ surface, fqn }) => {
+          navigate={({ surface, fqn, term, query }) => {
             setCommandOpen(false);
             if (surface === "entity" && fqn) {
               onSearchResultSelect?.(fqn);
+              return;
+            }
+            if (surface === "taxonomy" && term) {
+              // Glossary-term result: stage the term for the taxonomy surface.
+              // sessionStorage survives the lazy mount; the event covers the
+              // already-mounted case (module change is then a no-op).
+              try {
+                window.sessionStorage?.setItem("ga-pending-glossary-term", term);
+              } catch {
+                /* Selection still works via the event when storage is blocked. */
+              }
+              window.dispatchEvent(new CustomEvent("ga:select-glossary-term", { detail: { term } }));
+              onModuleChange?.("taxonomy");
+              return;
+            }
+            if (surface === "discovery" && query) {
+              // Owner result: land on Discover's structured owner search.
+              onBrowseCatalog?.(query);
               return;
             }
             onModuleChange?.(surface);

@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fetchGovernanceGlossary } from "../../lib/api";
 import { AssetTypeIcon } from "./AssetTypeIcon";
 
 /**
  * CommandPalette — ⌘K/Ctrl+K overlay modal for jumping anywhere
  * in the app. Matches Linear / Raycast / GitHub's palette pattern.
  *
- * Ships with three command sources:
+ * Command sources:
  *  - Navigation (Command Center / Discover / Stewardship / Glossary & CDEs / Lineage Atlas / Audit Evidence / Control Center)
  *  - Recent assets (localStorage "gh-recent-assets")
  *  - Favorites (localStorage "gh-favorite-assets")
  *  - Fuzzy search on the current asset inventory
+ *  - Glossary terms (live /governance/glossary — the search promise
+ *    "assets, glossary terms, owners" must actually be kept)
+ *  - Owners (distinct owners from the visible asset inventory)
  *
  * Keyboard:
  *  - ⌘K / Ctrl+K — open
@@ -26,6 +30,28 @@ function readLocalJson(key, fallback = []) {
   } catch {
     return fallback;
   }
+}
+
+function ownerDisplayName(owner) {
+  if (typeof owner === "string") return owner.trim();
+  if (!owner || typeof owner !== "object") return "";
+  return String(owner.name || owner.email || owner.ownerEmail || "").trim();
+}
+
+// Distinct owner names across the visible inventory — the palette's owner
+// results navigate to Discover's structured owner search.
+function distinctOwners(assets = []) {
+  const names = new Set();
+  for (const asset of Array.isArray(assets) ? assets : []) {
+    const owners = Array.isArray(asset?.owners) ? asset.owners : [];
+    for (const owner of owners) {
+      const name = ownerDisplayName(owner);
+      if (name) names.add(name);
+    }
+    const single = ownerDisplayName(asset?.owner);
+    if (single) names.add(single);
+  }
+  return [...names].sort((left, right) => left.localeCompare(right));
 }
 
 function matches(query, target) {
@@ -45,10 +71,29 @@ function matches(query, target) {
 export function CommandPalette({ assets = [], navigate, onClose }) {
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  // Glossary terms load once per palette open; a failed fetch simply omits
+  // the terms group (assets/owners keep working) — no fabricated rows.
+  const [glossaryTerms, setGlossaryTerms] = useState([]);
   const inputRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchGovernanceGlossary()
+      .then((payload) => {
+        if (cancelled) return;
+        const terms = Array.isArray(payload?.glossary) ? payload.glossary : [];
+        setGlossaryTerms(terms);
+      })
+      .catch(() => {
+        /* Terms group stays absent; the palette must not block on it. */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -57,6 +102,7 @@ export function CommandPalette({ assets = [], navigate, onClose }) {
 
   const recents = useMemo(() => readLocalJson("gh-recent-assets").slice(0, 5), []);
   const favorites = useMemo(() => readLocalJson("gh-favorite-assets").slice(0, 5), []);
+  const owners = useMemo(() => distinctOwners(assets), [assets]);
 
   const items = useMemo(() => {
     const byFqn = new Map();
@@ -106,6 +152,7 @@ export function CommandPalette({ assets = [], navigate, onClose }) {
             group: "Assets",
             title: a.name || a.fqn,
             subtitle: a.fqn,
+            badge: "Asset",
             asset: a,
             run: () => navigate?.({ surface: "entity", fqn: a.fqn }),
           });
@@ -113,13 +160,50 @@ export function CommandPalette({ assets = [], navigate, onClose }) {
           if (rows.length >= 80) break;
         }
       }
+      // Glossary terms — the ⌘K placeholder promises them; deliver them.
+      // A term result deep-links to /glossary?term=<id-or-name> via the
+      // taxonomy surface's pending-term consumer.
+      let termRows = 0;
+      for (const term of glossaryTerms) {
+        const name = String(term?.term || term?.name || "").trim();
+        if (!name) continue;
+        const definition = String(term?.definition || "").trim();
+        if (!(matches(query, name) || matches(query, definition) || matches(query, term?.domain))) continue;
+        const termId = String(term?.termId || "").trim();
+        rows.push({
+          id: `term-${termId || name}`,
+          group: "Glossary terms",
+          title: name,
+          subtitle: definition || String(term?.domain || "").trim() || "Glossary term",
+          badge: "Term",
+          run: () => navigate?.({ surface: "taxonomy", term: termId || name }),
+        });
+        termRows += 1;
+        if (termRows >= 8) break;
+      }
+      // Owners — distinct owners from the visible inventory; an owner result
+      // opens Discover's structured owner search (owner:"Name").
+      let ownerRows = 0;
+      for (const owner of owners) {
+        if (!matches(query, owner)) continue;
+        rows.push({
+          id: `owner-${owner}`,
+          group: "Owners",
+          title: owner,
+          subtitle: `Search Discover for assets owned by ${owner}`,
+          badge: "Owner",
+          run: () => navigate?.({ surface: "discovery", query: `owner:"${owner}"` }),
+        });
+        ownerRows += 1;
+        if (ownerRows >= 6) break;
+      }
     }
     // Filter entire list by query (lightweight)
     if (!query) return rows;
     return rows.filter(
       (row) => matches(query, row.title) || matches(query, row.subtitle) || matches(query, row.group),
     );
-  }, [assets, query, navigate, recents, favorites]);
+  }, [assets, glossaryTerms, owners, query, navigate, recents, favorites]);
 
   const handleKey = (event) => {
     if (event.key === "Escape") {
@@ -167,7 +251,7 @@ export function CommandPalette({ assets = [], navigate, onClose }) {
             className="gh-cmdk-input"
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Jump to… (asset, page, or command)"
+            placeholder="Search assets, glossary terms, owners…"
             ref={inputRef}
             type="search"
             value={query}
@@ -201,6 +285,9 @@ export function CommandPalette({ assets = [], navigate, onClose }) {
                       <span className="gh-cmdk-item-title">{item.title}</span>
                       <span className="gh-cmdk-item-subtitle">{item.subtitle}</span>
                     </span>
+                    {item.badge ? (
+                      <span aria-hidden="true" className="gh-cmdk-item-badge">{item.badge}</span>
+                    ) : null}
                   </button>
                 ))}
               </div>

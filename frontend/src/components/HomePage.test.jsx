@@ -132,10 +132,13 @@ describe("HomePage", () => {
 
     const kpiRow = screen.getByLabelText("Governance summary metrics");
     [
-      "Governance coverage",
+      // Renamed: this tile is the metadata-coverage formula, and the risk
+      // tile counts quality-run findings (a different source than policy
+      // exceptions, so it must not be called "exposures").
+      "Metadata coverage",
       "Certified critical assets",
       "Open stewardship items",
-      "High-risk exposures",
+      "High-risk quality findings",
     ].forEach((label) => {
       expect(within(kpiRow).getByText(label)).not.toBeNull();
     });
@@ -143,13 +146,105 @@ describe("HomePage", () => {
     expect(within(kpiRow).getByText("+37 this week")).not.toBeNull();
   });
 
+  it("wires headline KPI tiles to evidence destinations with info popovers", () => {
+    const onNavigate = vi.fn();
+    const onOpenDiscoveryWithFilter = vi.fn();
+    render(
+      <HomePage
+        commandCenter={commandCenter}
+        onNavigate={onNavigate}
+        onOpenDiscoveryWithFilter={onOpenDiscoveryWithFilter}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Discover sorted by governance score" }));
+    expect(onOpenDiscoveryWithFilter).toHaveBeenCalledWith({}, "", { sortBy: "Governance score" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Discover filtered to certified assets" })[0]);
+    expect(onOpenDiscoveryWithFilter).toHaveBeenCalledWith({}, "", { views: ["Certified"] });
+    fireEvent.click(screen.getByRole("button", { name: "Open the stewardship work queue" }));
+    expect(onNavigate).toHaveBeenCalledWith("governance");
+    fireEvent.click(screen.getByRole("button", { name: "Open governance insights for quality risk evidence" }));
+    expect(onNavigate).toHaveBeenCalledWith("insights");
+
+    // Info glyphs open a real formula popover instead of doing nothing.
+    fireEvent.click(screen.getByRole("button", { name: "How Metadata coverage is calculated" }));
+    expect(screen.getByText(/Weighted coverage of required governance metadata/i)).not.toBeNull();
+  });
+
+  it("titles the hero from estate.estateLabel and routes hero stats", () => {
+    const onNavigate = vi.fn();
+    render(
+      <HomePage
+        commandCenter={{
+          ...commandCenter,
+          estate: { ...commandCenter.estate, estateLabel: "Data estate" },
+          cdeSignal: { count: 49, subtitle: "Criticality-derived" },
+        }}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    // Estate-wide numbers are titled for the estate, never a single catalog.
+    expect(screen.getByText("The state of the data estate")).not.toBeNull();
+    expect(screen.queryByText(/The state of finance_prod/i)).toBeNull();
+    // CDE subtitle comes from the payload — the fabricated "Tag-governed ·
+    // lineage-backed" copy is gone.
+    expect(screen.getByText("Criticality-derived")).not.toBeNull();
+    expect(screen.queryByText("Tag-governed · lineage-backed")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open the CDE registry tab in Glossary & CDEs" }));
+    expect(onNavigate).toHaveBeenCalledWith("cde");
+  });
+
+  it("renders an honest 'No changes today' state when no delta is backed by a prior snapshot", () => {
+    render(
+      <HomePage
+        commandCenter={{
+          ...commandCenter,
+          insights: {
+            qualitySla: 66.7,
+            qualitySignalAvailable: true,
+            qualityChecksEvaluated: 9,
+            qualityEvidenceAt: "2026-05-03T11:00:00Z",
+          },
+        }}
+      />,
+    );
+
+    // The fixture has no previous snapshot values, so nothing actually
+    // changed today — zero-delta rows must not masquerade as movement.
+    expect(screen.getByText("No changes today")).not.toBeNull();
+    expect(screen.getByText(/Latest quality evidence from May 3/i)).not.toBeNull();
+  });
+
+  it("renders the collecting state instead of a synthetic trend line for one snapshot", () => {
+    render(
+      <HomePage
+        commandCenter={{
+          ...commandCenter,
+          posture: {
+            ...commandCenter.posture,
+            trend: [{ label: "2026-07-20", overall: 80.2 }],
+            trendState: "collecting",
+            collectingSince: "2026-07-20",
+          },
+        }}
+      />,
+    );
+
+    // One daily snapshot is history collection, not a 26-week line.
+    expect(screen.getByText(/Collecting since Jul 20/i)).not.toBeNull();
+    expect(screen.getByText(/Daily snapshots recording/i)).not.toBeNull();
+    expect(screen.getByText(/one snapshot per day/i)).not.toBeNull();
+  });
+
   it("renders the main prototype panel set from backed data", () => {
     render(<HomePage commandCenter={commandCenter} />);
 
     expect(screen.getByText("Posture trend · 26w")).not.toBeNull();
     expect(screen.getByText("Posture by domain")).not.toBeNull();
-    expect(screen.getByText("Risk breakdown")).not.toBeNull();
-    expect(screen.getByText("Top catalogs · health snapshot")).not.toBeNull();
+    // Panel names its real source (quality-run findings), worst-first catalogs.
+    expect(screen.getByText("Quality risk findings")).not.toBeNull();
+    expect(screen.getByText("Catalog health · worst coverage first")).not.toBeNull();
     expect(screen.getByText("Critical data elements")).not.toBeNull();
     expect(screen.getByText("Activity stream")).not.toBeNull();
     expect(screen.getByText("finance_prod")).not.toBeNull();
@@ -191,7 +286,7 @@ describe("HomePage", () => {
 
     rerender(<HomePage state="error" message="Command center unavailable." commandCenter={commandCenter} />);
     expect(screen.getByText("Command center unavailable.")).not.toBeNull();
-    expect(screen.getByText("Top catalogs · health snapshot")).not.toBeNull();
+    expect(screen.getByText("Catalog health · worst coverage first")).not.toBeNull();
   });
 
   it("keeps prototype-mock provenance out of the command-center layout banner", () => {
@@ -285,7 +380,9 @@ describe("HomePage", () => {
       expect(payload.provenance.evidenceKind).toBe("live");
       expect(payload.provenance.liveDatabricksEvidence).toBe(false);
       expect(payload.kpis.find((kpi) => kpi.key === "governedAssets").delta).toBe("+82 this quarter");
-      expect(payload.topCatalogs[0].catalog).toBe("finance_prod");
+      // Catalog rows are worst-coverage-first now (customer_360 at 82%).
+      expect(payload.topCatalogs[0].catalog).toBe("customer_360");
+      expect(payload.topCatalogs.map((row) => row.catalog)).toContain("finance_prod");
 
       const presentButton = screen.getByRole("button", { name: "Present mode" });
       expect(presentButton.getAttribute("aria-pressed")).toBe("false");
@@ -338,10 +435,11 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Open discovery filtered to Revenue & Sales domain/i }));
     expect(onNavigate).toHaveBeenCalledWith("discovery");
-    fireEvent.click(screen.getByRole("button", { name: /Open stewardship for high-risk exposures/i }));
-    expect(onNavigate).toHaveBeenCalledWith("governance");
-    fireEvent.click(screen.getByRole("button", { name: /Open audit evidence for medium-risk findings/i }));
-    expect(onNavigate).toHaveBeenCalledWith("audit");
+    // All severity rows drill into the same quality-evidence surface.
+    fireEvent.click(screen.getByRole("button", { name: /Open quality risk evidence for high-severity findings/i }));
+    expect(onNavigate).toHaveBeenCalledWith("insights");
+    fireEvent.click(screen.getByRole("button", { name: /Open quality risk evidence for medium-severity findings/i }));
+    expect(onNavigate).toHaveBeenCalledWith("insights");
 
     fireEvent.click(screen.getByText("finance_prod"));
     expect(onNavigate).toHaveBeenCalledWith("discovery");

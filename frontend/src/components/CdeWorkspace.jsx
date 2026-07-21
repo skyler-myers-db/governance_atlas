@@ -51,7 +51,9 @@ function normalizeStatus(value) {
 
 function statusTone(value) {
   const normalized = normalizeStatus(value);
-  if (["certified", "approved", "protected", "compliant", "complete", "trusted"].includes(normalized)) return "good";
+  // "protected" was removed from the good-tone list: a sensitivity label is
+  // not a protection control, and no payload field may claim it is.
+  if (["certified", "approved", "compliant", "complete", "trusted"].includes(normalized)) return "good";
   if (["critical", "high", "restricted", "confidential"].includes(normalized)) return "bad";
   if (["medium", "in_review", "partial", "draft"].includes(normalized)) return "warn";
   if (["low", "internal"].includes(normalized)) return "info";
@@ -125,20 +127,15 @@ function normalizeCandidate(item, index = 0) {
 }
 
 function candidatesFromDashboard(dashboard) {
-  const byId = new Map();
-  arrayValue(dashboard.items).forEach((item, index) => {
-    const normalized = normalizeCandidate(item, index);
-    byId.set(normalized.id, normalized);
-  });
-  arrayValue(dashboard.groups).forEach((group) => {
-    arrayValue(group.items).forEach((item, index) => {
-      const normalized = normalizeCandidate({ ...item, domain: item.domain || group.domain }, index);
-      byId.set(normalized.id, normalized);
-    });
-  });
-  return [...byId.values()].sort((left, right) =>
-    `${left.domain} ${left.rawName}`.localeCompare(`${right.domain} ${right.rawName}`),
-  );
+  // `items` is the canonical row list. The old byId-merge over
+  // `groups[].items` was a client-side de-dup hack for a payload that
+  // double-listed every row; the builder now emits groups as
+  // {domain, count, itemIds} summaries, so items alone is complete.
+  return arrayValue(dashboard.items)
+    .map((item, index) => normalizeCandidate(item, index))
+    .sort((left, right) =>
+      `${left.domain} ${left.rawName}`.localeCompare(`${right.domain} ${right.rawName}`),
+    );
 }
 
 function groupByDomain(items) {
@@ -263,6 +260,12 @@ export default function CdeWorkspace({
   const sensitiveCount = numberOrNull(summary.sensitiveCandidates) ?? candidates.filter((item) =>
     !["", "unassigned", "internal"].includes(normalizeStatus(item.sensitivity)),
   ).length;
+  // Honest rename (persona audit): the payload ships sensitivityLabeledCdes +
+  // its label — a labeling fact, never "Protected". Fall back to the derived
+  // sensitive count so older cached payloads still render a real number.
+  const sensitivityLabeledCount = numberOrNull(summary.sensitivityLabeledCdes) ?? sensitiveCount;
+  const sensitivityLabeledLabel = text(summary.sensitivityLabeledLabel) || "Sensitivity-labeled";
+  const cdeDefinition = text(summary.cdeDefinition) || "Criticality-derived";
   const domainsCovered = numberOrNull(summary.domainsCovered) ?? new Set(candidates.map((item) => item.domain)).size;
   const overdueReviews = numberOrNull(summary.overdueReviews);
 
@@ -313,12 +316,21 @@ export default function CdeWorkspace({
         <div className="gh-cde-main">
           <header className="gh-cde-hero">
             <h1>Critical Data Elements Registry</h1>
-            <p>Discover, govern, and protect the data elements that drive trust and performance.</p>
+            {/* Definition comes from the payload (summary.cdeDefinition):
+                this population is criticality-derived, and "protect" claims
+                were removed — a registry row is not a protection control. */}
+            <p>{cdeDefinition} registry of the data elements that drive trust and performance.</p>
           </header>
 
           <div className="gh-cde-kpis" aria-label="CDE metrics">
             <KpiCard icon="▦" label="Total CDEs" value={loading ? "Loading..." : queryError ? "Unavailable" : totalCdes.toLocaleString()} support={loading ? "Reading visible metadata" : `${filtered.length.toLocaleString()} visible in this view`} tone="info" />
-            <KpiCard icon="◈" label="Protected CDEs" value="Unavailable" support={loading ? "Awaiting sensitivity metadata" : `${sensitiveCount.toLocaleString()} sensitive candidates`} tone="good" />
+            <KpiCard
+              icon="◈"
+              label={sensitivityLabeledLabel}
+              value={loading ? "Loading..." : queryError ? "Unavailable" : sensitivityLabeledCount.toLocaleString()}
+              support={loading ? "Awaiting sensitivity metadata" : "Sensitivity label stronger than internal — a label, not a control"}
+              tone="good"
+            />
             <KpiCard icon="!" label="Overdue Reviews" value={loading ? "Loading..." : overdueReviews == null ? "Unavailable" : overdueReviews.toLocaleString()} support={overdueReviews == null ? "Review cadence not configured" : "Backed by review metadata"} tone="warn" />
             <KpiCard icon="◎" label="Domains Covered" value={loading ? "Loading..." : queryError ? "Unavailable" : domainsCovered.toLocaleString()} support="Actor-visible domains" tone="info" />
           </div>

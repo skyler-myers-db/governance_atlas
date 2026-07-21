@@ -2240,6 +2240,32 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
     }
 
 
+# Real persisted glossary/taxonomy identifiers look like
+# "ga-taxonomy-term-net-revenue" / "ga-taxonomy-node-finance". They are NOT
+# mock markers, but NON_AUTHORITATIVE_EVIDENCE_RE matches the "ga-taxonomy-term"
+# substring, so the generic _customer_safe_text pass blanked every termId /
+# parentTermId in the taxonomy overview (19/20 terms shipped termId "" and the
+# hierarchy panel rendered identical dead "Root term" tiles). Preserve strings
+# that are exactly an identifier; sanitize prose as before.
+_TAXONOMY_ID_RE = re.compile(r"^ga-taxonomy-(?:term|node|seed)?-?[a-z0-9][a-z0-9-]*$", re.IGNORECASE)
+
+
+def _taxonomy_customer_safe_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _taxonomy_customer_safe_payload(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_taxonomy_customer_safe_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_taxonomy_customer_safe_payload(item) for item in value)
+    if isinstance(value, str):
+        # Pure identifiers pass through untouched so the frontend can join
+        # terms to parents and deep-link /glossary?term=<id>.
+        if _TAXONOMY_ID_RE.match(value.strip()):
+            return value
+        return _customer_safe_text(value)
+    return value
+
+
 def taxonomy_overview_payload(
     *,
     store: Any,
@@ -2272,7 +2298,9 @@ def taxonomy_overview_payload(
             "initialLimit": initial_limit,
         },
     }
-    return _customer_safe_payload(payload)
+    # Taxonomy-specific sanitizer: keeps real ga-taxonomy-* identifiers while
+    # still scrubbing prose (see _taxonomy_customer_safe_payload above).
+    return _taxonomy_customer_safe_payload(payload)
 
 
 def _customer_safe_text(value: Any) -> str:
@@ -2664,8 +2692,16 @@ def cde_dashboard_payload(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for item in items:
         grouped.setdefault(item["domain"], []).append(item)
+    # Dedupe: `items` is the single canonical row list. `groups` used to embed
+    # a second full copy of every item, which doubled payload size and forced
+    # every client to run a byId-merge de-dup hack. Groups are now domain
+    # summaries referencing item ids only.
     groups = [
-        {"domain": domain, "items": sorted(domain_items, key=lambda value: value["name"].lower())}
+        {
+            "domain": domain,
+            "count": len(domain_items),
+            "itemIds": [entry["id"] for entry in sorted(domain_items, key=lambda value: value["name"].lower())],
+        }
         for domain, domain_items in sorted(grouped.items())
     ]
     protected = [

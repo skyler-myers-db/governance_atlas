@@ -319,6 +319,69 @@ describe("TaxonomyWorkspace", () => {
     expect(screen.getByText("No Critical Data Elements yet")).toBeDefined();
   });
 
+  it("consumes the ?term= deep link by selecting and revealing the matching term", () => {
+    window.history.replaceState({}, "", "/glossary-cdes?term=active-customer");
+    renderTaxonomy(taxonomyPayload);
+
+    // The linked term is selected on mount and its detail panel is open.
+    expect(screen.getByRole("complementary", { name: "Active Customer detail" })).toBeDefined();
+    // The consumed param is removed so later navigation doesn't re-trigger it.
+    expect(window.location.search.includes("term=")).toBe(false);
+  });
+
+  it("matches ?term= deep links by display name as well as id", () => {
+    window.history.replaceState({}, "", "/glossary-cdes?term=Net%20Revenue");
+    renderTaxonomy(taxonomyPayload);
+
+    expect(screen.getByRole("complementary", { name: "Net Revenue detail" })).toBeDefined();
+  });
+
+  it("selects a term when the palette dispatches the glossary-term handoff event", async () => {
+    renderTaxonomy(taxonomyPayload);
+
+    window.dispatchEvent(new CustomEvent("ga:select-glossary-term", { detail: { term: "booking" } }));
+    expect(await screen.findByRole("complementary", { name: "Booking detail" })).toBeDefined();
+  });
+
+  it("omits the hierarchy panel for a flat glossary and renders selectable tiles when structure exists", () => {
+    // Flat glossary (no resolvable parents, no children): no hierarchy panel,
+    // instead of N identical "Root term · No child terms recorded" tiles.
+    const { unmount } = renderTaxonomy(taxonomyPayload);
+    expect(screen.queryByLabelText("Glossary hierarchy")).toBeNull();
+    unmount();
+
+    // Real parent/child structure: panel renders only the structured terms,
+    // resolves the parent's display name, and tiles select their term.
+    const structured = {
+      data: {
+        glossaryTerms: [
+          ...taxonomyPayload.data.glossaryTerms,
+          {
+            termId: "gross-revenue",
+            term: "Gross Revenue",
+            definition: "Revenue before adjustments.",
+            domain: "Finance",
+            status: "Approved",
+            parentTermId: "net-revenue",
+            assetCount: 1,
+          },
+        ],
+        cdes: [],
+        summary: { termCount: 4 },
+      },
+      meta: { state: "available", warnings: [] },
+    };
+    renderTaxonomy(structured);
+    const hierarchy = screen.getByLabelText("Glossary hierarchy");
+    // Only the structured pair shows: parent (Net Revenue) + child.
+    const tiles = within(hierarchy).getAllByRole("button");
+    expect(tiles).toHaveLength(2);
+    expect(within(hierarchy).getByText("Gross Revenue")).toBeDefined();
+    expect(within(hierarchy).getByText("1 child term")).toBeDefined();
+    fireEvent.click(within(hierarchy).getByRole("button", { name: /Gross Revenue/ }));
+    expect(screen.getByRole("complementary", { name: "Gross Revenue detail" })).toBeDefined();
+  });
+
   it("rejects non-authoritative taxonomy and CDE payload rows", async () => {
     fetchCdeDashboard.mockResolvedValue({
       data: {

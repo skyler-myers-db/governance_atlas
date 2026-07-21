@@ -28,6 +28,7 @@ const RAIL_ICONS = {
   cde: <Icon><path d="M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3Z" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" /><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></Icon>,
   shieldCheck: <Icon><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-5" /></Icon>,
   sliders: <Icon><path d="M4 6h10" /><path d="M18 6h2" /><path d="M4 12h2" /><path d="M10 12h10" /><path d="M4 18h8" /><path d="M16 18h4" /><circle cx="16" cy="6" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="14" cy="18" r="2" /></Icon>,
+  inbox: <Icon><path d="M4 13.5 6.5 6h11L20 13.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18Z" /><path d="M4 13.5h5l1.2 2.3h3.6l1.2-2.3h5" /></Icon>,
 };
 
 export const NAV_ITEMS = [
@@ -37,6 +38,9 @@ export const NAV_ITEMS = [
   { key: "taxonomy", label: "Glossary & CDEs", moduleKey: "taxonomy", icon: "book", section: "Knowledge" },
   { key: "lineage", label: "Lineage Atlas", moduleKey: "lineage", icon: "lineage", section: "Knowledge" },
   { key: "audit", label: "Audit Evidence", moduleKey: "audit", icon: "shieldCheck", section: "Trust" },
+  // Inbox was an orphaned surface reachable only from the topbar bell; it is
+  // a first-class Trust destination with an open/unread work badge.
+  { key: "inbox", label: "Inbox", moduleKey: "inbox", icon: "inbox", section: "Trust", badgeKey: "inbox" },
   { key: "admin", label: "Control Center", moduleKey: "admin", icon: "sliders", section: "Trust" },
 ];
 
@@ -62,6 +66,7 @@ export function SideIconRail({
   currentAssetFqn = "",
   collapsed = false,
   stewardshipCount = null,
+  inboxCount = null,
   userName = "",
   userEmail = "",
   userRole = "",
@@ -99,7 +104,9 @@ export function SideIconRail({
               const badgeValue =
                 entry.badgeKey === "stewardship" && Number.isFinite(Number(stewardshipCount))
                   ? Math.max(0, Math.trunc(Number(stewardshipCount)))
-                  : null;
+                  : entry.badgeKey === "inbox" && Number.isFinite(Number(inboxCount))
+                    ? Math.max(0, Math.trunc(Number(inboxCount)))
+                    : null;
               return (
                 <button
                   aria-current={active ? "page" : undefined}

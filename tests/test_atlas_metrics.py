@@ -804,14 +804,19 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["sensitivityLabeledCdes"], 1)
         self.assertNotIn("protectedCdes", payload["summary"])
         self.assertEqual(payload["summary"]["sensitiveCandidates"], 1)
+        # Groups are domain summaries referencing item ids — they no longer
+        # double-list full item payloads (clients read rows from `items` only).
         self.assertEqual(payload["groups"][0]["domain"], "Customer")
-        self.assertIsNone(payload["groups"][0]["items"][0]["controlCoverage"])
-        self.assertEqual(payload["groups"][0]["items"][0]["controlState"], "unavailable")
+        self.assertEqual(payload["groups"][0]["count"], 1)
+        self.assertNotIn("items", payload["groups"][0])
+        self.assertEqual(payload["groups"][0]["itemIds"], [payload["items"][0]["id"]])
+        self.assertIsNone(payload["items"][0]["controlCoverage"])
+        self.assertEqual(payload["items"][0]["controlState"], "unavailable")
         # Status now reflects the asset's real certification instead of
         # conflating missing control evidence with overall health.
-        self.assertEqual(payload["groups"][0]["items"][0]["status"], "Certified")
-        self.assertIsNone(payload["groups"][0]["items"][0]["linkedPolicies"])
-        self.assertEqual(payload["groups"][0]["items"][0]["linkedPolicyState"], "unavailable")
+        self.assertEqual(payload["items"][0]["status"], "Certified")
+        self.assertIsNone(payload["items"][0]["linkedPolicies"])
+        self.assertEqual(payload["items"][0]["linkedPolicyState"], "unavailable")
 
     def test_cde_detail_preserves_unavailable_control_and_lineage_contract(self) -> None:
         payload = atlas_metrics.cde_detail_payload(
@@ -850,6 +855,43 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["glossaryTerms"][0]["termId"], "customer-id")
         self.assertEqual(payload["glossaryTerms"][0]["assetCount"], 1)
         self.assertEqual(payload["classifications"][0]["classification_id"], "class-1")
+
+    def test_taxonomy_overview_preserves_real_ga_taxonomy_term_ids(self) -> None:
+        # Persona-audit fix: real persisted glossary ids ("ga-taxonomy-term-*")
+        # were being blanked by the generic non-authoritative-marker scrub, so
+        # 19/20 terms shipped termId "" and the hierarchy panel had no joinable
+        # parent/child structure. Identifiers must survive; prose is still
+        # sanitized.
+        enriched = [
+            {
+                "termId": "ga-taxonomy-term-net-revenue",
+                "parentTermId": "ga-taxonomy-term-revenue",
+                "term": "Net Revenue",
+                "definition": "Recognized revenue net of adjustments.",
+                "assetCount": 2,
+            },
+            {
+                "termId": "ga-taxonomy-term-revenue",
+                "parentTermId": "",
+                "term": "Revenue",
+                "definition": "Prototype mock definition should be scrubbed.",
+                "assetCount": 0,
+            },
+        ]
+
+        payload = atlas_metrics.taxonomy_overview_payload(
+            store=FakeStore(),
+            glossary_terms=enriched,
+        )
+
+        terms = {row["termId"]: row for row in payload["glossaryTerms"]}
+        self.assertIn("ga-taxonomy-term-net-revenue", terms)
+        self.assertEqual(
+            terms["ga-taxonomy-term-net-revenue"]["parentTermId"],
+            "ga-taxonomy-term-revenue",
+        )
+        # Prose containing genuine non-authoritative markers is still scrubbed.
+        self.assertEqual(terms["ga-taxonomy-term-revenue"]["definition"], "")
 
     def test_insights_formula_weights_sum_to_one(self) -> None:
         payload = atlas_metrics.insights_dashboard_payload(

@@ -147,16 +147,14 @@ describe("AppFrame", () => {
   it("renders the topbar search input with the discovery-wide placeholder", () => {
     render(<FrameHarness />);
 
-    // The topbar search is the global entry point for catalog lookup. The
-    // placeholder guidance used to live in a separate command-bar block; it
-    // now reads from the input's placeholder attribute instead.
+    // The topbar quick-search returns assets; its placeholder now says so
+    // honestly and points at the palette (⌘K) for glossary terms and owners,
+    // which actually serves them.
     const searchInput = screen.getByLabelText(
-      /Search assets, glossary terms, owners/i,
+      /Search assets… \(⌘K: terms, owners\)/i,
     );
     expect(searchInput).not.toBeNull();
-    expect(searchInput.getAttribute("placeholder")).toMatch(
-      /Search assets, glossary terms, owners/i,
-    );
+    expect(searchInput.getAttribute("placeholder")).toMatch(/⌘K: terms, owners/i);
   });
 
   it("submits global search with Enter and the mouse submit control", () => {
@@ -188,7 +186,7 @@ describe("AppFrame", () => {
       </AppFrame>,
     );
 
-    const searchInput = screen.getByLabelText(/Search assets, glossary terms, owners/i);
+    const searchInput = screen.getByLabelText(/Search assets… \(⌘K: terms, owners\)/i);
     fireEvent.change(searchInput, { target: { value: "net revenue" } });
     fireEvent.keyDown(searchInput, { key: "Enter" });
     fireEvent.submit(searchInput.closest("form"));

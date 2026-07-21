@@ -210,7 +210,12 @@ describe("TaxonomyWorkspace gap fixes", () => {
     expect(within(table).getByRole("columnheader", { name: "Certification" })).toBeDefined();
     expect(within(table).getAllByText("Certified").length).toBeGreaterThan(0);
     expect(within(table).getByText("Certification Pending")).toBeDefined();
-    expect(within(table).getByText("Tag cde_source_column on the asset")).toBeDefined();
+    // Persona-audit fix: untagged sources render an honest "Not tagged" state;
+    // the remediation instruction lives in the cell tooltip, not as the value.
+    expect(within(table).getAllByText("Not tagged").length).toBeGreaterThan(0);
+    expect(within(table).queryByText("Tag cde_source_column on the asset")).toBeNull();
+    const untaggedCell = within(table).getAllByText("Not tagged")[0].closest("[role='cell']");
+    expect(untaggedCell?.getAttribute("title") || "").toMatch(/tag cde_source_column/i);
     expect(within(table).queryByText("Source unavailable")).toBeNull();
   });
 
