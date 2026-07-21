@@ -168,7 +168,10 @@ export function OverviewTab({ fqn, asset, a360, graph, detailLoading }) {
   return (
     <div className="ga-asset-tab-grid">
       <SectionCard title="About" className="ga-asset-about-card">
-        {detailLoading && !asset ? (
+        {!asset ? (
+          /* No adopted asset yet (loading OR a hydrating stub was rejected) —
+             "no description" is a claim we can't make about an asset we
+             haven't seen (re-verify BLOCK). */
           <LoadingState variant="card" lines={3} />
         ) : (
           <>

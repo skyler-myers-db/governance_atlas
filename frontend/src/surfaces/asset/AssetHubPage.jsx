@@ -145,14 +145,18 @@ export function AssetHubPage() {
   // "live-metadata-hydrating", hydrating flag) is NOT an asset yet — adopting
   // it rendered definitive "Unassigned"/score-0 for Certified assets during
   // cold windows (Wave-B verifier BLOCK). Treat it as still-loading.
-  const detailIsStub =
-    Boolean(detail.detail) &&
-    (detail.detail.hydrating === true ||
-      String(detail.detail.headerSource || "") === "live-metadata-hydrating");
+  const isHydratingStub = (candidate) =>
+    Boolean(candidate) &&
+    (candidate.hydrating === true ||
+      String(candidate.headerSource || "") === "live-metadata-hydrating");
+  const detailIsStub = isHydratingStub(detail.detail);
+  // The /360 fallback embeds the SAME inventory stub verbatim during cold
+  // windows (sameAsset matches, hydrating rides along) — guard both paths or
+  // the hub adopts from whichever slipped through (re-verify BLOCK).
+  const a360Asset = a360.data?.sameAsset ? a360.data.asset : null;
+  const a360IsStub = isHydratingStub(a360Asset);
   const baseAsset =
-    (detailIsStub ? null : detail.detail) ||
-    (a360.data?.sameAsset ? a360.data.asset : null) ||
-    null;
+    (detailIsStub ? null : detail.detail) || (a360IsStub ? null : a360Asset) || null;
   useEffect(() => {
     if (certOverride !== null && String(baseAsset?.certification ?? "") === certOverride) {
       setCertOverride(null);
@@ -167,7 +171,8 @@ export function AssetHubPage() {
   const freshness = resolveFreshness(a360.data, asset);
   const ownership = resolveOwnership(a360.data, asset);
   const heroHydrating =
-    (!asset && (detail.loading || a360.loading)) || (detailIsStub && !asset);
+    (!asset && (detail.loading || a360.loading)) ||
+    (!asset && (detailIsStub || a360IsStub));
 
   // Failure contract (PRODUCT §3a): the hub never collapses to a dead end —
   // the frame + retry stay up, and only the failing sections go honest-empty.
