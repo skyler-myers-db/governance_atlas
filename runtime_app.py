@@ -261,10 +261,14 @@ class _HashedAssetStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope):  # type: ignore[override]
         # Starlette RAISES HTTPException(404) on a miss (it does not return a
-        # 404 response), so the fall-through must catch, not status-check.
+        # 404 response), so the fall-through must catch, not status-check —
+        # and it raises STARLETTE's HTTPException, which fastapi.HTTPException
+        # (a subclass) does not catch.
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
         try:
             return await super().get_response(path, scope)
-        except HTTPException as exc:
+        except StarletteHTTPException as exc:
             last_segment = path.rsplit("/", 1)[-1]
             if exc.status_code == 404 and "." not in last_segment:
                 return HTMLResponse(_render_index())
