@@ -106,11 +106,22 @@ function resolveOwnership(a360Data, asset) {
     const name = String(value || "").trim();
     return name ? { name } : null;
   };
+  // Header payloads leave the flat steward field empty, but the owners[]
+  // array on the same payload already carries role-titled entries — derive
+  // from it like the backend does, so the steward slot never claims
+  // "Unassigned" while /360 is still cold (re-verify round-2 BLOCK).
+  const fromOwners = (pattern) => {
+    const owners = Array.isArray(asset.owners) ? asset.owners : [];
+    const match = owners.find((o) =>
+      pattern.test(String(o?.title || o?.role || o?.ownerType || "")),
+    );
+    return match ? { name: match.name || match.displayName || match.email, email: match.email } : null;
+  };
   const fallback = {
-    ucOwner: entry(asset.ucOwner),
-    businessOwner: entry(asset.businessOwner),
-    technicalOwner: entry(asset.technicalOwner),
-    steward: entry(asset.steward),
+    ucOwner: entry(asset.ucOwner) || fromOwners(/unity catalog/i),
+    businessOwner: entry(asset.businessOwner) || fromOwners(/business/i),
+    technicalOwner: entry(asset.technicalOwner) || fromOwners(/technical/i),
+    steward: entry(asset.steward) || fromOwners(/steward/i),
   };
   if (fallback.ucOwner || fallback.businessOwner || fallback.steward) return fallback;
   return roles;
@@ -246,6 +257,7 @@ export function AssetHubPage() {
         asset={asset}
         freshness={freshness}
         ownership={ownership}
+        ownershipPending={a360.loading || a360IsStub}
         hydrating={heroHydrating}
       />
 

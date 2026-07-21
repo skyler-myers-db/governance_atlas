@@ -71,7 +71,7 @@ function OwnerRole({ role, entry, hydrating = false }) {
  *   compact?: boolean,
  * }} props
  */
-export function AssetTrustHero({ asset, freshness, ownership, hydrating = false, compact = false }) {
+export function AssetTrustHero({ asset, freshness, ownership, ownershipPending = false, hydrating = false, compact = false }) {
   const coverage = Number(asset?.coverageScore);
   const hasCoverage = Number.isFinite(coverage) && asset?.coverageScore !== null && asset?.coverageScore !== "";
   const sensitivity = String(asset?.sensitivity || "").trim();
@@ -122,9 +122,9 @@ export function AssetTrustHero({ asset, freshness, ownership, hydrating = false,
       </div>
 
       <div className="ga-asset-owners" aria-label="Ownership">
-        <OwnerRole hydrating={hydrating} role="Owner (Unity Catalog)" entry={ownership?.ucOwner} />
-        <OwnerRole hydrating={hydrating} role="Business owner" entry={ownership?.businessOwner} />
-        <OwnerRole hydrating={hydrating} role="Steward" entry={ownership?.steward} />
+        <OwnerRole hydrating={hydrating || (ownershipPending && !ownership?.ucOwner)} role="Owner (Unity Catalog)" entry={ownership?.ucOwner} />
+        <OwnerRole hydrating={hydrating || (ownershipPending && !ownership?.businessOwner)} role="Business owner" entry={ownership?.businessOwner} />
+        <OwnerRole hydrating={hydrating || (ownershipPending && !ownership?.steward)} role="Steward" entry={ownership?.steward} />
       </div>
     </section>
   );
