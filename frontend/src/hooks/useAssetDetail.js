@@ -158,6 +158,17 @@ function mergeAssetDetail(currentDetail, incomingDetail) {
     merged[field] = incomingDetail[field];
   });
 
+  // A terminal payload retires the hydrating-stub markers. Without this, a
+  // cached inventory-rebuild stub's `hydrating`/`headerSource` flags survive
+  // the merge forever and consumers keep rejecting a record that is now real
+  // (Wave-B verifier round-3: hub stayed skeletoned 70s past available truth).
+  if (incomingDetail.hydrating !== true) {
+    merged.hydrating = incomingDetail.hydrating ?? false;
+    if (String(merged.headerSource || "") === "live-metadata-hydrating") {
+      merged.headerSource = incomingDetail.headerSource || "";
+    }
+  }
+
   merged.loadedSections = mergedSections;
   merged.deferredSections = DEFAULT_DETAIL_SECTIONS.filter((section) => !mergedSections.includes(section));
   return merged;
