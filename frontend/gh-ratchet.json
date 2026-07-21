@@ -9,10 +9,10 @@
       "gh": 18
     },
     "components/ShellLayoutPrimitives.jsx": {
-      "gh": 68
+      "gh": 34
     },
     "components/ShellStatePrimitives.jsx": {
-      "gh": 24
+      "gh": 19
     },
     "components/WorkspaceDiagnosticsSurface.jsx": {
       "gh": 130
@@ -28,71 +28,16 @@
     "components/lineage-v2/LineageNodeCard.jsx": {
       "hex": 12
     },
-    "components/primitives/AccessExplainerBanner.jsx": {
-      "gh": 16
-    },
-    "components/primitives/ActionButton.jsx": {
-      "gh": 5
-    },
-    "components/primitives/AssetHoverCard.jsx": {
-      "gh": 24
-    },
     "components/primitives/AssetTypeIcon.jsx": {
       "gh": 1,
       "hex": 26
     },
-    "components/primitives/AuditTimelineDrawer.jsx": {
-      "gh": 24
-    },
-    "components/primitives/Breadcrumbs.jsx": {
-      "gh": 6
-    },
-    "components/primitives/ClassificationEvidenceDrawer.jsx": {
-      "gh": 44
-    },
-    "components/primitives/CustomPropertiesPanel.jsx": {
-      "gh": 18
-    },
-    "components/primitives/EntityHero.jsx": {
-      "gh": 64
-    },
-    "components/primitives/GlobalSearch.jsx": {
-      "gh": 24
-    },
-    "components/primitives/GlobalSearchDropdown.jsx": {
-      "gh": 25
-    },
-    "components/primitives/InboxPanel.jsx": {
-      "gh": 26
-    },
-    "components/primitives/InlineEditableDescription.jsx": {
-      "gh": 13
-    },
     "components/primitives/MarkdownBlock.jsx": {
       "gh": 1
-    },
-    "components/primitives/MetadataChip.jsx": {
-      "gh": 6
     },
     "components/primitives/OwnerAvatar.jsx": {
       "gh": 5,
       "hex": 20
-    },
-    "components/primitives/OwnerAvatarStack.jsx": {
-      "gh": 4,
-      "hex": 18
-    },
-    "components/primitives/ProfilePanel.jsx": {
-      "gh": 23
-    },
-    "components/primitives/QualityPanel.jsx": {
-      "gh": 36
-    },
-    "components/primitives/StatusBadge.jsx": {
-      "gh": 1
-    },
-    "components/primitives/TabIcon.jsx": {
-      "gh": 1
     },
     "components/primitives/UserChip.jsx": {
       "gh": 17
@@ -101,38 +46,35 @@
       "gh": 1
     },
     "components/system/system.css": {
-      "gh": 132,
+      "gh": 3,
       "important": 1
     },
     "design/tokens/colors.css": {
-      "gh": 25
+      "gh": 23
     },
     "design/tokens/layout.css": {
-      "gh": 15
+      "gh": 3
     },
     "design/tokens/motion.css": {
-      "gh": 11
+      "gh": 1
     },
     "design/tokens/radius.css": {
-      "gh": 7
+      "gh": 2
     },
     "design/tokens/shadow.css": {
-      "gh": 8
+      "gh": 1
     },
     "design/tokens/spacing.css": {
-      "gh": 10
+      "gh": 6
     },
     "design/tokens/typography.css": {
-      "gh": 8
+      "gh": 2
     },
     "design/tokens/z-index.css": {
-      "gh": 9
+      "gh": 1
     },
     "hooks/useLineage.js": {
       "hex": 1
-    },
-    "lib/exportLineagePng.js": {
-      "hex": 2
     },
     "lib/prefs.js": {
       "gh": 4
@@ -141,9 +83,9 @@
       "gh": 4
     },
     "styles/app.css": {
-      "gh": 2008,
-      "hex": 147,
-      "important": 765
+      "gh": 573,
+      "hex": 31,
+      "important": 140
     },
     "styles/entity.css": {
       "gh": 398,
@@ -158,18 +100,14 @@
       "important": 24
     },
     "styles/northstar.css": {
-      "gh": 1086,
-      "hex": 124,
-      "important": 432
-    },
-    "styles/operations-pages.css": {
-      "gh": 3,
-      "important": 1
+      "gh": 178,
+      "hex": 28,
+      "important": 157
     },
     "styles/shell-rail.css": {
-      "gh": 514,
-      "hex": 65,
-      "important": 148
+      "gh": 95,
+      "hex": 10,
+      "important": 31
     }
   }
 }

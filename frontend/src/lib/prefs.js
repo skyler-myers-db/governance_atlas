@@ -185,6 +185,28 @@ export function writeDiscoveryLayout(value) {
   return writePref("discoveryLayout", value);
 }
 
+/*
+ * Profile avatar (Wave C8: moved here from UserChip so the storage guardrail
+ * holds). The key is per-identity and predates the ga.prefs. namespace —
+ * kept verbatim so existing users' avatars survive.
+ */
+function avatarKey(identity) {
+  const id = String(identity || "workspace-user").trim().toLowerCase();
+  return `governance-atlas:profile-avatar:${id}`;
+}
+
+export function readProfileAvatar(identity) {
+  const store = storageFor("local");
+  if (!store) return "";
+  return readRaw(store, avatarKey(identity)) || "";
+}
+
+export function writeProfileAvatar(identity, dataUrl) {
+  const store = storageFor("local");
+  if (!store) return;
+  writeRaw(store, avatarKey(identity), String(dataUrl || ""));
+}
+
 /* ------------------------------------------------------------------ */
 /* Session caches (tab-scoped, TTL-bounded)                             */
 /*                                                                      */

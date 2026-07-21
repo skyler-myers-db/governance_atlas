@@ -2,7 +2,15 @@ import { fetchRuntimeStatus } from "../lib/api";
 import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
- * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false | ((query: any) => number | false)} | boolean} [options={}]
+ * Runtime status probe.
+ *
+ * Polling policy lives HERE (guardrail: refetchInterval never leaves the
+ * hooks layer). `pollWhileWarming` keeps refetching every 15s while the
+ * runtime probe reports `state: "loading"` — a cold serverless warehouse
+ * answers instantly with "loading", so we poll until the real probe
+ * resolves, then stop.
+ *
+ * @param {{enabled?: boolean, staleTime?: number, pollWhileWarming?: boolean} | boolean} [options={}]
  */
 export function useRuntimeStatus(options = {}) {
   const resolvedOptions =
@@ -17,10 +25,9 @@ export function useRuntimeStatus(options = {}) {
     fetch: (signal) => fetchRuntimeStatus({ signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 15000,
-    // No default poll. Legacy call sites (App.jsx diagnostics heartbeat) may
-    // still pass an explicit refetchInterval; honor it verbatim until their
-    // Wave B/C rewrite moves them onto the bounded `poll` contract.
-    unsafeRefetchInterval: resolvedOptions.refetchInterval ?? false,
+    unsafeRefetchInterval: resolvedOptions.pollWhileWarming
+      ? (q) => (q?.state?.data?.runtime?.state === "loading" ? 15000 : false)
+      : false,
   });
   const message = query.error?.message || "Failed to load workspace diagnostics.";
 

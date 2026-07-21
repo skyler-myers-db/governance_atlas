@@ -9,7 +9,7 @@ import { atlasQueryClient } from "../lib/queryClient";
 import { AUDIT_EVIDENCE_DEFAULT_LIMIT, auditRangeSinceIso, useAuditEvents, useAuditEvidence } from "./useAuditEvents";
 import { useCdeDashboard, useCdeDetail } from "./useCdeDashboard";
 import { useAdminControlCenter, useAdminTruthCheck } from "./useAdminControlCenter";
-import { useTaxonomyCdeDashboard, useTaxonomyOverview } from "./useTaxonomyOverview";
+import { useTaxonomyOverview } from "./useTaxonomyOverview";
 import { GOVERNANCE_WORKBENCH_KEY, useGovernanceWorkbench } from "./useGovernanceWorkbench";
 import { useInboxWork } from "./useInboxWork";
 import { usePaletteSearch, PALETTE_SEARCH_MIN_CHARS } from "./usePaletteSearch";
@@ -131,18 +131,14 @@ describe("useAdminControlCenter / useAdminTruthCheck", () => {
   });
 });
 
-describe("useTaxonomyOverview / useTaxonomyCdeDashboard", () => {
-  it("loads overview + taxonomy-scoped CDE dashboard under legacy keys", async () => {
+describe("useTaxonomyOverview", () => {
+  it("loads the overview under the legacy key", async () => {
     mocks.fetchTaxonomyOverview.mockResolvedValue({ data: { namespaces: [] }, ...AVAILABLE });
-    mocks.fetchCdeDashboard.mockResolvedValue({ data: { candidates: [] }, ...AVAILABLE });
     const overview = renderHook(() => useTaxonomyOverview(), { wrapper: Wrapper });
-    const cdes = renderHook(() => useTaxonomyCdeDashboard(), { wrapper: Wrapper });
     await waitFor(() => {
       expect(overview.result.current.status).toBe("available");
-      expect(cdes.result.current.status).toBe("available");
     });
     expect(atlasQueryClient.getQueryData(["atlas", "taxonomy-overview"])).toBeTruthy();
-    expect(atlasQueryClient.getQueryData(["atlas", "taxonomy-cde-dashboard"])).toBeTruthy();
   });
 
   it("reports hydrating (and polls bounded) while the overview envelope loads", async () => {

@@ -7,8 +7,8 @@ import unusedImports from "eslint-plugin-unused-imports";
 /* ------------------------------------------------------------------ */
 /* Wave A3 anti-dispersion guardrails (FRONTEND_BLUEPRINT §10)          */
 /*                                                                      */
-/* All WARNINGS for now so the existing code keeps building; Wave C8    */
-/* flips them to errors once every surface has migrated.                */
+/* Flipped to ERRORS in Wave C8: every surface is migrated; new debt    */
+/* fails the lint gate outright.                                        */
 /*                                                                      */
 /* NOTE on structure: `no-restricted-syntax` is NOT additive across     */
 /* overlapping flat-config objects — the last matching object replaces  */
@@ -23,12 +23,12 @@ const FETCH_SELECTORS = [
   {
     selector: "CallExpression[callee.name='fetch']",
     message:
-      "Direct fetch() outside hooks/ + lib/ — data access goes through the hooks layer (useAtlasQuery). [warn now, error at Wave C8]",
+      "Direct fetch() outside hooks/ + lib/ — data access goes through the hooks layer (useAtlasQuery). [enforced since Wave C8]",
   },
   {
     selector: "CallExpression[callee.object.name='window'][callee.property.name='fetch']",
     message:
-      "Direct window.fetch() outside hooks/ + lib/ — data access goes through the hooks layer (useAtlasQuery). [warn now, error at Wave C8]",
+      "Direct window.fetch() outside hooks/ + lib/ — data access goes through the hooks layer (useAtlasQuery). [enforced since Wave C8]",
   },
 ];
 
@@ -38,12 +38,12 @@ const STORAGE_SELECTORS = [
   {
     selector: "MemberExpression[object.name=/^(sessionStorage|localStorage)$/]",
     message:
-      "Direct web-storage access — preference state goes through lib/prefs.js; restorable view state goes in the URL (nav/useSurfaceParams). [warn now, error at Wave C8]",
+      "Direct web-storage access — preference state goes through lib/prefs.js; restorable view state goes in the URL (nav/useSurfaceParams). [enforced since Wave C8]",
   },
   {
     selector: "MemberExpression[property.name=/^(sessionStorage|localStorage)$/]",
     message:
-      "Direct web-storage access — preference state goes through lib/prefs.js; restorable view state goes in the URL (nav/useSurfaceParams). [warn now, error at Wave C8]",
+      "Direct web-storage access — preference state goes through lib/prefs.js; restorable view state goes in the URL (nav/useSurfaceParams). [enforced since Wave C8]",
   },
 ];
 
@@ -54,7 +54,7 @@ const CUSTOM_EVENT_SELECTORS = [
   {
     selector: "NewExpression[callee.name='CustomEvent']",
     message:
-      "Custom window events outside app-shell/ — use navigate(entityRef) from nav/useAtlasNavigate instead of event buses. [warn now, error at Wave C8]",
+      "Custom window events outside app-shell/ — use navigate(entityRef) from nav/useAtlasNavigate instead of event buses. [enforced since Wave C8]",
   },
 ];
 
@@ -64,7 +64,7 @@ const HISTORY_SELECTORS = [
   {
     selector: "MemberExpression[object.name='window'][property.name='history']",
     message:
-      "window.history bypasses the router — use nav/useSurfaceParams (params) or nav/useAtlasNavigate (navigation). [warn now, error at Wave C8]",
+      "window.history bypasses the router — use nav/useSurfaceParams (params) or nav/useAtlasNavigate (navigation). [enforced since Wave C8]",
   },
 ];
 
@@ -74,13 +74,13 @@ const REFETCH_SELECTORS = [
   {
     selector: "Property[key.name='refetchInterval']",
     message:
-      "refetchInterval outside hooks/ — polling is owned (and bounded) by useAtlasQuery. [warn now, error at Wave C8]",
+      "refetchInterval outside hooks/ — polling is owned (and bounded) by useAtlasQuery. [enforced since Wave C8]",
   },
 ];
 
 const RESTRICTED_QUERY_IMPORTS = {
   "no-restricted-imports": [
-    "warn",
+    "error",
     {
       paths: [
         {
@@ -94,14 +94,14 @@ const RESTRICTED_QUERY_IMPORTS = {
             "useQueryClient",
           ],
           message:
-            "react-query hooks outside hooks/ + lib/ — components consume data via the hooks layer (useAtlasQuery). [warn now, error at Wave C8]",
+            "react-query hooks outside hooks/ + lib/ — components consume data via the hooks layer (useAtlasQuery). [enforced since Wave C8]",
         },
       ],
       patterns: [
         {
           group: ["**/lib/queryClient", "**/lib/queryClient.js"],
           message:
-            "atlasQueryClient is not a cross-surface bus — cache coordination lives inside hooks/ + lib/. [warn now, error at Wave C8]",
+            "atlasQueryClient is not a cross-surface bus — cache coordination lives inside hooks/ + lib/. [enforced since Wave C8]",
         },
       ],
     },
@@ -123,7 +123,7 @@ const guardrailConfigs = [
     rules: {
       ...RESTRICTED_QUERY_IMPORTS,
       "no-restricted-syntax": [
-        "warn",
+        "error",
         ...FETCH_SELECTORS,
         ...STORAGE_SELECTORS,
         ...CUSTOM_EVENT_SELECTORS,
@@ -141,7 +141,7 @@ const guardrailConfigs = [
     ignores: ["src/lib/prefs.js", ...TEST_IGNORES],
     rules: {
       "no-restricted-syntax": [
-        "warn",
+        "error",
         ...STORAGE_SELECTORS,
         ...CUSTOM_EVENT_SELECTORS,
         ...HISTORY_SELECTORS,
@@ -152,7 +152,7 @@ const guardrailConfigs = [
   {
     files: ["src/lib/prefs.js"],
     rules: {
-      "no-restricted-syntax": ["warn", ...CUSTOM_EVENT_SELECTORS, ...HISTORY_SELECTORS],
+      "no-restricted-syntax": ["error", ...CUSTOM_EVENT_SELECTORS, ...HISTORY_SELECTORS],
     },
   },
   // Scope 4: app-shell (arrives in Wave B1) — may broker CustomEvents (palette
@@ -163,7 +163,7 @@ const guardrailConfigs = [
     rules: {
       ...RESTRICTED_QUERY_IMPORTS,
       "no-restricted-syntax": [
-        "warn",
+        "error",
         ...FETCH_SELECTORS,
         ...STORAGE_SELECTORS,
         ...HISTORY_SELECTORS,

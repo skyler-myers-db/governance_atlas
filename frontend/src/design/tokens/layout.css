@@ -1,33 +1,29 @@
 /*
  * Layout / shell dimension tokens.
  *
- * These custom properties define the structural grid of the application
- * shell: the top title-bar band, the left icon rail, the filter rail,
- * and the right preview rail. Values here intentionally match the
- * currently-rendered pixel dimensions — tokenization is a refactor,
- * not a redesign. Changing any value here will move the shell.
+ * Structural grid of the application shell. Values intentionally match the
+ * rendered pixel dimensions — tokenization is a refactor, not a redesign.
+ * Changing any value here will move the shell.
  *
- * Canonical names (use these going forward):
- *   --gh-topbar-h             intrinsic title-bar min-height (72px)
- *   --gh-side-rail-w          expanded left navigation width (210px)
- *   --gh-left-panel-w         filter-rail column width (240px)
- *   --gh-right-panel-w        preview/sidecar column width (360px)
- *   --gh-content-gutter       page-edge horizontal gutter (20px)
- *   --gh-shell-header-height  measured-at-runtime sticky header height.
- *                             Default matches the fallback used at every
- *                             consuming site; AppFrame.jsx overrides this
- *                             on the .gh-app root with the measured value.
+ * --ga-* is canonical (Wave C8). The two --gh-* aliases survive only because
+ * the legacy sheets (app/northstar/shell-rail) still reference them; they die
+ * with those sheets.
  *
- * The previous `--gh-side-rail-width` name was renamed to
- * `--gh-side-rail-w` during tokenization; all in-tree references have
- * been migrated.
+ *   --ga-side-rail-w          expanded left navigation width (210px)
+ *   --ga-left-panel-w         filter-rail column width (240px)
+ *   --ga-right-panel-w        preview/sidecar column width (360px)
+ *   --ga-content-gutter       page-edge horizontal gutter (20px)
+ *   --ga-shell-header-height  sticky header height fallback (the shell
+ *                             measures the real value at runtime where needed)
  */
 
 :root {
-  --gh-topbar-h: 72px;
-  --gh-side-rail-w: 210px;
-  --gh-left-panel-w: 240px;
-  --gh-right-panel-w: 360px;
-  --gh-content-gutter: 20px;
-  --gh-shell-header-height: 80px;
+  --ga-side-rail-w: 210px;
+  --ga-left-panel-w: 240px;
+  --ga-right-panel-w: 360px;
+  --ga-content-gutter: 20px;
+  --ga-shell-header-height: 80px;
+
+  --gh-side-rail-w: var(--ga-side-rail-w);
+  --gh-shell-header-height: var(--ga-shell-header-height);
 }

@@ -1,18 +1,17 @@
 /*
  * Stacking layer tokens.
- * The catalogue surfaced 20 ad-hoc z-index values with no discipline.
- * These tokens name the stacking intent. Tranche C sweeps will migrate
- * existing sites to these layers; don't invent new numeric z-index values.
+ * These tokens name the stacking intent — don't invent new numeric z-index
+ * values. --ga-* is canonical (Wave C8); no --gh-* consumers remain.
  */
 
 :root {
-  --gh-z-base: 0;
-  --gh-z-raised: 10;
-  --gh-z-sticky: 40;
-  --gh-z-shell-header: 80;
-  --gh-z-dropdown: 140;
-  --gh-z-overlay: 220;
-  --gh-z-modal: 260;
-  --gh-z-toast: 320;
-  --gh-z-max: 999;
+  --ga-z-base: 0;
+  --ga-z-raised: 10;
+  --ga-z-sticky: 40;
+  --ga-z-shell-header: 80;
+  --ga-z-dropdown: 140;
+  --ga-z-overlay: 220;
+  --ga-z-modal: 260;
+  --ga-z-toast: 320;
+  --ga-z-max: 999;
 }

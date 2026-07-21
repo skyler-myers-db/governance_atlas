@@ -1,6 +1,8 @@
 /*
- * legacyAdapters tests — the drilled-callback bridge must translate every
- * legacy surface intent to the canonical routes (Wave B1 adapter inventory).
+ * legacyAdapters tests — the surviving shell bridge (Wave C8): module-key →
+ * surface ref translation plus the discovery opener that carries the
+ * `location.state.fresh` flag. The per-entity adapters and workspaceIntent
+ * staging were deleted with their last consumers.
  */
 
 import { render } from "@testing-library/react";
@@ -8,12 +10,7 @@ import { act } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import {
-  LEGACY_MODULE_TARGETS,
-  compactDiscoveryFilterGroups,
-  useLegacyNavAdapters,
-} from "../legacyAdapters.js";
-import { peekWorkspaceIntent } from "../../lib/workspaceIntent";
+import { LEGACY_MODULE_TARGETS, useLegacyNavAdapters } from "../legacyAdapters.js";
 
 let adapters = null;
 let location = null;
@@ -35,20 +32,6 @@ function mountHarness(initialEntry = "/home") {
 beforeEach(() => {
   adapters = null;
   location = null;
-  window.sessionStorage.clear();
-});
-
-describe("compactDiscoveryFilterGroups", () => {
-  it("drops empty groups and de-duplicates values", () => {
-    expect(
-      compactDiscoveryFilterGroups({ domains: ["Customer", "Customer", " "], tiers: [] }),
-    ).toEqual({ domains: ["Customer"] });
-  });
-
-  it("returns null when nothing survives", () => {
-    expect(compactDiscoveryFilterGroups({ tiers: [] })).toBeNull();
-    expect(compactDiscoveryFilterGroups()).toBeNull();
-  });
 });
 
 describe("LEGACY_MODULE_TARGETS", () => {
@@ -64,47 +47,6 @@ describe("LEGACY_MODULE_TARGETS", () => {
 });
 
 describe("useLegacyNavAdapters", () => {
-  it("onOpenAsset navigates to the hub and stages the legacy tab intent", () => {
-    mountHarness("/discovery");
-    act(() => adapters.onOpenAsset("main.core.orders", "Schema"));
-    expect(location.pathname).toBe("/assets/main.core.orders");
-    // Parity with openEntityWorkspace: intent staged from the SOURCE path.
-    expect(peekWorkspaceIntent("entityTab", "main.core.orders", "")).toBe("Schema");
-  });
-
-  it("onOpenLineage navigates to the focused graph and stages context", () => {
-    mountHarness("/home");
-    act(() => adapters.onOpenLineage("main.core.orders", "Operational Context"));
-    expect(location.pathname).toBe("/lineage/main.core.orders");
-    expect(peekWorkspaceIntent("lineageContext", "main.core.orders", "")).toBe("Operational Context");
-  });
-
-  it("onOpenLineage without an asset lands on the search-first picker", () => {
-    mountHarness("/home");
-    act(() => adapters.onOpenLineage(""));
-    expect(location.pathname).toBe("/lineage");
-  });
-
-  it("onOpenGovernance carries the asset scope", () => {
-    mountHarness("/home");
-    act(() => adapters.onOpenGovernance("main.core.orders"));
-    expect(location.pathname).toBe("/stewardship");
-    expect(new URLSearchParams(location.search).get("asset")).toBe("main.core.orders");
-  });
-
-  it("onOpenDiscoveryWithFilter serializes the legacy filters grammar and marks the entry fresh", () => {
-    mountHarness("/home");
-    act(() =>
-      adapters.onOpenDiscoveryWithFilter({ domains: ["Customer"] }, "churn", { sortBy: "name" }),
-    );
-    expect(location.pathname).toBe("/discovery");
-    const params = new URLSearchParams(location.search);
-    expect(params.get("q")).toBe("churn");
-    expect(params.get("sort")).toBe("name");
-    expect(JSON.parse(params.get("filters"))).toEqual({ domains: ["Customer"] });
-    expect(location.state).toEqual({ fresh: true });
-  });
-
   it("onNavigate translates legacy module keys", () => {
     mountHarness("/home");
     act(() => adapters.onNavigate("capabilities"));
@@ -115,9 +57,17 @@ describe("useLegacyNavAdapters", () => {
     expect(new URLSearchParams(location.search).get("assignee")).toBe("me");
   });
 
-  it("onOpenGlossaryTerm links to the durable term path", () => {
+  it("openDiscovery marks the entry fresh and carries params", () => {
     mountHarness("/home");
-    act(() => adapters.onOpenGlossaryTerm("Churn Rate"));
-    expect(location.pathname).toBe("/glossary/Churn%20Rate");
+    act(() => adapters.openDiscovery({ q: "churn" }, { fresh: true }));
+    expect(location.pathname).toBe("/discovery");
+    expect(new URLSearchParams(location.search).get("q")).toBe("churn");
+    expect(location.state).toEqual({ fresh: true });
+  });
+
+  it("navigate resolves entity refs to durable addresses", () => {
+    mountHarness("/home");
+    act(() => adapters.navigate({ kind: "asset", fqn: "main.core.orders" }));
+    expect(location.pathname).toBe("/assets/main.core.orders");
   });
 });

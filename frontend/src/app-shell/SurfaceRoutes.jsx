@@ -8,11 +8,10 @@
  * canonical gate (resolveUrl), so only canonical paths appear here.
  */
 
-import { Suspense, lazy, useMemo, useState } from "react";
-import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { Suspense, lazy, useMemo } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { WorkspaceStateCard } from "../components/ShellStatePrimitives";
-import { setWorkspaceIntent } from "../lib/workspaceIntent";
 import { normalizeLegacyDiscoverySearch } from "../surfaces/discovery/discoveryParams.js";
 import { useShellContext } from "./ShellContext.jsx";
 import { useLegacyNavAdapters } from "./legacyAdapters.js";
@@ -33,20 +32,6 @@ function RouteFallback({ eyebrow, message }) {
       <WorkspaceStateCard eyebrow={eyebrow} loading message={message} title="Preparing the workspace surface." />
     </section>
   );
-}
-
-function safeDecode(segment = "") {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
-
-/** Terminal greedy path param (":fqn" patterns) via the RR splat. */
-function useSplatParam() {
-  const params = useParams();
-  return safeDecode(String(params["*"] || ""));
 }
 
 /* ------------------------------------------------------------------ */
@@ -115,39 +100,44 @@ function DiscoveryRoute() {
 /* Asset 360 hub (/assets/:fqn)                                         */
 /* ------------------------------------------------------------------ */
 
-// ?tab= vocabulary → legacy EntityWorkspace tab labels. Lowercase names are
-// the Wave B2 contract; capitalized legacy names pass through for old links.
-const ASSET_TAB_LABELS = {
-  overview: "Overview",
-  schema: "Schema",
-  columns: "Schema",
-  preview: "Preview",
-  sample: "Preview",
-  lineage: "Lineage",
-  queries: "Queries",
-  usage: "Queries",
+// Legacy ?tab= vocabulary → the rebuilt hub's lowercase tab keys (AssetHubPage
+// PARAMS_SCHEMA: overview | columns | quality | access | activity | lineage).
+// Old deep links carried EntityWorkspace-era names ("Schema", "queries", …);
+// this map lets a one-shot redirect canonicalize them so the URL the hub
+// emits is always in the new vocabulary. Unknown values pass through — the
+// hub itself falls back to "overview".
+const LEGACY_ASSET_TAB_KEYS = {
+  overview: "overview",
+  schema: "columns",
+  columns: "columns",
+  preview: "overview",
+  sample: "overview",
+  lineage: "lineage",
+  queries: "activity",
+  usage: "activity",
+  quality: "quality",
+  access: "access",
+  activity: "activity",
 };
 
 function AssetHubRoute() {
-  const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
   const location = useLocation();
-  const fqn = useSplatParam();
 
-  const requestedTab = useMemo(() => {
-    const raw = String(new URLSearchParams(location.search).get("tab") || "").trim();
-    if (!raw) return "";
-    return ASSET_TAB_LABELS[raw.toLowerCase()] || raw;
+  // Redirect-normalizer (same pattern as DiscoveryRoute): rewrite legacy
+  // ?tab= spellings once into the canonical lowercase keys. The old
+  // workspaceIntent sessionStorage staging is dead — the rebuilt hub reads
+  // ?tab= from the URL directly (Wave C8 cleanup).
+  const normalizedSearch = useMemo(() => {
+    const search = new URLSearchParams(location.search);
+    const raw = String(search.get("tab") || "").trim();
+    if (!raw) return null;
+    const canonical = LEGACY_ASSET_TAB_KEYS[raw.toLowerCase()] || raw;
+    if (canonical === raw) return null;
+    search.set("tab", canonical);
+    return `?${search.toString()}`;
   }, [location.search]);
-
-  // Stage ?tab= through the legacy workspaceIntent channel BEFORE the
-  // workspace's first render (it peeks sessionStorage in a useState
-  // initializer). Dies in Wave B2 when the rebuilt hub reads ?tab= itself.
-  const [stagedFor, setStagedFor] = useState("");
-  const stageKey = `${fqn}:${requestedTab}`;
-  if (requestedTab && fqn && stagedFor !== stageKey) {
-    setWorkspaceIntent("entityTab", fqn, requestedTab);
-    setStagedFor(stageKey);
+  if (normalizedSearch !== null) {
+    return <Navigate replace to={{ pathname: location.pathname, search: normalizedSearch }} />;
   }
 
   return (

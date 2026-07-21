@@ -54,8 +54,11 @@
 
   --ga-focus: rgba(102, 197, 255, 0.42);
 
+  /* Legacy --gh-* aliases (Wave C8): only the names the surviving legacy
+     sheets (app/entity/governance/northstar/shell-rail) still reference.
+     Zero-reference aliases (bg-2, text-soft, indigo*) were deleted; each
+     remaining alias dies with the sheet that consumes it. */
   --gh-bg: var(--ga-bg);
-  --gh-bg-2: var(--ga-shell);
   --gh-surface: var(--ga-surface);
   --gh-surface-soft: var(--ga-surface-soft);
   --gh-surface-muted: var(--ga-surface-muted);
@@ -65,16 +68,15 @@
   --gh-ink-soft: var(--ga-text-soft);
   --gh-ink-muted: var(--ga-text-muted);
   --gh-text: var(--ga-text);
-  --gh-text-soft: var(--ga-text-soft);
   --gh-text-muted: var(--ga-text-muted);
+  /* entity.css reads var(--gh-text-strong, #0f172a); without this alias the
+     cream-era dark fallback ink would render on the dark theme. */
+  --gh-text-strong: var(--ga-text-strong);
   --gh-border: var(--ga-border);
   --gh-border-strong: var(--ga-border-strong);
   --gh-accent: var(--ga-bright-blue);
   --gh-accent-2: var(--ga-highlight-blue);
   --gh-accent-soft: rgba(102, 197, 255, 0.16);
-  --gh-indigo: var(--ga-purple);
-  --gh-indigo-2: #bdaeff;
-  --gh-indigo-soft: rgba(157, 124, 255, 0.16);
   --gh-good: var(--ga-success);
   --gh-warn: var(--ga-warning);
   --gh-bad: var(--ga-danger);

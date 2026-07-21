@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { readProfileAvatar, writeProfileAvatar } from "../../lib/prefs";
 import { OwnerAvatar } from "./OwnerAvatar";
 
 const BellIcon = () => (
@@ -176,12 +177,12 @@ export function UserChip({
   const displayName = prettyName(userName || userEmail);
   const displayRole = prettyRole(role);
   const avatarLabel = userName || displayName || userEmail;
-  const avatarStorageKey = useMemo(() => {
-    const identity = String(userEmail || userName || displayName || "workspace-user")
-      .trim()
-      .toLowerCase();
-    return `governance-atlas:profile-avatar:${identity}`;
-  }, [displayName, userEmail, userName]);
+  // Storage goes through lib/prefs.js (the sanctioned storage module); the
+  // identity string keys the stored avatar per user.
+  const avatarIdentity = useMemo(
+    () => String(userEmail || userName || displayName || "workspace-user").trim().toLowerCase(),
+    [displayName, userEmail, userName],
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const menuRef = useRef(null);
@@ -189,13 +190,9 @@ export function UserChip({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const storedAvatar = window.localStorage.getItem(avatarStorageKey) || "";
-      setAvatarUrl(isAllowedAvatarDataUrl(storedAvatar) ? storedAvatar : "");
-    } catch {
-      setAvatarUrl("");
-    }
-  }, [avatarStorageKey]);
+    const storedAvatar = readProfileAvatar(avatarIdentity);
+    setAvatarUrl(isAllowedAvatarDataUrl(storedAvatar) ? storedAvatar : "");
+  }, [avatarIdentity]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -224,11 +221,9 @@ export function UserChip({
       const result = await readAvatarFileDataUrl(file);
       if (!result.accepted || !result.dataUrl) return;
       setAvatarUrl(result.dataUrl);
-      try {
-        window.localStorage.setItem(avatarStorageKey, result.dataUrl);
-      } catch {
-        // Keep the in-memory preview even when browser storage is unavailable.
-      }
+      // Best-effort persistence via lib/prefs.js; the in-memory preview
+      // survives even when browser storage is unavailable.
+      writeProfileAvatar(avatarIdentity, result.dataUrl);
     } catch {
       // Rejected or unreadable image payloads should not change stored state.
     } finally {

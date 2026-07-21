@@ -67,11 +67,9 @@ export function useShellRuntime({ surface = "home", assetFqn = "" } = {}) {
 
   const runtimeStatus = useRuntimeStatus({
     enabled: Boolean(error) || Boolean(refreshError) || Boolean(data),
-    // Poll while the warehouse is still warming (see useRuntimeStatus): the
-    // runtime probe answers "loading" instantly on a cold serverless
-    // warehouse; keep refetching until the real probe resolves.
-    refetchInterval: (query) =>
-      query?.state?.data?.runtime?.state === "loading" ? 15000 : false,
+    // Poll while the warehouse is still warming; the interval policy itself
+    // lives inside useRuntimeStatus (refetchInterval never leaves hooks/).
+    pollWhileWarming: true,
   });
   const runtimeStatusRefresh = runtimeStatus.refresh;
 
