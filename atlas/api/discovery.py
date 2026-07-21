@@ -19,6 +19,10 @@ DISCOVERY_STATE_UNAVAILABLE = "unavailable"
 DISCOVERY_STATE_NO_VISIBLE_ASSETS = "no_visible_assets"
 DISCOVERY_STATE_NO_RESULTS = "no_results"
 DISCOVERY_STATE_FILTERS_EXCLUDE_ALL = "filters_exclude_all"
+# D2: zero results from the query TEXT alone (no narrowing filters active).
+# The empty state must say "No matches for 'X'" — never blame filters the
+# user did not set.
+DISCOVERY_STATE_NO_MATCHES = "no_matches"
 _DISCOVERY_INVENTORY_WARMING: set[str] = set()
 _DISCOVERY_INVENTORY_WARMING_LOCK = threading.Lock()
 
@@ -51,17 +55,34 @@ def _any_filter_applied(
     tiers: Optional[Sequence[str]],
     certifications: Optional[Sequence[str]],
     sensitivities: Optional[Sequence[str]],
+    business_criticalities: Optional[Sequence[str]] = None,
+    cde_only: bool = False,
 ) -> bool:
-    """Return True when at least one narrowing signal was sent by the caller.
+    """Return True when at least one NON-QUERY narrowing filter is active.
 
-    This is what lets the envelope distinguish `no_visible_assets` (the
-    operator sees nothing at the default scope) from `filters_exclude_all`
-    (the operator asked for a narrow slice that happens to be empty).
+    D2: the query text no longer counts as a "filter" — a zero-result query
+    with no chips set is reported as `no_matches`, so the empty state can
+    say "No matches for 'X'" instead of blaming filters the user never set.
+    businessCriticalities and cdeOnly were previously missed here, which
+    misclassified their zero-result states as default-scope emptiness.
     """
 
-    if _normalize_str(query):
+    del query  # kept in the signature for call-site clarity/back-compat
+    # Strict bool check: when tests invoke the endpoint function directly the
+    # FastAPI Query(default=False) sentinel object can leak through here, and
+    # a truthy sentinel must not read as "cdeOnly active".
+    if cde_only is True:
         return True
-    for group in (views, types, catalogs, domains, tiers, certifications, sensitivities):
+    for group in (
+        views,
+        types,
+        catalogs,
+        domains,
+        tiers,
+        certifications,
+        sensitivities,
+        business_criticalities,
+    ):
         for value in _coerce_filter_list(group):
             if _normalize_str(value):
                 return True
@@ -74,12 +95,17 @@ def resolve_discovery_state(
     result_count: int,
     visible_assets_count: int,
     filters_applied: bool,
+    query_present: bool = False,
 ) -> Dict[str, str]:
     """Return (state, reason) for the discovery envelope.
 
     Purely functional so it is trivially testable without spinning a
     request up. Reasons are short, operator-facing strings intended for
     diagnostics surfaces / screenshots — not for end users.
+
+    D2 semantics: `filters_applied` means NON-QUERY chips only. A zero-result
+    query with no chips is `no_matches` (the text matched nothing), so the
+    UI never blames filters the user never set.
     """
 
     normalized_runtime = _normalize_str(runtime_state).lower() or "unavailable"
@@ -104,7 +130,16 @@ def resolve_discovery_state(
             # match against.
             "discoveryState": DISCOVERY_STATE_FILTERS_EXCLUDE_ALL,
             "discoveryStateReason": (
-                "Filters/query returned zero matches against the actor-visible inventory."
+                "Filters returned zero matches against the actor-visible inventory."
+            ),
+            "discoveryStateAlias": DISCOVERY_STATE_NO_RESULTS,
+        }
+
+    if query_present:
+        return {
+            "discoveryState": DISCOVERY_STATE_NO_MATCHES,
+            "discoveryStateReason": (
+                "The query text matched no assets in the actor-visible inventory; no filters are active."
             ),
             "discoveryStateAlias": DISCOVERY_STATE_NO_RESULTS,
         }
@@ -118,10 +153,10 @@ def resolve_discovery_state(
         }
 
     # Fallback: the inventory claims visibility but the default-scope
-    # search still returned nothing. Surface that as filters_exclude_all
-    # so the UI can suggest relaxing scope.
+    # search (no query, no filters) still returned nothing. Report it as
+    # no_matches — there are no filters to blame.
     return {
-        "discoveryState": DISCOVERY_STATE_FILTERS_EXCLUDE_ALL,
+        "discoveryState": DISCOVERY_STATE_NO_MATCHES,
         "discoveryStateReason": (
             "Default-scope search returned zero matches despite a non-empty inventory."
         ),
@@ -284,7 +319,12 @@ def api_discovery_search(
         meta["visibleAssetCount"] = int(summary.get("visibleAssets") or 0)
         meta["inventoryHydrating"] = True
         meta["oboScopeFallback"] = False
-        return JSONResponse(envelope)
+        response = JSONResponse(envelope)
+        # P4: hydrating envelopes must never be revalidated out of the
+        # browser/proxy cache — polls have to observe the server's real
+        # state the moment the inventory lands.
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     # Snapshot the per-request UC client BEFORE the payload build so we
     # can read its `obo_scope_fallback` flag afterwards without racing
@@ -356,6 +396,8 @@ def api_discovery_search(
         runtime_state = "unavailable"
     result_count = int(payload.get("count") or 0) if isinstance(payload, dict) else 0
     visible_count = _visible_assets_count_safe(request)
+    # D2: only NON-QUERY chips count as filters; the query text is reported
+    # separately so zero-result searches read as `no_matches`.
     filters_applied = _any_filter_applied(
         query=query,
         views=views,
@@ -365,12 +407,15 @@ def api_discovery_search(
         tiers=tiers,
         certifications=certifications,
         sensitivities=sensitivities,
+        business_criticalities=business_criticalities,
+        cde_only=cde_only,
     )
     discovery_state_fields: Dict[str, Any] = resolve_discovery_state(
         runtime_state=runtime_state,
         result_count=result_count,
         visible_assets_count=visible_count,
         filters_applied=filters_applied,
+        query_present=bool(_normalize_str(query)),
     )
 
     # Round 19 OBO hardening: read the fallback flag off the UC client AFTER
@@ -424,6 +469,14 @@ def api_discovery_search(
         meta["oboScopeFallback"] = bool(obo_fallback_triggered)
         if obo_fallback_triggered:
             meta["oboFallbackReason"] = fallback_reason
+        # D1: mirror the near-match suggestion into meta so envelope-only
+        # consumers (empty-state renderers) see it without digging into the
+        # payload body. Always a string; "" when no rewrite produced results.
+        meta["didYouMean"] = (
+            _normalize_str(payload.get("didYouMean"))
+            if isinstance(payload, dict)
+            else ""
+        )
     return JSONResponse(envelope)
 
 

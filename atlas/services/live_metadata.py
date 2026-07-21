@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -560,6 +561,97 @@ def enrich_operational_context_names(uc: UCSQLClient, df: pd.DataFrame) -> pd.Da
     return view
 
 
+def parallel_catalog_scan(
+    catalogs: Sequence[str],
+    fetch: Callable[[str], Any],
+    *,
+    max_workers: int = 5,
+) -> List[Tuple[str, Any, Optional[Exception]]]:
+    """Run a per-catalog fetch across a small thread pool, preserving order.
+
+    Cold-start hydration used to scan every catalog SEQUENTIALLY (~1.2s+
+    each on information_schema), so an 18-catalog estate left every surface
+    on empty "loading" envelopes for 20-40s on each cold start / TTL expiry.
+    A bounded pool (5 workers — small enough not to saturate the shared
+    serverless warehouse) collapses that wall-clock to roughly the slowest
+    few catalogs while keeping per-catalog error isolation: each result
+    tuple is (catalog, value, exception) and one bad catalog never kills
+    the scan. Results are returned in the caller's catalog order so the
+    assembled inventory stays deterministic.
+    """
+    resolved = [normalize_str(catalog) for catalog in catalogs if normalize_str(catalog)]
+    if not resolved:
+        return []
+
+    def _run(catalog: str) -> Tuple[str, Any, Optional[Exception]]:
+        try:
+            return (catalog, fetch(catalog), None)
+        except Exception as exc:  # error isolation: caller decides skip/raise
+            return (catalog, None, exc)
+
+    if len(resolved) == 1:
+        return [_run(resolved[0])]
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(resolved)),
+        thread_name_prefix="atlas-catalog-scan",
+    ) as pool:
+        return list(pool.map(_run, resolved))
+
+
+def _peek_fresh_cache(key: str, ttl_s: int = 600) -> Any:
+    """Return a still-fresh cached value WITHOUT invoking any loader.
+
+    Used for opportunistic enrichment (e.g. rows/size on discovery cards):
+    real numbers are surfaced when a prior DESCRIBE DETAIL / COUNT(*) has
+    already been paid for, and honestly absent otherwise — never a new
+    per-asset query fan-out from a list endpoint.
+    """
+    cached = _TTL_CACHE.get(key)
+    if cached and time.time() - cached[0] < ttl_s:
+        return cached[1]
+    return None
+
+
+def warm_table_stats(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> Dict[str, Any]:
+    """rows/size/files for a table, sourced ONLY from already-warm caches.
+
+    Peeks the `table_detail:` (DESCRIBE DETAIL) and `row_count:` cache
+    entries this scope has already populated. Returns None-valued fields
+    when nothing is warm — callers must render those as absent, never
+    fabricate.
+    """
+    scope = _warehouse_key(uc)
+    stats: Dict[str, Any] = {"row_count": None, "size_bytes": None, "file_count": None}
+    detail_df = _peek_fresh_cache(
+        f"table_detail:{scope}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}"
+    )
+    if isinstance(detail_df, pd.DataFrame) and not detail_df.empty:
+        row = {str(key).lower(): value for key, value in detail_df.iloc[0].to_dict().items()}
+        for source_key, target_key in (
+            ("numrows", "row_count"),
+            ("sizeinbytes", "size_bytes"),
+            ("numfiles", "file_count"),
+        ):
+            value = row.get(source_key)
+            try:
+                if value is not None and not pd.isna(value) and int(value) > 0:
+                    stats[target_key] = int(value)
+            except (TypeError, ValueError):
+                continue
+    if stats["row_count"] is None:
+        count = _peek_fresh_cache(
+            f"row_count:{scope}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}"
+        )
+        try:
+            if count is not None and int(count) > 0:
+                stats["row_count"] = int(count)
+        except (TypeError, ValueError):
+            pass
+    return stats
+
+
 def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     catalogs = cached_catalogs(uc)
     inventory_frames: List[pd.DataFrame] = []
@@ -572,19 +664,36 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     skipped_catalogs: List[str] = []
     last_skippable_exc: Optional[Exception] = None
 
-    for catalog in catalogs:
-        # Lineage walks routinely cross into catalogs the current user can't
-        # SELECT from (e.g. `bronze.*` feeding a governed `prod.silver.*`).
-        # Matching the per-catalog try/except pattern in
-        # atlas/services/assets.py:build_inventory — skip catalogs that
-        # raise a skippable metadata error (PERMISSION_DENIED, USE CATALOG,
-        # CATALOG_NOT_FOUND, etc.) and continue. The lineage graph will
-        # surface those nodes as "lineage-only" assets. Without this, one
-        # unreadable catalog in the frontier aborts the whole payload and
-        # the endpoint 500s.
+    # Lineage walks routinely cross into catalogs the current user can't
+    # SELECT from (e.g. `bronze.*` feeding a governed `prod.silver.*`).
+    # Matching the per-catalog try/except pattern in
+    # atlas/services/assets.py:build_inventory — skip catalogs that
+    # raise a skippable metadata error (PERMISSION_DENIED, USE CATALOG,
+    # CATALOG_NOT_FOUND, etc.) and continue. The lineage graph will
+    # surface those nodes as "lineage-only" assets. Without this, one
+    # unreadable catalog in the frontier aborts the whole payload and
+    # the endpoint 500s. Both fetches for a catalog run inside ONE pool
+    # task so a catalog's inventory+tags stay a unit; the pool itself
+    # exists because the sequential scan was the cold-start bottleneck
+    # (see parallel_catalog_scan).
+    def _fetch_catalog(catalog: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        inv = cached_catalog_inventory(uc, catalog)
         try:
-            inv = cached_catalog_inventory(uc, catalog)
+            tags_df = cached_catalog_table_tags(uc, catalog)
         except Exception as exc:
+            if uc_module._is_skippable_metadata_error(exc):
+                logger.info(
+                    "lineage tags skip: catalog=%s reason=%s",
+                    catalog,
+                    str(exc).splitlines()[0][:200],
+                )
+                tags_df = pd.DataFrame()
+            else:
+                raise
+        return inv, tags_df
+
+    for catalog, result, exc in parallel_catalog_scan(catalogs, _fetch_catalog):
+        if exc is not None:
             if uc_module._is_skippable_metadata_error(exc):
                 logger.info(
                     "lineage inventory skip: catalog=%s reason=%s",
@@ -594,7 +703,8 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
                 skipped_catalogs.append(catalog)
                 last_skippable_exc = exc
                 continue
-            raise
+            raise exc
+        inv, tags_df = result
         if not inv.empty:
             inv = inv.copy()
             inv["comment"] = inv["comment"].map(normalize_str)
@@ -607,18 +717,7 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
             )
             inventory_frames.append(inv)
 
-        try:
-            tags_df = cached_catalog_table_tags(uc, catalog)
-        except Exception as exc:
-            if uc_module._is_skippable_metadata_error(exc):
-                logger.info(
-                    "lineage tags skip: catalog=%s reason=%s",
-                    catalog,
-                    str(exc).splitlines()[0][:200],
-                )
-                continue
-            raise
-        if tags_df.empty:
+        if tags_df is None or tags_df.empty:
             continue
         tags_df = tags_df.copy()
         tags_df["fqn"] = (

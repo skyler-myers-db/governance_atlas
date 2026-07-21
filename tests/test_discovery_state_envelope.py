@@ -72,8 +72,11 @@ class ResolveDiscoveryStatePureTests(unittest.TestCase):
 
 
 class AnyFilterAppliedTests(unittest.TestCase):
-    def test_plain_query_counts_as_applied(self) -> None:
-        self.assertTrue(
+    def test_plain_query_does_not_count_as_filter(self) -> None:
+        # D2 semantics change: the query text is reported separately
+        # (query_present) so a zero-result search with no chips resolves to
+        # `no_matches` instead of blaming filters the user never set.
+        self.assertFalse(
             discovery_module._any_filter_applied(
                 query="orders",
                 views=None,
@@ -83,6 +86,36 @@ class AnyFilterAppliedTests(unittest.TestCase):
                 tiers=None,
                 certifications=None,
                 sensitivities=None,
+            )
+        )
+
+    def test_cde_only_counts_as_filter(self) -> None:
+        self.assertTrue(
+            discovery_module._any_filter_applied(
+                query="",
+                views=None,
+                types=None,
+                catalogs=None,
+                domains=None,
+                tiers=None,
+                certifications=None,
+                sensitivities=None,
+                cde_only=True,
+            )
+        )
+
+    def test_business_criticalities_count_as_filter(self) -> None:
+        self.assertTrue(
+            discovery_module._any_filter_applied(
+                query="",
+                views=None,
+                types=None,
+                catalogs=None,
+                domains=None,
+                tiers=None,
+                certifications=None,
+                sensitivities=None,
+                business_criticalities=["Critical"],
             )
         )
 
@@ -208,9 +241,20 @@ class DiscoverySearchEnvelopeTests(unittest.TestCase):
         self.assertEqual(meta["discoveryState"], "no_visible_assets")
         self.assertIn("visible assets", meta["discoveryStateReason"].lower())
 
-    def test_envelope_flags_filters_exclude_all_when_query_applied(self) -> None:
+    def test_envelope_flags_no_matches_when_only_query_applied(self) -> None:
+        # D2: a zero-result QUERY with no filter chips must report
+        # `no_matches` — the old filters_exclude_all state blamed filters
+        # the user never set. The no_results alias is preserved.
         _, body = self._invoke(
             payload_count=0, visible_assets=42, query="orders", domains=None
+        )
+        meta = body["meta"]
+        self.assertEqual(meta["discoveryState"], "no_matches")
+        self.assertEqual(meta.get("discoveryStateAlias"), "no_results")
+
+    def test_envelope_flags_filters_exclude_all_when_chips_applied(self) -> None:
+        _, body = self._invoke(
+            payload_count=0, visible_assets=42, query="", domains=["Finance"]
         )
         meta = body["meta"]
         self.assertEqual(meta["discoveryState"], "filters_exclude_all")

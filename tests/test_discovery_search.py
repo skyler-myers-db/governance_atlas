@@ -299,6 +299,125 @@ class StructuredDiscoverySearchTests(unittest.TestCase):
         self.assertEqual(payload["assets"][0]["fqn"], "main.finance.orders")
 
 
+class DiscoverySemanticsAndTypoToleranceTests(unittest.TestCase):
+    """Persona-audit fixes D1/D4/D5/D6/D7/D9 — canonical semantics + typo
+    tolerance in the plain discovery search path."""
+
+    def test_misspelled_query_returns_near_matches_with_did_you_mean(self) -> None:
+        # D1: "invoces" (edit distance 1 from "invoices") must surface the
+        # real asset via the near-match pass and set didYouMean.
+        payload = assets.discovery_search_payload(_inventory_df(), query="invoces")
+        self.assertGreaterEqual(payload["count"], 1)
+        self.assertIn(
+            "main.finance.invoices",
+            [asset["fqn"] for asset in payload["assets"]],
+        )
+        self.assertEqual(payload["didYouMean"], "invoices")
+        self.assertTrue(payload["queryState"]["nearMatch"])
+
+    def test_unknown_query_yields_zero_results_and_no_suggestion(self) -> None:
+        # Never promise a rewrite that has no real matches.
+        payload = assets.discovery_search_payload(
+            _inventory_df(), query="zzzqqqxxyy"
+        )
+        self.assertEqual(payload["count"], 0)
+        self.assertEqual(payload["didYouMean"], "")
+        self.assertFalse(payload["queryState"]["nearMatch"])
+
+    def test_exact_query_does_not_trigger_near_match(self) -> None:
+        payload = assets.discovery_search_payload(_inventory_df(), query="orders")
+        self.assertEqual(payload["didYouMean"], "")
+        self.assertFalse(payload["queryState"]["nearMatch"])
+
+    def test_certified_view_is_strict(self) -> None:
+        # D6: only certification == "Certified" counts; Draft/Trusted and
+        # Unassigned are excluded from the Certified view.
+        frame = _inventory_df()
+        frame.loc[frame["fqn"] == "main.finance.invoices", "certification"] = "Draft"
+        payload = assets.discovery_search_payload(frame, views=["Certified"])
+        self.assertEqual(
+            [asset["fqn"] for asset in payload["assets"]],
+            ["main.finance.orders"],
+        )
+
+    def test_business_criticality_filter_matches_criticality_tag(self) -> None:
+        # D4: the filter reads the same field set semantics.is_critical uses,
+        # so `Tier 1` (criticality axis) matches even though the explicit
+        # businessCriticality enum field is unassigned.
+        payload = assets.discovery_search_payload(
+            _inventory_df(), business_criticalities=["Tier 1"]
+        )
+        self.assertEqual(
+            [asset["fqn"] for asset in payload["assets"]],
+            ["main.finance.orders"],
+        )
+
+    def test_cde_only_uses_canonical_criticality_derived_predicate(self) -> None:
+        # D4/D5: cdeOnly resolves through semantics.is_cde_asset — the
+        # Tier 1 / Critical assets count as CDEs without an explicit tag,
+        # and the per-asset isCde flag agrees.
+        payload = assets.discovery_search_payload(_inventory_df(), cde_only=True)
+        fqns = [asset["fqn"] for asset in payload["assets"]]
+        self.assertIn("main.finance.orders", fqns)  # criticality: Tier 1
+        self.assertNotIn("main.support.tickets", fqns)  # Tier 3 — not a CDE
+        for asset in payload["assets"]:
+            self.assertTrue(asset["isCde"])
+
+    def test_facet_counts_include_unassigned_and_sum_to_total(self) -> None:
+        # D7: every facet carries an Unassigned bucket so chip sums equal
+        # the "All" total.
+        payload = assets.discovery_search_payload(_inventory_df())
+        for facet_name in ("certifications", "domains", "tiers", "sensitivities"):
+            rows = payload["facets"][facet_name]
+            all_row = rows[0]
+            self.assertEqual(
+                sum(row["count"] for row in rows[1:]),
+                all_row["count"],
+                f"facet {facet_name} does not reconcile",
+            )
+            self.assertIn("Unassigned", [row["value"] for row in rows])
+
+    def test_governance_score_sort_breaks_ties_with_fewer_open_requests(self) -> None:
+        # D9: openRequests is a quality-NEGATIVE tiebreaker — fewer open
+        # requests ranks higher when scores tie.
+        frame = _inventory_df()
+        frame["governance_score"] = 100
+        payload = assets.discovery_search_payload(frame, sort_by="Governance score")
+        open_requests = [asset["openRequests"] for asset in payload["assets"]]
+        self.assertEqual(open_requests, sorted(open_requests))
+
+    def test_recently_updated_sort_orders_newest_first(self) -> None:
+        frame = _inventory_df()
+        frame["last_altered"] = [
+            "2026-07-01T00:00:00",
+            "2026-07-15T00:00:00",
+            "2026-07-10T00:00:00",
+        ]
+        payload = assets.discovery_search_payload(frame, sort_by="Recently updated")
+        self.assertEqual(
+            [asset["fqn"] for asset in payload["assets"]],
+            [
+                "main.finance.invoices",
+                "main.support.tickets",
+                "main.finance.orders",
+            ],
+        )
+
+    def test_legacy_trust_score_sort_label_still_accepted(self) -> None:
+        # The runtime now advertises "Governance score", but stale clients
+        # sending "Trust score" must not silently fall back to best-match.
+        renamed = assets.discovery_search_payload(
+            _inventory_df(), sort_by="Governance score"
+        )
+        legacy = assets.discovery_search_payload(
+            _inventory_df(), sort_by="Trust score"
+        )
+        self.assertEqual(
+            [asset["fqn"] for asset in renamed["assets"]],
+            [asset["fqn"] for asset in legacy["assets"]],
+        )
+
+
 class DiscoverySearchEndpointTests(unittest.TestCase):
     def test_api_discovery_search_returns_invalid_query_payload_for_structured_errors(self) -> None:
         with patch.object(runtime_app, "_ensure_live_runtime", return_value=None), patch.object(

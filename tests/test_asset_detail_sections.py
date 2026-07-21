@@ -93,6 +93,89 @@ class AssetDetailSectionTests(unittest.TestCase):
         self.assertIsNone(payload)
 
 
+class AssetDetailLoadingEnvelopeCacheTests(unittest.TestCase):
+    def test_loading_envelope_is_never_http_cacheable(self) -> None:
+        # P4 perf fix: a hydrating envelope served with max-age let the
+        # browser re-serve stale "loading" bodies for up to 30s after the
+        # server was warm. The loading branch must send no-store.
+        previous = sys.modules.get("runtime_app")
+        module = types.ModuleType("runtime_app")
+        module._ensure_live_runtime = lambda: None
+        module._asset_visibility_record = lambda *_a, **_k: {
+            "exists": False,
+            "visible": False,
+            "openable": False,
+            "visibilityState": "loading",
+            "reason": "hydrating",
+        }
+        module._asset_detail_payload = lambda *_a, **_k: {}
+        sys.modules["runtime_app"] = module
+        try:
+            request = types.SimpleNamespace(
+                headers={}, state=types.SimpleNamespace()
+            )
+            response = assets_api.api_asset_detail(
+                "main.sales.orders", request, sections=["header"]
+            )
+        finally:
+            if previous is None:
+                sys.modules.pop("runtime_app", None)
+            else:
+                sys.modules["runtime_app"] = previous
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("cache-control"), "no-store")
+        body = json.loads(response.body.decode("utf-8"))
+        self.assertEqual(body["meta"]["state"], "loading")
+
+
+class ExactIdentityRowMemoTests(unittest.TestCase):
+    def test_identity_and_tag_queries_run_once_within_ttl(self) -> None:
+        # P0 perf fix: the visibility gate calls exact_identity_row on every
+        # asset-detail/lineage request; the raw identity+tags lookups must be
+        # memoized per (warehouse|scope, fqn) so the second call is free.
+        calls = {"identity": 0, "tags": 0}
+
+        class FakeUC:
+            warehouse_id = "wh-memo-test"
+            cache_scope = "memo-user@example.com|obo"
+
+            def get_table_identity(self, catalog, schema, table):
+                calls["identity"] += 1
+                return pd.DataFrame(
+                    [
+                        {
+                            "table_catalog": catalog,
+                            "table_schema": schema,
+                            "table_name": table,
+                            "table_type": "MANAGED",
+                            "data_source_format": "DELTA",
+                            "comment": "memoized",
+                        }
+                    ]
+                )
+
+            def get_table_tags(self, catalog, schema, table):
+                calls["tags"] += 1
+                return pd.DataFrame(
+                    [{"tag_name": "domain", "tag_value": "Finance"}]
+                )
+
+        uc = FakeUC()
+        first = asset_service.exact_identity_row(uc, "memo_cat.s.t")
+        second = asset_service.exact_identity_row(uc, "memo_cat.s.t")
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertEqual(calls, {"identity": 1, "tags": 1})
+        # Differing inventory_columns shapes still resolve from the memo.
+        shaped = asset_service.exact_identity_row(
+            uc, "memo_cat.s.t", inventory_columns=["fqn", "extra_col"]
+        )
+        self.assertIsNotNone(shaped)
+        self.assertIn("extra_col", shaped.index)
+        self.assertEqual(calls, {"identity": 1, "tags": 1})
+
+
 class AssetDetailMalformedFqnTests(unittest.TestCase):
     def test_two_part_fqn_returns_400_not_503(self) -> None:
         previous = sys.modules.get("runtime_app")

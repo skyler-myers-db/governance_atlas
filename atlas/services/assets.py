@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import json
 import math
 import os
@@ -12,6 +13,10 @@ import pandas as pd
 from atlas.uc import _is_skippable_metadata_error
 from atlas.util import quote_ident, sql_literal
 from atlas.services import live_metadata as metadata_service
+# Canonical business-concept predicates (CDE / certified / critical). Every
+# "is this a CDE?" or "is this certified?" decision in this module MUST route
+# through atlas.services.semantics so counts can never drift across surfaces.
+from atlas.services import semantics
 
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
@@ -212,6 +217,14 @@ def invalidate_asset_caches(asset_fqn: str | None = None) -> None:
             and (not asset_fqn or normalize_str(asset_fqn) in key)
         ):
             _TTL_CACHE.pop(key, None)
+            continue
+        # The exact-identity memo (P0 visibility-gate cache) must drop when an
+        # asset's metadata/tags mutate, or stale tags would serve for 120s.
+        if (
+            key.startswith("exact_identity:")
+            and (not asset_fqn or normalize_str(asset_fqn) in key)
+        ):
+            _TTL_CACHE.pop(key, None)
     try:
         from atlas.services import lineage as lineage_service
 
@@ -380,13 +393,42 @@ def build_inventory(
     inventory_frames: List[pd.DataFrame] = []
     tag_maps: Dict[str, Dict[str, str]] = {}
 
-    for catalog in catalogs:
+    # Perf (P1 cold-start): scan catalogs through a small thread pool instead
+    # of sequentially — each information_schema pass costs ~1.2s+ on the
+    # warehouse, so a sequential walk over many catalogs kept every surface
+    # in "loading" for tens of seconds after each cold start / TTL expiry.
+    # Inventory + tags + last_altered for one catalog run inside one task so
+    # per-catalog error isolation is preserved (a bad catalog only skips
+    # itself; non-skippable errors still abort the whole build as before).
+    def _fetch_catalog(
+        catalog: str,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, str]]:
+        inv = cached_catalog_inventory(uc, catalog)
         try:
-            inv = cached_catalog_inventory(uc, catalog)
+            tags_df = cached_catalog_table_tags(uc, catalog)
         except Exception as exc:
             if is_skippable_metadata_error(exc):
+                tags_df = pd.DataFrame()
+            else:
+                raise
+        try:
+            altered_map = _catalog_last_altered_map(uc, catalog)
+        except Exception:
+            # Freshness enrichment is best-effort; absence degrades to an
+            # empty updatedAt, never an aborted inventory.
+            altered_map = {}
+        return inv, tags_df, altered_map
+
+    last_altered_map: Dict[str, str] = {}
+    for catalog, result, exc in metadata_service.parallel_catalog_scan(
+        catalogs, _fetch_catalog
+    ):
+        if exc is not None:
+            if is_skippable_metadata_error(exc):
                 continue
-            raise
+            raise exc
+        inv, tags_df, altered_map = result
+        last_altered_map.update(altered_map)
         if not inv.empty:
             inv = inv.copy()
             inv["comment"] = inv["comment"].map(normalize_str)
@@ -399,13 +441,7 @@ def build_inventory(
             )
             inventory_frames.append(inv)
 
-        try:
-            tags_df = cached_catalog_table_tags(uc, catalog)
-        except Exception as exc:
-            if is_skippable_metadata_error(exc):
-                continue
-            raise
-        if tags_df.empty:
+        if tags_df is None or tags_df.empty:
             continue
         tags_df = tags_df.copy()
         tags_df["fqn"] = (
@@ -440,17 +476,31 @@ def build_inventory(
     )
     # Freshness enrichment: last_altered comes from the same
     # information_schema.tables relation the inventory reads — one cached
-    # query per catalog (never per-asset fan-out). This lights up the
-    # discovery card freshness, "Updated" sort, and preview freshness.
-    last_altered_map: Dict[str, str] = {}
-    for catalog in catalogs:
-        try:
-            last_altered_map.update(_catalog_last_altered_map(uc, catalog))
-        except Exception:
-            continue
+    # query per catalog (never per-asset fan-out), gathered inside the
+    # parallel catalog scan above. This lights up the discovery card
+    # freshness, "Recently updated" sort, and preview freshness.
     inventory["last_altered"] = inventory["fqn"].map(
         lambda fqn: last_altered_map.get(str(fqn), "") if pd.notna(fqn) else ""
     )
+    # D8: rows/size/files enrichment from ALREADY-WARM per-table caches only
+    # (DESCRIBE DETAIL / COUNT(*) results a prior detail view paid for).
+    # warm_table_stats never issues a query, so list endpoints stay one
+    # inventory pass; values are honestly absent (None) until something has
+    # loaded the table's detail within its cache TTL.
+    def _warm_stats_for(fqn: Any) -> Dict[str, Any]:
+        try:
+            catalog, schema, table = split_uc_name(str(fqn))
+        except Exception:
+            return {"row_count": None, "size_bytes": None, "file_count": None}
+        try:
+            return metadata_service.warm_table_stats(uc, catalog, schema, table)
+        except Exception:
+            return {"row_count": None, "size_bytes": None, "file_count": None}
+
+    warm_stats = inventory["fqn"].map(_warm_stats_for)
+    inventory["row_count"] = warm_stats.map(lambda stats: stats.get("row_count"))
+    inventory["size_bytes"] = warm_stats.map(lambda stats: stats.get("size_bytes"))
+    inventory["file_count"] = warm_stats.map(lambda stats: stats.get("file_count"))
     inventory["domain"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "domain")
     )
@@ -1076,12 +1126,17 @@ def _coerce_bool(value: Any) -> bool:
 
 
 def _asset_is_cde(asset: Dict[str, Any]) -> bool:
-    if _coerce_bool(asset.get("isCde")):
+    """Canonical CDE check (D5): delegate to semantics.is_cde_asset.
+
+    The explicit-flag fast path stays first so a literal isCde/cde field
+    short-circuits without building the semantics haystack; the canonical
+    predicate then adds the criticality-derived cases (Critical / Tier 1)
+    that the old tag-only check missed — which is why per-asset `isCde`
+    reported false for all 50 assets while CDE surfaces counted 49.
+    """
+    if _coerce_bool(asset.get("isCde")) or _coerce_bool(asset.get("cde")):
         return True
-    if _coerce_bool(asset.get("cde")):
-        return True
-    tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
-    return _coerce_bool(tags.get("cde") or tags.get("is_cde"))
+    return semantics.is_cde_asset(asset)
 
 
 def raw_tag_map(row: pd.Series) -> Dict[str, str]:
@@ -1139,16 +1194,31 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         # missing-description detection and inflated coverage claims.
         "description": normalize_str(row.get("comment")),
         "coverageScore": safe_int(row.get("governance_score")),
-        # Rows / size / files are not known at inventory time. Emit empty
-        # (absent) instead of a literal "—" so the client can render honest
-        # "Unavailable" fallbacks instead of a fake-looking dash.
-        "rows": "",
+        # Rows / size / files come ONLY from real signals: warm DESCRIBE
+        # DETAIL / COUNT(*) caches enrich the inventory frame with
+        # row_count / size_bytes / file_count when a prior detail load paid
+        # for them (see build_inventory). When absent we emit empty strings
+        # (never a fabricated number or a literal "—") so the client renders
+        # its honest "Unavailable" fallback.
+        "rows": (
+            f"{safe_int(row.get('row_count')):,}"
+            if safe_int(row.get("row_count"))
+            else ""
+        ),
         "format": _display_or_empty(friendly_storage_format(raw_storage_format)),
         "storageFormat": _display_or_empty(friendly_storage_format(raw_storage_format)),
         "tableTypeRaw": raw_table_type,
         "managementType": _display_or_empty(management_type(raw_table_type)),
-        "size": "",
-        "files": "",
+        "size": (
+            _display_or_empty(human_bytes(row.get("size_bytes")))
+            if safe_int(row.get("size_bytes"))
+            else ""
+        ),
+        "files": (
+            str(safe_int(row.get("file_count")))
+            if safe_int(row.get("file_count"))
+            else ""
+        ),
         # ISO-8601 last_altered from information_schema (see build_inventory
         # enrichment). Empty when the source didn't report it.
         "updatedAt": _iso_timestamp(row.get("last_altered")),
@@ -1163,7 +1233,10 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "business_criticality": normalize_str(
             row.get("business_criticality") or row.get("businessCriticality")
         ) or "Unassigned",
-        "isCde": _coerce_bool(row.get("cde")),
+        # D5: per-asset isCde must agree with every CDE surface (hero count,
+        # /api/cde, cdeOnly filter). The canonical predicate includes the
+        # criticality-derived cases, not just the explicit `cde` tag.
+        "isCde": _coerce_bool(row.get("cde")) or semantics.is_cde_asset(row),
         "cdeRationale": normalize_str(
             row.get("cde_rationale") or row.get("cdeRationale")
         ),
@@ -1207,8 +1280,12 @@ def asset_header_payload_from_inventory(
     normal detail loader or return the visibility error they already computed.
     """
 
+    # Read-only lookup: no defensive .copy() of the whole frame. The batch
+    # /api/assets/headers endpoint calls this once per requested FQN (up to
+    # 64), and copying a full inventory DataFrame per FQN dominated the
+    # request cost. base_asset_payload only reads the matched row.
     inventory = (
-        visible_inventory.copy()
+        visible_inventory
         if isinstance(visible_inventory, pd.DataFrame)
         else pd.DataFrame()
     )
@@ -1422,16 +1499,83 @@ def asset_header_payload_from_exact_identity(
     return _ttl_value(cache_key, 120, load)
 
 
+def _exact_identity_lookup(
+    uc, catalog: str, schema: str, table: str
+) -> Tuple[Optional[pd.DataFrame], pd.DataFrame]:
+    """One concurrent round trip for (identity, tags).
+
+    P0 perf fix: every OBO asset-detail / lineage request used to pay
+    get_table_identity THEN get_table_tags serially (~1.6s warm, 7.5s cold)
+    before any payload cache was consulted. The two information_schema
+    queries are independent, so issuing them together halves the fixed tax
+    whenever the lookup is truly needed. Results are memoized per
+    (warehouse|scope, fqn) by exact_identity_row below.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _identity() -> Optional[pd.DataFrame]:
+        try:
+            return uc.get_table_identity(catalog, schema, table)
+        except Exception:
+            return None
+
+    def _tags() -> pd.DataFrame:
+        try:
+            return uc.get_table_tags(catalog, schema, table)
+        except Exception:
+            return pd.DataFrame()
+
+    with ThreadPoolExecutor(
+        max_workers=2, thread_name_prefix="atlas-exact-identity"
+    ) as pool:
+        identity_future = pool.submit(_identity)
+        tags_future = pool.submit(_tags)
+        return identity_future.result(), tags_future.result()
+
+
+# TTLs for the exact-identity memo: hits stay warm for 120s (identity/tags
+# churn slowly; mutation paths invalidate explicitly), misses only 15s so a
+# transient permission/cold-start failure can't hide a real table for long.
+_EXACT_IDENTITY_HIT_TTL_S = 120
+_EXACT_IDENTITY_MISS_TTL_S = 15
+
+
 def exact_identity_row(
     uc,
     asset_fqn: str,
     inventory_columns: Optional[Sequence[str]] = None,
 ) -> Optional[pd.Series]:
     catalog, schema, table = split_uc_name(asset_fqn)
-    try:
-        identity_df = uc.get_table_identity(catalog, schema, table)
-    except Exception:
-        return None
+
+    # P0 perf fix: memoize the RAW (identity, tags) frames per
+    # (warehouse|scope, fqn). This lookup sits on the visibility gate of
+    # EVERY asset-detail and lineage request, so an uncached call taxed each
+    # request ~1.6s warm / 7.5s cold even when the payload itself was cached.
+    # The cache key includes the acting credentials via _warehouse_key, so
+    # per-user visibility never leaks across actors. We cache the frames
+    # (not the assembled Series) because callers pass differing
+    # inventory_columns shapes.
+    cache_key = f"exact_identity:{_warehouse_key(uc)}:{normalize_str(asset_fqn)}"
+    cached = _TTL_CACHE.get(cache_key)
+    identity_df: Optional[pd.DataFrame] = None
+    tags_df: Optional[pd.DataFrame] = None
+    resolved_from_cache = False
+    if cached is not None:
+        age = time.time() - cached[0]
+        hit = cached[1]
+        is_miss = hit is None
+        if not is_miss and age < _EXACT_IDENTITY_HIT_TTL_S:
+            identity_df, tags_df = hit
+            resolved_from_cache = True
+        elif is_miss and age < _EXACT_IDENTITY_MISS_TTL_S:
+            return None
+
+    if not resolved_from_cache:
+        identity_df, tags_df = _exact_identity_lookup(uc, catalog, schema, table)
+        if identity_df is None or identity_df.empty:
+            _TTL_CACHE[cache_key] = (time.time(), None)
+            return None
+        _TTL_CACHE[cache_key] = (time.time(), (identity_df, tags_df))
     if identity_df is None or identity_df.empty:
         return None
 
@@ -1450,11 +1594,8 @@ def exact_identity_row(
         }
     )
 
-    try:
-        tags_df = uc.get_table_tags(catalog, schema, table)
-    except Exception:
+    if not isinstance(tags_df, pd.DataFrame):
         tags_df = pd.DataFrame()
-
     tags = {
         normalize_str(row.get("tag_name")): normalize_str(row.get("tag_value"))
         for _, row in tags_df.iterrows()
@@ -1607,6 +1748,13 @@ def discovery_search_fields(asset: Dict[str, Any]) -> Dict[str, str]:
         asset.get("certification"),
         asset.get("sensitivity"),
         asset.get("criticality"),
+        # D3: plain-text search must reach every governance field a facet
+        # can display — business criticality and the CDE marker were only
+        # reachable through structured field:value queries before.
+        asset.get("businessCriticality"),
+        asset.get("business_criticality"),
+        "cde critical data element" if fields.get("cde") else "",
+        asset.get("cdeRationale"),
         asset.get("glossaryTerm"),
         " ".join(glossary_terms),
         asset.get("objectType"),
@@ -2161,7 +2309,11 @@ def view_matches(asset: Dict[str, Any], view: str) -> bool:
     if normalized == "Needs certification":
         return normalize_str(asset.get("certification")) == "Unassigned"
     if normalized == "Certified":
-        return normalize_str(asset.get("certification")) != "Unassigned"
+        # D6: strict canonical predicate — only certification == "Certified".
+        # The old `!= "Unassigned"` check silently counted Draft/Trusted
+        # assets as certified (47 instead of 44 on the live estate). Those
+        # states keep their own rows in the certification facet instead.
+        return semantics.is_certified(asset)
     if normalized == "High coverage":
         return safe_int(asset.get("coverageScore")) >= 75
     return True
@@ -2178,6 +2330,45 @@ def views_match(asset: Dict[str, Any], views: Sequence[str]) -> bool:
     return all(view_matches(asset, view) for view in normalized)
 
 
+def _effective_business_criticality(asset: Dict[str, Any]) -> str:
+    """Business-criticality value for facet/filter purposes.
+
+    Prefers the explicit businessCriticality enum, then falls back to the
+    `criticality` tag actually used on real estates (D4). Tier is matched by
+    the filter (parity with semantics.is_critical) but NOT surfaced as a
+    facet value — tier already has its own facet.
+    """
+    explicit = normalize_str(asset.get("businessCriticality")) or normalize_str(
+        asset.get("business_criticality")
+    )
+    if explicit and explicit != "Unassigned":
+        return explicit
+    criticality = normalize_str(asset.get("criticality"))
+    return criticality if criticality and criticality != "Unassigned" else ""
+
+
+def _business_criticality_matches(
+    asset: Dict[str, Any], selected: Sequence[str]
+) -> bool:
+    selected_lower = {normalize_str(value).lower() for value in selected}
+    candidates = {
+        normalize_str(asset.get(field)).lower()
+        for field in (
+            "businessCriticality",
+            "business_criticality",
+            "criticality",
+            "tier",
+        )
+    }
+    candidates.discard("")
+    candidates.discard("unassigned")
+    if not candidates:
+        # D7 pairing: the facet now exposes an "Unassigned" chip, so an
+        # asset with no criticality signal must be selectable through it.
+        return "unassigned" in selected_lower
+    return bool(candidates & selected_lower)
+
+
 def normalize_filter_values(values: Optional[List[str]], all_label: str) -> List[str]:
     if not values:
         return []
@@ -2189,16 +2380,34 @@ def normalize_filter_values(values: Optional[List[str]], all_label: str) -> List
 
 
 def facet_payload(
-    assets: List[Dict[str, Any]], field: str, *, all_label: str
+    assets: List[Dict[str, Any]],
+    field: str | Callable[[Dict[str, Any]], str],
+    *,
+    all_label: str,
 ) -> List[Dict[str, Any]]:
+    """Facet rows: [All, ...real values (sorted), Unassigned].
+
+    D7: empty/"Unassigned" values used to be silently dropped, so chip sums
+    never reconciled with the "All" total and users couldn't filter to the
+    ungoverned slice. Every asset now lands in exactly one bucket, so the
+    per-value counts always sum to the All count. `field` may be a callable
+    for derived facets (e.g. business criticality falling back to the
+    criticality tag).
+    """
+    extractor = field if callable(field) else (lambda asset: asset.get(field))
     counts: Dict[str, int] = {}
+    unassigned = 0
     for asset in assets:
-        value = normalize_str(asset.get(field))
+        value = normalize_str(extractor(asset))
         if not value or value == "Unassigned":
+            unassigned += 1
             continue
         counts[value] = counts.get(value, 0) + 1
     items = [{"value": all_label, "count": len(assets)}]
     items.extend({"value": value, "count": counts[value]} for value in sorted(counts))
+    # Emit the Unassigned bucket even at zero so the frontend renders a
+    # stable chip set and the sum-to-total invariant is visible.
+    items.append({"value": "Unassigned", "count": unassigned})
     return items
 
 
@@ -2277,6 +2486,11 @@ def sort_discovery_assets(
     normalized_sort = normalize_str(sort_by)
     normalized_query_mode = normalize_str(query_mode).lower()
 
+    # D9: open requests are a QUALITY-NEGATIVE signal. All descending-quality
+    # sorts (best match, governance score) must break ties with FEWER open
+    # requests first — the old `reverse=True` tuple put the most-contested
+    # asset on top whenever governance scores saturated at 100. Keys below
+    # use explicit sign flips with reverse=False so fqn stays A-Z.
     def _best_match_key(asset: Dict[str, Any]) -> Tuple[int, int, int, str]:
         search_fields = (
             search_fields_by_fqn.get(asset.get("fqn"), {})
@@ -2294,37 +2508,115 @@ def sort_discovery_assets(
         else:
             match_score = discovery_match_score(asset, query, haystack=haystack)
         return (
-            match_score,
-            safe_int(asset.get("coverageScore")),
+            -match_score,
+            -safe_int(asset.get("coverageScore")),
             safe_int(asset.get("openRequests")),
             normalize_str(asset.get("fqn")),
         )
 
-    if normalized_sort in {"Coverage score", "Trust score"}:
+    # "Governance score" is the honest label for the 35/20/15/15/15 metadata
+    # formula; the legacy "Trust score" / "Coverage score" labels stay
+    # accepted so old clients don't silently fall back to best-match.
+    if normalized_sort in {"Coverage score", "Trust score", "Governance score"}:
         return sorted(
             assets,
             key=lambda asset: (
-                safe_int(asset.get("coverageScore")),
+                -safe_int(asset.get("coverageScore")),
                 safe_int(asset.get("openRequests")),
                 normalize_str(asset.get("fqn")),
             ),
-            reverse=True,
         )
     if normalized_sort == "Open requests":
+        # Explicit "Open requests" sort keeps most-contested-first — that IS
+        # the requested ordering — with governance score as the tiebreaker.
         return sorted(
             assets,
             key=lambda asset: (
-                safe_int(asset.get("openRequests")),
-                safe_int(asset.get("coverageScore")),
+                -safe_int(asset.get("openRequests")),
+                -safe_int(asset.get("coverageScore")),
                 normalize_str(asset.get("fqn")),
             ),
-            reverse=True,
+        )
+    if normalized_sort == "Recently updated":
+        # updatedAt is ISO-8601 (lexicographically ordered) from
+        # information_schema.last_altered. Assets with no known freshness
+        # sort last rather than fabricating a date.
+        return sorted(
+            assets,
+            key=lambda asset: (
+                0 if normalize_str(asset.get("updatedAt")) else 1,
+                # Negative-lexicographic isn't possible on strings, so sort
+                # the dated group descending via a reversed pre-sort key:
+                _descending_text_key(normalize_str(asset.get("updatedAt"))),
+                normalize_str(asset.get("fqn")),
+            ),
         )
     if normalized_sort == "Name (A-Z)":
         return sorted(
             assets, key=lambda asset: normalize_str(asset.get("name")).lower()
         )
-    return sorted(assets, key=_best_match_key, reverse=True)
+    return sorted(assets, key=_best_match_key)
+
+
+def _descending_text_key(value: str) -> Tuple[int, ...]:
+    """Tuple key that orders ISO timestamp strings newest-first inside an
+    ascending sort (invert each code point). Empty handled by caller."""
+    return tuple(-ord(char) for char in value)
+
+
+def _discovery_vocabulary(index_entries: List[Dict[str, Any]]) -> List[str]:
+    """Distinct searchable tokens across the visible index haystacks."""
+    tokens: set[str] = set()
+    for entry in index_entries:
+        haystack = entry.get("haystack") if isinstance(entry, dict) else ""
+        for token in normalize_str(haystack).split(" "):
+            if len(token) >= 3:
+                tokens.add(token)
+    return sorted(tokens)
+
+
+def suggest_discovery_query(
+    query: str, index_entries: List[Dict[str, Any]]
+) -> str:
+    """Nearest-vocabulary rewrite of a zero-result query (D1 typo tolerance).
+
+    For each query term with no exact vocabulary hit, substitute the closest
+    token by difflib ratio (cutoff ≈ edit distance ≤ 2 on short tokens) or a
+    prefix completion. Returns the corrected query string, or "" when no
+    term could be improved — the caller only surfaces `didYouMean` (and the
+    near-match result pass) when this returns a real rewrite, so we never
+    invent matches for genuinely unknown terms.
+    """
+    normalized_query = normalized_search_text(query)
+    if not normalized_query:
+        return ""
+    vocabulary = _discovery_vocabulary(index_entries)
+    if not vocabulary:
+        return ""
+    vocab_set = set(vocabulary)
+    corrected: List[str] = []
+    changed = False
+    for term in normalized_query.split(" "):
+        if not term:
+            continue
+        if term in vocab_set or any(term in token for token in vocab_set):
+            # Term already matches something (whole or substring) — the zero
+            # results came from AND-ing with other terms; leave it alone.
+            corrected.append(term)
+            continue
+        close = difflib.get_close_matches(term, vocabulary, n=1, cutoff=0.72)
+        if not close and len(term) >= 4:
+            prefixed = [token for token in vocabulary if token.startswith(term[:4])]
+            close = difflib.get_close_matches(term, prefixed, n=1, cutoff=0.6)
+        if close:
+            corrected.append(close[0])
+            changed = True
+        else:
+            corrected.append(term)
+    if not changed:
+        return ""
+    suggestion = " ".join(corrected)
+    return suggestion if suggestion != normalized_query else ""
 
 
 def _discovery_index_key(uc: Any) -> str:
@@ -2453,6 +2745,46 @@ def discovery_search_payload(
                 continue
         matched_assets.append(asset)
 
+    # D1: typo tolerance. When the strict AND-substring pass finds nothing
+    # for a plain-text query with no narrowing filters, try a cheap
+    # nearest-vocabulary rewrite (difflib over index tokens) and rerun the
+    # match with the corrected terms. The rewrite is surfaced as
+    # `didYouMean` so the UI can say "Showing results for 'customer'" —
+    # results come from real matches on the corrected terms, never invented.
+    did_you_mean = ""
+    near_match_applied = False
+    filters_selected = bool(
+        selected_views
+        or selected_types
+        or selected_catalogs
+        or selected_domains
+        or selected_tiers
+        or selected_certifications
+        or selected_sensitivities
+        or selected_business_criticalities
+        or require_cde
+    )
+    if (
+        query_text
+        and normalized_query_mode != "structured"
+        and not matched_assets
+        and not filters_selected
+    ):
+        did_you_mean = suggest_discovery_query(query_text, index_entries)
+        if did_you_mean:
+            for entry in index_entries:
+                asset = entry["asset"]
+                match_score = discovery_match_score(
+                    asset, did_you_mean, haystack=entry.get("haystack", "")
+                )
+                if match_score > 0:
+                    matched_assets.append(asset)
+            near_match_applied = bool(matched_assets)
+            if not near_match_applied:
+                # The rewrite found no real matches either — suppress the
+                # suggestion instead of promising results that don't exist.
+                did_you_mean = ""
+
     def in_scope(asset: Dict[str, Any], *, exclude: Optional[set[str]] = None) -> bool:
         excluded = exclude or set()
         if (
@@ -2489,10 +2821,14 @@ def discovery_search_payload(
             selected_business_criticalities
             and "businessCriticalities" not in excluded
         ):
-            asset_bc = normalize_str(
-                asset.get("businessCriticality") or asset.get("business_criticality")
-            )
-            if not asset_bc or asset_bc not in selected_business_criticalities:
+            # D4: match over the SAME field set semantics.is_critical reads
+            # (criticality / business_criticality / tier). Real estates tag
+            # `criticality=Critical`; the enum businessCriticality axis is
+            # sparsely adopted, so filtering only that field returned zero
+            # for every chip the facet itself displayed.
+            if not _business_criticality_matches(
+                asset, selected_business_criticalities
+            ):
                 return False
         if require_cde and "cde" not in excluded:
             if not _asset_is_cde(asset):
@@ -2508,7 +2844,10 @@ def discovery_search_payload(
     sorted_assets = sort_discovery_assets(
         scoped_assets,
         sort_by=sort_by,
-        query=query_text,
+        # Near-match results must rank by the corrected terms — scoring them
+        # against the original misspelling would zero every match score and
+        # collapse ordering to tiebreakers.
+        query=did_you_mean if near_match_applied else query_text,
         query_mode=normalized_query_mode,
         compiled_query=compiled_query
         if normalized_query_mode == "structured"
@@ -2574,13 +2913,15 @@ def discovery_search_payload(
             "sensitivity",
             all_label="All sensitivities",
         ),
+        # D4: derived extractor so facet chips reflect the same field set the
+        # filter matches (businessCriticality falling back to criticality).
         "businessCriticalities": facet_payload(
             [
                 asset
                 for asset in matched_assets
                 if in_scope(asset, exclude={"businessCriticalities"})
             ],
-            "businessCriticality",
+            _effective_business_criticality,
             all_label="All criticalities",
         ),
         "owners": owners_facet_payload(
@@ -2593,6 +2934,12 @@ def discovery_search_payload(
         "assets": window,
         "count": len(sorted_assets),
         "facets": facets,
+        # D1 contract additions (always present, additive):
+        # - didYouMean: corrected query string when a near-match rewrite
+        #   produced real results (else "").
+        # - queryState.nearMatch mirrors whether the returned assets came
+        #   from the corrected terms rather than the literal query.
+        "didYouMean": did_you_mean,
         "queryState": {
             "state": compiled_query.get("state", "empty"),
             "message": "",
@@ -2603,6 +2950,7 @@ def discovery_search_payload(
                 )
             ),
             "clauseChips": list(compiled_query.get("clauseChips", [])),
+            "nearMatch": near_match_applied,
         },
         "selection": {
             "primaryAssetFqn": window[0]["fqn"] if window else "",

@@ -175,7 +175,11 @@ DISCOVERY_VIEWS = [
 ]
 DISCOVERY_SORTS = [
     "Best match",
-    "Trust score",
+    # D9: honest label — this sort orders by the 35/20/15/15/15 governance
+    # metadata formula (coverageScore), which is not a trust measure. The
+    # backend still accepts the legacy "Trust score" value for old clients.
+    "Governance score",
+    "Recently updated",
     "Name (A-Z)",
     "Open requests",
 ]
@@ -1083,6 +1087,28 @@ def _asset_visibility_record(
         actor_scoped = (
             _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
         )
+        # P0 perf fix: consult the WARM inventory FIRST. Membership in the
+        # actor-visible inventory IS the visibility answer, and it's a pure
+        # in-memory frame scan. The previous order ran the per-asset
+        # exact-identity probe (two information_schema queries) before ever
+        # looking at the cache, taxing every asset-detail/lineage request
+        # ~1.6s warm / 7.5s cold even for assets the inventory already
+        # proved visible.
+        cached_inventory = _cached_visible_assets(request)
+        if cached_inventory is not None and asset_service.asset_is_visible(
+            cached_inventory, asset_fqn
+        ):
+            return {
+                "exists": True,
+                "visible": True,
+                "openable": True,
+                "visibilityState": "visible",
+                "visibilityMethod": "inventory",
+            }
+        # Not (or not yet) in the cached inventory: fall back to the direct
+        # exact-identity probe (now TTL-cached + concurrent inside
+        # exact_identity_row) so deep links to real-but-uninventoried tables
+        # still open for actor-scoped requests.
         direct_visible = False
         if actor_scoped and not asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
             try:
@@ -1106,7 +1132,6 @@ def _asset_visibility_record(
                 "visibilityState": "visible",
                 "visibilityMethod": "direct-identity",
             }
-        cached_inventory = _cached_visible_assets(request)
         if cached_inventory is None:
             _fast_bootstrap_inventory_summary(
                 _request_cache_scope(request),
@@ -1163,15 +1188,15 @@ def _asset_visibility_record(
                 "visibilityState": "missing",
                 "visibilityMethod": "inventory-loading",
             }
-        visible = asset_service.asset_is_visible(cached_inventory, asset_fqn)
-        direct_visible = False
-        if not visible:
-            direct_visible = (
-                _direct_actor_identity_visible(asset_fqn, request)
-                if actor_scoped
-                else _direct_workspace_identity_visible(asset_fqn)
-            )
-        visible = visible or direct_visible
+        # Cached inventory exists but does NOT contain the asset, and the
+        # actor-scoped direct probe above (if applicable) already failed.
+        # Only the workspace-scoped direct-identity fallback remains for
+        # non-OBO requests; re-running the actor probe here would repeat
+        # the two identity queries the reorder above just eliminated.
+        direct_visible = (
+            False if actor_scoped else _direct_workspace_identity_visible(asset_fqn)
+        )
+        visible = direct_visible
         exists = visible or (actor_scoped and _asset_exists(asset_fqn, request))
         if visible:
             visibility_state = "visible"
@@ -2144,19 +2169,29 @@ def _shell_branding_payload() -> Dict[str, Any]:
     """Return the tenant branding dict for the shell payload. Silently
     yields an empty dict when the store is unavailable so bootstrap
     never fails on branding absence — the frontend falls back to
-    hard-coded defaults."""
-    try:
-        store = _store()
-    except Exception:
-        return {}
-    if store is None:
-        return {}
-    try:
-        from atlas.services import branding as branding_service
+    hard-coded defaults.
 
-        return branding_service.get_branding(store)
-    except Exception:
-        return {}
+    P5 perf: TTL-cached 60s. /api/bootstrap is refetched by the frontend on
+    every tab switch (?surface=...) even though the payload does not vary by
+    surface (only routeHints echoes it, and no server cache keys on it), so
+    the store read here must not be paid per navigation.
+    """
+
+    def _load() -> Dict[str, Any]:
+        try:
+            store = _store()
+        except Exception:
+            return {}
+        if store is None:
+            return {}
+        try:
+            from atlas.services import branding as branding_service
+
+            return branding_service.get_branding(store)
+        except Exception:
+            return {}
+
+    return _ttl_value("runtime_shell_branding", 60, _load)
 
 
 def _shell_payload(
@@ -2217,39 +2252,51 @@ def _shell_payload(
         or _normalize_str(cfg.environment_label)
         or "Workspace"
     )
-    try:
-        atlas_ai_status = genie_service.provider_status(cfg)
-    except Exception as exc:
-        atlas_ai_status = {
-            "state": "unavailable",
-            "provider": "genie",
-            "message": f"{exc.__class__.__name__}: {exc}",
-        }
-    try:
-        lakebase_status = lakebase_service.status(cfg)
-        if _store.cache_info().currsize:
-            lakebase_status = {
-                **lakebase_status,
-                "writeMirror": lakebase_store_service.dual_write_status(_store()),
+    # P5 perf: both statuses are workspace-level (identical for every user
+    # and every ?surface=), yet /api/bootstrap is refetched on each tab
+    # switch. Cache 60s so navigation-driven bootstraps stay in-memory.
+    def _load_atlas_ai_status() -> Dict[str, Any]:
+        try:
+            return genie_service.provider_status(cfg)
+        except Exception as exc:
+            return {
+                "state": "unavailable",
+                "provider": "genie",
+                "message": f"{exc.__class__.__name__}: {exc}",
             }
-        elif lakebase_status.get("enabled"):
-            lakebase_status = {
-                **lakebase_status,
-                "writeMirror": {
-                    "enabled": False,
-                    "mode": "delta-primary",
-                    "state": "pending",
-                    "message": "Governance store has not initialized the Lakebase dual-write mirror yet.",
-                    "activeTables": list(lakebase_store_service.ACTIVE_LAKEBASE_MIRROR_TABLES),
-                    "deferredTables": list(lakebase_store_service.DEFERRED_LAKEBASE_OPERATIONAL_TABLES),
-                },
+
+    def _load_lakebase_status() -> Dict[str, Any]:
+        try:
+            lakebase_status = lakebase_service.status(cfg)
+            if _store.cache_info().currsize:
+                lakebase_status = {
+                    **lakebase_status,
+                    "writeMirror": lakebase_store_service.dual_write_status(_store()),
+                }
+            elif lakebase_status.get("enabled"):
+                lakebase_status = {
+                    **lakebase_status,
+                    "writeMirror": {
+                        "enabled": False,
+                        "mode": "delta-primary",
+                        "state": "pending",
+                        "message": "Governance store has not initialized the Lakebase dual-write mirror yet.",
+                        "activeTables": list(lakebase_store_service.ACTIVE_LAKEBASE_MIRROR_TABLES),
+                        "deferredTables": list(lakebase_store_service.DEFERRED_LAKEBASE_OPERATIONAL_TABLES),
+                    },
+                }
+            return lakebase_status
+        except Exception as exc:
+            return {
+                "state": "unavailable",
+                "message": f"{exc.__class__.__name__}: {exc}",
+                "enabled": False,
             }
-    except Exception as exc:
-        lakebase_status = {
-            "state": "unavailable",
-            "message": f"{exc.__class__.__name__}: {exc}",
-            "enabled": False,
-        }
+
+    atlas_ai_status = _ttl_value("runtime_shell_ai_status", 60, _load_atlas_ai_status)
+    lakebase_status = _ttl_value(
+        "runtime_shell_lakebase_status", 60, _load_lakebase_status
+    )
 
     payload = {
         "version": APP_VERSION,
