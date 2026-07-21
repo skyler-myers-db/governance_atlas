@@ -1,3 +1,15 @@
+// WAVE C SPLIT (documented per §7 disposition map — deliberately NOT done in
+// Wave A): this hybrid hook is two things fused together.
+//   1. Results loading — ALREADY on the single data contract: it delegates to
+//      useDiscoveryResults, which runs on useAtlasQuery (bounded 3s poll,
+//      shared envelope predicate).
+//   2. Filter/debounce/session state — the sessionStorage snapshot revival
+//      below (gh.discovery.session.v1) and the setTimeout debounce belong to
+//      the C1 Discovery rewrite: they move onto nav/useSurfaceParams once the
+//      URL *is* the snapshot. Deleting the revival before the URL carries the
+//      full filter state would silently drop users' restored sessions, and
+//      binding to the still-landing nav API mid-Wave-A couples two parallel
+//      tracks — high-risk, so it stays put until C1.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { useDiscoveryResults } from "./useDiscoveryResults";

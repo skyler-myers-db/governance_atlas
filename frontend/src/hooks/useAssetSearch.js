@@ -1,8 +1,8 @@
 import { useDeferredValue, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { atlasQueryClient } from "../lib/queryClient";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 export function clearAssetSearchCache() {
   atlasQueryClient.removeQueries({ queryKey: ["assetSearch"] });
@@ -116,10 +116,10 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
   );
   const activeQuery = enabled ? deferredQuery : "";
   const matchesAreCurrent = deferredQuery === trimmedQuery;
-  const queryState = useQuery({
-    queryKey: ["assetSearch", cacheKeyForQuery(activeQuery), seededSignature],
+  const queryState = useAtlasQuery({
+    key: ["assetSearch", cacheKeyForQuery(activeQuery), seededSignature],
     enabled: Boolean(activeQuery),
-    queryFn: ({ signal }) =>
+    fetch: (signal) =>
       fetchDiscoverySearch(
         {
           query: activeQuery,
@@ -135,7 +135,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
             count: seededMatches.length,
           }
         : undefined,
-  });
+  }).query;
   const assets = trimmedQuery && matchesAreCurrent
     ? mergeAssets(queryState.data?.assets || [], matchesAreCurrent ? seededMatches : [], 8)
     : [];

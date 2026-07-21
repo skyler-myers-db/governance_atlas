@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchAssetCustomProperties } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * Phase 8 — persisted custom property assignments for an asset.
@@ -8,10 +8,10 @@ import { fetchAssetCustomProperties } from "../lib/api";
 export function useAssetCustomProperties(assetFqn, options = {}) {
   const trimmed = String(assetFqn || "").trim();
   const enabled = options.enabled !== false && Boolean(trimmed);
-  const query = useQuery({
-    queryKey: ["assetCustomProperties", trimmed],
+  const { query } = useAtlasQuery({
+    key: ["assetCustomProperties", trimmed],
     enabled,
-    queryFn: ({ signal }) => fetchAssetCustomProperties(trimmed, { signal }),
+    fetch: (signal) => fetchAssetCustomProperties(trimmed, { signal }),
   });
   const assignments = Array.isArray(query.data) ? query.data : [];
   return {

@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchAssetQuality } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * Phase 10 — persisted quality results for an asset.
@@ -8,10 +8,10 @@ import { fetchAssetQuality } from "../lib/api";
 export function useAssetQuality(assetFqn, options = {}) {
   const trimmed = String(assetFqn || "").trim();
   const enabled = options.enabled !== false && Boolean(trimmed);
-  const query = useQuery({
-    queryKey: ["assetQuality", trimmed],
+  const { query } = useAtlasQuery({
+    key: ["assetQuality", trimmed],
     enabled,
-    queryFn: ({ signal }) => fetchAssetQuality(trimmed, { signal }),
+    fetch: (signal) => fetchAssetQuality(trimmed, { signal }),
   });
   const runs = Array.isArray(query.data?.runs) ? query.data.runs : [];
   const results = Array.isArray(query.data?.results) ? query.data.results : [];

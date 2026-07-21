@@ -1,8 +1,13 @@
 import { useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchLineage } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { atlasQueryClient } from "../lib/queryClient";
+import {
+  boundedRefetchInterval,
+  pollBudgetExhausted,
+  resetPollAttempts,
+  useAtlasQuery,
+} from "./useAtlasQuery";
 
 const LINEAGE_CACHE_TTL_MS = 300_000;
 // Keep prefetched neighbor payloads alive long enough to be useful. The
@@ -130,60 +135,48 @@ function lineagePayloadPending(payload, requestedProfile = LINEAGE_PROFILE_FULL)
 // available/degraded, deferred false, requested profile delivered) or the
 // attempt budget is spent — never stop early just because a stub node is
 // present. 15 attempts × 3s ≈ 45s comfortably covers the observed 10-14s
-// cold full build. Counters are module-scoped per queryKey so remounts
-// don't restart an exhausted loop within a session; entries store a
-// timestamp so repeated predicate evaluations between actual fetches
-// (react-query re-evaluates on every query-state change) don't burn the
-// budget without real network attempts.
+// cold full build.
+//
+// The module-scoped attempt ledger that used to live HERE (per-key counters,
+// spacing debounce so predicate re-evaluations don't burn budget, survives
+// remounts within a session, reset on explicit refresh) was generalized into
+// useAtlasQuery's bounded-poll engine — this hook now supplies only the
+// lineage-shaped terminality predicate.
 export const LINEAGE_POLL_ATTEMPT_LIMIT = 15;
 const LINEAGE_POLL_INTERVAL_MS = 3_000;
-// Count at most one attempt per ~poll period even if the predicate is
-// evaluated more often (renders, focus events, etc.).
-const LINEAGE_POLL_MIN_COUNT_SPACING_MS = 2_500;
-const lineagePollAttempts = new Map();
 
-function lineagePollKey(profile, assetFqn) {
-  return `${profile}|${assetFqn}`;
-}
-
-function lineagePollCount(profile, assetFqn) {
-  return lineagePollAttempts.get(lineagePollKey(profile, assetFqn))?.count || 0;
-}
+// The poll config shared by both profile queries. `until` returns true to
+// STOP: terminality stays profile-aware (the queryKey carries the profile).
+const LINEAGE_POLL = {
+  interval: LINEAGE_POLL_INTERVAL_MS,
+  maxAttempts: LINEAGE_POLL_ATTEMPT_LIMIT,
+  until: (payload, query) =>
+    !lineagePayloadPending(payload, String(query?.queryKey?.[1] || LINEAGE_PROFILE_FULL)),
+};
 
 export function lineagePollExhausted(assetFqn) {
   return (
-    lineagePollCount(LINEAGE_PROFILE_INITIAL, assetFqn) >= LINEAGE_POLL_ATTEMPT_LIMIT ||
-    lineagePollCount(LINEAGE_PROFILE_FULL, assetFqn) >= LINEAGE_POLL_ATTEMPT_LIMIT
+    pollBudgetExhausted(
+      lineageQueryKey(assetFqn, LINEAGE_PROFILE_INITIAL),
+      LINEAGE_POLL_ATTEMPT_LIMIT,
+    ) ||
+    pollBudgetExhausted(
+      lineageQueryKey(assetFqn, LINEAGE_PROFILE_FULL),
+      LINEAGE_POLL_ATTEMPT_LIMIT,
+    )
   );
 }
 
 function resetLineagePollAttempts(assetFqn) {
-  lineagePollAttempts.delete(lineagePollKey(LINEAGE_PROFILE_INITIAL, assetFqn));
-  lineagePollAttempts.delete(lineagePollKey(LINEAGE_PROFILE_FULL, assetFqn));
+  resetPollAttempts(lineageQueryKey(assetFqn, LINEAGE_PROFILE_INITIAL));
+  resetPollAttempts(lineageQueryKey(assetFqn, LINEAGE_PROFILE_FULL));
 }
 
 // Exported for unit tests: the cold-cache P0 regression lived entirely in
 // this predicate (stub-node payloads read as terminal), so tests pin its
-// behavior directly against representative payload shapes.
-export function lineageRefetchInterval(query) {
-  const payload = query?.state?.data;
-  const profile = String(query?.queryKey?.[1] || LINEAGE_PROFILE_FULL);
-  const assetFqn = String(query?.queryKey?.[2] || "");
-  const key = lineagePollKey(profile, assetFqn);
-  if (!lineagePayloadPending(payload, profile)) {
-    // Terminal state reached — clear the budget so a future legitimate
-    // rebuild (e.g. explicit refresh) can poll again.
-    lineagePollAttempts.delete(key);
-    return false;
-  }
-  const entry = lineagePollAttempts.get(key) || { count: 0, lastCountedAt: 0 };
-  if (entry.count >= LINEAGE_POLL_ATTEMPT_LIMIT) return false;
-  const now = Date.now();
-  if (now - entry.lastCountedAt >= LINEAGE_POLL_MIN_COUNT_SPACING_MS) {
-    lineagePollAttempts.set(key, { count: entry.count + 1, lastCountedAt: now });
-  }
-  return LINEAGE_POLL_INTERVAL_MS;
-}
+// behavior directly against representative payload shapes. Now a thin alias
+// over the shared bounded engine with the lineage `until` predicate.
+export const lineageRefetchInterval = boundedRefetchInterval(LINEAGE_POLL);
 
 export function primeLineagePayload(assetFqn, payload) {
   return setCachedLineage(assetFqn, payload);
@@ -226,18 +219,18 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
     [assetFqn],
   );
 
-  const initialQuery = useQuery({
-    queryKey: lineageQueryKey(assetFqn || "", LINEAGE_PROFILE_INITIAL),
+  const initialQuery = useAtlasQuery({
+    key: lineageQueryKey(assetFqn || "", LINEAGE_PROFILE_INITIAL),
     enabled: Boolean(assetFqn) && enabled,
     staleTime: LINEAGE_CACHE_TTL_MS,
     gcTime: LINEAGE_GC_TIME_MS,
     retry: false,
-    refetchInterval: lineageRefetchInterval,
-    queryFn: ({ signal }) => fetchLineage(assetFqn, { signal, profile: LINEAGE_PROFILE_INITIAL }),
-  });
+    poll: LINEAGE_POLL,
+    fetch: (signal) => fetchLineage(assetFqn, { signal, profile: LINEAGE_PROFILE_INITIAL }),
+  }).query;
 
-  const fullQuery = useQuery({
-    queryKey: lineageQueryKey(assetFqn || "", LINEAGE_PROFILE_FULL),
+  const fullQuery = useAtlasQuery({
+    key: lineageQueryKey(assetFqn || "", LINEAGE_PROFILE_FULL),
     enabled: Boolean(assetFqn) &&
       enabled &&
       fullProfileRequested &&
@@ -245,9 +238,9 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
     staleTime: LINEAGE_CACHE_TTL_MS,
     gcTime: LINEAGE_GC_TIME_MS,
     retry: false,
-    refetchInterval: lineageRefetchInterval,
-    queryFn: ({ signal }) => fetchLineage(assetFqn, { signal, profile: LINEAGE_PROFILE_FULL }),
-  });
+    poll: LINEAGE_POLL,
+    fetch: (signal) => fetchLineage(assetFqn, { signal, profile: LINEAGE_PROFILE_FULL }),
+  }).query;
   // Neighbor prefetch is intentionally *not* auto-triggered here. Eager
   // stampedes (8 parallel lineage queries) starved the SQL warehouse and
   // turned every focus load into a 2+ minute wait. Callers that actually

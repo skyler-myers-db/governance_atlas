@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchAssetAvailability, fetchAssetDetail, fetchAssetHeaders } from "../lib/api";
+import { envelopeHydrating } from "../lib/envelope";
 import { isNonAuthoritativeEvidenceEnvelope } from "../lib/nonAuthoritativeEvidence";
 import { atlasQueryClient } from "../lib/queryClient";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 const PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet.";
 const DETAIL_CACHE_TTL_MS = 20_000;
@@ -89,12 +90,23 @@ function isFresh(queryKey, maxAgeMs = null) {
   return Date.now() - updatedAt <= maxAgeMs;
 }
 
+// P0-2 fix (ASSET360_TEARDOWN): callers pass `{ maxAgeMs: null }` to mean
+// "no age limit — give me whatever canonical data exists". The old
+// `options.maxAgeMs ?? TTL` treated that explicit null as UNSET
+// (`null ?? x === x`), silently re-imposing the 20s TTL, so any tab switch
+// >20s after load read the canonical cache as absent and regressed the whole
+// record to the loading shell. Only an *omitted* option may fall back to the
+// TTL; explicit null (and explicit numbers) must pass through untouched.
+function resolveMaxAgeMs(options, fallback) {
+  return "maxAgeMs" in options ? options.maxAgeMs : fallback;
+}
+
 function readCanonicalDetail(assetFqn, options = {}) {
   if (!assetFqn) return null;
   const queryKey = assetDetailCanonicalKey(assetFqn);
   const detail = atlasQueryClient.getQueryData(queryKey) || null;
   if (!detail) return null;
-  if (!isFresh(queryKey, options.maxAgeMs ?? DETAIL_CACHE_TTL_MS)) return null;
+  if (!isFresh(queryKey, resolveMaxAgeMs(options, DETAIL_CACHE_TTL_MS))) return null;
   return detail;
 }
 
@@ -103,7 +115,7 @@ function readCanonicalAvailability(assetFqn, options = {}) {
   const queryKey = assetAvailabilityCanonicalKey(assetFqn);
   const detail = atlasQueryClient.getQueryData(queryKey) || null;
   if (!detail) return null;
-  if (!isFresh(queryKey, options.maxAgeMs ?? AVAILABILITY_CACHE_TTL_MS)) return null;
+  if (!isFresh(queryKey, resolveMaxAgeMs(options, AVAILABILITY_CACHE_TTL_MS))) return null;
   return detail;
 }
 
@@ -114,19 +126,10 @@ function cachedDetailHasSections(detail, sections = []) {
   return normalizedSections.every((section) => loadedSections.has(section));
 }
 
-function detailHydrating(detail) {
-  if (!detail || typeof detail !== "object") return false;
-  const meta = detail.meta && typeof detail.meta === "object" ? detail.meta : {};
-  const state = String(meta.state || detail.state || "").trim().toLowerCase();
-  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
-    ? meta.capabilities
-    : {};
-  return state === "loading" || detail.hydrating === true || capabilities.hydrating === true;
-}
-
-function assetDetailRefetchInterval(query) {
-  return detailHydrating(query?.state?.data) ? 3_000 : false;
-}
+// Local `detailHydrating` + `assetDetailRefetchInterval` were deleted: the
+// hydration predicate is now the shared lib/envelope.js `envelopeHydrating`
+// (a superset of the old local check) and polling runs through
+// useAtlasQuery's bounded engine — same 3s cadence, now attempt-bounded.
 
 function mergeLoadedSections(currentDetail, incomingDetail) {
   const merged = new Set([...(currentDetail?.loadedSections || []), ...(incomingDetail?.loadedSections || [])]);
@@ -242,7 +245,7 @@ function syncAvailabilityRequestsForAsset(assetFqn) {
 }
 
 function readCachedDetail(assetFqn, options = {}) {
-  const detail = readCanonicalDetail(assetFqn, { maxAgeMs: options.maxAgeMs ?? DETAIL_CACHE_TTL_MS });
+  const detail = readCanonicalDetail(assetFqn, { maxAgeMs: resolveMaxAgeMs(options, DETAIL_CACHE_TTL_MS) });
   if (!detail) return null;
   if (!cachedDetailHasSections(detail, options.sections)) return null;
   return detail;
@@ -282,7 +285,7 @@ function resolveAvailabilityState(
 function buildAvailabilityStateMap(targets = [], knownVisibleAssetSet = null, options = {}) {
   const strict = options.strict === true;
   const requireRenderableDetail = options.requireRenderableDetail === true;
-  const maxAgeMs = options.maxAgeMs ?? (strict ? AVAILABILITY_CACHE_TTL_MS : null);
+  const maxAgeMs = resolveMaxAgeMs(options, strict ? AVAILABILITY_CACHE_TTL_MS : null);
   return Object.fromEntries(
     targets.map((assetFqn) => {
       const knownVisible = knownVisibleAssetSet?.has?.(assetFqn) === true;
@@ -309,7 +312,7 @@ async function ensureAssetDetail(assetFqn, options = {}) {
   const cachedDetail = options.force !== true
     ? readCachedDetail(assetFqn, {
         sections: options.sections,
-        maxAgeMs: options.maxAgeMs ?? DETAIL_CACHE_TTL_MS,
+        maxAgeMs: resolveMaxAgeMs(options, DETAIL_CACHE_TTL_MS),
       })
     : null;
   if (cachedDetail) return cachedDetail;
@@ -329,7 +332,7 @@ async function ensureAssetAvailability(assetFqns = [], options = {}) {
   const requireRenderableDetail = options.requireRenderableDetail === true;
   const maxAgeMs = options.force === true
     ? 0
-    : options.maxAgeMs ?? (strict ? AVAILABILITY_CACHE_TTL_MS : null);
+    : resolveMaxAgeMs(options, strict ? AVAILABILITY_CACHE_TTL_MS : null);
 
   const missing = options.force === true
     ? targets
@@ -428,7 +431,7 @@ export function prefetchAssetDetail(assetFqn, options = {}) {
     ? null
     : readCachedDetail(assetFqn, {
         sections: options.sections,
-        maxAgeMs: options.maxAgeMs ?? DETAIL_CACHE_TTL_MS,
+        maxAgeMs: resolveMaxAgeMs(options, DETAIL_CACHE_TTL_MS),
       });
   if (cachedDetail) return Promise.resolve(cachedDetail);
 
@@ -461,7 +464,7 @@ export function prefetchAssetAvailability(assetFqns = [], options = {}) {
       });
   const hasAllCachedValues = cachedAvailability && targets.every((assetFqn) => cachedAvailability[assetFqn] !== undefined);
   if (hasAllCachedValues && targets.every((assetFqn) => readCanonicalAvailability(assetFqn, {
-    maxAgeMs: options.maxAgeMs ?? (strict ? AVAILABILITY_CACHE_TTL_MS : null),
+    maxAgeMs: resolveMaxAgeMs(options, strict ? AVAILABILITY_CACHE_TTL_MS : null),
   }))) {
     return Promise.resolve(cachedAvailability);
   }
@@ -578,15 +581,15 @@ export function useAssetAvailability(assetFqns = [], knownVisibleAssetSet = null
     [knownVisibleAssetSet, requireRenderableDetail, strict, targets],
   );
 
-  const query = useQuery({
-    queryKey: assetAvailabilityRequestKey(
+  const availability = useAtlasQuery({
+    key: assetAvailabilityRequestKey(
       targets,
       strict,
       requireRenderableDetail,
       visibilitySignature,
     ),
     enabled: targets.length > 0,
-    queryFn: ({ signal }) =>
+    fetch: (signal) =>
       ensureAssetAvailability(targets, {
         knownVisibleAssetSet,
         strict,
@@ -597,7 +600,7 @@ export function useAssetAvailability(assetFqns = [], knownVisibleAssetSet = null
     staleTime: AVAILABILITY_CACHE_TTL_MS,
   });
 
-  return targets.length ? query.data || placeholder : {};
+  return targets.length ? availability.query.data || placeholder : {};
 }
 
 export function useAssetDetail(assetFqn, options = {}) {
@@ -608,17 +611,21 @@ export function useAssetDetail(assetFqn, options = {}) {
   );
   const cachedAnyDetail = assetFqn ? readCanonicalDetail(assetFqn, { maxAgeMs: null }) : null;
   const placeholder = cachedAnyDetail || null;
-  const query = useQuery({
-    queryKey: assetDetailRequestKey(assetFqn || "", sections),
+  const atlasQuery = useAtlasQuery({
+    key: assetDetailRequestKey(assetFqn || "", sections),
     enabled: Boolean(enabled && assetFqn),
-    queryFn: ({ signal }) =>
+    fetch: (signal) =>
       ensureAssetDetail(assetFqn, {
         sections,
         signal,
       }),
     placeholderData: placeholder || undefined,
     staleTime: DETAIL_CACHE_TTL_MS,
-    refetchInterval: assetDetailRefetchInterval,
+    // Same 3s hydration-poll cadence as before, now bounded: 20 attempts
+    // (~60s) comfortably covers the observed 5-7s cold consolidated build;
+    // on exhaustion useAtlasQuery degrades with an honest warning instead of
+    // polling a stuck backend forever.
+    poll: { interval: 3_000, maxAttempts: 20 },
     // Reliability fix (persona audit P0 "Asset unavailable" wall): the detail
     // API demonstrably answers in ~2s, but a single transient client timeout /
     // gateway blip used to become a terminal error (global retry: false).
@@ -626,6 +633,7 @@ export function useAssetDetail(assetFqn, options = {}) {
     retry: 1,
     retryDelay: 800,
   });
+  const query = atlasQuery.query;
 
   if (!assetFqn) {
     return {
@@ -647,7 +655,7 @@ export function useAssetDetail(assetFqn, options = {}) {
 
   const detail = query.data || placeholder || null;
   const missingRequestedSections = !cachedDetailHasSections(detail, sections);
-  const hydrating = detailHydrating(detail);
+  const hydrating = envelopeHydrating(detail);
   return {
     loading:
       Boolean(query.isPending && !detail) ||

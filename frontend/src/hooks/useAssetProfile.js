@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchAssetProfile } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * Phase 8 — persisted profile for an asset.
@@ -8,10 +8,10 @@ import { fetchAssetProfile } from "../lib/api";
 export function useAssetProfile(assetFqn, options = {}) {
   const trimmed = String(assetFqn || "").trim();
   const enabled = options.enabled !== false && Boolean(trimmed);
-  const query = useQuery({
-    queryKey: ["assetProfile", trimmed],
+  const { query } = useAtlasQuery({
+    key: ["assetProfile", trimmed],
     enabled,
-    queryFn: ({ signal }) => fetchAssetProfile(trimmed, { signal }),
+    fetch: (signal) => fetchAssetProfile(trimmed, { signal }),
   });
   return {
     loading: enabled && query.isPending && !query.data,

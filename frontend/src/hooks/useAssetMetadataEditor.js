@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   fetchAssetMetadataEditor,
   getAssetMetadataApiContract,
   updateAssetMetadata,
 } from "../lib/api";
+import { useAtlasMutation, useAtlasQuery } from "./useAtlasQuery";
 
 const EDITABLE_FIELD_KEYS = [
   "description",
@@ -139,153 +140,82 @@ function inlineEditorConfig(asset) {
 }
 
 export function useAssetMetadataEditor({ assetFqn, asset, bootstrap }) {
-  const [state, setState] = useState({
-    loading: false,
-    error: "",
-    available: false,
-    config: null,
-    submitting: false,
-    submitError: "",
-    submitSuccess: "",
-  });
-
   const contract = useMemo(() => getAssetMetadataApiContract(assetFqn), [assetFqn]);
   const localConfig = useMemo(
     () => normalizeConfig(inlineEditorConfig(asset), bootstrap),
     [asset, bootstrap],
   );
 
+  // Capability inspection (was a hand-rolled fetch effect with a cancelled
+  // flag): only fires when the asset carries no inline editor config AND the
+  // API contract claims editing exists. Resolution order is preserved —
+  // inline config wins, then the remote probe, then nothing.
+  const remoteEnabled = Boolean(assetFqn) && !localConfig && contract.available;
+  const editorProbe = useAtlasQuery({
+    key: ["assetMetadataEditor", String(assetFqn || "")],
+    enabled: remoteEnabled,
+    fetch: () => fetchAssetMetadataEditor(assetFqn),
+    staleTime: 60_000,
+  });
+  const remoteConfig = useMemo(
+    () =>
+      remoteEnabled && editorProbe.query.data
+        ? normalizeConfig(editorProbe.query.data, bootstrap)
+        : null,
+    [bootstrap, editorProbe.query.data, remoteEnabled],
+  );
+
+  const config = localConfig || remoteConfig || null;
+  const available = localConfig
+    ? localConfig.available
+    : remoteConfig
+      ? remoteConfig.available || false
+      : false;
+
+  const saveMutation = useAtlasMutation({
+    mutate: (payload) => updateAssetMetadata(assetFqn, payload, config || {}),
+  });
+
+  // Switching assets must clear stale submit feedback (the old state machine
+  // reset submitError/submitSuccess on every fqn change).
+  const resetSave = saveMutation.reset;
   useEffect(() => {
-    if (!assetFqn) {
-      setState({
-        loading: false,
-        error: "",
-        available: false,
-        config: null,
-        submitting: false,
-        submitError: "",
-        submitSuccess: "",
-      });
-      return;
-    }
+    resetSave();
+  }, [assetFqn, resetSave]);
 
-    if (localConfig) {
-      setState({
-        loading: false,
-        error: "",
-        available: localConfig.available,
-        config: localConfig,
-        submitting: false,
-        submitError: "",
-        submitSuccess: "",
-      });
-      return;
-    }
-
-    if (!contract.available) {
-      setState({
-        loading: false,
-        error: "",
-        available: false,
-        config: null,
-        submitting: false,
-        submitError: "",
-        submitSuccess: "",
-      });
-      return;
-    }
-
-    let canceled = false;
-    setState((current) => ({
-      ...current,
-      loading: true,
-      error: "",
-      submitError: "",
-      submitSuccess: "",
-    }));
-
-    fetchAssetMetadataEditor(assetFqn)
-      .then((remoteConfig) => {
-        if (canceled) return;
-        const normalized = normalizeConfig(remoteConfig, bootstrap);
-        setState({
-          loading: false,
-          error: "",
-          available: normalized?.available || false,
-          config: normalized,
-          submitting: false,
-          submitError: "",
-          submitSuccess: "",
-        });
-      })
-      .catch((error) => {
-        if (canceled) return;
-        setState({
-          loading: false,
-          error: error?.message || "Failed to inspect metadata editing capabilities.",
-          available: false,
-          config: null,
-          submitting: false,
-          submitError: "",
-          submitSuccess: "",
-        });
-      });
-
-    return () => {
-      canceled = true;
-    };
-  }, [assetFqn, bootstrap, contract.available, localConfig]);
-
-  const save = async (payload) => {
-    setState((current) => ({
-      ...current,
-      submitting: true,
-      submitError: "",
-      submitSuccess: "",
-    }));
-    try {
-      const response = await updateAssetMetadata(assetFqn, payload, state.config || {});
-      const warning = String(response?.warning || "").trim();
-      const approvalStatus = String(response?.approval?.status || "")
-        .trim()
-        .toLowerCase();
-      if (approvalStatus === "pending") {
-        setState((current) => ({
-          ...current,
-          submitting: false,
-          submitError: "",
-          submitSuccess:
-            "Submitted for approval. A steward needs to review before it applies to Unity Catalog.",
-        }));
-        return response;
-      }
-      setState((current) => ({
-        ...current,
-        submitting: false,
-        submitError: warning,
-        submitSuccess: warning ? "Metadata saved with warning." : "Metadata saved.",
-      }));
-      return response;
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        submitting: false,
-        submitError: error?.message || "Failed to save metadata.",
-        submitSuccess: "",
-      }));
-      throw error;
-    }
-  };
+  // Derive the bespoke submit copy from the mutation result instead of a
+  // parallel useState machine — one source of truth for write status.
+  const response = saveMutation.data;
+  const responseWarning = String(response?.warning || "").trim();
+  const approvalPending =
+    String(response?.approval?.status || "").trim().toLowerCase() === "pending";
+  const submitSuccess = !response
+    ? ""
+    : approvalPending
+      ? "Submitted for approval. A steward needs to review before it applies to Unity Catalog."
+      : responseWarning
+        ? "Metadata saved with warning."
+        : "Metadata saved.";
+  const submitError = saveMutation.error
+    ? saveMutation.error?.message || "Failed to save metadata."
+    : response && !approvalPending
+      ? responseWarning
+      : "";
 
   return {
-    loading: state.loading,
-    error: state.error,
-    available: state.available,
-    config: state.config,
-    submitting: state.submitting,
-    submitError: state.submitError,
-    submitSuccess: state.submitSuccess,
+    loading: remoteEnabled && editorProbe.query.isPending,
+    error:
+      remoteEnabled && editorProbe.query.isError
+        ? editorProbe.query.error?.message || "Failed to inspect metadata editing capabilities."
+        : "",
+    available,
+    config,
+    submitting: saveMutation.submitting,
+    submitError,
+    submitSuccess,
     hasContract: contract.available,
-    save,
+    // save() keeps its original promise semantics: resolves with the API
+    // response, rethrows on failure so callers can branch.
+    save: saveMutation.mutate,
   };
 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
+import { envelopeHydrating } from "../lib/envelope";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 const DISCOVERY_DEFAULT_FETCH_LIMIT = 80;
 const DISCOVERY_MAX_FETCH_LIMIT = 200;
@@ -39,12 +41,11 @@ function payloadPrototypeMock(payload) {
   return isNonAuthoritativeMockEvidence(payload, payload.meta, payload.queryState, payload.warnings);
 }
 
-function discoveryRefetchInterval(query) {
-  const payload = query?.state?.data;
-  const meta = payload?.meta && typeof payload.meta === "object" ? payload.meta : {};
-  const state = String(meta.state || meta.discoveryState || payload?.queryState?.state || "").trim().toLowerCase();
-  return state === "loading" || meta.inventoryHydrating === true ? 3_000 : false;
-}
+// The local discoveryRefetchInterval predicate was deleted: lib/envelope.js
+// `envelopeHydrating` covers every signal it checked (meta.state,
+// meta.discoveryState, queryState.state, inventoryHydrating) and the poll now
+// runs through useAtlasQuery's bounded engine — same 3s cadence, now bounded.
+const DISCOVERY_POLL = { interval: 3_000, maxAttempts: 20 };
 
 export function useDiscoveryResults(filters, options = {}) {
   const normalizedFilters = useMemo(
@@ -135,9 +136,9 @@ export function useDiscoveryResults(filters, options = {}) {
   // after the fetch resolves so normal caching resumes.
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ["discoveryResults", currentScopeKey, safeLimit, safeOffset, pendingRefresh ? "force" : "cache"],
-    queryFn: ({ signal }) =>
+  const { query } = useAtlasQuery({
+    key: ["discoveryResults", currentScopeKey, safeLimit, safeOffset, pendingRefresh ? "force" : "cache"],
+    fetch: (signal) =>
       fetchDiscoverySearch(
         {
           ...normalizedFilters,
@@ -151,7 +152,10 @@ export function useDiscoveryResults(filters, options = {}) {
         if (pendingRefresh) setPendingRefresh(false);
       }),
     placeholderData,
-    refetchInterval: options?.refetchInterval ?? discoveryRefetchInterval,
+    poll: DISCOVERY_POLL,
+    // Legacy escape hatch: callers that pass an explicit refetchInterval keep
+    // it verbatim until their Wave B/C rewrite adopts the poll contract.
+    unsafeRefetchInterval: options?.refetchInterval,
   });
   const refreshActorScope = useCallback(() => {
     setPendingRefresh(true);
@@ -173,13 +177,9 @@ export function useDiscoveryResults(filters, options = {}) {
 
   const currentPayloadAuthoritative = !currentPayloadPrototypeMock && payloadAuthoritative(query.data);
   const currentMeta = query.data?.meta && typeof query.data.meta === "object" ? query.data.meta : null;
-  const currentMetaState = String(
-    currentMeta?.state ||
-      currentMeta?.discoveryState ||
-      query.data?.queryState?.state ||
-      "",
-  ).trim().toLowerCase();
-  const inventoryHydrating = currentMetaState === "loading" || currentMeta?.inventoryHydrating === true;
+  // Single shared hydration predicate (covers state/discoveryState/
+  // queryState fallbacks + inventoryHydrating — same signals as before).
+  const inventoryHydrating = envelopeHydrating(query.data);
 
   useEffect(() => {
     if (query.isSuccess && !usingPlaceholder && currentPayloadAuthoritative) {

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchGapAnalysis } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 const EMPTY_TILES = {
   ownershipGaps: 0,
@@ -45,15 +46,16 @@ export function useGapAnalysis(options = {}) {
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const queryClient = useQueryClient();
 
-  const query = useQuery({
-    queryKey: ["insights-gap-analysis", limit, pendingRefresh ? "force" : "cache"],
-    queryFn: ({ signal }) =>
+  const { query } = useAtlasQuery({
+    key: ["insights-gap-analysis", limit, pendingRefresh ? "force" : "cache"],
+    fetch: (signal) =>
       fetchGapAnalysis({ limit, signal, refresh: pendingRefresh }).finally(() => {
         if (pendingRefresh) setPendingRefresh(false);
       }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 30_000,
-    refetchInterval: resolvedOptions.refetchInterval ?? false,
+    // No default poll (unchanged); legacy escape hatch for explicit overrides.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval ?? false,
   });
 
   const refreshActorScope = useCallback(() => {

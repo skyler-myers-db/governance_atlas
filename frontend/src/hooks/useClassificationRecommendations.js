@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchClassificationRecommendation,
   fetchClassificationRecommendations,
   reviewClassificationRecommendation,
 } from "../lib/api";
+import { useAtlasMutation, useAtlasQuery } from "./useAtlasQuery";
 
 const EMPTY_LIST = {
   recommendations: [],
@@ -31,13 +31,14 @@ export function useClassificationRecommendations(options = {}) {
   const status = resolvedOptions.status || "pending";
   const assetFqn = String(resolvedOptions.assetFqn || "").trim();
   const enabled = resolvedOptions.enabled !== false;
-  const query = useQuery({
-    queryKey: ["classification-recommendations", status, assetFqn],
-    queryFn: ({ signal }) =>
+  const { query } = useAtlasQuery({
+    key: ["classification-recommendations", status, assetFqn],
+    fetch: (signal) =>
       fetchClassificationRecommendations({ status, assetFqn, signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 15000,
-    refetchInterval: resolvedOptions.refetchInterval ?? false,
+    // No default poll (unchanged); legacy escape hatch for explicit overrides.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval ?? false,
   });
   const message = query.error?.message || "Failed to load classification recommendations.";
   return {
@@ -57,9 +58,9 @@ export function useClassificationRecommendations(options = {}) {
 export function useClassificationRecommendation(recommendationId, options = {}) {
   const normalized = String(recommendationId || "").trim();
   const enabled = options.enabled !== false && Boolean(normalized);
-  const query = useQuery({
-    queryKey: ["classification-recommendation", normalized],
-    queryFn: ({ signal }) => fetchClassificationRecommendation(normalized, { signal }),
+  const { query } = useAtlasQuery({
+    key: ["classification-recommendation", normalized],
+    fetch: (signal) => fetchClassificationRecommendation(normalized, { signal }),
     enabled,
     staleTime: options.staleTime ?? 10000,
   });
@@ -76,30 +77,30 @@ export function useClassificationRecommendation(recommendationId, options = {}) 
  * Mutation hook for steward review actions (approve/reject/defer).
  */
 export function useClassificationReview() {
-  const queryClient = useQueryClient();
-  /** @param {ClassificationReviewArgs} args */
-  const submitReview = ({ recommendationId, decision, note }) =>
-    reviewClassificationRecommendation(recommendationId, { decision, note });
-  const mutation = useMutation({
-    mutationFn: submitReview,
-    onSuccess: (record) => {
+  const mutation = useAtlasMutation({
+    /** @param {ClassificationReviewArgs} args */
+    mutate: ({ recommendationId, decision, note }) =>
+      reviewClassificationRecommendation(recommendationId, { decision, note }),
+    // Refresh every list scope after a decision (success or failure) so the
+    // lane never drifts from persisted truth.
+    invalidates: [["classification-recommendations"]],
+    onSuccess: (record, _variables, queryClient) => {
+      // Seed the single-recommendation cache so the evidence drawer reflects
+      // the review immediately without a refetch round-trip.
       if (record?.recommendationId) {
         queryClient.setQueryData(
           ["classification-recommendation", record.recommendationId],
           record,
         );
       }
-      queryClient.invalidateQueries({ queryKey: ["classification-recommendations"] });
     },
   });
-  const review = useCallback(
-    (args) => mutation.mutateAsync(args),
-    [mutation],
-  );
+  const mutateAsync = mutation.mutateAsync;
+  const review = useCallback((args) => mutateAsync(args), [mutateAsync]);
   return {
     review,
-    submitting: mutation.isPending,
-    error: mutation.isError ? mutation.error?.message || "Review failed." : "",
+    submitting: mutation.submitting,
+    error: mutation.error ? mutation.error?.message || "Review failed." : "",
     lastRecord: mutation.data || null,
     reset: mutation.reset,
   };

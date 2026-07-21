@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchCommandCenter } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 export const EMPTY_COMMAND_CENTER = {
   estate: {
@@ -72,10 +72,15 @@ function mergeCommandCenter(seedData, queryData) {
   };
 }
 
-function defaultRefetchInterval(query) {
-  const state = String(query?.state?.data?.meta?.state || "").trim().toLowerCase();
-  return state === "loading" ? 15_000 : false;
-}
+// Same 15s cold-rebuild cadence as before, now bounded: 8 attempts ≈ 2min of
+// server-side "loading" before the loop stops with an honest degraded state
+// instead of polling forever. Poll only on the coarse meta.state — a command
+// center envelope can be "available" with warnings without re-polling.
+const COMMAND_CENTER_POLL = {
+  interval: 15_000,
+  maxAttempts: 8,
+  until: (data) => String(data?.meta?.state || "").trim().toLowerCase() !== "loading",
+};
 
 export function useCommandCenter(options = {}) {
   const resolvedOptions = normalizeOptions(options);
@@ -83,15 +88,18 @@ export function useCommandCenter(options = {}) {
   const seedData = resolvedOptions.seedData || null;
   const [pendingRefresh, setPendingRefresh] = useState(false);
 
-  const query = useQuery({
-    queryKey: ["atlas", "command-center", pendingRefresh ? "force" : "cache"],
-    queryFn: ({ signal }) =>
+  const { query } = useAtlasQuery({
+    key: ["atlas", "command-center", pendingRefresh ? "force" : "cache"],
+    fetch: (signal) =>
       fetchCommandCenter({ signal, refresh: pendingRefresh }).finally(() => {
         if (pendingRefresh) setPendingRefresh(false);
       }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
-    refetchInterval: resolvedOptions.refetchInterval ?? defaultRefetchInterval,
+    poll: COMMAND_CENTER_POLL,
+    // Legacy escape hatch: callers that pass an explicit refetchInterval keep
+    // it verbatim until their Wave B/C rewrite adopts the poll contract.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval,
   });
 
   const refreshActorScope = useCallback(() => {

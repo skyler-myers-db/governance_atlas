@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchAdminBackgroundStatus, fetchRuntimeStatus } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * Composes `/api/runtime/status` + `/api/admin/background/status` into a
@@ -15,25 +15,19 @@ export function useCapabilityDashboard(options = {}) {
   const enabled = options?.enabled !== false;
   const [lastRefreshedAt, setLastRefreshedAt] = useState("");
 
-  const runtimeQuery = useQuery({
-    queryKey: ["capabilities-dashboard", "runtime-status"],
-    queryFn: async ({ signal }) => {
-      const payload = await fetchRuntimeStatus({ signal });
-      return payload;
-    },
+  const runtimeQuery = useAtlasQuery({
+    key: ["capabilities-dashboard", "runtime-status"],
+    fetch: (signal) => fetchRuntimeStatus({ signal }),
     enabled,
     staleTime: 15_000,
-  });
+  }).query;
 
-  const backgroundQuery = useQuery({
-    queryKey: ["capabilities-dashboard", "background-status"],
-    queryFn: async ({ signal }) => {
-      const payload = await fetchAdminBackgroundStatus({ signal });
-      return payload;
-    },
+  const backgroundQuery = useAtlasQuery({
+    key: ["capabilities-dashboard", "background-status"],
+    fetch: (signal) => fetchAdminBackgroundStatus({ signal }),
     enabled,
     staleTime: 15_000,
-  });
+  }).query;
 
   const refetch = useCallback(async () => {
     const outcomes = await Promise.allSettled([

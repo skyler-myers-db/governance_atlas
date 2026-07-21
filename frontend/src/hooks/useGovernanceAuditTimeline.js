@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchGovernanceAuditTimeline } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * Reverse-chronological governance audit timeline for a single asset.
@@ -13,10 +13,10 @@ import { fetchGovernanceAuditTimeline } from "../lib/api";
 export function useGovernanceAuditTimeline(assetFqn, options = {}) {
   const trimmed = String(assetFqn || "").trim();
   const enabled = options.enabled !== false && Boolean(trimmed);
-  const query = useQuery({
-    queryKey: ["governanceAuditTimeline", trimmed],
+  const { query } = useAtlasQuery({
+    key: ["governanceAuditTimeline", trimmed],
     enabled,
-    queryFn: ({ signal }) => fetchGovernanceAuditTimeline(trimmed, { signal }),
+    fetch: (signal) => fetchGovernanceAuditTimeline(trimmed, { signal }),
   });
   const message = query.error?.message || "Failed to load audit timeline.";
   return {

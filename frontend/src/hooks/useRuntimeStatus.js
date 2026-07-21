@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchRuntimeStatus } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false | ((query: any) => number | false)} | boolean} [options={}]
@@ -12,12 +12,15 @@ export function useRuntimeStatus(options = {}) {
         ? options
         : {};
   const enabled = resolvedOptions.enabled !== false;
-  const query = useQuery({
-    queryKey: ["runtime-status"],
-    queryFn: ({ signal }) => fetchRuntimeStatus({ signal }),
+  const { query } = useAtlasQuery({
+    key: ["runtime-status"],
+    fetch: (signal) => fetchRuntimeStatus({ signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 15000,
-    refetchInterval: resolvedOptions.refetchInterval ?? false,
+    // No default poll. Legacy call sites (App.jsx diagnostics heartbeat) may
+    // still pass an explicit refetchInterval; honor it verbatim until their
+    // Wave B/C rewrite moves them onto the bounded `poll` contract.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval ?? false,
   });
   const message = query.error?.message || "Failed to load workspace diagnostics.";
 
