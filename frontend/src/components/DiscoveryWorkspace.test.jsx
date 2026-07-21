@@ -1790,7 +1790,10 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(screen.getByText("No matching assets")).not.toBeNull();
+    // Persona audit P2: a query with no filters now renders the honest
+    // "No matches for 'X'" state instead of the filters-blaming copy.
+    expect(screen.getByText("No matches for “missing”")).not.toBeNull();
+    expect(screen.queryByText(/Relax the current search, saved view, or filters/)).toBeNull();
     expect(screen.queryByText("Catalogs")).toBeNull();
     expect(screen.queryByText("Observed catalogs")).toBeNull();
     expect(screen.queryByText("Owned assets")).toBeNull();

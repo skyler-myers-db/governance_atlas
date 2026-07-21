@@ -376,6 +376,16 @@ function EntityRecordSection({
   );
 }
 
+// Persona audit P2: owner names were dead text. Deep-link into Discover
+// pre-filtered by owner via the structured search field (`owner:"…"`), which
+// the discovery backend matches against normalized owner terms. `fresh`
+// route state clears any sticky session filters so the owner scope applies.
+function ownerDiscoveryHref(label) {
+  const value = String(label || "").trim();
+  if (!value) return "";
+  return `/discovery?q=${encodeURIComponent(`owner:"${value}"`)}`;
+}
+
 function OwnerList({ owners }) {
   if (!owners?.length) {
     return <div className="gh-support-copy">No owners are assigned to this asset yet.</div>;
@@ -383,12 +393,27 @@ function OwnerList({ owners }) {
 
   return (
     <div className="gh-preview-owner-list">
-      {owners.map((owner) => (
-        <div className="gh-preview-owner-row" key={`${owner.name || owner.email || owner.title}`}>
-          <strong>{owner.name || owner.email || "Owner"}</strong>
-          <span>{owner.title || "Owner"}</span>
-        </div>
-      ))}
+      {owners.map((owner) => {
+        const label = owner.name || owner.email || "Owner";
+        const href = ownerDiscoveryHref(owner.name || owner.email);
+        return (
+          <div className="gh-preview-owner-row" key={`${owner.name || owner.email || owner.title}`}>
+            {href ? (
+              <Link
+                className="gh-inline-link-button"
+                state={{ fresh: true }}
+                title={`See all assets owned by ${label} in Discover`}
+                to={href}
+              >
+                <strong>{label}</strong>
+              </Link>
+            ) : (
+              <strong>{label}</strong>
+            )}
+            <span>{owner.title || "Owner"}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -495,6 +520,9 @@ function compactNumber(value, fallback = "—") {
 
 function Asset360PersonaCard({ label, owner, fallbackTitle }) {
   const name = ownerLabel(owner);
+  // Persona audit P2: owner/steward names deep-link into Discover filtered
+  // by that owner instead of rendering as dead text.
+  const href = ownerDiscoveryHref(name);
   return (
     <div className="ga-asset360-card ga-asset360-persona-card">
       <span className="ga-asset360-card-label">{label}</span>
@@ -502,7 +530,18 @@ function Asset360PersonaCard({ label, owner, fallbackTitle }) {
         <div className="ga-asset360-persona">
           <OwnerAvatar owner={name} size={38} />
           <span>
-            <strong>{prettyOwnerDisplay(name)}</strong>
+            {href ? (
+              <Link
+                className="gh-inline-link-button"
+                state={{ fresh: true }}
+                title={`See all assets owned by ${prettyOwnerDisplay(name)} in Discover`}
+                to={href}
+              >
+                <strong>{prettyOwnerDisplay(name)}</strong>
+              </Link>
+            ) : (
+              <strong>{prettyOwnerDisplay(name)}</strong>
+            )}
             <small>{ownerTitle(owner, fallbackTitle)}</small>
           </span>
         </div>
@@ -535,6 +574,7 @@ function Asset360Hero({
   asset,
   objectType,
   identityLine,
+  glossaryTerms = [],
   lineageSurfaceAvailable,
   lineageAccessPending,
   lineageSurfaceUnavailableReason,
@@ -648,6 +688,34 @@ function Asset360Hero({
           <span className="ga-asset360-kv-chip"><span>Domain</span><strong>{domain}</strong></span>
         ) : null}
         {dataProduct ? <span className="ga-asset360-kv-chip"><span>Data Product</span><strong>{dataProduct}</strong></span> : null}
+        {/*
+          Persona audit P1: the /360 payload already carries
+          governance.glossaryTerms and asset.openRequests, but neither was
+          rendered. Terms link into the Glossary workspace (?term= deep-link
+          param — the taxonomy surface can consume it; see handoff note),
+          and the open-request count links into Stewardship for this asset.
+        */}
+        {glossaryTerms.slice(0, 4).map((term) => (
+          <Link
+            className="ga-asset360-kv-chip is-link"
+            key={`glossary-${term}`}
+            title={`Open "${term}" in the Glossary workspace`}
+            to={`/glossary?term=${encodeURIComponent(term)}`}
+          >
+            <span>Glossary</span>
+            <strong>{term}</strong>
+          </Link>
+        ))}
+        {Number.isFinite(Number(asset?.openRequests)) && Number(asset.openRequests) > 0 ? (
+          <Link
+            className="ga-asset360-kv-chip is-link"
+            title="Review the open governance requests for this asset in Stewardship"
+            to={`/governance?asset=${encodeURIComponent(asset?.fqn || "")}`}
+          >
+            <span>Open requests</span>
+            <strong>{Number(asset.openRequests)}</strong>
+          </Link>
+        ) : null}
       </div>
     </header>
   );
@@ -730,7 +798,11 @@ function Asset360CardRow({ asset, asset360Data, recordFacts, prototypeEvidence =
       <Asset360SignalCard
         action={<button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">View history</button>}
         detail={freshnessDetail}
-        label="Freshness"
+        // Freshness label honesty (fix_plan #6): `updatedAt` on the detail
+        // payload is derived from Delta write history (a DATA write), while
+        // `lastAltered` is information_schema metadata change time. Label
+        // whichever signal this payload actually carries.
+        label={asset?.updatedAt ? "Data updated" : asset?.lastAltered ? "Metadata changed" : "Freshness"}
         tone={hasLiveFreshnessEvidence ? (normalizedFreshnessState === "stale" ? "warn" : "good") : ""}
         trend={hasLiveFreshnessEvidence}
         value={
@@ -938,11 +1010,16 @@ function EntityShellPlaceholder({
   onBack,
   onNavigationStateChange,
   onOpenLineage,
+  onRetry = null,
   onSelectAsset,
   title = "Asset record unavailable",
   tone = "warn",
 }) {
-  const tabs = ["Overview", "Columns", "Lineage", "Governance", "Access"];
+  // Stable shell (persona audit P1): render the SAME tab set the loaded
+  // record uses (entityTabs) so the chrome never flips between 5 and 7 tabs
+  // depending on whether the load degraded. Tabs are disabled here — the
+  // annotation, not the tab list, communicates the degraded state.
+  const tabs = entityTabs().map((tab) => tab.label);
   return (
     <section className="gh-workspace gh-entity-workspace">
       <section className="gh-panel gh-entity-shell gh-entity-record-shell">
@@ -986,13 +1063,25 @@ function EntityShellPlaceholder({
             </div>
           </div>
           <div className="ga-asset360-chip-row">
-            <span className="ga-asset360-kv-chip"><span>Domain</span><strong>Unavailable</strong></span>
-            <span className="ga-asset360-kv-chip"><span>Data Product</span><strong>Unavailable</strong></span>
+            {/* While loading these are pending, not absent — don't claim
+                "Unavailable" for data still in flight (honesty rule). */}
+            <span className="ga-asset360-kv-chip"><span>Domain</span><strong>{loading ? "Loading…" : "Unavailable"}</strong></span>
+            <span className="ga-asset360-kv-chip"><span>Data Product</span><strong>{loading ? "Loading…" : "Unavailable"}</strong></span>
           </div>
         </header>
 
         <div className={`gh-inline-alert tone-${tone}`.trim()}>
           {message || "The live metadata record is unavailable for the current actor and workspace."}
+          {!loading && onRetry ? (
+            <button
+              className="gh-secondary-button"
+              onClick={() => onRetry()}
+              style={{ marginLeft: 12 }}
+              type="button"
+            >
+              Retry
+            </button>
+          ) : null}
         </div>
 
         <div className="ga-asset360-card-row">
@@ -1690,9 +1779,32 @@ export default function EntityWorkspace({
     () => (compositeBaseAsset ? { ...compositeBaseAsset, ...localOverrides } : compositeBaseAsset),
     [compositeBaseAsset, localOverrides],
   );
+  // Asset-level glossary terms come from the /360 governance block first
+  // (['Contracted Revenue', ...]) and the asset record second. Terms can be
+  // strings or {term|name} objects — normalize to display strings once.
+  const assetGlossaryTerms = useMemo(() => {
+    const rawTerms = [
+      ...(Array.isArray(asset360Data?.governance?.glossaryTerms) ? asset360Data.governance.glossaryTerms : []),
+      ...(Array.isArray(asset?.glossaryTerms) ? asset.glossaryTerms : []),
+      ...(asset?.glossaryTerm ? [asset.glossaryTerm] : []),
+    ];
+    return [...new Set(
+      rawTerms
+        .map((term) => (term && typeof term === "object" ? term.term || term.name || "" : String(term ?? "")))
+        .map((term) => term.trim())
+        .filter(Boolean),
+    )];
+  }, [asset360Data?.governance?.glossaryTerms, asset?.glossaryTerm, asset?.glossaryTerms]);
+  // Keyed on the JOINED section list, not the array reference: every merged
+  // detail payload creates a fresh loadedSections array, and the old
+  // reference-keyed memo produced a new Set each poll tick. That churned the
+  // effects below (notably the lineage warm-up), which toggled the lineage
+  // query enabled flag off/on and re-fired /api/lineage 5-9x per asset view
+  // (persona audit P0).
+  const loadedSectionsKey = (assetDetail.detail?.loadedSections || []).join("|");
   const loadedSections = useMemo(
-    () => new Set(assetDetail.detail?.loadedSections || []),
-    [assetDetail.detail?.loadedSections],
+    () => new Set(loadedSectionsKey ? loadedSectionsKey.split("|") : []),
+    [loadedSectionsKey],
   );
   const schemaLoaded = loadedSections.has("schema");
   const previewLoaded = loadedSections.has("preview");
@@ -1992,22 +2104,27 @@ export default function EntityWorkspace({
     setSelectedColumnName(liveColumns[0].name);
   }, [liveColumns, selectedColumnName]);
 
+  // Reset the lineage warm flag ONLY when the asset changes. It must never
+  // flip back to false for the same asset: toggling useLineage's `enabled`
+  // cancels the in-flight query and re-fires it on the next warm, which is
+  // exactly the duplicate-fetch storm the network capture showed (5x
+  // profile=initial per asset view).
   useEffect(() => {
-    if (!lineageSurfaceAvailable) {
-      setOverviewLineageWarm(false);
-      return undefined;
-    }
+    setOverviewLineageWarm(false);
+  }, [assetFqn]);
+
+  const headerSectionLoaded = loadedSections.has("header");
+  useEffect(() => {
+    if (!lineageSurfaceAvailable) return undefined;
     if (activeTab === "Lineage" || activeTab === "Queries") {
       setOverviewLineageWarm(true);
       return undefined;
     }
-    if (activeTab !== "Overview" || !asset?.fqn || !loadedSections.has("header")) {
-      setOverviewLineageWarm(false);
-      return undefined;
-    }
+    // Not on a lineage-consuming tab yet: leave the flag as-is (sticky once
+    // warm) and only schedule the idle warm-up from the Overview tab.
+    if (activeTab !== "Overview" || !asset?.fqn || !headerSectionLoaded) return undefined;
     let timeoutId = 0;
     let idleId = 0;
-    setOverviewLineageWarm(false);
     const enableOverviewLineage = () => {
       setOverviewLineageWarm(true);
     };
@@ -2026,7 +2143,7 @@ export default function EntityWorkspace({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [activeTab, asset?.fqn, lineageSurfaceAvailable, loadedSections]);
+  }, [activeTab, asset?.fqn, headerSectionLoaded, lineageSurfaceAvailable]);
 
   useEffect(() => {
     if (activeTab !== "Overview" || !assetFqn || !loadedSections.has("header") || detailLoading) return undefined;
@@ -2140,6 +2257,9 @@ export default function EntityWorkspace({
         onBack={onBack}
         onNavigationStateChange={onNavigationStateChange}
         onOpenLineage={onOpenLineage}
+        // Real, working Retry (persona audit P0): re-issues the detail fetch
+        // instead of stranding the user on a terminal wall.
+        onRetry={assetDetail.retry}
         onSelectAsset={onSelectAsset}
         title="The selected asset could not be opened"
         tone="warn"
@@ -2479,6 +2599,7 @@ export default function EntityWorkspace({
       <section className="gh-panel gh-entity-shell gh-entity-record-shell">
         <Asset360Hero
           asset={asset}
+          glossaryTerms={assetGlossaryTerms}
           identityLine={identityLine}
           objectType={objectType}
           lineageSurfaceAvailable={lineageSurfaceAvailable}
@@ -3095,6 +3216,11 @@ function EntityLineageEmbed({ focusAssetFqn, onSelectAsset }) {
         graph={graph}
         hydrating={graph.hydrating}
         onFocusChange={onSelectAsset}
+        // Bounded-poll honesty: when the lineage build is still warming
+        // after the poll budget, the canvas shows a real Retry instead of
+        // an infinite spinner (persona audit P1).
+        onRetry={graph.refresh}
+        warming={graph.warming}
       />
     </div>
   );

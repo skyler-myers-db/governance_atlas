@@ -31,6 +31,19 @@ describe("SideIconRail", () => {
     expect(ASSET_360_NAV_ITEM.requiresAsset).toBe(true);
   });
 
+  it("renders the inbox badge from the actionable count and hides it at zero", () => {
+    // Persona-audit P2: the Inbox nav entry showed no badge despite
+    // actionable items. The badge renders whenever a real positive count is
+    // supplied and stays hidden for 0/null.
+    const { rerender } = render(
+      <SideIconRail activeModule="home" onModuleChange={() => {}} inboxCount={0} />,
+    );
+    expect(screen.queryByText("0")).toBeNull();
+    rerender(<SideIconRail activeModule="home" onModuleChange={() => {}} inboxCount={6} />);
+    const inbox = screen.getByRole("button", { name: /Inbox/ });
+    expect(inbox.querySelector(".ga-side-nav-badge").textContent).toBe("6");
+  });
+
   it("renders the stewardship badge only when a real count is supplied", () => {
     const { rerender } = render(
       <SideIconRail activeModule="home" onModuleChange={() => {}} stewardshipCount={0} />,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createGovernanceRequest,
@@ -104,6 +104,16 @@ function jsonArrayValue(value) {
 function text(value) {
   if (value == null) return "";
   return String(value).trim();
+}
+
+// Internal taxonomy ids ("ga-taxonomy-node-revenue") must never render as
+// user-facing labels. Strip the machine prefix and title-case the slug tail
+// ("Revenue"). Non-prefixed values just get title-cased.
+function humanizeTaxonomyRef(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  const tail = raw.replace(/^ga-taxonomy-(?:node|term)-/i, "");
+  return titleFromValue(tail) || raw;
 }
 
 function titleFromValue(value) {
@@ -429,18 +439,12 @@ function cdeLastReviewSummary(cde = {}) {
 
 function cdesFromDashboardPayload(payload) {
   const dashboard = envelopeData(payload) || {};
-  const byId = new Map();
-  arrayValue(dashboard.items).forEach((item, index) => {
-    const normalized = normalizeDashboardCde(item, index);
-    byId.set(normalized.id, normalized);
-  });
-  arrayValue(dashboard.groups).forEach((group) => {
-    arrayValue(group.items).forEach((item, index) => {
-      const normalized = normalizeDashboardCde({ ...item, domain: item.domain || group.domain }, index);
-      byId.set(normalized.id, normalized);
-    });
-  });
-  return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name));
+  // `items` is the canonical row list; the CDE builder now emits `groups` as
+  // {domain, count, itemIds} summaries, so the old byId-merge de-dup hack over
+  // groups[].items is gone.
+  return arrayValue(dashboard.items)
+    .map((item, index) => normalizeDashboardCde(item, index))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function cdePriorityRank(cde) {
@@ -662,6 +666,51 @@ function initialRegistryTabFromLocation() {
   } catch {
     return "glossary";
   }
+}
+
+// `?term=<name-or-id>` deep-link consumer (Wave-1 entity pages link glossary
+// chips to /glossary?term=…). The command palette also stages a pending term
+// via sessionStorage because it navigates through onModuleChange, which cannot
+// carry query params. URL param wins; both are cleared once consumed.
+const PENDING_GLOSSARY_TERM_KEY = "ga-pending-glossary-term";
+
+function initialPendingGlossaryTerm() {
+  if (typeof window === "undefined") return "";
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const fromUrl = String(params.get("term") || "").trim();
+    if (fromUrl) return fromUrl;
+    const staged = String(window.sessionStorage?.getItem(PENDING_GLOSSARY_TERM_KEY) || "").trim();
+    return staged;
+  } catch {
+    return "";
+  }
+}
+
+function clearPendingGlossaryTermMarkers() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage?.removeItem(PENDING_GLOSSARY_TERM_KEY);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("term")) {
+      url.searchParams.delete("term");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  } catch {
+    /* URL cleanup is cosmetic; selection already happened. */
+  }
+}
+
+function matchTermByIdOrName(terms, reference) {
+  const normalized = String(reference || "").trim().toLowerCase();
+  if (!normalized) return null;
+  return (
+    terms.find((term) => term.termId.toLowerCase() === normalized) ||
+    terms.find((term) => term.term.toLowerCase() === normalized) ||
+    // Entity chips link by display name; tolerate URL-encoded/dashed forms.
+    terms.find((term) => term.term.toLowerCase() === normalized.replace(/[-_]+/g, " ")) ||
+    null
+  );
 }
 
 export default function TaxonomyWorkspace({
@@ -952,6 +1001,22 @@ function GlossaryCdeRegistry({
   const [newCdeSaving, setNewCdeSaving] = useState(false);
   const [newCdeError, setNewCdeError] = useState("");
   const queryClient = useQueryClient();
+  // `?term=` deep-link / palette handoff: resolved once terms are loaded.
+  const [pendingTerm, setPendingTerm] = useState(initialPendingGlossaryTerm);
+  // The detail panels render BELOW the full card grid; without scrolling,
+  // clicking a card only changed a banner while the detail stayed off-screen.
+  const termDetailRef = useRef(null);
+  const cdeDetailRef = useRef(null);
+  const scrollDetailIntoView = (ref) => {
+    if (typeof window === "undefined") return;
+    // rAF so the just-selected detail exists in the DOM before scrolling.
+    window.requestAnimationFrame(() => {
+      const node = ref.current;
+      if (!node || typeof node.scrollIntoView !== "function") return;
+      const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      node.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    });
+  };
 
   // Dialog keyboard contract: Escape closes whichever modal is open (unless
   // a save is in flight) — role=dialog without Escape fails basic a11y.
@@ -1061,29 +1126,83 @@ function GlossaryCdeRegistry({
     () => new Map(terms.map((term) => [term.termId, term])),
     [terms],
   );
-  const hierarchyRows = visibleTerms.map((term) => {
-    // G10: show the real parent term name when the lookup resolves; fall
-    // back to the raw parent id rather than the vague "Parent term recorded".
-    const parent = term.parentTermId
-      ? termLookup.get(term.parentTermId)?.term || term.parentTermId
-      : "Root term";
-    const children = Number(term.childCount || 0);
-    return {
-      id: term.termId,
-      term: term.term,
-      parent,
-      children: children ? `${children.toLocaleString()} child term${children === 1 ? "" : "s"}` : "No child terms recorded",
-    };
-  });
+  // Real hierarchy only. A term earns a tile when its parent RESOLVES to a
+  // term in this payload, or when other terms point at it as their parent.
+  // The old version rendered one "Root term · No child terms recorded" tile
+  // per term — 20 identical dead tiles — whenever ids were blank or parents
+  // were unresolvable. A genuinely flat glossary renders no panel at all.
+  const childrenByParent = useMemo(() => {
+    const map = new Map();
+    terms.forEach((term) => {
+      if (!term.parentTermId || !termLookup.has(term.parentTermId)) return;
+      if (!map.has(term.parentTermId)) map.set(term.parentTermId, []);
+      map.get(term.parentTermId).push(term);
+    });
+    return map;
+  }, [termLookup, terms]);
+  const hierarchyRows = visibleTerms
+    .filter((term) =>
+      (term.parentTermId && termLookup.has(term.parentTermId)) || childrenByParent.has(term.termId),
+    )
+    .map((term) => {
+      const parent = term.parentTermId && termLookup.has(term.parentTermId)
+        ? termLookup.get(term.parentTermId).term
+        : "Root term";
+      const children = (childrenByParent.get(term.termId) || []).length || Number(term.childCount || 0);
+      return {
+        id: term.termId,
+        term: term.term,
+        parent,
+        children: children
+          ? `${children.toLocaleString()} child term${children === 1 ? "" : "s"}`
+          : "No child terms recorded",
+      };
+    });
   const openTermDetail = (term, options = {}) => {
     setSelectedTermId(term.termId);
     setAssociationBrowserTermId(options.showAssociations ? term.termId : "");
     onActionMessage(`${term.term} selected. Review source, ownership, associations, and lineage.`);
+    // Bring the below-the-grid detail into the viewport (item was a
+    // "click only changes a banner" defect). Respects reduced motion.
+    scrollDetailIntoView(termDetailRef);
   };
   const openCdeDetail = (cde) => {
     setSelectedCdeId(cde.id);
     onActionMessage(`${cde.name} selected. Review source-of-record column, owner, recertification, and status.`);
+    scrollDetailIntoView(cdeDetailRef);
   };
+  // Deep-link consumer: once terms arrive, resolve `?term=<name-or-id>` (or a
+  // palette-staged term), flip to the glossary tab, select, and scroll.
+  useEffect(() => {
+    if (!pendingTerm) return;
+    if (!terms.length) return; // wait for data; empty registries fall through below
+    const match = matchTermByIdOrName(terms, pendingTerm);
+    setPendingTerm("");
+    clearPendingGlossaryTermMarkers();
+    if (!match) {
+      onActionMessage(`No glossary term matching “${pendingTerm}” was found.`);
+      return;
+    }
+    if (activeTab !== "glossary") onTabChange("glossary");
+    setSelectedTermId(match.termId);
+    setAssociationBrowserTermId("");
+    onActionMessage(`${match.term} selected from link.`);
+    scrollDetailIntoView(termDetailRef);
+    // scrollDetailIntoView + onTabChange are stable enough for this effect;
+    // re-running on terms/pendingTerm only is intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTerm, terms]);
+  // The palette can request a term while this surface is ALREADY mounted —
+  // listen for the handoff event so the request isn't dropped.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onSelectTerm = (event) => {
+      const requested = String(event?.detail?.term || "").trim();
+      if (requested) setPendingTerm(requested);
+    };
+    window.addEventListener("ga:select-glossary-term", onSelectTerm);
+    return () => window.removeEventListener("ga:select-glossary-term", onSelectTerm);
+  }, []);
   useEffect(() => {
     if (selectedTermId && !terms.some((term) => term.termId === selectedTermId)) {
       setSelectedTermId("");
@@ -1145,7 +1264,7 @@ function GlossaryCdeRegistry({
             role="tab"
             type="button"
           >
-            Glossary <span>{glossaryCount}</span>
+            Glossary <span>{loading && !glossaryCount ? "…" : glossaryCount}</span>
           </button>
           <button
             aria-selected={activeTab === "cdes"}
@@ -1170,22 +1289,37 @@ function GlossaryCdeRegistry({
                 value={termQuery}
               />
             </label>
-            <p className="gh-taxonomy-prototype-cde-provenance" role="status">
-              Showing {visibleTerms.length} of {glossaryCount} governed glossary terms
+            <p aria-busy={loading && !glossaryCount ? true : undefined} className="gh-taxonomy-prototype-cde-provenance" role="status">
+              {/* "Showing … of …" while hydrating — definitive "0 of 0" that
+                  flips to real counts is the hydration-zero bug class. */}
+              {loading && !glossaryCount
+                ? "Loading governed glossary terms…"
+                : `Showing ${visibleTerms.length} of ${glossaryCount} governed glossary terms`}
             </p>
+          {/* Panel renders only when a REAL parent/child structure exists —
+              a flat glossary gets no hierarchy panel instead of N duplicate
+              "Root term" tiles. Tiles select their term on click. */}
           {hierarchyRows.length ? (
             <div className="gh-taxonomy-prototype-hierarchy" aria-label="Glossary hierarchy">
               <div className="gh-taxonomy-prototype-hierarchy-head">
                 <span>Hierarchy</span>
-                <strong>{`${visibleTerms.length} visible terms`}</strong>
+                <strong>{`${hierarchyRows.length} term${hierarchyRows.length === 1 ? "" : "s"} with hierarchy`}</strong>
               </div>
               <div className="gh-taxonomy-prototype-hierarchy-grid">
                 {hierarchyRows.map((row) => (
-                  <div key={row.id}>
+                  <button
+                    key={row.id}
+                    onClick={() => {
+                      const target = termLookup.get(row.id);
+                      if (target) openTermDetail(target);
+                    }}
+                    title={`Open ${row.term}`}
+                    type="button"
+                  >
                     <span>{row.parent}</span>
                     <strong>{row.term}</strong>
                     <small>{row.children}</small>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1278,15 +1412,19 @@ function GlossaryCdeRegistry({
           </div>
           )}
           {selectedTerm ? (
-            <TermRegistryDetail
-              associationBrowserOpen={associationBrowserTermId === selectedTerm.termId}
-              onActionMessage={onActionMessage}
-              onClose={() => setSelectedTermId("")}
-              onOpenAsset={onOpenAsset}
-              onOpenLineage={onOpenLineage}
-              term={selectedTerm}
-              termLookup={termLookup}
-            />
+            /* Scroll anchor: openTermDetail/deep-links scroll this wrapper
+               into view so the selection is visible, not just a banner. */
+            <div ref={termDetailRef}>
+              <TermRegistryDetail
+                associationBrowserOpen={associationBrowserTermId === selectedTerm.termId}
+                onActionMessage={onActionMessage}
+                onClose={() => setSelectedTermId("")}
+                onOpenAsset={onOpenAsset}
+                onOpenLineage={onOpenLineage}
+                term={selectedTerm}
+                termLookup={termLookup}
+              />
+            </div>
           ) : null}
           </div>
         ) : (
@@ -1381,7 +1519,9 @@ function GlossaryCdeRegistry({
                       {cde.sox ? <em>SOX</em> : null}
                     </span>
                     <span role="cell" className="is-mono" title={cdeSourceSummary(cde)}>
-                      {cde.column || "Tag cde_source_column on the asset"}
+                      {/* Honest state, not instruction text masquerading as a
+                          value: the remediation hint lives in the tooltip. */}
+                      {cde.column || <em className="gh-taxonomy-source-untagged">Not tagged</em>}
                     </span>
                     <span role="cell">{cde.owner}</span>
                     <span
@@ -1407,13 +1547,15 @@ function GlossaryCdeRegistry({
             Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.
           </p>
           {selectedCde ? (
-            <CdeRegistryDetail
-              cde={selectedCde}
-              onActionMessage={onActionMessage}
-              onClose={() => setSelectedCdeId("")}
-              onOpenAsset={onOpenAsset}
-              onOpenLineage={onOpenLineage}
-            />
+            <div ref={cdeDetailRef}>
+              <CdeRegistryDetail
+                cde={selectedCde}
+                onActionMessage={onActionMessage}
+                onClose={() => setSelectedCdeId("")}
+                onOpenAsset={onOpenAsset}
+                onOpenLineage={onOpenLineage}
+              />
+            </div>
           ) : null}
           </div>
         )}
@@ -1620,9 +1762,12 @@ function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, o
   const firstAsset = term.assets[0] || null;
   const reviewers = term.reviewers.length ? term.reviewers : [];
   const history = term.termHistory.length ? term.termHistory : [];
-  // G10: resolve the parent term's real name; fall back to the raw id.
+  // G10 + persona-audit jargon purge: resolve the parent term's real name;
+  // when the id references a taxonomy node outside the term lookup
+  // ("ga-taxonomy-node-revenue"), humanize the slug tail ("Revenue") instead
+  // of rendering the raw internal id.
   const parentTermName = term.parentTermId
-    ? termLookup?.get?.(term.parentTermId)?.term || term.parentTermId
+    ? termLookup?.get?.(term.parentTermId)?.term || humanizeTaxonomyRef(term.parentTermId)
     : "";
   useEffect(() => {
     setShowAssociations(Boolean(associationBrowserOpen));
@@ -1886,7 +2031,9 @@ function CdeRegistryDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpenL
       <div className="gh-taxonomy-prototype-detail-grid">
         <section className="gh-taxonomy-prototype-detail-card">
           <h3>Source-of-record column</h3>
-          <p className="is-mono">{cde.column || "Not tagged — tag cde_source_column on the asset"}</p>
+          {/* Value cell shows the honest state; the remediation hint is the
+              secondary note line below (cdeSourceSummary). */}
+          <p className="is-mono">{cde.column || "Not tagged"}</p>
           <p className="gh-taxonomy-prototype-detail-note">{cdeSourceSummary(cde)}</p>
         </section>
         <section className="gh-taxonomy-prototype-detail-card">
@@ -2422,7 +2569,14 @@ function TechnicalTab({ selectedTerm }) {
       <h3>Technical Metadata</h3>
       <dl>
         <div><dt>Term ID</dt><dd>{selectedTerm.termId}</dd></div>
-        <div><dt>Parent term</dt><dd>{selectedTerm.parentTermId || "None recorded"}</dd></div>
+        {/* Humanized parent label; the raw internal id stays on title for
+            operators who need the exact key. */}
+        <div>
+          <dt>Parent term</dt>
+          <dd title={selectedTerm.parentTermId || undefined}>
+            {selectedTerm.parentTermId ? humanizeTaxonomyRef(selectedTerm.parentTermId) : "None recorded"}
+          </dd>
+        </div>
         <div><dt>Domain</dt><dd>{selectedTerm.domain}</dd></div>
         <div><dt>Version</dt><dd>{selectedTerm.currentVersion || "Unavailable"}</dd></div>
         <div><dt>Created</dt><dd>{compactDate(selectedTerm.createdAt) || "Unavailable"}</dd></div>

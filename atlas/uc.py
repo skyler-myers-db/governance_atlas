@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple
@@ -12,6 +13,13 @@ if TYPE_CHECKING:
     from databricks.sdk import WorkspaceClient
 else:
     WorkspaceClient = Any
+
+# Surfaced (not swallowed) SQL failures from the lineage batch path. The
+# previous bare `except Exception: return pd.DataFrame()` hid an invalid
+# query (GROUP BY ALL mixed with a window function) for months — every
+# batch call failed, every asset rendered 0 upstream edges, and nothing
+# was logged. Batch lineage errors now log here and propagate.
+_LOGGER = logging.getLogger("atlas.uc")
 
 
 def _get(obj: Any, *path: str) -> Any:
@@ -1135,14 +1143,39 @@ LIMIT {int(limit)}
           source_table_full_name, source_table_catalog, source_table_schema,
           source_table_name, source_type,
           target_table_full_name, target_table_catalog, target_table_schema,
-          target_table_name, target_type
+          target_table_name, target_type,
+          edge_event_count (raw lineage-event rows behind the deduped pair),
+          seed_total_edges (TOTAL count of DISTINCT partner tables for that
+          seed in the queried direction — present on every returned row even
+          when the per-seed cap truncates, so callers can surface honest
+          "showing N of M" truncation instead of pretending the graph is
+          complete).
+
+        Distinctness is by partner TABLE NAME, not (partner, entity_type)
+        tuple: system.access.table_lineage records the same partner under
+        multiple source_type/target_type values over time (TABLE vs
+        STREAMING_TABLE vs VIEW churn). Grouping on the type columns
+        double-counted such partners — mip.silver.property_master reported
+        seed_total_edges=21 vs 12 real distinct partners and raised a FALSE
+        downstreamTruncated flag while every real edge was already drawn
+        (adversarial verify P1). The type columns are therefore aggregated
+        (MAX) out of the dedup key so one partner occupies exactly one row,
+        one cap slot, and one unit of seed_total_edges.
 
         `per_seed_limit` is the per-seed truncation cap that mirrors the
         old per-call LIMIT 50 — it's enforced via ROW_NUMBER() in the
         SQL so a single hot seed can't crowd out the whole result set.
+        Rows within a seed are ranked by edge_event_count DESC so the
+        most-active partners survive truncation.
 
-        Returns an empty DataFrame on any error (so callers can render
-        an honest empty-state instead of a 500).
+        Raises on query failure. Do NOT re-add a bare
+        `except Exception: return pd.DataFrame()` here: that exact
+        pattern silently hid an invalid-SQL bug (GROUP BY ALL combined
+        with ROW_NUMBER() in one SELECT — Spark rejects it with
+        UNSUPPORTED_EXPR_FOR_OPERATOR) which made EVERY batch call fail
+        and every asset in the product render 0 upstream lineage.
+        Callers must distinguish "query failed" (degraded build) from
+        "Unity Catalog truly has no rows" (honest empty state).
         """
         if not fqns:
             return pd.DataFrame()
@@ -1156,45 +1189,75 @@ LIMIT {int(limit)}
         # from monopolizing the result.
         seed_list_sql = ", ".join(sql_literal(value) for value in cleaned)
         clauses: List[str] = []
+        # The `<>` guard drops self-loop rows (and rows whose full name is
+        # NULL, which the service layer would discard anyway) so
+        # seed_total_edges counts only real partner edges.
         if "downstream" in directions:
             # source IN (seeds): seed → target = downstream of seed
             clauses.append(
                 f"source_table_full_name IN ({seed_list_sql}) "
-                f"AND target_table_name IS NOT NULL"
+                f"AND target_table_name IS NOT NULL "
+                f"AND source_table_full_name <> target_table_full_name"
             )
         if "upstream" in directions:
             # target IN (seeds): source → seed = upstream of seed
             clauses.append(
                 f"target_table_full_name IN ({seed_list_sql}) "
-                f"AND source_table_name IS NOT NULL"
+                f"AND source_table_name IS NOT NULL "
+                f"AND source_table_full_name <> target_table_full_name"
             )
         if not clauses:
             return pd.DataFrame()
         where_clause = " OR ".join(f"({clause})" for clause in clauses)
+        # Spark REJECTS a window function in the same SELECT as
+        # GROUP BY ALL (UNSUPPORTED_EXPR_FOR_OPERATOR) — the previous
+        # single-CTE version failed on EVERY call and the failure was
+        # swallowed, so upstream lineage silently rendered empty product
+        # wide. The window functions MUST stay in a separate CTE that
+        # ranks the already-aggregated result. Because `deduped` now
+        # collapses entity-type churn (one row per (seed, partner) pair —
+        # see docstring), the plain COUNT(*) OVER seed partition in
+        # `ranked` IS the distinct-partner total per direction; the
+        # truncated flags upstream only fire when that total exceeds what
+        # survived the cap. Verified live against warehouse
+        # da02d15a9490650b on 2026-07-21 (main.datapact.run_history →
+        # 659 distinct upstream partners; mip.silver.property_master →
+        # 12 distinct downstream partners, previously inflated to 21).
+        seed_partition = f"""CASE WHEN source_table_full_name IN ({seed_list_sql})
+                     THEN source_table_full_name
+                     ELSE target_table_full_name
+                END"""
         q = f"""
-WITH edges AS (
+WITH deduped AS (
     SELECT
         source_table_full_name,
         source_table_catalog,
         source_table_schema,
         source_table_name,
-        source_type,
+        MAX(source_type) AS source_type,
         target_table_full_name,
         target_table_catalog,
         target_table_schema,
         target_table_name,
-        target_type,
-        ROW_NUMBER() OVER (
-            PARTITION BY
-                CASE WHEN source_table_full_name IN ({seed_list_sql})
-                     THEN source_table_full_name
-                     ELSE target_table_full_name
-                END
-            ORDER BY source_table_full_name, target_table_full_name
-        ) AS seed_rank
+        MAX(target_type) AS target_type,
+        COUNT(*) AS edge_event_count
     FROM system.access.table_lineage
     WHERE {where_clause}
     GROUP BY ALL
+),
+ranked AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (
+            PARTITION BY
+                {seed_partition}
+            ORDER BY edge_event_count DESC, source_table_full_name, target_table_full_name
+        ) AS seed_rank,
+        COUNT(*) OVER (
+            PARTITION BY
+                {seed_partition}
+        ) AS seed_total_edges
+    FROM deduped
 )
 SELECT
     source_table_full_name,
@@ -1206,14 +1269,27 @@ SELECT
     target_table_catalog,
     target_table_schema,
     target_table_name,
-    target_type
-FROM edges
+    target_type,
+    edge_event_count,
+    seed_total_edges
+FROM ranked
 WHERE seed_rank <= {int(per_seed_limit)}
+ORDER BY seed_rank
 """
         try:
             return self.query_df(q)
         except Exception:
-            return pd.DataFrame()
+            # Log loudly and PROPAGATE. Swallowing this exception is what
+            # hid the invalid-SQL P0 — callers now catch it themselves and
+            # mark the lineage build degraded instead of claiming an
+            # authoritative empty graph.
+            _LOGGER.warning(
+                "batched table-lineage query failed for %d seed(s): %s",
+                len(cleaned),
+                ", ".join(cleaned[:5]),
+                exc_info=True,
+            )
+            raise
 
     def get_column_lineage_upstream(
         self, catalog: str, schema: str, table: str, limit: int = 500

@@ -953,5 +953,38 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(meta["warnings"], [])
 
 
+class AssetVisibilityInventoryFirstTests(unittest.TestCase):
+    def test_warm_inventory_membership_short_circuits_identity_probe(self) -> None:
+        # P0 perf fix: when the actor's warm inventory already contains the
+        # asset, the visibility record must be answered from the in-memory
+        # frame WITHOUT paying the two per-asset information_schema queries
+        # (get_table_identity/get_table_tags) that used to run first.
+        import pandas as pd
+
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={})
+        inventory = pd.DataFrame([{"fqn": "main.sales.orders"}])
+
+        def _forbidden_uc(_request):
+            raise AssertionError(
+                "identity probe must not run when inventory proves visibility"
+            )
+
+        with patch.multiple(
+            runtime_app,
+            _request_auth_mode=lambda _request: "obo-available",
+            _cached_visible_assets=lambda _request: inventory,
+            _uc_for_request=_forbidden_uc,
+        ):
+            record = runtime_app._asset_visibility_record(
+                "main.sales.orders", request
+            )
+
+        self.assertTrue(record["visible"])
+        self.assertTrue(record["openable"])
+        self.assertEqual(record["visibilityState"], "visible")
+        self.assertEqual(record["visibilityMethod"], "inventory")
+
+
 if __name__ == "__main__":
     unittest.main()

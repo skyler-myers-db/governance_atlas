@@ -24,13 +24,15 @@ const KPI_ORDER = [
   {
     key: "certifiedAssets",
     label: "Certified Assets",
-    tooltip: "Count of visible assets with certified or approved certification metadata.",
+    // Strict semantics: only certification == "Certified" counts. Trusted /
+    // Draft / Approved are NOT folded in (canonical definition, wave 1).
+    tooltip: "Count of visible assets whose certification is exactly \"Certified\" — Trusted, Draft, and Approved are excluded.",
     icon: "certified",
   },
   {
     key: "criticalExceptions",
     label: "Critical Policy Exceptions",
-    tooltip: "Text-derived policy exception evidence from governance requests and audit records until a dedicated source exists.",
+    tooltip: "Policy exceptions from governance request and audit sources. A zero with responding sources is a real zero, not a missing signal.",
     icon: "exception",
   },
   {
@@ -98,10 +100,25 @@ function kpiState(kpi) {
   return "available";
 }
 
-function kpiFooterText(state) {
-  if (state === "unavailable") return "Signal unavailable";
-  if (state === "degraded") return "Degraded signal";
-  return "Live signal";
+// Evidence timestamps render as a UTC calendar date; unparseable strings pass
+// through untouched (never fabricate a date).
+function evidenceDateLabel(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+// State-aware footer: prefers the payload's own reason string (the backend
+// now explains WHY a signal is unavailable/degraded) and date-stamps live
+// signals whose evidence carries a timestamp.
+function kpiFooterText(state, kpi = null) {
+  const reason = typeof kpi?.reason === "string" ? kpi.reason.trim() : "";
+  if (state === "unavailable") return reason || "Signal unavailable";
+  if (state === "degraded") return reason || "Degraded signal";
+  const evidenceAt = evidenceDateLabel(kpi?.evidenceAt || kpi?.qualityEvidenceAt);
+  return evidenceAt ? `Live signal · evidence from ${evidenceAt}` : "Live signal";
 }
 
 function kpiProgress(kpi) {
@@ -192,7 +209,26 @@ function Icon({ type }) {
   );
 }
 
-function KpiCard({ definition, kpi }) {
+function KpiCard({ definition, kpi, hydrating = false }) {
+  // While the server envelope is still hydrating, empty KPI values must read
+  // as loading — "Signal unavailable" during a rebuild window is the
+  // hydration-honesty bug class every other surface already fixed.
+  if (hydrating && numberValue(kpi?.value) === null) {
+    return (
+      <article aria-busy="true" className="gh-insights-kpi is-loading">
+        <div className="gh-insights-kpi-head">
+          <Icon type={definition.icon} />
+          <span className="gh-insights-kpi-label">
+            <span>{kpi?.label || definition.label}</span>
+          </span>
+        </div>
+        <div className="gh-insights-kpi-main">
+          <strong>…</strong>
+        </div>
+        <p className="gh-insights-kpi-foot tone-muted">Loading signal…</p>
+      </article>
+    );
+  }
   const progress = kpiProgress(kpi);
   const state = kpiState(kpi);
   const unavailable = state === "unavailable";
@@ -235,7 +271,7 @@ function KpiCard({ definition, kpi }) {
         </div>
       ) : null}
       <p className={`gh-insights-kpi-foot tone-${unavailable ? "muted" : degraded ? "degraded" : "good"}`}>
-        {kpiFooterText(state)}
+        {kpiFooterText(state, kpi)}
       </p>
     </article>
   );
@@ -507,7 +543,9 @@ function RecommendationRail({ recommendations, onNavigate }) {
               <span className="gh-insights-rec-icon" aria-hidden="true" />
               <span>
                 <strong>{rows.length ? "No additional evidence-backed recommendation" : "No evidence-backed recommendation available"}</strong>
-                <small>Atlas AI did not return an actor-visible recommendation for this slot.</small>
+                {/* Plain-language empty copy — "actor-visible recommendation
+                    for this slot" was implementation jargon (persona audit). */}
+                <small>No recommendation available for this slot yet.</small>
               </span>
             </div>
           ))}
@@ -583,6 +621,40 @@ export function InsightsWorkspace({
     };
   }, []);
 
+  // Risk-drill anchor: when another surface navigates here with risk intent
+  // (URL hash #risk / #insights-risk-heatmap, or the staged
+  // sessionStorage/"ga:insights-focus" handoff pattern the glossary uses),
+  // scroll the risk heatmap card into view instead of landing at the top.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const consumePendingFocus = () => {
+      let staged = "";
+      try {
+        staged = window.sessionStorage?.getItem("ga-insights-focus") || "";
+        if (staged) window.sessionStorage?.removeItem("ga-insights-focus");
+      } catch {
+        /* Hash + event paths still work when storage is blocked. */
+      }
+      const hash = String(window.location?.hash || "").toLowerCase();
+      return staged === "risk" || hash === "#risk" || hash === "#insights-risk-heatmap";
+    };
+    const scrollToRisk = () => {
+      document.getElementById("insights-risk-heatmap")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+    if (consumePendingFocus()) {
+      // Defer one frame so the card exists before we scroll.
+      window.requestAnimationFrame(scrollToRisk);
+    }
+    const onFocusEvent = (event) => {
+      if (String(event?.detail?.section || "") === "risk") scrollToRisk();
+    };
+    window.addEventListener("ga:insights-focus", onFocusEvent);
+    return () => window.removeEventListener("ga:insights-focus", onFocusEvent);
+  }, []);
+
   const meta = {
     ...(data.meta || {}),
     degraded: insights.degraded || data.meta?.state === "degraded",
@@ -608,6 +680,13 @@ export function InsightsWorkspace({
       : meta.degraded
         ? "degraded"
         : "ready";
+  // Server-side hydrating envelope: HTTP 200 with meta.state "loading" and no
+  // KPI values yet (cold rebuild after deploy / TTL expiry). Must render as
+  // loading, not "Signal unavailable".
+  const insightsHydrating =
+    surfaceState === "loading" ||
+    (data.meta?.state === "loading" &&
+      !arrayValue(data.kpis).some((kpi) => numberValue(kpi?.value) !== null));
 
   return (
     <section
@@ -694,6 +773,7 @@ export function InsightsWorkspace({
         {KPI_ORDER.map((definition) => (
           <KpiCard
             definition={definition}
+            hydrating={insightsHydrating}
             key={definition.key}
             kpi={{
               ...objectValue(kpisByKey.get(definition.key)),
@@ -769,8 +849,15 @@ export function InsightsWorkspace({
             />
           </section>
 
-          <section className="gh-insights-card gh-insights-risk-card">
+          <section className="gh-insights-card gh-insights-risk-card" id="insights-risk-heatmap">
             <CardHeader title="Risk Heatmap" tooltip="Risk counts from live criticality and metadata-gap evidence." />
+            {/* Date-stamp quality-derived evidence when the payload carries a
+                timestamp so stale runs never masquerade as today's signal. */}
+            {evidenceDateLabel(data.riskEvidenceAt || data.qualityEvidenceAt) ? (
+              <p className="gh-insights-evidence-stamp">
+                {`Evidence from ${evidenceDateLabel(data.riskEvidenceAt || data.qualityEvidenceAt)} (UTC)`}
+              </p>
+            ) : null}
             <RiskHeatmapPanel cells={data.riskHeatmap} />
           </section>
 

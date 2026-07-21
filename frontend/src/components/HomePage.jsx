@@ -712,21 +712,47 @@ function PostureTrendChart({ trend = [], collectingSince = "" }) {
           {latest ? <circle className="gh-home-trend-latest" cx={latest[0]} cy={latest[1]} r="4" /> : null}
         </svg>
         <div className="gh-home-trend-months">
-          {ticks.map((point) => <span key={point.label}>{String(point.label).slice(0, 8)}</span>)}
+          {ticks.map((point) => <span key={point.label}>{trendTickLabel(point.label)}</span>)}
         </div>
       </div>
     </div>
   );
 }
 
+// Human-readable tick/date label. ISO dates become "Jul 20" instead of the
+// old `slice(0, 8)` truncation that produced footers like "0pp vs 2026-07-".
+function trendTickLabel(label) {
+  const text = String(label || "").trim();
+  if (!text) return text;
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    const date = new Date(text.slice(0, 10) + "T00:00:00Z");
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+    }
+  }
+  return text;
+}
+
+// "evidence from May 3" stamp for signals whose backing run is older than the
+// panel implies. Empty string when no usable timestamp exists.
+function evidenceDateLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  return `evidence from ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+}
+
 function trendDeltaLabel(trend = []) {
   const points = normalizeTrend(trend).filter((point) => Number.isFinite(point.overall));
+  // A delta needs at least two snapshots; one point is history collection,
+  // not a trend.
   if (points.length < 2) return "Trend unavailable";
   const first = points[0];
   const last = points[points.length - 1];
   const delta = Math.round(last.overall - first.overall);
   const sign = delta > 0 ? "+" : "";
-  return `${sign}${delta}pp vs ${first.label}`;
+  return `${sign}${delta}pp vs ${trendTickLabel(first.label)}`;
 }
 
 function trendForWindow(trend = [], windowKey = "12w") {
@@ -803,8 +829,9 @@ function summarizeCatalogs(assets = []) {
         classification: entry.classifications.size ? Array.from(entry.classifications)[0] : "Unclassified",
       };
     })
-    .sort((a, b) => b.tables - a.tables)
-    .slice(0, 6);
+    // Worst coverage first to match the backed payload ordering; never
+    // truncate — hiding catalogs is how `datapact 89.8%` vanished.
+    .sort((a, b) => (a.coverage ?? 101) - (b.coverage ?? 101));
 }
 
 function backedCatalogRows(data, assets = []) {
@@ -820,7 +847,9 @@ function backedCatalogRows(data, assets = []) {
       state: row.state || "available",
     }))
     .filter((row) => row.name);
-  return normalized.length ? normalized.slice(0, 6) : summarizeCatalogs(assets);
+  // The payload is complete and worst-first; slicing here re-introduced the
+  // "worst catalog invisible" defect. Render everything the API returned.
+  return normalized.length ? normalized : summarizeCatalogs(assets);
 }
 
 function domainBars(domains = []) {
@@ -838,8 +867,9 @@ function domainBars(domains = []) {
       );
       return { label, score, count, tone };
     })
-    .filter((domain) => domain.label)
-    .slice(0, 6);
+    // Complete worst-first list — a posture panel that hides the worst
+    // domains defeats its purpose, so no top-N slice here.
+    .filter((domain) => domain.label);
 }
 
 function cdeNameFromAsset(asset) {
@@ -897,10 +927,15 @@ function riskSummaryFromData(data, policyKpi, governedAssetsKpi) {
   const openExposure = numericValue(raw.open ?? raw.openExposures ?? raw.total ?? raw.totalExposures ?? policyKpi?.value);
   const clean = numericValue(raw.cleanScore ?? raw.riskClean ?? raw.riskCleanScore);
   const governed = numericValue(governedAssetsKpi?.value);
+  // Risk-clean must count medium findings too — excluding them overstated
+  // cleanliness whenever medium-severity findings existed.
+  const actionableFindings = high !== null || medium !== null
+    ? (high || 0) + (medium || 0)
+    : null;
   const derivedClean = clean !== null
     ? clean
-    : high !== null && governed && governed > 0
-      ? Math.max(0, Math.min(100, ((governed - high) / governed) * 100))
+    : actionableFindings !== null && governed && governed > 0
+      ? Math.max(0, Math.min(100, ((governed - actionableFindings) / governed) * 100))
       : null;
   return {
     cleanScore: derivedClean,
@@ -1001,6 +1036,8 @@ export function HomePage({
   const [trendWindow, setTrendWindow] = useState("26w");
   const [presentMode, setPresentMode] = useState(false);
   const [exportStatus, setExportStatus] = useState("");
+  // Which KPI tile's "how is this calculated" popover is open (by label).
+  const [openKpiInfo, setOpenKpiInfo] = useState("");
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const onFullscreenChange = () => {
@@ -1083,7 +1120,11 @@ export function HomePage({
   const postureOverall = hasNumericValue(data.posture?.overall)
     ? Number(data.posture.overall)
     : null;
-  const topDomains = data.topDomains.length ? data.topDomains : data.posture?.byDomain || [];
+  // Prefer the COMPLETE worst-first byDomain list; topDomains is a top-5
+  // convenience slice that hid the worst-scoring domains from this panel.
+  const topDomains = (Array.isArray(data.posture?.byDomain) && data.posture.byDomain.length)
+    ? data.posture.byDomain
+    : data.topDomains;
   const openSurface = (surfaceKey) => {
     if (!surfaceKey) return;
     onNavigate?.(surfaceKey);
@@ -1119,12 +1160,11 @@ export function HomePage({
   // Ring/trend caption: prefer a real delta; while snapshot history is
   // young, say so with the collection start date instead of "unavailable".
   const postureTrendLabel = (() => {
-    const label = trendDeltaLabel(data.posture?.trend || []);
-    if (label !== "Trend unavailable") return label;
+    // Delta labels require >= 2 snapshots; while collecting, say so honestly.
     if (data.posture?.trendState === "collecting") {
-      return `History since ${data.posture?.collectingSince || "today"}`;
+      return `History since ${trendTickLabel(data.posture?.collectingSince) || "today"}`;
     }
-    return label;
+    return trendDeltaLabel(data.posture?.trend || []);
   })();
   const domainSignalTitle = postureOverall !== null ? "Posture by domain" : "Coverage by domain";
   const domainSignalName = postureOverall !== null ? "domain posture" : "domain coverage";
@@ -1142,17 +1182,38 @@ export function HomePage({
     : "This panel keeps the catalog-health structure visible, but it does not infer catalog scores without live backed metadata.";
   // Real rows only — padding the table with rows literally named
   // "Unavailable catalog signal N" made a healthy estate look broken.
-  const displayCatalogRows = catalogRows.slice(0, 6);
+  // All catalogs render (the payload is worst-first and complete); a visual
+  // cap only applies on very large estates and is explicitly captioned.
+  const CATALOG_DISPLAY_CAP = 12;
+  const displayCatalogRows = catalogRows.slice(0, CATALOG_DISPLAY_CAP);
+  const catalogCapCaption = catalogRows.length > CATALOG_DISPLAY_CAP
+    ? `Showing worst ${CATALOG_DISPLAY_CAP} of ${catalogRows.length} catalogs`
+    : "";
   const cdeItems = cdeRows(data, data.recentAssets || recentAssets);
   const activityRows = eventRows(data.recentEvents);
   const riskSummary = riskSummaryFromData(data, policyKpi, governedAssetsKpi);
-  const policySignalTitle = riskSummary.severityAvailable ? "Risk breakdown" : "Policy exception signals";
-  const cdeTrackedCount = numericValue(data.estate?.cdeCount ?? data.insights?.tiles?.cdeCount ?? data.cdeSummary?.totalCdes);
+  // Panel title comes from the payload label ("Quality risk findings") so the
+  // panel names its actual source instead of a generic "Risk breakdown".
+  const policySignalTitle = riskSummary.severityAvailable
+    ? (data.riskBreakdown?.label || "Quality risk findings")
+    : "Policy exception signals";
+  const cdeTrackedCount = numericValue(
+    data.cdeSignal?.count ?? data.estate?.cdeCount ?? data.insights?.tiles?.cdeCount ?? data.cdeSummary?.totalCdes,
+  );
   const baselineAssetCount = numericValue(data.estate?.baselineAssetCount ?? data.narrative?.baselineAssetCount);
-  const primaryCatalogLabel = data.meta?.primaryCatalog
-    || data.meta?.catalog
-    || catalogRows.find((row) => row.state !== "placeholder")?.name
-    || (data.estate.catalogCount ? `${formatCount(data.estate.catalogCount)} visible catalog${Number(data.estate.catalogCount) === 1 ? "" : "s"}` : "the visible workspace");
+  // Hero scope: the hero aggregates the WHOLE visible estate, so it titles
+  // itself from estate.estateLabel — never from a catalog row. (Falling back
+  // to the first catalog-health row produced "THE STATE OF FINANCE_PROD"
+  // above estate-wide numbers; worst-first ordering made it even worse.)
+  const estateScopeLabel = (() => {
+    const label = String(data.estate?.estateLabel || "").trim();
+    if (label) return /^data estate$/i.test(label) ? "the data estate" : label;
+    return (
+      data.estate.catalogCount
+        ? `the data estate (${formatCount(data.estate.catalogCount)} visible catalog${Number(data.estate.catalogCount) === 1 ? "" : "s"})`
+        : "the visible data estate"
+    );
+  })();
   const visibleTrend = useMemo(
     () => trendForWindow(data.posture?.trend || [], trendWindow),
     [data.posture?.trend, trendWindow],
@@ -1297,19 +1358,33 @@ export function HomePage({
     }
     setPresentMode((current) => !current);
   }, []);
-  const openCommandCenterSurface = useCallback((surfaceKey) => {
+  const openCommandCenterSurface = useCallback((surfaceKey, intent) => {
     if (!surfaceKey) return;
+    // Risk drill-downs land on Insights, which scrolls to the risk heatmap
+    // when this intent is staged (InsightsWorkspace consumes ga-insights-focus
+    // on mount) — without it the user lands at the top of the page with no
+    // pointer to the findings they clicked through for.
+    if (surfaceKey === "insights" && intent === "risk") {
+      try {
+        sessionStorage.setItem("ga-insights-focus", "risk");
+      } catch {
+        // sessionStorage unavailable (private mode) — navigation still works.
+      }
+    }
     onNavigate?.(surfaceKey);
   }, [onNavigate]);
-  const handleCatalogKeyDown = useCallback((event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    openCommandCenterSurface("discovery");
-  }, [openCommandCenterSurface]);
   const explicitChanges = explicitChangeRows(data.changesToday || data.changes || data.deltaRows);
-  const changedToday = explicitChanges.length ? explicitChanges : [
+  // Evidence stamps: quality signals from an old run must say so instead of
+  // sitting undated under "What changed today" (they read as today's news).
+  const qualityEvidenceStamp = evidenceDateLabel(data.insights?.qualityEvidenceAt);
+  const riskEvidenceStamp = evidenceDateLabel(
+    data.riskBreakdown?.evidenceAt || data.insights?.qualityEvidenceAt,
+  );
+  const fallbackChanges = [
     {
-      label: "Coverage",
+      // "Coverage" alone was ambiguous against the Discover per-asset
+      // "Governance score" metric; this row is the metadata-coverage formula.
+      label: "Metadata coverage",
       value: percentLabel(coverageKpi.value),
       delta: shortDelta(coverageKpi, "Coverage evidence unavailable"),
       previous: coverageKpi.previousValue ?? coverageKpi.previous ?? null,
@@ -1320,20 +1395,25 @@ export function HomePage({
       label: "Quality SLA",
       value: percentLabel(data.insights?.qualitySla ?? data.qualitySla),
       delta: data.insights?.qualitySignalAvailable
-        ? `${formatCount(data.insights?.qualityChecksEvaluated)} checks evaluated`
+        ? `${formatCount(data.insights?.qualityChecksEvaluated)} checks evaluated${qualityEvidenceStamp ? ` · ${qualityEvidenceStamp}` : ""}`
         : "No quality checks run yet",
       previous: data.insights?.previousQualitySla ?? null,
       previousFormat: "percent",
       tone: data.insights?.qualitySignalAvailable ? "good" : "muted",
     },
     {
-      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exceptions",
+      // Renamed from "High-risk exposures": these are quality-run findings,
+      // and the row carries the run date so old evidence is not implied to
+      // have happened today.
+      label: riskSummary.severityAvailable ? "High-risk quality findings" : "Policy exceptions",
       value: riskSummary.severityAvailable
         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
         : formatMetricValue(policyKpi),
-      delta: metricState(policyKpi) === "degraded"
-        ? "Text-derived signal"
-        : shortDelta(policyKpi, "Signal unavailable"),
+      delta: riskSummary.severityAvailable
+        ? (riskEvidenceStamp || "Quality-run findings by severity")
+        : metricState(policyKpi) === "degraded"
+          ? "Text-derived signal"
+          : shortDelta(policyKpi, "Signal unavailable"),
       previous: policyKpi.previousValue ?? policyKpi.previous ?? null,
       previousFormat: "count",
       tone: metricState(policyKpi) === "unavailable"
@@ -1353,6 +1433,16 @@ export function HomePage({
       tone: data.signalAvailability?.lineage ? "info" : "muted",
     },
   ];
+  const changedToday = explicitChanges.length ? explicitChanges : fallbackChanges;
+  // Honesty gate: a row only counts as "changed today" when a prior snapshot
+  // value exists AND differs from the current value. All-zero deltas render
+  // an explicit "No changes today" instead of zero-delta rows dressed as news.
+  const changesHaveRealDelta = explicitChanges.length > 0 || fallbackChanges.some((row) => {
+    const previous = numericValue(row.previous);
+    if (previous === null) return false;
+    const parsed = parseAnimatable(row.value);
+    return parsed.numeric !== null && Math.abs(parsed.numeric - previous) >= 0.05;
+  });
   // Only assert a quarter-over-quarter coverage delta when the API actually
   // supplies a real previous coverage value. Previously this fabricated a
   // story against hardcoded constants (78.4 baseline, "90% Q2 target",
@@ -1404,10 +1494,19 @@ export function HomePage({
       value: formatMetricValue(certifiedKpi),
       delta: shortDelta(certifiedKpi, "Signal unavailable"),
       tone: "good",
+      onOpen: () => {
+        // Certified evidence lives in Discover's strict Certified view.
+        if (onOpenDiscoveryWithFilter) onOpenDiscoveryWithFilter({}, "", { views: ["Certified"] });
+        else openCommandCenterSurface("discovery");
+      },
+      openLabel: "Open Discover filtered to certified assets",
     },
     {
       icon: "flag",
-      label: riskSummary.severityAvailable ? "Open exposures" : "Policy exceptions",
+      // Always "Policy exceptions": this stat renders policyKpi, so titling
+      // it "Open exposures" made one screen show "exposures 0" next to a
+      // "high-risk 2" KPI computed from a different (quality) source.
+      label: "Policy exceptions",
       value: formatMetricValue(policyKpi),
       delta: metricState(policyKpi) === "degraded"
         ? "Text-derived signal"
@@ -1417,28 +1516,46 @@ export function HomePage({
         : numericValue(policyKpi.value) === 0
           ? "good"
           : "bad",
+      onOpen: () => openCommandCenterSurface("governance"),
+      openLabel: "Open the stewardship queue for policy exception evidence",
     },
     {
       icon: "key",
       label: "CDEs tracked",
       value: cdeTrackedCount === null ? "-" : formatCount(cdeTrackedCount),
+      // Subtitle comes from the payload (cdeSignal.subtitle =
+      // "Criticality-derived"); the old hardcoded "Tag-governed ·
+      // lineage-backed" copy described a registry that does not exist.
       delta: cdeTrackedCount === null
         ? "CDE registry unavailable"
         : cdeTrackedCount === 0
           ? "No assets tagged as CDEs yet"
-          : data.signalAvailability?.lineage
-            ? "Tag-governed · lineage-backed"
-            : "From governed CDE tags",
+          : data.cdeSignal?.subtitle || "Criticality-derived",
       tone: "info",
+      onOpen: () => openCommandCenterSurface("cde"),
+      openLabel: "Open the CDE registry tab in Glossary & CDEs",
     },
   ];
+  // Every headline tile is a real click into filtered evidence (matching the
+  // domain-bar navigation pattern) and carries an info popover explaining its
+  // formula — payload formula strings first, honest static copy otherwise.
   const commandCenterKpis = [
     {
-      label: "Governance coverage",
+      // "Governance coverage" was ambiguous against Discover's per-asset
+      // "Governance score"; this tile is the metadata-coverage formula (95.5).
+      label: "Metadata coverage",
       value: percentLabel(coverageKpi.value),
       delta: shortDelta(coverageKpi, "Signal unavailable"),
       tone: metricState(coverageKpi) === "unavailable" ? "muted" : "good",
       sparkline: coverageKpi.sparkline || [],
+      info: coverageKpi.formula || "Weighted coverage of required governance metadata fields across visible assets.",
+      onOpen: () => {
+        // Evidence: Discover sorted by Governance score so the weakest-scored
+        // assets are inspectable from the coverage number.
+        if (onOpenDiscoveryWithFilter) onOpenDiscoveryWithFilter({}, "", { sortBy: "Governance score" });
+        else openCommandCenterSurface("discovery");
+      },
+      openLabel: "Open Discover sorted by governance score",
     },
     {
       label: "Certified critical assets",
@@ -1446,6 +1563,12 @@ export function HomePage({
       delta: shortDelta(certifiedKpi, "Signal unavailable"),
       tone: metricState(certifiedKpi) === "unavailable" ? "muted" : "good",
       sparkline: certifiedKpi.sparkline || [],
+      info: certifiedKpi.formula || "Assets that are both critical and strictly certified (certification == Certified), counted when both source signals are available.",
+      onOpen: () => {
+        if (onOpenDiscoveryWithFilter) onOpenDiscoveryWithFilter({}, "", { views: ["Certified"] });
+        else openCommandCenterSurface("discovery");
+      },
+      openLabel: "Open Discover filtered to certified assets",
     },
     {
       label: "Open stewardship items",
@@ -1453,21 +1576,38 @@ export function HomePage({
       delta: shortDelta(stewardshipKpi, "Signal unavailable"),
       tone: metricState(stewardshipKpi) === "unavailable" ? "muted" : "warn",
       sparkline: stewardshipKpi.sparkline || [],
+      info: stewardshipKpi.formula || "Open governance change requests targeting assets in the visible estate.",
+      onOpen: () => openCommandCenterSurface("governance"),
+      openLabel: "Open the stewardship work queue",
     },
     {
-      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exceptions",
+      // Renamed from "High-risk exposures": the count is failed quality-run
+      // findings, a different source than the policy-exception KPI — the two
+      // must never share a name while carrying different values.
+      label: riskSummary.severityAvailable ? "High-risk quality findings" : "Policy exceptions",
       value: riskSummary.severityAvailable
         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
         : formatMetricValue(policyKpi),
-      delta: metricState(policyKpi) === "degraded"
-        ? "Text-derived signal"
-        : shortDelta(policyKpi, "Signal unavailable"),
-      tone: metricState(policyKpi) === "unavailable"
+      delta: riskSummary.severityAvailable
+        ? (riskEvidenceStamp || "Quality-run findings by severity")
+        : metricState(policyKpi) === "degraded"
+          ? "Text-derived signal"
+          : shortDelta(policyKpi, "Signal unavailable"),
+      tone: metricState(policyKpi) === "unavailable" && !riskSummary.severityAvailable
         ? "muted"
-        : numericValue(policyKpi.value) === 0 && !riskSummary.severityAvailable
-          ? "good"
-          : "bad",
+        : riskSummary.severityAvailable
+          ? (numericValue(riskSummary.high) > 0 ? "bad" : "good")
+          : numericValue(policyKpi.value) === 0
+            ? "good"
+            : "bad",
       sparkline: policyKpi.sparkline || [],
+      info: riskSummary.severityAvailable
+        ? `High-severity findings from the most recent quality runs (${data.riskBreakdown?.source || "quality run results"}).`
+        : policyKpi.formula || "Explicit policy-exception signals from governed workflow and audit records.",
+      onOpen: () => openCommandCenterSurface(riskSummary.severityAvailable ? "insights" : "governance", "risk"),
+      openLabel: riskSummary.severityAvailable
+        ? "Open governance insights for quality risk evidence"
+        : "Open the stewardship queue for policy exception evidence",
     },
   ];
 
@@ -1549,13 +1689,25 @@ export function HomePage({
             )}
           </div>
           <div className="gh-command-center-narrative">
-            <span>The state of {primaryCatalogLabel}</span>
+            <span>The state of {estateScopeLabel}</span>
             <h2>
               {narrativeHeadline}
             </h2>
             <div className="gh-command-center-facts">
               {heroFacts.map((fact) => (
                 <span className={`tone-${fact.tone}`} key={fact.label}>
+                  {/* Overlay button keeps the stat grid intact while making
+                      the whole stat a real click into its evidence surface
+                      (hero stats were dead clicks). */}
+                  {fact.onOpen ? (
+                    <button
+                      aria-label={fact.openLabel || `Open evidence for ${fact.label}`}
+                      className="gh-command-center-fact-open"
+                      onClick={fact.onOpen}
+                      title={fact.openLabel}
+                      type="button"
+                    />
+                  ) : null}
                   <i aria-hidden="true"><Icon name={fact.icon} /></i>
                   <small>{fact.label}</small>
                   <b>{fact.value}</b>
@@ -1564,35 +1716,93 @@ export function HomePage({
               ))}
             </div>
           </div>
-          <div className="gh-command-center-changes">
+          <div className="gh-command-center-changes" aria-busy={isHydrating ? "true" : undefined}>
             <h3>What changed today</h3>
-            {changedToday.map((item) => (
-              <div
-                className={`gh-command-center-change tone-${item.tone}`}
-                key={item.label}
-                title={undefined}
-              >
-                <span>{item.label}</span>
-                <strong>
-                  {item.previous !== null && item.previous !== undefined ? (
-                    <>
-                      <small>{formatChangeValue(item.previous, item.previousFormat)}</small>
-                      {formatChangeValue(item.value, item.format)}
-                    </>
-                  ) : formatChangeValue(item.value, item.format)}
-                </strong>
-                <em>{item.delta}</em>
+            {isHydrating && !changesHaveRealDelta ? (
+              // Still loading: don't assert "No changes today" before the
+              // command-center payload has actually arrived.
+              <div className="gh-command-center-no-changes" role="status">
+                <strong>Loading today's changes…</strong>
+                <em>Reading the latest governance snapshot</em>
               </div>
-            ))}
+            ) : changesHaveRealDelta ? (
+              changedToday.map((item) => (
+                <div
+                  className={`gh-command-center-change tone-${item.tone}`}
+                  key={item.label}
+                  title={undefined}
+                >
+                  <span>{item.label}</span>
+                  <strong>
+                    {item.previous !== null && item.previous !== undefined ? (
+                      <>
+                        <small>{formatChangeValue(item.previous, item.previousFormat)}</small>
+                        {formatChangeValue(item.value, item.format)}
+                      </>
+                    ) : formatChangeValue(item.value, item.format)}
+                  </strong>
+                  <em>{item.delta}</em>
+                </div>
+              ))
+            ) : (
+              // Honest zero-delta state: no prior snapshot differs from the
+              // current values, so nothing actually changed today. Old May
+              // quality stats are labeled by evidence date instead of being
+              // presented as today's movement.
+              <div className="gh-command-center-no-changes" role="status">
+                <strong>No changes today</strong>
+                <em>
+                  {qualityEvidenceStamp
+                    ? `Latest quality ${qualityEvidenceStamp}`
+                    : "Signals are unchanged since the last recorded snapshot"}
+                </em>
+              </div>
+            )}
           </div>
         </section>
 
-        <section className="gh-command-center-kpi-row" aria-label="Governance summary metrics">
+        <section
+          aria-busy={isHydrating ? "true" : undefined}
+          aria-label="Governance summary metrics"
+          className="gh-command-center-kpi-row"
+        >
           {commandCenterKpis.map((metric) => {
             const animatable = parseAnimatable(metric.value);
+            const infoOpen = openKpiInfo === metric.label;
             return (
             <article className={`gh-command-center-kpi tone-${metric.tone} ga-tile-glow`} key={metric.label}>
-              <span>{metric.label}</span>
+              {/* Full-tile overlay click into the metric's evidence surface —
+                  headline tiles were dead clicks before. The info glyph sits
+                  above the overlay (higher z-index) so both stay reachable. */}
+              {metric.onOpen ? (
+                <button
+                  aria-label={metric.openLabel || `Open evidence for ${metric.label}`}
+                  className="gh-command-center-kpi-open"
+                  onClick={metric.onOpen}
+                  title={metric.openLabel}
+                  type="button"
+                />
+              ) : null}
+              <span>
+                {metric.label}
+                {metric.info ? (
+                  <button
+                    aria-expanded={infoOpen}
+                    aria-label={`How ${metric.label} is calculated`}
+                    className="gh-command-center-kpi-info"
+                    onClick={() => setOpenKpiInfo(infoOpen ? "" : metric.label)}
+                    title={metric.info}
+                    type="button"
+                  >
+                    i
+                  </button>
+                ) : null}
+              </span>
+              {metric.info && infoOpen ? (
+                <div className="gh-command-center-kpi-popover" role="note">
+                  {metric.info}
+                </div>
+              ) : null}
               <strong>
                 {animatable.numeric !== null ? (
                   <CountUp
@@ -1653,12 +1863,26 @@ export function HomePage({
               </div>
             )}
           >
-            <PostureTrendChart trend={visibleTrend} collectingSince={data.posture?.collectingSince || ""} />
+            {/* While snapshot history is collecting (a single daily point),
+                render the explicit collecting state — a full-width 26/52-week
+                line drawn through one snapshot is synthetic data. */}
+            {data.posture?.trendState === "collecting" ? (
+              <TrendUnavailableChart
+                point={(() => {
+                  const points = normalizeTrend(data.posture?.trend || [])
+                    .filter((point) => Number.isFinite(point.overall));
+                  return points.length ? points[points.length - 1].overall : null;
+                })()}
+                collectingSince={trendTickLabel(data.posture?.collectingSince) || ""}
+              />
+            ) : (
+              <PostureTrendChart trend={visibleTrend} collectingSince={data.posture?.collectingSince || ""} />
+            )}
             <div className="gh-command-center-trend-footer">
               <span>
                 <strong>
                   {data.posture?.trendState === "collecting"
-                    ? `Collecting since ${data.posture?.collectingSince || "today"}`
+                    ? `Collecting since ${trendTickLabel(data.posture?.collectingSince) || "today"}`
                     : trendDeltaLabel(visibleTrend)}
                 </strong>
                 {data.posture?.trendState === "collecting"
@@ -1711,9 +1935,11 @@ export function HomePage({
           <SectionCard
             className="gh-command-center-risk"
             title={policySignalTitle}
-            subtitle={riskSummary.severityAvailable ? "Open exposures by severity" : "Policy exception signal availability"}
+            subtitle={riskSummary.severityAvailable
+              ? `Quality-run findings by severity${riskEvidenceStamp ? ` · ${riskEvidenceStamp}` : ""}`
+              : "Policy exception signal availability"}
             tooltip={riskSummary.severityAvailable
-              ? "Risk distribution renders only from explicit exposure severity signals."
+              ? "Findings come from recorded quality-run results, split by severity; nothing is inferred."
               : "Policy exception signals render without inferring unavailable severity."}
           >
             <div className="gh-command-center-risk-body">
@@ -1737,17 +1963,29 @@ export function HomePage({
                   </>
                 )}
               </div>
+              {/* All three severity rows drill into the SAME quality-evidence
+                  surface (governance insights). The old mix — high → an empty
+                  stewardship queue, medium/info → audit — scattered one
+                  finding set across three unrelated destinations. Policy
+                  exception signals (no severity source) still route to the
+                  stewardship queue, where exception requests live. */}
               <ul>
                 <li>
                   <button
-                    aria-label={`Open stewardship for ${riskSummary.severityAvailable ? "high-risk exposures" : "policy exception signals"}`}
+                    aria-label={riskSummary.severityAvailable
+                      ? "Open quality risk evidence for high-severity findings"
+                      : "Open stewardship for policy exception signals"}
                     disabled={!riskSummary.sourceAvailable}
-                    onClick={() => openCommandCenterSurface("governance")}
-                    title={riskSummary.sourceAvailable ? "Open stewardship queue for policy exception review" : "Policy exception signal unavailable"}
+                    onClick={() => openCommandCenterSurface(riskSummary.severityAvailable ? "insights" : "governance", "risk")}
+                    title={riskSummary.sourceAvailable
+                      ? (riskSummary.severityAvailable
+                        ? "Open governance insights for quality risk evidence"
+                        : "Open stewardship queue for policy exception review")
+                      : "Policy exception signal unavailable"}
                     type="button"
                   >
                     <b className="tone-bad" />
-                    <span>{riskSummary.severityAvailable ? "High-risk exposures" : "Policy exception signals"}</span>
+                    <span>{riskSummary.severityAvailable ? "High severity" : "Policy exception signals"}</span>
                     <strong>
                       {riskSummary.severityAvailable
                         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
@@ -1757,23 +1995,23 @@ export function HomePage({
                 </li>
                 <li>
                   <button
-                    aria-label={riskSummary.severityAvailable ? "Open audit evidence for medium-risk findings" : "Medium severity source unavailable"}
+                    aria-label={riskSummary.severityAvailable ? "Open quality risk evidence for medium-severity findings" : "Medium severity source unavailable"}
                     disabled={!riskSummary.severityAvailable}
-                    onClick={() => openCommandCenterSurface("audit")}
-                    title={riskSummary.severityAvailable ? "Open audit evidence for risk findings" : "Risk severity source unavailable"}
+                    onClick={() => openCommandCenterSurface("insights", "risk")}
+                    title={riskSummary.severityAvailable ? "Open governance insights for quality risk evidence" : "Risk severity source unavailable"}
                     type="button"
                   >
                     <b className="tone-warn" />
-                    <span>Medium-risk findings</span>
+                    <span>Medium severity</span>
                     <strong>{riskSummary.medium === null ? "-" : formatCount(riskSummary.medium)}</strong>
                   </button>
                 </li>
                 <li>
                   <button
-                    aria-label={riskSummary.severityAvailable ? "Open audit evidence for informational risk findings" : "Informational severity source unavailable"}
+                    aria-label={riskSummary.severityAvailable ? "Open quality risk evidence for informational findings" : "Informational severity source unavailable"}
                     disabled={!riskSummary.severityAvailable}
-                    onClick={() => openCommandCenterSurface("audit")}
-                    title={riskSummary.severityAvailable ? "Open audit evidence for informational findings" : "Risk severity source unavailable"}
+                    onClick={() => openCommandCenterSurface("insights", "risk")}
+                    title={riskSummary.severityAvailable ? "Open governance insights for quality risk evidence" : "Risk severity source unavailable"}
                     type="button"
                   >
                     <b className="tone-info" />
@@ -1785,7 +2023,7 @@ export function HomePage({
             </div>
             <p>
               {riskSummary.severityAvailable
-                  ? "Risk-clean score is derived from backed exposure counts across governed assets."
+                  ? "Risk-clean score counts high and medium quality-run findings across governed assets."
                   : riskSummary.openExposure !== null
                   ? "Policy exception count is backed by governance workflow evidence; a severity split appears once quality checks record findings."
                   : "A severity split appears once quality checks record findings."}
@@ -1794,11 +2032,11 @@ export function HomePage({
 
           <SectionCard
             className="gh-command-center-catalogs"
-            title="Top catalogs · health snapshot"
+            title="Catalog health · worst coverage first"
             subtitle={catalogSubtitle}
             tooltip={catalogTooltip}
           >
-            <div className={`gh-command-center-catalog-table ${catalogRows.length ? "" : "is-unavailable"}`.trim()} role="table" aria-label="Top catalog health snapshot">
+            <div className={`gh-command-center-catalog-table ${catalogRows.length ? "" : "is-unavailable"}`.trim()} role="table" aria-label="Catalog health snapshot, worst coverage first">
               <div role="row">
                 <span role="columnheader">Catalog</span>
                 <span role="columnheader">Tables</span>
@@ -1808,14 +2046,24 @@ export function HomePage({
               </div>
               {displayCatalogRows.map((catalog) => {
                 const isPlaceholder = catalog.state === "placeholder";
+                // Match the domain-bar pattern: land on Discover pre-filtered
+                // to this catalog rather than an unscoped list.
+                const openCatalog = () => {
+                  if (onOpenDiscoveryWithFilter) onOpenDiscoveryWithFilter({ catalogs: [catalog.name] });
+                  else openCommandCenterSurface("discovery");
+                };
                 return (
                   <div
                     className={isPlaceholder ? "is-placeholder" : "is-clickable"}
-                    onClick={isPlaceholder ? undefined : () => openCommandCenterSurface("discovery")}
-                    onKeyDown={isPlaceholder ? undefined : handleCatalogKeyDown}
+                    onClick={isPlaceholder ? undefined : openCatalog}
+                    onKeyDown={isPlaceholder ? undefined : (event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      openCatalog();
+                    }}
                     role="row"
                     tabIndex={isPlaceholder ? -1 : 0}
-                    title={isPlaceholder ? "Catalog health signal unavailable" : `Open discovery for ${catalog.name}`}
+                    title={isPlaceholder ? "Catalog health signal unavailable" : `Open discovery filtered to ${catalog.name}`}
                     key={catalog.name}
                   >
                     <strong role="cell"><Icon name="database" />{catalog.name}</strong>
@@ -1833,6 +2081,9 @@ export function HomePage({
                 <div className="gh-command-center-inline-unavailable">Catalog health rows unavailable until visible asset inventory hydrates.</div>
               ) : null}
             </div>
+            {catalogCapCaption ? (
+              <p className="gh-command-center-catalog-cap" role="note">{catalogCapCaption}</p>
+            ) : null}
           </SectionCard>
 
           <SectionCard

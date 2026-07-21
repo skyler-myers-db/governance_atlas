@@ -274,6 +274,52 @@ class JobInventoryTests(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "Success")
         self.assertEqual(rows[0]["url"], "https://dbc.example.com/jobs/11")
         self.assertEqual(len(runs.calls), 2)
+        # Run timestamps must carry the year — "Aug 25, 23:47" from a 2025
+        # epoch read as current-year data in the Control Center.
+        self.assertIn("2025", rows[0]["lastRun"])
+
+    def test_never_run_manual_job_has_empty_last_run_and_manual_status(self) -> None:
+        # Regression: never-run jobs rendered their CREATION time under
+        # "Last run" and manual jobs (no schedule) were labeled "Scheduled".
+        manual_job = SimpleNamespace(
+            job_id=31,
+            created_time=1756165620000,  # 2025-08-25 — must NOT leak into lastRun
+            settings=SimpleNamespace(name="[RUNNER] pixels", schedule=None),
+        )
+        no_runs = SimpleNamespace(
+            list=lambda limit=None: iter([manual_job]),
+            list_runs=lambda job_id=None, limit=None: iter([]),
+        )
+        client = SimpleNamespace(w=SimpleNamespace(jobs=no_runs))
+        rows = atlas_api._databricks_job_inventory(
+            client,
+            limit=12,
+            include_latest_runs=True,
+            workspace_host="https://dbc.example.com",
+        )
+        self.assertEqual(len(rows), 1)
+        # Empty lastRun lets the UI render its honest "Not yet run" state.
+        self.assertEqual(rows[0]["lastRun"], "")
+        self.assertEqual(rows[0]["status"], "Manual")
+        # nextRun is only populated from a real known schedule fire time —
+        # the Jobs list API exposes none, so it must be empty (never invented).
+        self.assertEqual(rows[0]["nextRun"], "")
+
+    def test_never_run_scheduled_job_keeps_scheduled_status_but_empty_last_run(self) -> None:
+        scheduled_job = _fake_job(41, "Nightly sweep")
+        jobs_api = SimpleNamespace(
+            list=lambda limit=None: iter([scheduled_job]),
+            list_runs=lambda job_id=None, limit=None: iter([]),
+        )
+        client = SimpleNamespace(w=SimpleNamespace(jobs=jobs_api))
+        rows = atlas_api._databricks_job_inventory(
+            client,
+            limit=12,
+            include_latest_runs=True,
+            workspace_host="https://dbc.example.com",
+        )
+        self.assertEqual(rows[0]["status"], "Scheduled")
+        self.assertEqual(rows[0]["lastRun"], "")
 
     def test_control_center_endpoint_uses_app_principal_client_for_jobs(self) -> None:
         import runtime_app

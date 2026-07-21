@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAssetAvailability, fetchAssetDetail } from "../lib/api";
+import { fetchAssetAvailability, fetchAssetDetail, fetchAssetHeaders } from "../lib/api";
 import { isNonAuthoritativeEvidenceEnvelope } from "../lib/nonAuthoritativeEvidence";
 import { atlasQueryClient } from "../lib/queryClient";
 
@@ -162,6 +162,16 @@ function mergeAssetDetail(currentDetail, incomingDetail) {
 
 function setCanonicalDetail(assetFqn, detail) {
   if (isNonAuthoritativeEvidenceEnvelope(detail)) {
+    // Stability fix (persona audit P1 "unstable detail shell"): a degraded /
+    // non-authoritative refetch used to WIPE the canonical cache, which
+    // blanked an already-rendered header into loading skeletons and shrank
+    // the tab set mid-session. Keep previously loaded authoritative data on
+    // screen; only clear when we never had anything real for this asset.
+    const existing = readCanonicalDetail(assetFqn, { maxAgeMs: null });
+    if (existing) {
+      syncAvailabilityRequestsForAsset(assetFqn);
+      return existing;
+    }
     atlasQueryClient.removeQueries({ queryKey: assetDetailCanonicalKey(assetFqn), exact: true });
     atlasQueryClient.removeQueries({ queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] });
     syncAvailabilityRequestsForAsset(assetFqn);
@@ -345,33 +355,39 @@ async function ensureAssetAvailability(assetFqns = [], options = {}) {
       const availability = readCanonicalAvailability(assetFqn, { maxAgeMs: null });
       return availabilityOpenableValue(availability) === true;
     });
-    // Concurrency cap: Promise.all(60 fetches) used to fire every
-    // renderable candidate at once on page mount, each blocking a
-    // serverless warehouse slot for 15–30 s. The user saw it as
-    // mouse lag / unresponsive UI because every click had to wait
-    // behind a queue of 60 in-flight requests. 4 at a time still
-    // warms the first visible result rows quickly but lets the
-    // browser + warehouse stay responsive.
-    const RENDERABLE_PREFETCH_CONCURRENCY = 4;
-    const queue = renderableTargets.slice();
-    const runWorker = async () => {
-      while (queue.length) {
-        const assetFqn = queue.shift();
-        if (!assetFqn) return;
-        if (options.signal?.aborted) return;
-        try {
-          await prefetchAssetDetail(assetFqn, {
-            sections: ["header"],
-            signal: options.signal,
+    // Perf audit P0 (Discovery prefetch storm): this used to fan out ~47
+    // individual GET /api/assets/<fqn>?sections=header requests 4-at-a-time
+    // (45s+ of serialized network). One POST /api/assets/headers batch call
+    // returns the same header shape for every target in a single round
+    // trip; we seed the per-FQN react-query detail cache from the batch so
+    // preview panels stay instant without any per-asset request.
+    const missingHeaderTargets = renderableTargets.filter(
+      (assetFqn) => !readCachedDetail(assetFqn, { sections: ["header"] }),
+    );
+    if (missingHeaderTargets.length) {
+      try {
+        const payload = await fetchAssetHeaders(missingHeaderTargets, { signal: options.signal });
+        const assets = payload?.assets && typeof payload.assets === "object" ? payload.assets : {};
+        const batchHydrating =
+          String(payload?.meta?.state || "").trim().toLowerCase() === "loading";
+        missingHeaderTargets.forEach((assetFqn) => {
+          const header = assets[assetFqn];
+          // Never cache error stubs or inventory-loading placeholders as a
+          // resolved header — a later real fetch must still happen.
+          if (!header || typeof header !== "object" || header.error) return;
+          if (batchHydrating || header.headerSource === "inventory-loading") return;
+          setCanonicalDetail(assetFqn, {
+            ...header,
+            loadedSections: Array.isArray(header.loadedSections) && header.loadedSections.length
+              ? header.loadedSections
+              : ["header"],
           });
-        } catch {
-          // Best-effort: missing detail for one asset should not
-          // stall the rest of the availability resolution.
-        }
+        });
+      } catch {
+        // Best-effort warm-up: a failed batch must not stall availability
+        // resolution — individual consumers fetch on demand as before.
       }
-    };
-    const workerCount = Math.min(RENDERABLE_PREFETCH_CONCURRENCY, renderableTargets.length);
-    await Promise.all(Array.from({ length: workerCount }, runWorker));
+    }
   }
 
   return buildAvailabilityStateMap(targets, options.knownVisibleAssetSet, {
@@ -603,6 +619,12 @@ export function useAssetDetail(assetFqn, options = {}) {
     placeholderData: placeholder || undefined,
     staleTime: DETAIL_CACHE_TTL_MS,
     refetchInterval: assetDetailRefetchInterval,
+    // Reliability fix (persona audit P0 "Asset unavailable" wall): the detail
+    // API demonstrably answers in ~2s, but a single transient client timeout /
+    // gateway blip used to become a terminal error (global retry: false).
+    // One retry absorbs the blip; a genuine outage still errors out.
+    retry: 1,
+    retryDelay: 800,
   });
 
   if (!assetFqn) {
@@ -610,6 +632,7 @@ export function useAssetDetail(assetFqn, options = {}) {
       loading: false,
       error: "",
       detail: null,
+      retry: async () => null,
     };
   }
 
@@ -618,6 +641,7 @@ export function useAssetDetail(assetFqn, options = {}) {
       loading: false,
       error: "",
       detail: cachedAnyDetail,
+      retry: async () => null,
     };
   }
 
@@ -628,11 +652,17 @@ export function useAssetDetail(assetFqn, options = {}) {
     loading:
       Boolean(query.isPending && !detail) ||
       Boolean(query.isFetching && missingRequestedSections) ||
-      hydrating,
+      // Honesty fix (persona audit P2 preview banner): a hydrating server
+      // envelope only counts as "loading" while the requested sections are
+      // still absent. Once real data is on screen the background poll keeps
+      // refreshing it silently — no sticky "Refreshing preview" banner.
+      Boolean(hydrating && missingRequestedSections),
     error:
       query.isError && missingRequestedSections
         ? query.error?.message || "Failed to load asset detail."
         : "",
     detail,
+    // Working Retry affordance for the terminal-failure placeholder.
+    retry: query.refetch,
   };
 }

@@ -100,6 +100,77 @@ describe("LineageCanvasV2", () => {
     expect(screen.getByText("Hydrating lineage from Unity Catalog")).toBeTruthy();
   });
 
+  // Stub-only pending shapes (adversarial verify P0): the cold-cache
+  // deferred payload carries exactly ONE stub focus node and zero edges. A
+  // single stub must not suppress the hydrating/warming states — the old
+  // "no nodes" gate left the user with a near-empty flow canvas, no
+  // progress copy, and no Retry.
+  it("renders the hydrating state for the one-stub-node pending graph", () => {
+    render(
+      <LineageCanvasV2
+        error=""
+        focusId="datapact.x.focus"
+        graph={{
+          focus: { id: "focus-a", fqn: "datapact.x.focus", isFocus: true, label: "focus" },
+          nodes: [{ id: "focus-a", fqn: "datapact.x.focus", isFocus: true, label: "focus", kind: "table" }],
+          edges: [],
+          columnEdges: [],
+        }}
+        hydrating={true}
+        onFocusChange={() => {}}
+      />,
+    );
+    expect(screen.getByText("Hydrating lineage from Unity Catalog")).toBeTruthy();
+  });
+
+  it("renders the warming retry state for the one-stub-node graph after poll exhaustion", () => {
+    const onRetry = vi.fn();
+    render(
+      <LineageCanvasV2
+        error=""
+        focusId="datapact.x.focus"
+        graph={{
+          focus: { id: "focus-a", fqn: "datapact.x.focus", isFocus: true, label: "focus" },
+          nodes: [{ id: "focus-a", fqn: "datapact.x.focus", isFocus: true, label: "focus", kind: "table" }],
+          edges: [],
+          columnEdges: [],
+        }}
+        hydrating={false}
+        onFocusChange={() => {}}
+        onRetry={onRetry}
+        warming={true}
+      />,
+    );
+    expect(screen.getByText("Lineage is still warming")).toBeTruthy();
+    fireEvent.click(screen.getByText("Retry lineage"));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  // Truncation honesty (adversarial verify P1): when the adapter-merged
+  // graph.meta carries truncation totals, the canvas caption must state the
+  // exact shown-of-total counts instead of the static 1-hop hint.
+  it("captions exact truncation totals when the backend capped the graph", () => {
+    render(
+      <LineageCanvasV2
+        error=""
+        focusId="datapact.x.focus"
+        graph={{
+          ...baseGraph,
+          meta: {
+            truncation: { nodesShown: 21, nodesTotal: 660, edgesShown: 20, edgesTotal: 659 },
+            upstreamTruncated: true,
+            downstreamTruncated: false,
+          },
+        }}
+        hydrating={false}
+        onFocusChange={() => {}}
+      />,
+    );
+    expect(
+      screen.getByText("Showing 20 of 659 edges — highest-traffic neighbors first"),
+    ).toBeTruthy();
+  });
+
   it("renders the error state when error is set", () => {
     render(
       <LineageCanvasV2

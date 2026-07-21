@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
 import datetime as dt
+import hashlib
 import json
 import math
 from numbers import Integral, Real
@@ -21,6 +22,7 @@ import pandas as pd
 
 from atlas.services import assets as asset_service
 from atlas.services import insights as insights_service
+from atlas.services import semantics
 
 
 REQUIRED_METADATA_FIELDS = (
@@ -35,16 +37,14 @@ REQUIRED_METADATA_FIELDS = (
     "data_product",
 )
 
-CRITICALITY_VALUES = {
-    "critical",
-    "high",
-    "mission critical",
-    "business critical",
-    "tier 1",
-    "t1",
-}
+# Canonical definitions live in atlas.services.semantics — the 2026-07 persona
+# audits found this module carried its own drifting copies ("certified" counted
+# Trusted/Approved/Gold here while governance.py counted strict, producing
+# 44/45/46 on different surfaces). These names are kept as aliases so existing
+# call sites and tests keep working, but the values are the shared strict sets.
+CRITICALITY_VALUES = semantics.CRITICALITY_VALUES
+CERTIFIED_VALUES = semantics.CERTIFIED_STRICT_VALUES
 
-CERTIFIED_VALUES = {"certified", "approved", "gold", "trusted"}
 UNASSIGNED_VALUES = {"", "unassigned", "none", "null", "n/a", "na", "unknown", "—"}
 
 
@@ -295,31 +295,37 @@ def _metadata_dimensions_for_row(row: Mapping[str, Any]) -> Dict[str, bool]:
     }
 
 
-def _is_certified(row: Mapping[str, Any]) -> bool:
-    return _lower(_row_value(row, "certification")) in CERTIFIED_VALUES
+# Delegated to the shared semantics module so every surface counts the same
+# population. Do NOT re-implement these locally — that is exactly how the
+# certified counts drifted to 44/45/46 across surfaces.
+_is_certified = semantics.is_certified
+_is_critical = semantics.is_critical
 
 
-def _is_critical(row: Mapping[str, Any]) -> bool:
-    value = _lower(
-        _row_value(
-            row,
-            "criticality",
-            "business_criticality",
-            "businessCriticality",
-            "tier",
-        )
-    )
-    return value in CRITICALITY_VALUES
+# Statuses that mean a governance request is still an OPEN exposure. A
+# resolved/approved/rejected exception request is closed history — counting it
+# made Insights report "Critical Policy Exceptions 2" while the Command Center
+# (which only tracks open work) honestly said 0.
+_OPEN_EXCEPTION_STATUSES = frozenset({"", "pending", "open", "in_review", "new"})
 
 
 def _policy_exception_count(request_rows: Sequence[Mapping[str, Any]], audit_rows: Sequence[Mapping[str, Any]]) -> int:
     count = 0
     for row in [*request_rows, *audit_rows]:
+        # Rows that carry a status (change requests / workflow tasks) only
+        # count while open. Audit rows have no status field, which lowers to
+        # "" and passes through.
+        if _lower(row.get("status")) not in _OPEN_EXCEPTION_STATUSES:
+            continue
+        # Match the row's OWN semantics (title / comment / action / detail),
+        # never the target asset FQN: assets legitimately named
+        # "*_exception_*" (e.g. risk_policy_exception_register) made every
+        # request touching them read as a live policy exception.
         text = " ".join(
             _text(row.get(key))
-            for key in ("title", "new_comment", "detail", "action", "entity_fqn")
+            for key in ("title", "task_type", "request_type", "new_comment", "detail", "action")
         ).lower()
-        if "policy exception" in text or "exception" in text and "policy" in text:
+        if "policy exception" in text or ("exception" in text and "policy" in text):
             count += 1
     return count
 
@@ -466,7 +472,11 @@ def _recent_events(audit_rows: Sequence[Mapping[str, Any]], limit: int = 8) -> L
                 "detail": _text(row.get("detail"))
                 or _text(row.get("entity_fqn"))
                 or _text(row.get("entity_id")),
-                "createdAt": _text(row.get("created_at")) or _text(row.get("createdAt")),
+                # Explicit-UTC ISO (Z): naive strings from the store render in
+                # the browser's local zone (the audit caught EDT labels).
+                "createdAt": _utc_z_timestamp(row.get("created_at") or row.get("createdAt"))
+                or _text(row.get("created_at"))
+                or _text(row.get("createdAt")),
                 "actorEmail": _text(row.get("actor_email")) or _text(row.get("actorEmail")),
                 "tone": "bad" if status == "failed" else "info",
                 "status": _text(row.get("status")) or "Success",
@@ -731,14 +741,39 @@ def _catalog_health_summary(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
                 "state": "available" if coverage is not None else "unavailable",
             }
         )
+    # Worst-first: the catalog with the lowest metadata coverage leads the
+    # panel. The old business-rank ordering (combined with a frontend slice)
+    # silently dropped `datapact` — the biggest, worst-covered catalog — from
+    # the Command Center entirely. Coverage-unavailable rows sort last.
     rows.sort(
         key=lambda item: (
-            _catalog_business_rank(item.get("catalog") or item.get("name")),
+            item.get("coverage") is None,
+            float(item.get("coverage") or 0.0),
             -int(item.get("assetCount") or 0),
             str(item.get("catalog") or item.get("name") or "").lower(),
         )
     )
     return rows
+
+
+def _primary_business_catalog(catalog_rows: Sequence[Mapping[str, Any]]) -> str:
+    """Business-preferred catalog for meta.primaryCatalog.
+
+    Kept separate from the (now worst-first) catalogHealth ordering so the
+    hero/primary catalog signal does not flip to whichever catalog currently
+    has the worst coverage.
+    """
+    if not catalog_rows:
+        return ""
+    ranked = sorted(
+        catalog_rows,
+        key=lambda item: (
+            _catalog_business_rank(item.get("catalog") or item.get("name")),
+            -int(item.get("assetCount") or 0),
+            str(item.get("catalog") or item.get("name") or "").lower(),
+        ),
+    )
+    return _text(ranked[0].get("catalog") or ranked[0].get("name"))
 
 
 def _tier_label(value: Any) -> str:
@@ -867,8 +902,19 @@ def _quality_sla_signal(store: Any) -> Dict[str, Any]:
     rows = _rows_or_empty(frame)
     passed = failed = 0
     failed_by_severity = {"high": 0, "medium": 0, "informational": 0}
+    # Evidence timestamp: newest executed_at across the scored results, so the
+    # UI can label stale runs honestly ("evidence from May 3") instead of
+    # presenting an old run's failures under "What changed today".
+    latest_evidence: pd.Timestamp | None = None
     for row in rows:
         outcome = _lower(row.get("outcome"))
+        if outcome not in {"passed", "failed", "errored"}:
+            continue
+        executed_at = _timestamp(
+            row.get("executed_at") or row.get("executedAt") or row.get("created_at")
+        )
+        if executed_at is not None and (latest_evidence is None or executed_at > latest_evidence):
+            latest_evidence = executed_at
         if outcome == "passed":
             passed += 1
         elif outcome in {"failed", "errored"}:
@@ -888,6 +934,7 @@ def _quality_sla_signal(store: Any) -> Dict[str, Any]:
             "reason": "No quality checks have run yet. Configure expectations from an asset's Quality tab to activate this signal.",
             "checksEvaluated": 0,
             "failedBySeverity": None,
+            "evidenceAt": "",
         }
     return {
         "value": round(passed / scored * 100, 1),
@@ -895,6 +942,7 @@ def _quality_sla_signal(store: Any) -> Dict[str, Any]:
         "reason": f"Pass rate across the {scored} most recent evaluated quality checks.",
         "checksEvaluated": scored,
         "failedBySeverity": failed_by_severity,
+        "evidenceAt": latest_evidence.isoformat() if latest_evidence is not None else "",
     }
 
 
@@ -992,8 +1040,9 @@ def _cde_assets(assets_df: pd.DataFrame, *, limit: int = 4) -> tuple[int, List[D
     rows: List[Dict[str, Any]] = []
     for _, row in assets_df.iterrows():
         row_map = _row_dict(row)
-        # Same detection the CDE registry surface uses (_is_cde_asset), so
-        # the hero "CDEs tracked" count always matches the registry count.
+        # Canonical predicate (semantics.is_cde_asset): every surface that
+        # says "CDE" — hero count, /api/atlas/cde, /api/cde registry,
+        # per-asset isCde — must use this same criticality-derived test.
         if not _is_cde_asset(row_map):
             continue
         count += 1
@@ -1024,9 +1073,13 @@ def _cde_assets(assets_df: pd.DataFrame, *, limit: int = 4) -> tuple[int, List[D
     return count, rows
 
 
+# Certification rate is STRICT (certification == "Certified" only; Trusted/
+# Approved/Gold/Draft excluded) per semantics.is_certified — the posture score
+# dropped slightly when the lenient set was retired, and that drop is honest.
 POSTURE_FORMULA = (
-    "40% metadata coverage + 25% certification rate + 20% stewardship "
-    "responsiveness (open requests vs governed assets) + 15% policy-exception cleanliness"
+    "40% metadata coverage + 25% strict certification rate (certification == \"Certified\") "
+    "+ 20% stewardship responsiveness (open requests vs governed assets) "
+    "+ 15% policy-exception cleanliness"
 )
 
 
@@ -1154,12 +1207,25 @@ def _trend_fields(history: Sequence[Mapping[str, Any]], column: str, *, suffix: 
     ]
     if not points:
         return {}
-    if len(points) == 1:
+    # "Collecting" until a week of daily snapshots exists — the accuracy
+    # verifier caught 2 snapshots rendering as a full-width line captioned
+    # "over the last 26 weeks". A day-scale delta must never be dressed as a
+    # multi-week trend; ship the real points so the UI can draw them small.
+    if len(points) < 7:
+        latest = points[-1]["value"]
+        previous = points[0]["value"]
+        delta = latest - previous
         return {
-            "sparkline": [points[0]["value"]],
+            "sparkline": [point["value"] for point in points],
             "trendPoints": points,
             "trendState": "collecting",
             "collectingSince": points[0]["date"],
+            "collectedSnapshots": len(points),
+            "previousValue": previous,
+            # Honest short-span delta ("+14pp since 2026-07-20"), never a
+            # window-suffixed claim while collecting.
+            "delta": _format_delta(int(round(delta)), suffix=f"since {points[0]['date']}") if len(points) > 1 else "",
+            "deltaTone": "good" if delta >= 0 else "bad",
         }
     latest = points[-1]["value"]
     previous = points[0]["value"]
@@ -1365,12 +1431,19 @@ def command_center_payload(
         if warning
     ]
 
+    estate = _estate_from_assets(
+        assets_df,
+        open_requests=open_requests,
+        metadata_coverage=metadata_coverage,
+    )
+    # Explicit hero scope: the hero aggregates the WHOLE visible estate, so
+    # the payload must say so. Without this field the frontend fell back to
+    # the first catalog-health row and titled estate-wide numbers
+    # "THE STATE OF FINANCE_PROD".
+    estate["estateLabel"] = "Data estate"
+    estate["scope"] = "all-visible-catalogs"
     payload = {
-        "estate": _estate_from_assets(
-            assets_df,
-            open_requests=open_requests,
-            metadata_coverage=metadata_coverage,
-        ),
+        "estate": estate,
         "kpis": [
             {
                 "key": "governedAssets",
@@ -1438,11 +1511,19 @@ def command_center_payload(
             "trendState": posture_trend_fields.get("trendState") or "collecting",
             "collectingSince": posture_trend_fields.get("collectingSince") or "",
             "previousValue": posture_trend_fields.get("previousValue"),
-            "byDomain": domains[:8],
+            # ALL domains, worst-first: the old top-8-by-score truncation
+            # silently dropped the worst-scoring domains (e.g. "Risk") —
+            # exactly the ones a posture panel exists to surface.
+            "byDomain": sorted(
+                domains,
+                key=lambda item: (float(item.get("score") or 0.0), _text(item.get("domain")).lower()),
+            ),
             "heatmap": _coverage_heatmap(domains),
         },
         "topDomains": domains[:5],
-        "catalogHealth": catalog_health[:8],
+        # ALL catalogs, worst-first (see _catalog_health_summary). No slice:
+        # dropping catalogs here is how `datapact` vanished from the panel.
+        "catalogHealth": catalog_health,
         "recentEvents": _recent_events(audit),
         "recentAssets": recent_assets,
         "governance": {
@@ -1475,6 +1556,9 @@ def command_center_payload(
             "qualitySignalAvailable": quality_signal["state"] == "available",
             "qualityReason": quality_signal["reason"],
             "qualityChecksEvaluated": quality_signal["checksEvaluated"],
+            # When the newest quality run is old, the frontend must label it
+            # ("evidence from May 3") instead of implying it happened today.
+            "qualityEvidenceAt": quality_signal.get("evidenceAt") or "",
             "lineageCoverage": lineage_signal["value"],
             "previousLineageCoverage": lineage_trend.get("previousValue"),
         },
@@ -1494,11 +1578,27 @@ def command_center_payload(
                 "informational": quality_signal["failedBySeverity"]["informational"],
                 "total": sum(quality_signal["failedBySeverity"].values()),
                 "source": "quality_run_results",
+                # Run date of the evidence backing these findings, so the UI
+                # never files a months-old run under "What changed today".
+                "evidenceAt": quality_signal.get("evidenceAt") or "",
+                "label": "Quality risk findings",
             }
             if quality_signal.get("failedBySeverity")
             else None
         ),
         "cdes": cde_rows,
+        # Copy for the hero CDE tile comes from data, not the frontend: the
+        # population is criticality-derived (semantics.is_cde_asset), never
+        # "Tag-governed · lineage-backed" — no tag registry or lineage backing
+        # exists for these rows.
+        "cdeSignal": {
+            "count": cde_count,
+            "subtitle": "Criticality-derived",
+            "definition": (
+                "Assets whose criticality/tier tag is Critical/Tier 1, plus any "
+                "explicit CDE flag or 'critical data element' annotation."
+            ),
+        },
         "signalAvailability": {
             "visibleAssets": True,
             "audit": audit_available and bool(audit),
@@ -1507,7 +1607,10 @@ def command_center_payload(
         },
         "meta": {
             "warnings": source_warnings,
-            "primaryCatalog": catalog_health[0]["catalog"] if catalog_health else "",
+            # Business-ranked, NOT catalog_health[0]: catalogHealth is now
+            # worst-first, and the primary catalog must not flip to whichever
+            # catalog currently has the worst coverage.
+            "primaryCatalog": _primary_business_catalog(catalog_health),
         },
     }
     payload["estate"]["cdeCount"] = cde_count
@@ -1791,7 +1894,12 @@ def _is_non_authoritative_evidence_row(row: Mapping[str, Any]) -> bool:
     return _contains_non_authoritative_evidence_marker(row)
 
 
-def governance_workbench_payload(*, store: Any, selected_request_id: str | None = None) -> Dict[str, Any]:
+def governance_workbench_payload(
+    *,
+    store: Any,
+    selected_request_id: str | None = None,
+    visible_asset_fqns: Sequence[str] | None = None,
+) -> Dict[str, Any]:
     source_rows, source_available, source_reason = _change_requests_source(store, limit=200)
     trusted_rows = [row for row in source_rows if not _is_non_authoritative_evidence_row(row)]
     excluded_non_authoritative_rows = max(0, len(source_rows) - len(trusted_rows))
@@ -1894,6 +2002,35 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
             "state": "unavailable",
             "reason": "No resolved requests carry both created_at and reviewed_at yet.",
         }
+    # Scope caption data: the workbench deliberately shows ALL open requests
+    # (its job is to work the whole queue), while the estate KPIs count only
+    # requests targeting assets in the visible estate. Both numbers are
+    # correct — the audit found neither surface said WHICH scope it used, so
+    # 21 vs 40 read as a contradiction. Emit the split so the UI can caption
+    # "N target assets outside the visible estate".
+    open_request_scope: Dict[str, Any] = {
+        "totalOpen": len(open_requests),
+        "scope": "all-requests",
+    }
+    if visible_asset_fqns is not None:
+        visible_keys = {_lower(fqn) for fqn in visible_asset_fqns if _has_value(fqn)}
+        out_of_scope = [
+            record
+            for record in open_requests
+            if _text(record.get("assetFqn")) and _lower(record.get("assetFqn")) not in visible_keys
+        ]
+        out_of_scope_assets = {
+            _lower(record.get("assetFqn")) for record in out_of_scope
+        }
+        open_request_scope["outOfScopeOpenCount"] = len(out_of_scope)
+        open_request_scope["outOfScopeAssetCount"] = len(out_of_scope_assets)
+        open_request_scope["visibleOpenCount"] = len(open_requests) - len(out_of_scope)
+        open_request_scope["caption"] = (
+            f"{len(out_of_scope_assets)} target asset"
+            f"{'' if len(out_of_scope_assets) == 1 else 's'} outside the visible estate"
+            if out_of_scope
+            else "All open requests target assets in the visible estate"
+        )
     payload = {
         "metrics": [
             {"key": "pendingApprovals", "label": "Pending Approvals", "value": len(open_requests)},
@@ -1903,6 +2040,7 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
         ],
         "requests": open_requests,
         "selectedRequest": selected,
+        "openRequestScope": open_request_scope,
         "meta": {
             "sourceAvailable": source_available,
             "sourceReason": source_reason,
@@ -2037,12 +2175,26 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
     owner_covered = sum(1 for _, row in assets_df.iterrows() if owner_count_for_row(row.to_dict()) > 0)
     certification_coverage = round((certified / total_assets) * 100, 1) if total_assets else 0.0
     ownership_coverage = round((owner_covered / total_assets) * 100, 1) if total_assets else 0.0
-    audit = _audit_rows(store, limit=100)
+    # State-aware reads so a real zero can be told apart from a broken source:
+    # when both the request and audit sources responded, "0 policy exceptions"
+    # is an available answer — matching the Command Center and Control Center
+    # signal instead of flipping to "unavailable" only on this surface.
+    request_rows, requests_available, _request_reason = _change_requests_source(store, limit=200)
+    audit, audit_available, _audit_reason = _audit_rows_with_state(store, limit=100)
     audit_readiness = None
     quality_df = _call_store(store, "list_quality_run_results", limit=1000)
-    quality_health = None
+    # Quality health comes from the SAME pass-rate signal the Command Center
+    # publishes (quality_run_results ledger). Hardcoding None here while the
+    # Command Center showed "quality SLA 66.7%" made the Insights banner claim
+    # the score was unavailable on one surface and available on another.
+    quality_signal = _quality_sla_signal(store)
+    quality_health = quality_signal.get("value")
     policy_compliance = None
-    policy_exception_signal = _policy_exception_signal(_change_requests(store, limit=200), audit)
+    policy_exception_signal = _policy_exception_signal(
+        request_rows,
+        audit,
+        sources_available=requests_available or audit_available,
+    )
 
     weighted_signals = [
         ("metadataCoverage", 0.30, metadata_coverage),
@@ -2058,6 +2210,8 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
         if available_weight
         else None
     )
+    # Reuse the signal computed above — one ledger read, one evidence stamp.
+    quality_evidence_at = quality_signal.get("evidenceAt") or ""
     domains = _domain_summary(assets_df)
     recommendations = []
     if domains:
@@ -2099,6 +2253,10 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
         "resolutionTrend": [],
         "metadataCoverageHeatmap": _coverage_heatmap(domains),
         "certificationCoverageByTier": _certification_coverage_by_tier(assets_df),
+        # Evidence dates so quality/risk tiles can say WHEN the backing runs
+        # executed — May-dated failures must never read as today's signal.
+        "qualityEvidenceAt": quality_evidence_at,
+        "riskEvidenceAt": quality_evidence_at,
         "riskHeatmap": _risk_heatmap(assets_df),
         "domainLeaderboard": domains,
         "recommendations": recommendations,
@@ -2120,6 +2278,32 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
             "policyExceptions": policy_exception_signal["state"],
         },
     }
+
+
+# Real persisted glossary/taxonomy identifiers look like
+# "ga-taxonomy-term-net-revenue" / "ga-taxonomy-node-finance". They are NOT
+# mock markers, but NON_AUTHORITATIVE_EVIDENCE_RE matches the "ga-taxonomy-term"
+# substring, so the generic _customer_safe_text pass blanked every termId /
+# parentTermId in the taxonomy overview (19/20 terms shipped termId "" and the
+# hierarchy panel rendered identical dead "Root term" tiles). Preserve strings
+# that are exactly an identifier; sanitize prose as before.
+_TAXONOMY_ID_RE = re.compile(r"^ga-taxonomy-(?:term|node|seed)?-?[a-z0-9][a-z0-9-]*$", re.IGNORECASE)
+
+
+def _taxonomy_customer_safe_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _taxonomy_customer_safe_payload(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_taxonomy_customer_safe_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_taxonomy_customer_safe_payload(item) for item in value)
+    if isinstance(value, str):
+        # Pure identifiers pass through untouched so the frontend can join
+        # terms to parents and deep-link /glossary?term=<id>.
+        if _TAXONOMY_ID_RE.match(value.strip()):
+            return value
+        return _customer_safe_text(value)
+    return value
 
 
 def taxonomy_overview_payload(
@@ -2154,7 +2338,9 @@ def taxonomy_overview_payload(
             "initialLimit": initial_limit,
         },
     }
-    return _customer_safe_payload(payload)
+    # Taxonomy-specific sanitizer: keeps real ga-taxonomy-* identifiers while
+    # still scrubbing prose (see _taxonomy_customer_safe_payload above).
+    return _taxonomy_customer_safe_payload(payload)
 
 
 def _customer_safe_text(value: Any) -> str:
@@ -2309,14 +2495,86 @@ def _parse_audit_json(value: Any) -> Any:
         return text_value
 
 
+def audit_display_id(raw_id: Any, *, row: Mapping[str, Any] | None = None) -> str:
+    """Stable customer-facing audit ID derived from the real event identity.
+
+    Display form is "AUD-" + the first 8 hex characters of the event UUID —
+    NEVER a positional index. Positional IDs (the old AUD-0001 scheme) changed
+    whenever filters/ranges changed, so the same event carried different IDs
+    across Audit Evidence, asset timelines, and exports, making events
+    un-joinable. Rows that already carry a human "AUD-*" ID keep it verbatim.
+    When the row has no ID at all, the ID is a stable content hash — still
+    never positional.
+    """
+    raw = _text(raw_id)
+    if raw and re.search(r"^AUD[-_]", raw, flags=re.IGNORECASE):
+        return _customer_safe_text(raw)
+    if raw:
+        hex_chars = re.sub(r"[^0-9a-f]", "", raw.lower())
+        if len(hex_chars) >= 8:
+            return f"AUD-{hex_chars[:8].upper()}"
+        # Short/non-hex identifiers (e.g. "REQ-linked" ids): hash the full raw
+        # id so the display form stays stable for the same event.
+        return f"AUD-{hashlib.sha256(raw.encode('utf-8')).hexdigest()[:8].upper()}"
+    if row is not None:
+        fingerprint = "|".join(
+            _text(row.get(key))
+            for key in ("created_at", "action", "entity_fqn", "entity_id", "actor_email")
+        )
+        if fingerprint.strip("|"):
+            return f"AUD-{hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()[:8].upper()}"
+    return ""
+
+
+def _utc_z_timestamp(value: Any) -> str:
+    """Normalize a timestamp to UTC ISO-8601 with an explicit Z suffix.
+
+    Audit payloads must never emit naive local times — the Control Center was
+    rendering EDT because timestamps left the API without an offset. Returns
+    "" when the value cannot be parsed (never fabricates)."""
+    ts = _timestamp(value)
+    if ts is None:
+        return ""
+    return ts.isoformat().replace("+00:00", "Z")
+
+
+# Known service-principal local-parts in the estate. The "By services" audit
+# chip previously used a /^svc-|bot|service/ regex that matched zero real
+# actors; classification now ships in the payload so the frontend never
+# guesses. Extend this set when new automation principals are provisioned.
+_SERVICE_ACTOR_LOCALPARTS = {
+    "metadata.quality",
+    "taxonomy.curator",
+    "quality.runner",
+    "governance.sweeper",
+}
+
+
+def _actor_kind(actor: Any) -> str:
+    email = _lower(actor)
+    if not email:
+        return ""
+    local = email.split("@", 1)[0]
+    if local in _SERVICE_ACTOR_LOCALPARTS or local.startswith(("svc-", "bot.", "service.")):
+        return "service"
+    return "user"
+
+
 def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str, Any]:
     safe = _customer_safe_payload(dict(row))
+    safe["actorKind"] = _actor_kind(
+        row.get("actor_email") or row.get("actorEmail") or row.get("actor")
+    )
     raw_audit_id = _text(row.get("audit_id") or row.get("auditId"))
-    safe["displayAuditId"] = f"AUD-{index + 1:04d}"
-    if raw_audit_id and re.search(r"^AUD[-_]", raw_audit_id, flags=re.IGNORECASE):
-        safe["audit_id"] = _customer_safe_text(raw_audit_id)
-    else:
-        safe["audit_id"] = f"AUD-{index + 1:04d}"
+    # Identity contract: audit_id keeps the FULL backing event id (sanitized)
+    # so events stay joinable across surfaces/exports; displayAuditId is the
+    # short stable form derived from that same id. The `index` parameter is
+    # retained for call-site compatibility but deliberately unused — IDs must
+    # never depend on a row's position in the current filter window.
+    display_id = audit_display_id(raw_audit_id, row=row)
+    safe["displayAuditId"] = display_id
+    safe["audit_id"] = _customer_safe_text(raw_audit_id) or display_id
+    safe["auditEventId"] = _customer_safe_text(raw_audit_id)
     raw_request_id = _text(row.get("request_id") or row.get("requestId"))
     if raw_request_id:
         safe["displayRequestId"] = _customer_safe_text(raw_request_id)
@@ -2372,6 +2630,14 @@ def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str
     # UI suppresses the sub-line instead of repeating a placeholder.
     if not _text(row.get("detail")) and entity_fqn:
         safe["display_detail"] = f"{_event_title(_text(row.get('action')))} for {entity_fqn}"
+    # All audit timestamps leave the API as UTC ISO-8601 with an explicit Z.
+    # Store rows are written in UTC but often serialize without an offset;
+    # naive strings let browsers render them in local time (EDT in the audit).
+    for ts_key in ("created_at", "createdAt", "updated_at", "updatedAt", "reviewed_at", "reviewedAt"):
+        if ts_key in safe and _has_value(safe.get(ts_key)):
+            normalized_ts = _utc_z_timestamp(safe.get(ts_key))
+            if normalized_ts:
+                safe[ts_key] = normalized_ts
     return safe
 
 
@@ -2389,31 +2655,12 @@ def _is_customer_visible_audit_row(row: Mapping[str, Any]) -> bool:
     )
 
 
-def _is_cde_asset(row: Mapping[str, Any]) -> bool:
-    tokens: List[str] = []
-    for key in (
-        "fqn",
-        "table_name",
-        "comment",
-        "description",
-        "criticality",
-        "business_criticality",
-        "businessCriticality",
-        "tags",
-        "tagLabels",
-        "glossaryTerms",
-    ):
-        value = row.get(key)
-        if isinstance(value, (dict, list, tuple, set)):
-            tokens.append(str(value))
-        else:
-            tokens.append(_text(value))
-    haystack = " ".join(tokens).lower()
-    return (
-        "critical data element" in haystack
-        or " cde" in f" {haystack}"
-        or _is_critical(row)
-    )
+# Canonical CDE predicate — criticality-derived plus explicit flags. Shared
+# with /api/cde, per-asset isCde, and the Discover cdeOnly filter so the hero
+# count, the registry, and the filters can never disagree again (the audit
+# found hero=49 while /api/cde=0). UI copy must describe this population as
+# "Criticality-derived", never "Tag-governed · lineage-backed".
+_is_cde_asset = semantics.is_cde_asset
 
 
 def _cde_last_review(row: Mapping[str, Any]) -> str:
@@ -2510,8 +2757,16 @@ def cde_dashboard_payload(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for item in items:
         grouped.setdefault(item["domain"], []).append(item)
+    # Dedupe: `items` is the single canonical row list. `groups` used to embed
+    # a second full copy of every item, which doubled payload size and forced
+    # every client to run a byId-merge de-dup hack. Groups are now domain
+    # summaries referencing item ids only.
     groups = [
-        {"domain": domain, "items": sorted(domain_items, key=lambda value: value["name"].lower())}
+        {
+            "domain": domain,
+            "count": len(domain_items),
+            "itemIds": [entry["id"] for entry in sorted(domain_items, key=lambda value: value["name"].lower())],
+        }
         for domain, domain_items in sorted(grouped.items())
     ]
     protected = [
@@ -2538,15 +2793,20 @@ def cde_dashboard_payload(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
     return {
         "summary": {
             "totalCdes": len(items),
-            # Protected = sensitivity assigned and stronger than "internal" —
-            # the same population the sensitiveCandidates signal counts. This
-            # was previously hardcoded to None, which forced the route into a
-            # permanent degraded state.
-            "protectedCdes": len(protected),
+            # HONEST RENAME: this count is "sensitivity label stronger than
+            # internal" — a labeling fact, NOT evidence of protection. It was
+            # previously shipped as `protectedCdes`, which claimed 47 CDEs
+            # were "protected" while every control category on the same page
+            # reported unavailable. A sensitivity label is not a control.
+            "sensitivityLabeledCdes": len(protected),
+            "sensitivityLabeledLabel": "Sensitivity-labeled",
             "sensitiveCandidates": len(protected),
             "overdueReviews": overdue_count if evaluated else None,
             "reviewsEvaluated": evaluated,
             "domainsCovered": len(grouped),
+            # Population definition ships with the data (see semantics
+            # module): these rows are criticality-derived, not tag-governed.
+            "cdeDefinition": "Criticality-derived",
         },
         "groups": groups,
         "items": items,
@@ -2625,16 +2885,18 @@ def _filter_audit_rows_by_visible_assets(
     return filtered
 
 
-def _audit_evidence_rows(store: Any, *, limit: int) -> List[Dict[str, Any]]:
+def _audit_evidence_rows(store: Any, *, limit: int) -> tuple[List[Dict[str, Any]], bool]:
     # Prefer the SQL-side internal-action exclusion so LIMIT applies to
     # customer-visible rows (identity-directory bookkeeping rows can dominate
     # the newest N and starve the feed). Stores without the parameter fall
     # back to the shared unfiltered fetch; the Python-side visibility filter
-    # below still guarantees correctness either way.
+    # below still guarantees correctness either way. The boolean reports
+    # whether SQL-side exclusion actually applied so the payload's exclusion
+    # captions can be honest about where internal rows were dropped.
     rows = _call_store(store, "list_metadata_audit", limit=limit, exclude_internal=True)
     if rows is not None:
-        return _records(rows, limit=limit)
-    return _audit_rows(store, limit=limit)
+        return _records(rows, limit=limit), True
+    return _audit_rows(store, limit=limit), False
 
 
 def _audit_last_event_at(rows: Sequence[Mapping[str, Any]]) -> str:
@@ -2643,7 +2905,8 @@ def _audit_last_event_at(rows: Sequence[Mapping[str, Any]]) -> str:
         timestamp = _timestamp(row.get("created_at") or row.get("createdAt") or row.get("updated_at") or row.get("updatedAt"))
         if timestamp is not None and (newest is None or timestamp > newest):
             newest = timestamp
-    return newest.isoformat() if newest is not None else ""
+    # Explicit Z suffix: audit payload timestamps are always labeled UTC.
+    return newest.isoformat().replace("+00:00", "Z") if newest is not None else ""
 
 
 def _is_policy_violation_audit_row(row: Mapping[str, Any]) -> bool:
@@ -2659,15 +2922,42 @@ def _is_policy_violation_audit_row(row: Mapping[str, Any]) -> bool:
 def _audit_access_review_summary(store: Any) -> Dict[str, Any]:
     """Back the 'Access reviews · open' KPI with real change-request state
     instead of a text match on 'approv' in audit rows."""
+    if store is None:
+        # App hydration serves audit_evidence_payload(store=None) while the
+        # real payload warms in the background. That is a transient loading
+        # state, NOT terminal unavailability — returning a reason string here
+        # leaked "list_change_requests is not available on the governance
+        # store." into the tile's source label during every cold start.
+        return {"open": None, "resolved": None, "reason": "", "state": "loading"}
     request_rows, available, reason = _store_records(store, "list_change_requests", limit=500)
     if not available:
-        return {"open": None, "resolved": None, "reason": reason or "Change-request source unavailable."}
+        return {
+            "open": None,
+            "resolved": None,
+            "reason": reason or "Change-request source unavailable.",
+            "state": "unavailable",
+        }
     trusted = [row for row in request_rows if not _is_non_authoritative_evidence_row(row)]
     open_statuses = {"", "pending", "open", "new", "in review", "in_review"}
     resolved_statuses = {"approved", "rejected", "closed", "resolved", "cancelled", "canceled"}
     open_count = sum(1 for row in trusted if _lower(row.get("status")) in open_statuses)
     resolved_count = sum(1 for row in trusted if _lower(row.get("status")) in resolved_statuses)
-    return {"open": open_count, "resolved": resolved_count, "reason": ""}
+    # Oldest open createdAt lets the tile say how long the backlog has aged —
+    # a 76-day-old "open" queue reads very differently from a fresh one.
+    open_created = sorted(
+        _text(row.get("created_at") or row.get("createdAt"))
+        for row in trusted
+        if _lower(row.get("status")) in open_statuses
+        and _text(row.get("created_at") or row.get("createdAt"))
+    )
+    oldest_open = _utc_z_timestamp(open_created[0]) if open_created else ""
+    return {
+        "open": open_count,
+        "resolved": resolved_count,
+        "reason": "",
+        "state": "available",
+        "oldestOpenCreatedAt": oldest_open,
+    }
 
 
 def _audit_source_table(store: Any) -> str:
@@ -2694,10 +2984,29 @@ def audit_evidence_payload(
     limit: int = AUDIT_EVIDENCE_DEFAULT_LIMIT,
     visible_asset_fqns: Sequence[str] | None = None,
 ) -> Dict[str, Any]:
-    fetched = _audit_evidence_rows(store, limit=limit)
+    fetched, sql_side_exclusion = _audit_evidence_rows(store, limit=limit)
+    # If the raw fetch filled the whole window, older rows exist beyond it and
+    # every count below is a lower bound — surface that instead of letting the
+    # UI present a truncated window as the complete ledger.
+    window_truncated = len(fetched) >= max(1, int(limit))
     ranged_audit = _filter_audit_rows_by_range(fetched, date_range)
     scoped_audit = _filter_audit_rows_by_visible_assets(ranged_audit, visible_asset_fqns)
-    audit = [row for row in scoped_audit if _is_customer_visible_audit_row(row)]
+    # Exclusion accounting happens STRICTLY inside the requested range and
+    # visibility scope (scoped_audit), split by reason. Counting exclusions
+    # against differently-filtered populations is what made the captions
+    # contradict each other across ranges (24h claimed 0 internal exclusions
+    # while 90d claimed 214 for an overlapping window).
+    audit: List[Dict[str, Any]] = []
+    internal_rows_excluded = 0
+    non_authoritative_rows_excluded = 0
+    for row in scoped_audit:
+        if _is_non_authoritative_evidence_row(row):
+            non_authoritative_rows_excluded += 1
+            continue
+        if not _is_customer_visible_audit_row(row):
+            internal_rows_excluded += 1
+            continue
+        audit.append(row)
     # Newest customer-visible event regardless of the selected range, so an
     # empty 24h window can point the user at where the activity actually is.
     visible_any_range = [
@@ -2724,7 +3033,7 @@ def audit_evidence_payload(
     policy = [row for row in audit if "policy" in _lower(row.get("action")) or "policy" in _lower(row.get("detail"))]
     approvals = [row for row in audit if "approv" in _lower(row.get("action")) or "approv" in _lower(row.get("detail"))]
     policy_violations = [row for row in audit if _is_policy_violation_audit_row(row)]
-    access_reviews = _audit_access_review_summary(store)
+    governance_requests = _audit_access_review_summary(store)
     return {
         "summary": {
             "totalChanges": len(audit),
@@ -2732,11 +3041,33 @@ def audit_evidence_payload(
             "policyChanges": len(policy),
             "policyViolations": len(policy_violations),
             "approvals": len(approvals),
-            "accessReviewsOpen": access_reviews["open"],
-            "reviewsResolved": access_reviews["resolved"],
-            "accessReviewSource": (
-                "governance change requests" if access_reviews["open"] is not None else access_reviews["reason"]
-            ),
+            # Honest label + single source: the tile previously said "ACCESS
+            # REVIEWS" (these are governance change requests, not access
+            # reviews) and mixed its resolved count in from a different table.
+            # Both counts now come from the change-request ledger, and the
+            # label ships in the payload so the UI cannot re-mislabel it.
+            "governanceRequests": {
+                "label": "Governance requests",
+                "open": governance_requests["open"],
+                "resolved": governance_requests["resolved"],
+                "oldestOpenCreatedAt": governance_requests.get("oldestOpenCreatedAt", ""),
+                # Transient hydration must present as loading, never as a
+                # diagnostic sentence in the tile's source line. Reason
+                # strings are reserved for terminal unavailability.
+                "state": governance_requests.get(
+                    "state",
+                    "available" if governance_requests["open"] is not None else "unavailable",
+                ),
+                "source": (
+                    "governance change requests"
+                    if governance_requests["open"] is not None
+                    else (
+                        governance_requests["reason"]
+                        if governance_requests.get("state") != "loading"
+                        else ""
+                    )
+                ),
+            },
             "failedActions": len(failed),
             "lastEventAt": _audit_last_event_at(visible_any_range),
             "summarySource": "governance audit log",
@@ -2746,8 +3077,18 @@ def audit_evidence_payload(
             # Split the exclusion so the UI can say WHY rows were withheld:
             # visibility scoping (row-level security on assets outside the
             # actor's scope) is a different story than internal bookkeeping.
+            # All three counts are computed on the SAME in-range population.
             "visibilityScopedRowsExcluded": max(0, len(ranged_audit) - len(scoped_audit)),
-            "internalRowsExcluded": max(0, len(scoped_audit) - len(audit)),
+            "internalRowsExcluded": internal_rows_excluded,
+            "nonAuthoritativeRowsExcluded": non_authoritative_rows_excluded,
+            # When True, internal bookkeeping rows were additionally excluded
+            # in SQL before the fetch window (store.list_metadata_audit
+            # exclude_internal=True), so they cannot starve the window; the
+            # counts above cover only rows that reached this process.
+            "internalExclusionAppliedInSql": sql_side_exclusion,
+            "windowTruncated": window_truncated,
+            "fetchedRows": len(fetched),
+            "fetchLimit": int(limit),
         },
         "events": safe_audit,
         "selectedEvent": selected,
@@ -2804,6 +3145,8 @@ def _admin_policy_requirements(command: Mapping[str, Any]) -> Dict[str, Any]:
         },
     ]
     by_domain = []
+    # posture.byDomain is worst-first now, so this top-5 slice surfaces the
+    # WORST-covered domains — the ones a policy panel exists to show.
     for row in command.get("posture", {}).get("byDomain", [])[:5]:
         if not isinstance(row, Mapping):
             continue
@@ -3005,7 +3348,19 @@ def admin_control_center_payload(
     # Pre-filter with separator-normalized matching (see
     # _admin_internal_audit_row): live actions are hyphenated and slip past
     # _recent_events' underscore-form token check.
-    governance_audit = [row for row in audit if not _admin_internal_audit_row(row)]
+    # One scoping policy across every door to the audit log: the compliance
+    # audit caught this feed showing out-of-scope events that the Audit
+    # Evidence surface withholds, so apply the same visibility filter and
+    # non-authoritative drop here before rendering admin activity.
+    # Empty inventory (cold hydration) must mean "scope unknown", not "hide
+    # everything" — pass None so the filter is a no-op until inventory warms.
+    visible_admin_fqns = _extract_asset_fqns(visible_assets) or None
+    audit = _filter_audit_rows_by_visible_assets(audit, visible_admin_fqns)
+    governance_audit = [
+        row
+        for row in audit
+        if not _admin_internal_audit_row(row) and not _is_non_authoritative_evidence_row(row)
+    ]
     pending_requests = command.get("governance", {}).get("pendingRequests", [])
     visible_asset_count = command.get("estate", {}).get("visibleAssetCount")
     return {

@@ -729,7 +729,15 @@ class DualWriteGovernanceStore:
         review_note: str | None = None,
         actor_role: str = "reader",
         refresh_projection: bool = True,
+        assignee: str | None = None,
+        priority: str | None = None,
     ) -> Any:
+        # Keep this signature in lockstep with GovernanceStore.set_request_status.
+        # assignee/priority were added to the base store for triage PATCHes; the
+        # wrapper previously dropped them, so PATCH /api/governance/requests/<id>
+        # 500'd with an unexpected-keyword TypeError when the Lakebase mirror was
+        # active. Pass every kwarg through so the Delta primary write is identical
+        # to the non-mirrored path, then shadow-mirror as usual.
         result = self._delta_store.set_request_status(
             request_id=request_id,
             status=status,
@@ -737,6 +745,8 @@ class DualWriteGovernanceStore:
             review_note=review_note,
             actor_role=actor_role,
             refresh_projection=refresh_projection,
+            assignee=assignee,
+            priority=priority,
         )
         if refresh_projection:
             self._mirror.mirror_workflow(request_id)

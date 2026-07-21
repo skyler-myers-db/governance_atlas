@@ -23,6 +23,11 @@ _GOVERNANCE_SUMMARY_WARMING_LOCK = threading.Lock()
 class GovernanceRequestStatusPatch(BaseModel):
     status: str
     reviewNote: str = ""
+    # Triage fields for the Stewardship Workbench: both optional and both
+    # sanitized like status. Empty string means "leave unchanged" so a plain
+    # status PATCH never clears an existing assignment or priority.
+    assignee: str = ""
+    priority: str = ""
 
     @field_validator("status", mode="before")
     @classmethod
@@ -37,6 +42,22 @@ class GovernanceRequestStatusPatch(BaseModel):
     @classmethod
     def _sanitize_review_note(cls, value: Any) -> str:
         return input_safety.sanitize_markdown(value, field="reviewNote", max_length=4000)
+
+    @field_validator("assignee", mode="before")
+    @classmethod
+    def _sanitize_assignee(cls, value: Any) -> str:
+        return input_safety.sanitize_email(value, field="assignee")
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _sanitize_priority(cls, value: Any) -> str:
+        # Allowed set mirrors the workbench picker; "" passes through as a
+        # deliberate no-op rather than clearing a recorded priority.
+        return input_safety.sanitize_allowed(
+            value,
+            field="priority",
+            allowed=("p0", "p1", "p2", "p3", ""),
+        )
 
 
 class GovernanceNotificationPatch(BaseModel):
@@ -487,6 +508,10 @@ def api_governance_patch_request(
         review_note=_normalize_str(payload.reviewNote) or None,
         actor_role=actor_role,
         refresh_projection=not fast,
+        # Triage riders: None (not "") signals "no change" to the store so a
+        # status-only PATCH never clears an existing assignment or priority.
+        assignee=_normalize_str(payload.assignee).lower() or None,
+        priority=_normalize_str(payload.priority).lower() or None,
     )
     apply_warning = ""
     if status == "approved":
@@ -551,6 +576,10 @@ def api_governance_patch_request(
             "ok": True,
             "requestId": atlas_metrics._customer_safe_text(raw_request_id),
             "status": status,
+            # Echo applied triage fields ("" when unchanged) so the workbench
+            # can update its local row without a full workbench refetch.
+            "assignee": _normalize_str(payload.assignee).lower(),
+            "priority": _normalize_str(payload.priority).lower(),
             "asset": asset_payload,
             "applyWarning": apply_warning,
             "governance": governance_payload,

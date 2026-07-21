@@ -381,4 +381,26 @@ describe("DiscoveryWorkspace gap fixes", () => {
     // unrelated total result count.
     expect(within(rail).getByText("3 results")).not.toBeNull();
   });
+
+  it("renders every domain bucket behind a Show all expander instead of silently truncating", () => {
+    // Bucket-dropper fix: the backend emits ALL domain buckets (including
+    // "Unassigned") summing to the result total; the old `.slice(0, 6)`
+    // silently dropped buckets past the sixth.
+    const domains = [
+      "Finance", "Sales", "Marketing", "Operations", "Risk", "Product",
+      "Customer", "Unassigned",
+    ].map((value, index) => ({ value, count: index + 1 }));
+    mockResults({ facets: { domains } });
+    render(<DiscoveryWorkspace {...defaultProps()} />);
+    const rail = document.querySelector(".gh-discovery-prototype-filter-rail");
+    expect(rail).not.toBeNull();
+    // Visual cap of 6 with an explicit expander — no silent truncation.
+    expect(within(rail).getByText("Finance")).not.toBeNull();
+    expect(within(rail).queryByText("Unassigned")).toBeNull();
+    const expander = within(rail).getByRole("button", { name: "Show all 8" });
+    fireEvent.click(expander);
+    expect(within(rail).getByText("Customer")).not.toBeNull();
+    expect(within(rail).getByText("Unassigned")).not.toBeNull();
+    expect(within(rail).getByRole("button", { name: "Show fewer" })).not.toBeNull();
+  });
 });

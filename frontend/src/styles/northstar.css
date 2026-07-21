@@ -7756,3 +7756,347 @@ input.gh-input,
   align-items: baseline;
   gap: 2px 8px;
 }
+
+/* ============================================================
+   Persona-audit fixes — Command Center evidence affordances
+   ============================================================ */
+
+/* Hero stats + headline KPI tiles are real clicks into filtered evidence.
+   The overlay button keeps the existing grid markup intact. */
+.gh-command-center-facts span {
+  position: relative;
+}
+
+.gh-command-center-fact-open,
+.gh-command-center-kpi-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gh-command-center-fact-open:hover,
+.gh-command-center-kpi-open:hover {
+  background: rgba(102, 197, 255, 0.06);
+}
+
+.gh-command-center-fact-open:focus-visible,
+.gh-command-center-kpi-open:focus-visible {
+  outline: 2px solid var(--ga-bright-blue);
+  outline-offset: 2px;
+}
+
+/* Info glyph sits above the tile overlay so both stay clickable. */
+.gh-command-center-kpi-info {
+  position: relative;
+  z-index: 2;
+  width: 15px;
+  height: 15px;
+  margin-left: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ga-border);
+  border-radius: 999px;
+  background: rgba(207, 239, 255, 0.05);
+  color: var(--ga-text-muted);
+  font-size: 0.6rem;
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gh-command-center-kpi-info:hover,
+.gh-command-center-kpi-info[aria-expanded="true"] {
+  border-color: var(--ga-bright-blue);
+  color: var(--ga-bright-blue);
+}
+
+.gh-command-center-kpi-info:focus-visible {
+  outline: 2px solid var(--ga-bright-blue);
+  outline-offset: 1px;
+}
+
+.gh-command-center-kpi-popover {
+  position: absolute;
+  top: 34px;
+  left: 12px;
+  right: 12px;
+  z-index: 3;
+  padding: 9px 11px;
+  border: 1px solid var(--ga-border);
+  border-radius: 8px;
+  background: var(--ga-surface-strong, rgba(6, 22, 38, 0.98));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  color: var(--ga-text);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Honest zero-delta state for "What changed today". */
+.gh-command-center-no-changes {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+}
+
+.gh-command-center-no-changes strong {
+  color: var(--ga-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.gh-command-center-no-changes em {
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+/* Explicit truncation caption for the catalog-health table. */
+.gh-command-center-catalog-cap {
+  margin: 8px 0 0;
+  color: var(--ga-text-muted);
+  font-size: 0.7rem;
+}
+
+/* Hydration: values are visibly "still loading", never definitive zeros. */
+.gh-command-center-page.is-hydrating .gh-command-center-kpi strong,
+.gh-command-center-page.is-hydrating .gh-command-center-facts b {
+  opacity: 0.45;
+  animation: ga-kpi-hydrate-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ga-kpi-hydrate-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.75; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-command-center-page.is-hydrating .gh-command-center-kpi strong,
+  .gh-command-center-page.is-hydrating .gh-command-center-facts b {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Persona-audit fixes — Glossary hierarchy tiles + CDE source state
+   ============================================================ */
+
+/* Hierarchy tiles are now buttons that select their term; mirror the old
+   tile styling (owned here because operations-pages.css belongs to a
+   parallel workstream). */
+.gh-taxonomy-prototype-hierarchy-grid > button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid rgba(69, 157, 213, 0.18);
+  border-radius: 7px;
+  background: rgba(4, 24, 40, 0.55);
+  cursor: pointer;
+  text-align: left;
+}
+
+.gh-taxonomy-prototype-hierarchy-grid > button:hover {
+  border-color: var(--ga-bright-blue);
+  background: rgba(10, 38, 60, 0.72);
+}
+
+.gh-taxonomy-prototype-hierarchy-grid > button:focus-visible {
+  outline: 2px solid var(--ga-bright-blue);
+  outline-offset: 1px;
+}
+
+/* "Not tagged" source state — muted, clearly a state rather than a value. */
+.gh-taxonomy-source-untagged {
+  color: var(--ga-text-muted);
+  font-style: normal;
+}
+
+/* ============================================================
+   Persona-audit fixes — Command palette result type badges
+   ============================================================ */
+
+.gh-cmdk-item-badge {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--ga-border);
+  border-radius: 999px;
+  background: rgba(207, 239, 255, 0.05);
+  color: var(--ga-text-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Persona-audit fixes — Inbox page work sections
+   ============================================================ */
+
+.gh-inbox-page-sections {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.gh-inbox-source-section {
+  border: 1px solid var(--ga-border);
+  border-radius: 10px;
+  background: rgba(12, 33, 56, 0.96);
+  padding: 14px 16px;
+}
+
+.gh-inbox-source-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.gh-inbox-source-head h2 {
+  margin: 0;
+  color: var(--ga-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.gh-inbox-source-head .gh-inbox-source-count {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(102, 197, 255, 0.12);
+  color: var(--ga-bright-blue);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.gh-inbox-source-head em {
+  margin-left: auto;
+  color: var(--ga-text-muted);
+  font-size: 0.7rem;
+  font-style: normal;
+}
+
+.gh-inbox-source-list {
+  display: grid;
+  gap: 6px;
+}
+
+.gh-inbox-source-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--ga-border);
+  border-radius: 8px;
+  background: rgba(4, 24, 40, 0.55);
+  color: var(--ga-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.gh-inbox-source-item:hover {
+  border-color: var(--ga-bright-blue);
+  background: rgba(10, 38, 60, 0.72);
+}
+
+.gh-inbox-source-item:focus-visible {
+  outline: 2px solid var(--ga-bright-blue);
+  outline-offset: 1px;
+}
+
+.gh-inbox-source-item strong {
+  font-size: 0.82rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-inbox-source-item small {
+  grid-row: 2;
+  color: var(--ga-text-muted);
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-inbox-source-item .gh-inbox-source-item-meta {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  color: var(--ga-text-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.gh-inbox-source-empty {
+  padding: 10px 2px;
+  color: var(--ga-text-muted);
+  font-size: 0.76rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Stewardship status toast — error tone.
+ * The shared .gh-discovery-preview-action-toast chrome is success-styled
+ * (blue gradient + teal ✓). Failed mutations reuse the layout but must read
+ * unambiguously as failures (persona-audit P0-adjacent: raw backend errors
+ * rendered inside the success toast).
+ * ------------------------------------------------------------------------ */
+.gh-discovery-preview-action-toast.is-error {
+  background: color-mix(in srgb, var(--ga-danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ga-danger) 45%, transparent);
+}
+.gh-discovery-preview-action-toast.is-error .gh-discovery-preview-action-toast-icon {
+  background: color-mix(in srgb, var(--ga-danger) 24%, transparent);
+  color: var(--ga-danger);
+}
+
+/* ---------------------------------------------------------------------------
+ * Command palette — live-search status rows.
+ * ------------------------------------------------------------------------ */
+.gh-cmdk-live-status {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+  border-top: 1px solid var(--ga-border, rgba(255, 255, 255, 0.08));
+}
+.gh-cmdk-empty.is-loading {
+  color: var(--ga-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Discovery filter rail — "Show all N" facet expander.
+ * The rail no longer silently truncates facet buckets; past the visual cap
+ * this quiet control reveals the full server-emitted list.
+ * ------------------------------------------------------------------------ */
+.gh-discovery-filter-show-all {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ga-bright-blue);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.gh-discovery-filter-show-all:hover,
+.gh-discovery-filter-show-all:focus-visible {
+  background: color-mix(in srgb, var(--ga-bright-blue) 12%, transparent);
+}

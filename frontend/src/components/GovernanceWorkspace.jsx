@@ -330,7 +330,8 @@ function requestPriority(request = {}) {
 
 function priorityTone(priority = "") {
   const value = String(priority || "").toLowerCase();
-  if (value.includes("p1") || value.includes("crit") || value.includes("high")) return "high";
+  // p0 is the triage picker's most-urgent value; same visual tone as p1.
+  if (value.includes("p0") || value.includes("p1") || value.includes("crit") || value.includes("high")) return "high";
   if (value.includes("p2") || value.includes("medium")) return "medium";
   if (value.includes("p3") || value.includes("low")) return "low";
   return "unassigned";
@@ -338,6 +339,7 @@ function priorityTone(priority = "") {
 
 function priorityShortLabel(priority = "") {
   const value = String(priority || "").toLowerCase();
+  if (value.includes("p0")) return "P0";
   if (value.includes("p1") || value.includes("crit") || value.includes("high")) return "P1";
   if (value.includes("p2") || value.includes("medium")) return "P2";
   if (value.includes("p3") || value.includes("low")) return "P3";
@@ -354,17 +356,50 @@ function formatShortDate(value = "") {
   if (!text) return "";
   const date = new Date(text);
   if (Number.isNaN(date.getTime())) return text;
-  return date.toLocaleString(undefined, {
+  // Always UTC with an explicit label, matching the audit surface. The old
+  // browser-local, year-less rendering made two adjacent stored timestamps
+  // (02:26Z / 02:51Z → "May 4, 10:26 PM" / "May 4, 10:51 PM" in EDT) read
+  // as ONE timestamp drifting with the wall clock — a P2 the persona audit
+  // filed as "timestamps track the current time". Fixed absolute values only.
+  return date.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
+    year: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+    timeZoneName: "short",
   });
 }
 
 function dueLabel(request = {}) {
   const due = formatShortDate(request.dueAt);
   return due ? `Due ${due}` : "Due not set";
+}
+
+// ---- Mutation failure copy -------------------------------------------------
+// Backend 5xx bodies can carry raw exception text ("TypeError:
+// DualWriteGovernanceStore…"). That text must never reach the UI: keep the
+// request id for support correlation, swap the message for human copy.
+function looksLikeRawException(message) {
+  return /\b[A-Z][A-Za-z]*(?:Error|Exception)\b|Traceback|\bNoneType\b/.test(String(message || ""));
+}
+
+function humanMutationError(error, fallback) {
+  const requestId = textValue(
+    error?.httpRequestId || error?.clientRequestId || error?.meta?.httpRequestId,
+  );
+  const detail = textValue(error?.detailMessage);
+  const status = Number(error?.status);
+  // Server copy is kept only for deliberate 4xx messages (permissions,
+  // validation) that do not look like a stringified exception; everything
+  // else gets the human fallback.
+  const base =
+    detail && Number.isFinite(status) && status > 0 && status < 500 && !looksLikeRawException(detail)
+      ? detail
+      : fallback;
+  return requestId ? `${base} (Request ID: ${requestId})` : base;
 }
 
 function slaTone(request = {}) {
@@ -462,6 +497,20 @@ function isValidationWorkItem(request = {}) {
 
 function workItemFullId(request = {}) {
   return textValue(request.requestId || request.id);
+}
+
+// Map a display status ("Pending", "Resolved", …) to the PATCH-allowed set.
+// The status field is required on the PATCH body, so triage-only updates
+// (assign / priority) re-send the current status unchanged.
+function patchableStatus(status = "") {
+  const value = textValue(status).toLowerCase();
+  return ["pending", "approved", "rejected", "resolved", "closed"].includes(value) ? value : "pending";
+}
+
+// Current priority as a picker value: "p0"–"p3" or "" for unassigned.
+function priorityPickerValue(priority = "") {
+  const short = priorityShortLabel(priority).toLowerCase();
+  return /^p[0-3]$/.test(short) ? short : "";
 }
 
 function workItemDisplayId(request = {}) {
@@ -616,7 +665,11 @@ export default function GovernanceWorkspace({
     success: "",
   });
   const [northstarWorkbench, setNorthstarWorkbench] = useState(null);
-  const [northstarLoading, setNorthstarLoading] = useState(false);
+  // Starts true: the workbench fetch begins on mount, and initializing to
+  // false let the first frames render definitive "0 open work items" zeros
+  // while the request was in flight (the hydration-zero bug the perf
+  // verifier BLOCKed on). Loading must be true until real data or an error.
+  const [northstarLoading, setNorthstarLoading] = useState(true);
   const [northstarError, setNorthstarError] = useState("");
   const [northstarSelectedRequestId, setNorthstarSelectedRequestId] = useState("");
   const [northstarDetail, setNorthstarDetail] = useState(null);
@@ -632,13 +685,29 @@ export default function GovernanceWorkspace({
   const [newWorkSubmitting, setNewWorkSubmitting] = useState(false);
   const [newWorkError, setNewWorkError] = useState("");
   // Toast-style status surface for staged actions (New work item, etc.).
-  // Cleared on next action panel open or after a 6s timeout.
-  const [statusMessage, setStatusMessage] = useState("");
+  // Carries a tone so FAILURES render as errors — a raw backend exception
+  // inside the success-styled ✓ toast was the P0-adjacent defect the persona
+  // audit filed. Success auto-dismisses; errors stay until dismissed.
+  const [status, setStatus] = useState({ text: "", tone: "success" });
+  const statusMessage = status.text;
+  const statusTone = status.tone;
+  const setStatusMessage = (text) => setStatus({ text: String(text || ""), tone: "success" });
+  const setStatusError = (text) => setStatus({ text: String(text || ""), tone: "error" });
+  // Bulk triage: selected queue-row ids, the confirm dialog flag, and live
+  // progress while the resolve loop runs (visible feedback, never a dead
+  // multi-second silence).
+  const [bulkSelection, setBulkSelection] = useState(() => new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null);
+  const [triageBusy, setTriageBusy] = useState(false);
   useEffect(() => {
     if (!statusMessage) return undefined;
-    const handle = window.setTimeout(() => setStatusMessage(""), 6000);
+    // Errors persist until the user dismisses them — auto-dismissing a
+    // failure notice would hide the fact that nothing was saved.
+    if (statusTone === "error") return undefined;
+    const handle = window.setTimeout(() => setStatus({ text: "", tone: "success" }), 6000);
     return () => window.clearTimeout(handle);
-  }, [statusMessage]);
+  }, [statusMessage, statusTone]);
 
   useEffect(() => {
     const nextAssetFqn = initialAssetFqn || "";
@@ -687,7 +756,9 @@ export default function GovernanceWorkspace({
       })
       .catch((error) => {
         if (cancelled || error?.name === "AbortError") return;
-        setNorthstarError(error?.message || "Unable to load governance workbench.");
+        // Human copy + request id; a 500 body's raw exception text must not
+        // render in the degraded banner.
+        setNorthstarError(humanMutationError(error, "Unable to load the governance workbench right now."));
       })
       .finally(() => {
         if (!cancelled) setNorthstarLoading(false);
@@ -741,7 +812,8 @@ export default function GovernanceWorkspace({
       setMutationState({
         kind,
         loading: false,
-        error: error?.message || "Unable to update governance right now.",
+        // Human copy + request id only — never raw backend exception text.
+        error: humanMutationError(error, "Couldn't update the work item — the server rejected the change."),
         success: "",
       });
       throw error;
@@ -777,20 +849,37 @@ export default function GovernanceWorkspace({
       }
     : null;
   const northstarPrototypeEvidence = isNonAuthoritativeMockEvidence(northstarWorkbenchEvidenceEnvelope);
-  const northstarQueueUniverse = useMemo(() => {
+  // Full trustworthy queue BEFORE the per-asset filter: the asset facet needs
+  // the unfiltered population to offer real options and counts.
+  const northstarTrustworthyRows = useMemo(() => {
     const rawRequests = Array.isArray(northstarWorkbench?.requests)
       ? northstarWorkbench.requests
       : northstarUseBootstrapFallback
         ? views.requests
         : [];
     const normalized = rawRequests.map((item, index) => normalizeNorthstarRequest(item, index));
-    const trustworthyRows = northstarPrototypeEvidence
+    return northstarPrototypeEvidence
       ? []
       : normalized.filter((item) => !isValidationWorkItem(item));
-    return focusedAssetFqn
-      ? trustworthyRows.filter((item) => item.assetFqn === focusedAssetFqn)
-      : trustworthyRows;
-  }, [focusedAssetFqn, northstarPrototypeEvidence, northstarUseBootstrapFallback, northstarWorkbench?.requests, views.requests]);
+  }, [northstarPrototypeEvidence, northstarUseBootstrapFallback, northstarWorkbench?.requests, views.requests]);
+  const northstarQueueUniverse = useMemo(
+    () => (focusedAssetFqn
+      ? northstarTrustworthyRows.filter((item) => item.assetFqn === focusedAssetFqn)
+      : northstarTrustworthyRows),
+    [focusedAssetFqn, northstarTrustworthyRows],
+  );
+  // Asset facet options: distinct target FQNs with open-item counts. The
+  // active URL-driven asset (?asset=…) is kept selectable even when it has
+  // no open items so the filter state stays visible and clearable.
+  const assetFacetOptions = useMemo(() => {
+    const counts = new Map();
+    northstarTrustworthyRows.forEach((item) => {
+      if (!item.assetFqn) return;
+      counts.set(item.assetFqn, (counts.get(item.assetFqn) || 0) + 1);
+    });
+    if (focusedAssetFqn && !counts.has(focusedAssetFqn)) counts.set(focusedAssetFqn, 0);
+    return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [focusedAssetFqn, northstarTrustworthyRows]);
 
   const northstarQueueCounts = useMemo(
     () => queueFilterCounts(northstarQueueUniverse, currentUser || {}),
@@ -834,6 +923,13 @@ export default function GovernanceWorkspace({
   useEffect(() => {
     setNorthstarPage(1);
   }, [northstarQueueFilter]);
+
+  useEffect(() => {
+    // A new filter scope invalidates row selection: never carry a bulk
+    // selection into a row set the user can no longer see.
+    setBulkSelection(new Set());
+    setBulkConfirmOpen(false);
+  }, [northstarQueueFilter, focusedAssetFqn]);
 
   useEffect(() => {
     if (!northstarRequests.length) {
@@ -913,7 +1009,8 @@ export default function GovernanceWorkspace({
       // Pull the fresh queue so the new request appears without a reload.
       refreshNorthstarWorkbench();
     } catch (error) {
-      setNewWorkError(error?.message || "Unable to create the work item right now.");
+      // Human copy + request id — never raw backend exception text.
+      setNewWorkError(humanMutationError(error, "Couldn't create the work item — the server rejected the change."));
     } finally {
       setNewWorkSubmitting(false);
     }
@@ -937,15 +1034,22 @@ export default function GovernanceWorkspace({
   const updateNorthstarRequestStatus = async (status, reviewNote) => {
     if (!northstarSelectedDetail?.requestId) return;
     setNorthstarActionPanel(null);
-    await runGovernanceMutation(
-      "request-status",
-      () =>
-        updateGovernanceRequest(northstarSelectedDetail.requestId, {
-          status: status === "commented" ? northstarSelectedDetail.status : status,
-          reviewNote,
-        }, { fast: true }),
-      status === "approved" ? "Request approved." : "Request updated.",
-    );
+    try {
+      await runGovernanceMutation(
+        "request-status",
+        () =>
+          updateGovernanceRequest(northstarSelectedDetail.requestId, {
+            status: status === "commented" ? northstarSelectedDetail.status : status,
+            reviewNote,
+          }, { fast: true }),
+        status === "approved" ? "Request approved." : "Request updated.",
+      );
+    } catch {
+      // runGovernanceMutation already surfaced the error banner. Bail out so
+      // the optimistic status/success updates below never run on failure —
+      // and so the rejection doesn't escape as an unhandled promise error.
+      return;
+    }
     setNorthstarWorkbench((current) => {
       if (!current?.requests) return current;
       const statusLabel =
@@ -996,14 +1100,155 @@ export default function GovernanceWorkspace({
     if (clipboard?.writeText) {
       clipboard
         .writeText(fullId)
-        .then(() => setStatusMessage(`Copied full request id ${fullId}.`))
-        .catch(() => setStatusMessage(`Full request id: ${fullId}`));
+        .then(() => setStatusMessage("Request ID copied."))
+        .catch(() => setStatusMessage(`Request ID: ${fullId}`));
     } else {
       // No clipboard API (older embeds): still surface the id so the click
       // is never a dead control.
-      setStatusMessage(`Full request id: ${fullId}`);
+      setStatusMessage(`Request ID: ${fullId}`);
     }
   };
+
+  // Per-asset queue filter. Keeps the ?asset= URL param in sync (entity pages
+  // deep-link here via /governance?asset=<fqn>) and stays clearable in-place.
+  const selectAssetFilter = (assetFqn) => {
+    setFocusedAssetFqn(assetFqn || "");
+    onRouteAssetChange?.(assetFqn || "");
+    setNorthstarPage(1);
+  };
+
+  // Triage PATCH (assign / priority). Re-sends the current status unchanged —
+  // the backend treats empty triage fields as "no change", so this never
+  // mutates workflow state beyond the requested field. Local state commits
+  // ONLY after the PATCH succeeds; on failure the controlled selects re-render
+  // back to the stored value and an error toast says nothing was saved.
+  const applyTriageUpdate = async ({ assignee = "", priority = "" }, successMessage, failureMessage) => {
+    const detail = northstarSelectedDetail;
+    if (!detail?.requestId || triageBusy) return;
+    setTriageBusy(true);
+    try {
+      await updateGovernanceRequest(
+        detail.requestId,
+        { status: patchableStatus(detail.status), assignee, priority },
+        { fast: true },
+      );
+      setNorthstarWorkbench((current) => {
+        if (!current?.requests) return current;
+        return {
+          ...current,
+          requests: current.requests.map((item) =>
+            (item.requestId || item.id) === detail.requestId
+              ? {
+                  ...item,
+                  ...(assignee ? { assigned: assignee, assignedTo: assignee } : {}),
+                  ...(priority ? { priority: priority.toUpperCase() } : {}),
+                }
+              : item,
+          ),
+        };
+      });
+      setNorthstarDetail((current) => (
+        current?.requestId === detail.requestId
+          ? {
+              ...current,
+              ...(assignee ? { assigned: assignee, assignedTo: assignee } : {}),
+              ...(priority ? { priority: priority.toUpperCase() } : {}),
+            }
+          : current
+      ));
+      setStatusMessage(successMessage);
+    } catch (error) {
+      // Error-toned toast with human copy + request id. The raw error
+      // message (potentially "TypeError: DualWriteGovernanceStore…") used to
+      // land inside the ✓ success toast here.
+      setStatusError(
+        humanMutationError(
+          error,
+          failureMessage || "Couldn't update the work item — the server rejected the change.",
+        ),
+      );
+    } finally {
+      setTriageBusy(false);
+    }
+  };
+
+  const assignSelectedToMe = () => {
+    const email = normalizeCurrentUser(currentUser || {}).email;
+    if (!email) {
+      setStatusError("Assign to me is unavailable because no signed-in user email was resolved.");
+      return;
+    }
+    applyTriageUpdate(
+      { assignee: email },
+      `Assigned to you (${email}).`,
+      "Couldn't update the assignment — the server rejected the change.",
+    );
+  };
+
+  const setSelectedPriority = (priority) => {
+    if (!priority) return;
+    applyTriageUpdate(
+      { priority },
+      `Priority set to ${priority.toUpperCase()}.`,
+      "Couldn't update the priority — the server rejected the change.",
+    );
+  };
+
+  const toggleBulkSelected = (id) => {
+    setBulkSelection((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const runBulkResolve = async () => {
+    // Loop the existing single-request PATCH: no new bulk endpoint, so each
+    // request keeps its own audit row exactly like a manual resolve.
+    const targets = northstarRequests.filter((item) => bulkSelection.has(item.id) && item.requestId);
+    setBulkConfirmOpen(false);
+    if (!targets.length) return;
+    setBulkProgress({ done: 0, total: targets.length, failed: 0 });
+    let done = 0;
+    let failed = 0;
+    for (const item of targets) {
+      try {
+        await updateGovernanceRequest(
+          item.requestId,
+          { status: "resolved", reviewNote: "Bulk-resolved from Stewardship Workbench." },
+          { fast: true },
+        );
+      } catch {
+        failed += 1;
+      }
+      done += 1;
+      setBulkProgress({ done, total: targets.length, failed });
+    }
+    setBulkProgress(null);
+    setBulkSelection(new Set());
+    // Partial failure is a failure notice, not a ✓ success toast.
+    if (failed) {
+      setStatusError(`Bulk resolve finished: ${targets.length - failed} resolved, ${failed} failed.`);
+    } else {
+      setStatusMessage(`${targets.length} work item${targets.length === 1 ? "" : "s"} resolved.`);
+    }
+    refreshNorthstarWorkbench();
+  };
+
+  // Scope caption (backend openRequestScope): the workbench deliberately
+  // shows ALL open requests while estate KPIs count only the visible estate.
+  // Surfacing the split here is what prevents "40 vs 21" confusion.
+  const openRequestScope =
+    northstarWorkbench?.openRequestScope && typeof northstarWorkbench.openRequestScope === "object"
+      ? northstarWorkbench.openRequestScope
+      : null;
+  const openScopeVisible = finiteMetricValue(openRequestScope?.visibleOpenCount);
+  const openScopeOutOfScope = finiteMetricValue(openRequestScope?.outOfScopeOpenCount);
+  const openScopeCaption = textValue(openRequestScope?.caption);
+  const openScopeSummary = openRequestScope && openScopeVisible !== null && openScopeOutOfScope !== null
+    ? `${openScopeVisible} in the visible estate · ${openScopeOutOfScope} on out-of-scope assets${openScopeCaption ? ` (${openScopeCaption})` : ""}`
+    : openScopeCaption;
 
   const openWorkItemCount = finiteMetricValue(null, northstarQueueUniverse.length);
   const slaBreachCount = finiteMetricValue(
@@ -1038,6 +1283,10 @@ export default function GovernanceWorkspace({
   const selectedDiffRows = Array.isArray(northstarSelectedDetail?.diff?.rows)
     ? northstarSelectedDetail.diff.rows.filter((row) => textValue(row?.after) || textValue(row?.before))
     : [];
+  // Hydrating = fetch in flight with no payload yet. Every count on this
+  // surface must show a loading placeholder in that window — never a
+  // definitive zero that flips to the real number when the response lands.
+  const northstarHydrating = northstarLoading && !northstarWorkbench;
   const northstarCanMutate = canMutateGovernanceRequests(currentUser || {}, bootstrap || {});
   const northstarCanFileWorkItems = canFileGovernanceWorkItems(currentUser || {}, bootstrap || {});
   const northstarMutationRole = governanceMutationRole(currentUser || {}, bootstrap || {}) || "Reader";
@@ -1060,14 +1309,19 @@ export default function GovernanceWorkspace({
       <header className="gh-governance-ns-hero">
         <div>
           <span className="gh-governance-ns-eyebrow">Stewardship Workbench</span>
-          <h1>
-            {`${openWorkItemCount.toLocaleString()} open work items · ${northstarSlaSummary}`}
+          <h1 aria-busy={northstarHydrating || undefined}>
+            {northstarHydrating
+              ? "Loading work queue…"
+              : `${openWorkItemCount.toLocaleString()} open work items · ${northstarSlaSummary}`}
           </h1>
           <p>
             {northstarPrototypeEvidence
               ? "Non-authoritative stewardship payloads were rejected. Live governance request, assignment, and SLA evidence is unavailable for this route."
               : "Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available."}
           </p>
+          {openScopeSummary && !northstarPrototypeEvidence ? (
+            <p className="gh-governance-ns-scope-caption">{openScopeSummary}</p>
+          ) : null}
         </div>
         <div className="gh-governance-ns-hero-actions">
           <button
@@ -1124,18 +1378,23 @@ export default function GovernanceWorkspace({
       ) : null}
 
       {statusMessage ? (
+        // Tone-aware toast: the ✓ success chrome renders ONLY on success.
+        // Failures get error styling + role="alert" so a rejected PATCH can
+        // never masquerade as a saved change.
         <div
-          aria-live="polite"
-          className="gh-discovery-preview-action-toast"
-          role="status"
+          aria-live={statusTone === "error" ? "assertive" : "polite"}
+          className={`gh-discovery-preview-action-toast ${statusTone === "error" ? "is-error" : ""}`.trim()}
+          role={statusTone === "error" ? "alert" : "status"}
           style={{ marginBottom: 12 }}
         >
-          <span aria-hidden="true" className="gh-discovery-preview-action-toast-icon">✓</span>
+          <span aria-hidden="true" className="gh-discovery-preview-action-toast-icon">
+            {statusTone === "error" ? "!" : "✓"}
+          </span>
           <span>{statusMessage}</span>
           <button
             aria-label="Dismiss notice"
             className="gh-discovery-preview-action-toast-close"
-            onClick={() => setStatusMessage("")}
+            onClick={() => setStatus({ text: "", tone: "success" })}
             type="button"
           >
             ×
@@ -1265,7 +1524,7 @@ export default function GovernanceWorkspace({
             onClick={() => setNorthstarQueueFilter(tab.key)}
             type="button"
           >
-            {tab.label} <span>{tab.count}</span>
+            {tab.label} <span>{northstarHydrating ? "…" : tab.count}</span>
           </button>
         ))}
       </div>
@@ -1275,76 +1534,165 @@ export default function GovernanceWorkspace({
           <div className="gh-governance-ns-panel-head">
             <div>
               <h2>Work queue</h2>
-            <span>{northstarRequests.length} item{northstarRequests.length === 1 ? "" : "s"} · sorted by {northstarQueueSortLabel}</span>
+              <span aria-busy={northstarHydrating || undefined}>
+                {northstarHydrating
+                  ? "Loading work items…"
+                  : `${northstarRequests.length} item${northstarRequests.length === 1 ? "" : "s"} · sorted by ${northstarQueueSortLabel}`}
+              </span>
+              {openScopeSummary && !northstarPrototypeEvidence ? (
+                <span className="gh-governance-ns-scope-caption">{openScopeSummary}</span>
+              ) : null}
             </div>
+            <label className="gh-governance-ns-asset-facet">
+              <span>Asset</span>
+              <select
+                aria-label="Filter work queue by asset"
+                onChange={(event) => selectAssetFilter(event.target.value)}
+                value={focusedAssetFqn}
+              >
+                {/* "(…)" while hydrating — a definitive "(0)" that flips to the
+                    real count is the same hydration-zero bug class the perf
+                    verifier blocked on the headline. */}
+                <option value="">{`All assets (${northstarHydrating ? "…" : northstarTrustworthyRows.length})`}</option>
+                {assetFacetOptions.map(([fqn, count]) => (
+                  <option key={fqn} value={fqn}>{`${fqn} (${count})`}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
+          {focusedAssetFqn ? (
+            <div className="gh-governance-ns-asset-filter-chip" role="status">
+              <span className="is-mono">{focusedAssetFqn}</span>
+              <button
+                aria-label="Clear asset filter"
+                onClick={() => selectAssetFilter("")}
+                title="Show work items for all assets"
+                type="button"
+              >
+                Clear asset filter
+              </button>
+            </div>
+          ) : null}
+
+          {bulkSelection.size ? (
+            <div className="gh-governance-ns-bulk-bar" role="status">
+              <span>{bulkSelection.size} selected</span>
+              {bulkProgress ? (
+                <span className="gh-governance-ns-bulk-progress">
+                  {`Resolving ${bulkProgress.done} of ${bulkProgress.total}…${bulkProgress.failed ? ` ${bulkProgress.failed} failed` : ""}`}
+                </span>
+              ) : (
+                <>
+                  <button
+                    disabled={!northstarCanMutate}
+                    onClick={() => setBulkConfirmOpen(true)}
+                    title={northstarCanMutate ? "Resolve every selected work item." : `Bulk resolve requires Steward or Admin role. Current actor role: ${northstarMutationRole}.`}
+                    type="button"
+                  >
+                    Resolve selected
+                  </button>
+                  <button onClick={() => setBulkSelection(new Set())} type="button">
+                    Clear selection
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {bulkConfirmOpen ? (
+            <div className="gh-governance-ns-bulk-confirm" role="alertdialog" aria-label="Confirm bulk resolve">
+              <p>{`Resolve ${bulkSelection.size} selected work item${bulkSelection.size === 1 ? "" : "s"}? Each resolve writes its own request state and audit evidence.`}</p>
+              <div>
+                <button className="tone-approve" onClick={runBulkResolve} type="button">
+                  Confirm resolve
+                </button>
+                <button onClick={() => setBulkConfirmOpen(false)} type="button">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="gh-governance-ns-table" role="table" aria-label="Work queue table">
-            <div className="gh-governance-ns-table-row is-head" role="row">
-              <span>ID</span>
-              <span>Item</span>
-              <span>Asset</span>
-              <span>Assigned</span>
-              <span>SLA</span>
-              <span>Priority</span>
+            <div className="gh-governance-ns-table-rowwrap is-head" role="row">
+              <span className="gh-governance-ns-bulk-cell" aria-hidden="true" />
+              <div className="gh-governance-ns-table-row is-head">
+                <span>ID</span>
+                <span>Item</span>
+                <span>Asset</span>
+                <span>Assigned</span>
+                <span>SLA</span>
+                <span>Priority</span>
+              </div>
             </div>
             {northstarLoading && !northstarVisibleRequests.length ? (
               <div className="gh-governance-ns-empty">Loading stewardship queue...</div>
             ) : northstarVisibleRequests.length ? (
               northstarVisibleRequests.map((item) => (
-                <button
-                  className={`gh-governance-ns-table-row ${northstarSelectedDetail?.id === item.id ? "is-selected" : ""}`}
-                  key={item.id}
-                  onClick={() => {
-                    setNorthstarSelectedRequestId(item.id);
-                  }}
-                  role="row"
-                  type="button"
-                >
-                  <span className="is-mono" title={workItemFullId(item) || workItemDisplayId(item)}>
-                    {workItemDisplayId(item)}
+                <div className="gh-governance-ns-table-rowwrap" key={item.id} role="row">
+                  <span className="gh-governance-ns-bulk-cell">
+                    <input
+                      aria-label={`Select ${workItemDisplayId(item)} for bulk actions`}
+                      checked={bulkSelection.has(item.id)}
+                      disabled={Boolean(bulkProgress)}
+                      onChange={() => toggleBulkSelected(item.id)}
+                      type="checkbox"
+                    />
                   </span>
-                  <span>
-                    <strong>{workItemKind(item)}</strong>
-                    <small>
-                      {item.age ? `Age ${item.age}` : item.createdAt ? `Created ${formatShortDate(item.createdAt)}` : "Age unavailable"}
-                    </small>
-                  </span>
-                  <span className="is-mono">{item.assetFqn || item.assetName}</span>
-                  <span>{workItemAssigned(item)}</span>
-                  {/* Chip labels wrapped in .gh-governance-ns-chip-label so long
-                      values ellipsize inside the pill instead of wrapping into a
-                      multi-line blob in narrow queue columns; full text stays
-                      reachable via the title attribute. Visual-only change. */}
-                  <span
-                    className={`gh-governance-ns-sla tone-${slaTone(item)}`}
-                    title={slaPolicyNote(item) || slaLabel(item) || undefined}
+                  <button
+                    className={`gh-governance-ns-table-row ${northstarSelectedDetail?.id === item.id ? "is-selected" : ""}`}
+                    onClick={() => {
+                      setNorthstarSelectedRequestId(item.id);
+                    }}
+                    type="button"
                   >
-                    <GovernanceGlyph icon="clock" />
-                    <span className="gh-governance-ns-chip-label">{slaLabel(item)}</span>
-                  </span>
-                  <span
-                    className={`gh-governance-ns-priority tone-${priorityTone(item.priority)}`}
-                    title={priorityShortLabel(item.priority) || undefined}
-                  >
-                    <span className="gh-governance-ns-chip-label">{priorityShortLabel(item.priority)}</span>
-                  </span>
-                </button>
+                    <span className="is-mono" title={workItemFullId(item) || workItemDisplayId(item)}>
+                      {workItemDisplayId(item)}
+                    </span>
+                    <span>
+                      <strong>{workItemKind(item)}</strong>
+                      <small>
+                        {item.age ? `Age ${item.age}` : item.createdAt ? `Created ${formatShortDate(item.createdAt)}` : "Age unavailable"}
+                      </small>
+                    </span>
+                    <span className="is-mono">{item.assetFqn || item.assetName}</span>
+                    <span>{workItemAssigned(item)}</span>
+                    {/* Chip labels wrapped in .gh-governance-ns-chip-label so long
+                        values ellipsize inside the pill instead of wrapping into a
+                        multi-line blob in narrow queue columns; full text stays
+                        reachable via the title attribute. Visual-only change. */}
+                    <span
+                      className={`gh-governance-ns-sla tone-${slaTone(item)}`}
+                      title={slaPolicyNote(item) || slaLabel(item) || undefined}
+                    >
+                      <GovernanceGlyph icon="clock" />
+                      <span className="gh-governance-ns-chip-label">{slaLabel(item)}</span>
+                    </span>
+                    <span
+                      className={`gh-governance-ns-priority tone-${priorityTone(item.priority)}`}
+                      title={priorityShortLabel(item.priority) || undefined}
+                    >
+                      <span className="gh-governance-ns-chip-label">{priorityShortLabel(item.priority)}</span>
+                    </span>
+                  </button>
+                </div>
               ))
             ) : (
-              <div className="gh-governance-ns-table-row is-unavailable" role="row">
-                <span className="is-mono">--</span>
+              // Real empty state — never a pseudo-row of "—/Unassigned/
+              // Evidence unavailable" cells that reads like broken data.
+              <div className="gh-governance-ns-queue-empty" role="row">
+                <span aria-hidden="true" className="gh-governance-ns-queue-empty-icon">
+                  <GovernanceGlyph icon="inbox" />
+                </span>
+                <strong>
+                  {focusedAssetFqn ? "No actor-visible work items" : "No work items in this filter"}
+                </strong>
                 <span>
-                  <strong>{focusedAssetFqn ? "No actor-visible work items" : "No work items in this filter"}</strong>
-                  <small>Queue shape retained; no synthetic `SI-*` request row is created.</small>
+                  {focusedAssetFqn
+                    ? `No open work items target ${focusedAssetFqn}.`
+                    : "Nothing in the queue matches the selected filter."}
                 </span>
-                <span className="is-mono">{focusedAssetFqn || "Workspace scope"}</span>
-                <span>Assignee unavailable</span>
-                <span className="gh-governance-ns-sla tone-muted" title="Evidence unavailable">
-                  <GovernanceGlyph icon="clock" />
-                  <span className="gh-governance-ns-chip-label">Evidence unavailable</span>
-                </span>
-                <span className="gh-governance-ns-priority">--</span>
               </div>
             )}
           </div>
@@ -1421,6 +1769,22 @@ export default function GovernanceWorkspace({
                         Copy ID
                       </button>
                     ) : null}
+                    <label className="gh-governance-ns-priority-picker">
+                      <span>Priority</span>
+                      <select
+                        aria-label="Set work item priority"
+                        disabled={!northstarSelectedDetail.requestId || northstarMutationUnavailable || triageBusy}
+                        onChange={(event) => setSelectedPriority(event.target.value)}
+                        title={northstarMutationUnavailableReason || "Set the triage priority for this work item."}
+                        value={priorityPickerValue(northstarSelectedDetail.priority)}
+                      >
+                        <option disabled value="">Unassigned</option>
+                        <option value="p0">P0</option>
+                        <option value="p1">P1</option>
+                        <option value="p2">P2</option>
+                        <option value="p3">P3</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1516,6 +1880,15 @@ export default function GovernanceWorkspace({
                     {northstarMutationUnavailableReason}
                   </span>
                 ) : null}
+                <button
+                  className="tone-comment"
+                  disabled={!northstarSelectedDetail.requestId || mutationState.loading || northstarMutationUnavailable || triageBusy}
+                  onClick={assignSelectedToMe}
+                  title={northstarMutationUnavailableReason || "Assign this work item to yourself."}
+                  type="button"
+                >
+                  <GovernanceGlyph icon="user-plus" /> Assign to me
+                </button>
                 <button
                   className="tone-comment"
                   disabled={!northstarSelectedDetail.requestId || mutationState.loading || northstarMutationUnavailable}

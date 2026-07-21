@@ -285,8 +285,9 @@ class AtlasApiTests(unittest.TestCase):
         self.assertNotIn("quality-runner", dashboard["meta"]["source"])
         self.assertEqual(dashboard["meta"]["state"], "degraded")
         self.assertFalse(dashboard["meta"]["capabilities"]["controlCoverage"])
-        # protectedCdes is now computed from real sensitivity metadata.
-        self.assertEqual(dashboard["summary"]["protectedCdes"], 1)
+        # Honest rename: sensitivity labels are labels, not protection.
+        self.assertEqual(dashboard["summary"]["sensitivityLabeledCdes"], 1)
+        self.assertNotIn("protectedCdes", dashboard["summary"])
         self.assertEqual(dashboard["summary"]["sensitiveCandidates"], 1)
 
         self.assertEqual(detail_response.status_code, 200)

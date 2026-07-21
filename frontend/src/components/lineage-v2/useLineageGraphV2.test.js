@@ -40,6 +40,50 @@ describe("useLineageGraphV2", () => {
     expect(result.current.focus?.fqn).toBe("a.b.c");
   });
 
+  it("merges graphs.data.meta (truncation, flags, emptyReason) into graph.meta", () => {
+    // Adversarial verify P1: the API ships truncation totals + directional
+    // flags at graphs.data.meta, while the envelope meta rides at
+    // payload.meta. Consumers read graph.meta, so the adapter must merge
+    // both — envelope keys winning on collision.
+    useLineage.mockReturnValue({
+      payload: {
+        profile: "full",
+        meta: { state: "available", warnings: [] },
+        graphs: {
+          data: {
+            nodes: [{ id: "focus-a.b.c", role: "focus", assetFqn: "a.b.c" }],
+            edges: [],
+            meta: {
+              truncation: { nodesShown: 21, nodesTotal: 660, edgesShown: 20, edgesTotal: 659 },
+              upstreamTruncated: true,
+              downstreamTruncated: false,
+              emptyReason: "",
+              lineageQueryFailed: false,
+              graphDepthLimit: 1,
+              // A data-graph "state" (hypothetical collision) must NOT
+              // override the envelope's authoritative state.
+              state: "should-not-win",
+            },
+          },
+        },
+      },
+      loading: false,
+      error: "",
+      refresh: () => null,
+    });
+    const { result } = renderHook(() => useLineageGraphV2("a.b.c"));
+    expect(result.current.meta.truncation).toEqual({
+      nodesShown: 21,
+      nodesTotal: 660,
+      edgesShown: 20,
+      edgesTotal: 659,
+    });
+    expect(result.current.meta.upstreamTruncated).toBe(true);
+    expect(result.current.meta.downstreamTruncated).toBe(false);
+    expect(result.current.meta.graphDepthLimit).toBe(1);
+    expect(result.current.meta.state).toBe("available");
+  });
+
   it("normalizes nodes with rowCount + freshness + isOpenable + columns", () => {
     useLineage.mockReturnValue({
       payload: {

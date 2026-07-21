@@ -328,9 +328,21 @@ export function LineageNodeCard({
           <KindGlyph kind={node?.kind || "table"} />
         </span>
         <span className="ga-lineage-v2-card-title-wrap">
-          {node?.kicker ? (
-            <span className="ga-lineage-v2-card-kicker">{node.kicker}</span>
-          ) : null}
+          {/*
+            Single-FOCUS rule (persona audit P2): the accumulated canvas can
+            hold a stale node copy whose API kicker still says "Focus" from a
+            previous payload. Only the card the canvas marks isFocus may show
+            the FOCUS kicker; stale "Focus" kickers are suppressed rather
+            than rendered as a second FOCUS designation.
+          */}
+          {(() => {
+            const kickerLabel = isFocus
+              ? node?.kicker || "Focus"
+              : /^focus$/i.test(String(node?.kicker || "")) ? "" : node?.kicker;
+            return kickerLabel ? (
+              <span className="ga-lineage-v2-card-kicker">{kickerLabel}</span>
+            ) : null;
+          })()}
           <span className="ga-lineage-v2-card-title" title={node?.label || node?.fqn || ""}>
             {node?.label || "Unknown"}
           </span>

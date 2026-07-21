@@ -100,6 +100,10 @@ describe("InsightsWorkspace", () => {
     expect(screen.getAllByText("No evidence-backed recommendation available")).toHaveLength(4);
     expect(document.querySelectorAll(".gh-insights-rec-card")).toHaveLength(4);
     expect(screen.queryByText(/Assign owner/)).toBeNull();
+    // Jargon purge (persona audit): plain-language empty copy, no
+    // "actor-visible recommendation for this slot".
+    expect(screen.getAllByText("No recommendation available for this slot yet.").length).toBe(4);
+    expect(screen.queryByText(/actor-visible/)).toBeNull();
   });
 
   it("shows degraded warnings from the live response metadata", () => {
@@ -155,6 +159,77 @@ describe("InsightsWorkspace", () => {
     expect(screen.getByRole("button", { name: /Show fewer domains/i })).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: /View all recommendations/i }));
     expect(onNavigate).toHaveBeenCalledWith("governance");
+  });
+
+  it("treats a zero policy-exception count with responding sources as a real zero", () => {
+    renderWorkspace({
+      data: {
+        kpis: [
+          { key: "criticalExceptions", label: "Critical Policy Exceptions", value: 0, state: "available", reason: "" },
+        ],
+        metadataCoverageHeatmap: [],
+        certificationCoverageByTier: [],
+        riskHeatmap: [],
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
+      },
+    });
+
+    expect(screen.getByText("0")).toBeDefined();
+    expect(screen.getAllByText("Live signal").length).toBeGreaterThan(0);
+  });
+
+  it("surfaces the payload's own reason string for degraded and unavailable KPIs", () => {
+    renderWorkspace({
+      data: {
+        kpis: [
+          {
+            key: "criticalExceptions",
+            label: "Critical Policy Exceptions",
+            value: 1,
+            state: "degraded",
+            reason: "Derived only from backed policy-exception audit/request text.",
+          },
+          {
+            key: "policyCompliance",
+            label: "Policy Compliance",
+            value: null,
+            state: "unavailable",
+            reason: "No authoritative policy-compliance evaluation source is configured.",
+          },
+        ],
+        metadataCoverageHeatmap: [],
+        certificationCoverageByTier: [],
+        riskHeatmap: [],
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
+      },
+    });
+
+    expect(screen.getByText("Derived only from backed policy-exception audit/request text.")).toBeDefined();
+    expect(screen.getByText("No authoritative policy-compliance evaluation source is configured.")).toBeDefined();
+  });
+
+  it("date-stamps quality-derived evidence when the payload carries a timestamp", () => {
+    renderWorkspace({
+      data: {
+        kpis: [],
+        metadataCoverageHeatmap: [],
+        certificationCoverageByTier: [],
+        riskHeatmap: [{ row: "Very High", column: "High", value: 2 }],
+        riskEvidenceAt: "2026-05-03T09:00:00Z",
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
+      },
+    });
+
+    expect(screen.getByText("Evidence from May 3, 2026 (UTC)")).toBeDefined();
   });
 
   it("calls onSurfaceReady once the hook is settled", () => {

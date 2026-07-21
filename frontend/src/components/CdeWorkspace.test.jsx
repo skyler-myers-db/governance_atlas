@@ -46,15 +46,21 @@ const dashboardEnvelope = {
   data: {
     summary: {
       totalCdes: 10,
-      protectedCdes: null,
+      // Renamed contract: sensitivity labeling is a fact about labels, not a
+      // protection claim. `protectedCdes` no longer exists in the payload.
+      sensitivityLabeledCdes: 9,
+      sensitivityLabeledLabel: "Sensitivity-labeled",
       sensitiveCandidates: 9,
       overdueReviews: null,
       domainsCovered: 3,
+      cdeDefinition: "Criticality-derived",
     },
+    // Groups are id-referencing domain summaries — items[] is the only full
+    // row list (builder-side dedupe).
     groups: [
-      { domain: "Customer", items: cdeItems.filter((item) => item.domain === "Customer") },
-      { domain: "Finance", items: cdeItems.filter((item) => item.domain === "Finance") },
-      { domain: "Risk", items: cdeItems.filter((item) => item.domain === "Risk") },
+      { domain: "Customer", count: 3, itemIds: cdeItems.filter((item) => item.domain === "Customer").map((item) => item.id) },
+      { domain: "Finance", count: 6, itemIds: cdeItems.filter((item) => item.domain === "Finance").map((item) => item.id) },
+      { domain: "Risk", count: 1, itemIds: cdeItems.filter((item) => item.domain === "Risk").map((item) => item.id) },
     ],
     items: cdeItems,
   },
@@ -112,11 +118,15 @@ describe("CdeWorkspace", () => {
 
     expect(await screen.findByText("Critical Data Elements Registry")).toBeDefined();
     expect(await screen.findByText("10")).toBeDefined();
-    expect(screen.getByText("Discover, govern, and protect the data elements that drive trust and performance.")).toBeDefined();
+    // Hero copy is the payload's cdeDefinition — no "protect" claims.
+    expect(screen.getByText("Criticality-derived registry of the data elements that drive trust and performance.")).toBeDefined();
     expect(screen.getByText("Total CDEs")).toBeDefined();
-    expect(screen.getByText("Protected CDEs")).toBeDefined();
+    // Renamed KPI: sensitivity labeling is rendered from the payload label and
+    // count; "Protected" language must not appear anywhere.
+    expect(screen.getByText("Sensitivity-labeled")).toBeDefined();
+    expect(screen.queryByText(/protected/i)).toBeNull();
+    expect(screen.getByText("9")).toBeDefined();
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
-    expect(screen.getByText("9 sensitive candidates")).toBeDefined();
     expect(screen.queryByText("Certified Candidates")).toBeNull();
     expect(screen.getByLabelText("CDE filters")).toBeDefined();
     expect(screen.getByLabelText("CDE registry")).toBeDefined();

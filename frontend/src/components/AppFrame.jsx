@@ -398,6 +398,9 @@ export default function AppFrame({
   diagnosticsStatus = null,
   diagnosticsOpen = false,
   governanceInbox = null,
+  // Actionable inbox work (open stewardship requests + terms awaiting
+  // review) counted by App from the same sources the Inbox surface renders.
+  inboxActionableCount = null,
   inboxOpen = false,
   onModuleChange,
   onOpenAsset360,
@@ -495,6 +498,14 @@ export default function AppFrame({
   const inboxUnreadCount = Number.isFinite(Number(governanceInbox?.unreadCount))
     ? Math.max(0, Math.trunc(Number(governanceInbox.unreadCount)))
     : 0;
+  // Nav badge = unread notifications + actionable work items. The unread
+  // count alone is almost always 0 on this estate, so the Inbox entry showed
+  // no badge while the Inbox surface listed real actionable rows.
+  const inboxBadgeCount =
+    inboxUnreadCount +
+    (Number.isFinite(Number(inboxActionableCount))
+      ? Math.max(0, Math.trunc(Number(inboxActionableCount)))
+      : 0);
   const stewardshipCount = Number.isFinite(Number(governanceInbox?.stewardshipCount))
     ? Math.max(0, Math.trunc(Number(governanceInbox.stewardshipCount)))
     : null;
@@ -868,6 +879,7 @@ export default function AppFrame({
         currentAssetFqn={currentAssetFqn}
         collapsed={railCollapsed}
         stewardshipCount={stewardshipCount}
+        inboxCount={showInbox ? inboxBadgeCount : null}
         userName={shell?.userName || shell?.displayName || shell?.userEmail || ""}
         userEmail={shell?.userEmail || ""}
         userRole={shell?.role || ""}
@@ -919,7 +931,9 @@ export default function AppFrame({
                 void openSearchResult(assetFqn);
               }}
               topDirectResult={topDirectResult}
-              placeholder="Search assets, glossary terms, owners..."
+              // Honest promise: the topbar quick-search returns assets; the
+              // ⌘K palette is where glossary terms and owners are searched.
+              placeholder="Search assets… (⌘K: terms, owners)"
             />
           )}
         />
@@ -1118,10 +1132,28 @@ export default function AppFrame({
       {commandOpen ? (
         <CommandPalette
           assets={searchSeedAssets}
-          navigate={({ surface, fqn }) => {
+          navigate={({ surface, fqn, term, query }) => {
             setCommandOpen(false);
             if (surface === "entity" && fqn) {
               onSearchResultSelect?.(fqn);
+              return;
+            }
+            if (surface === "taxonomy" && term) {
+              // Glossary-term result: stage the term for the taxonomy surface.
+              // sessionStorage survives the lazy mount; the event covers the
+              // already-mounted case (module change is then a no-op).
+              try {
+                window.sessionStorage?.setItem("ga-pending-glossary-term", term);
+              } catch {
+                /* Selection still works via the event when storage is blocked. */
+              }
+              window.dispatchEvent(new CustomEvent("ga:select-glossary-term", { detail: { term } }));
+              onModuleChange?.("taxonomy");
+              return;
+            }
+            if (surface === "discovery" && query) {
+              // Owner result: land on Discover's structured owner search.
+              onBrowseCatalog?.(query);
               return;
             }
             onModuleChange?.(surface);

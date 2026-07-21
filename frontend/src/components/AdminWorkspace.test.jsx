@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminWorkspace from "./AdminWorkspace";
 import { fetchAdminControlCenter, fetchAdminTruthCheck } from "../lib/api";
@@ -76,6 +76,14 @@ const controlCenterPayload = {
       { key: "cde", label: "CDEs must have description", value: 100, state: "healthy" },
       { key: "pii", label: "PII columns require tag", value: 92, state: "healthy" },
     ],
+  },
+  policyRequirements: {
+    cards: [
+      { key: "totalPolicies", label: "Total Policies", value: null, state: "unavailable", reason: "No authoritative policy library or control-enforcement source is configured." },
+      { key: "enforcedPolicies", label: "Enforced Policies", value: null, state: "unavailable", reason: "No authoritative policy library or control-enforcement source is configured." },
+      { key: "exceptions", label: "Exceptions", value: 0, state: "available", reason: "Derived only from backed policy-exception audit/request text." },
+    ],
+    capabilities: { policyLibrary: false, policyCoverage: false, controlEnforcement: false },
   },
 };
 
@@ -225,6 +233,101 @@ describe("AdminWorkspace", () => {
     await screen.findByText("96%");
     fireEvent.click(screen.getByText("96%").closest("button"));
     expect(screen.getByText("96% coverage from diagnostics.")).toBeDefined();
+  });
+
+  it("renders the policy section with the backed exceptions signal and honest-unavailable cards", async () => {
+    renderAdmin();
+
+    await screen.findByText("UC metadata sweeper");
+    const panel = screen.getByLabelText("Policy requirements");
+    const { getByText, getAllByText } = within(panel);
+    // Backed signal: 0 exceptions with sources responding is an AVAILABLE
+    // zero (consistent with the Command Center), never "Unavailable".
+    expect(getByText("Exceptions")).toBeDefined();
+    expect(getByText("0")).toBeDefined();
+    // Honest-unavailable cards carry the API's own reason strings.
+    expect(getByText("Total Policies")).toBeDefined();
+    expect(getByText("Enforced Policies")).toBeDefined();
+    expect(getAllByText("Unavailable").length).toBe(2);
+    expect(
+      getAllByText("No authoritative policy library or control-enforcement source is configured.").length,
+    ).toBe(2);
+  });
+
+  it("splits future run timestamps into Next run and truncates job-name hashes", async () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    fetchAdminControlCenter.mockResolvedValue({
+      ...controlCenterPayload,
+      scheduledJobs: [
+        {
+          id: "job-9",
+          name: "[RUNNER] pixels | 0f1f0a3b2a5f8c7d6e5f4a3b2c1d0e9f",
+          schedule: "Daily 03:00 UTC",
+          lastRun: future,
+          status: "scheduled",
+        },
+      ],
+    });
+    renderAdmin();
+
+    // A future date is a NEXT run, never history.
+    expect(await screen.findByText("Not yet run")).toBeDefined();
+    expect(screen.getByText("Next run")).toBeDefined();
+    // Hash tail truncated for display; full name kept on the title attr.
+    const jobName = screen.getByText("[RUNNER] pixels | 0f1f0a3b…");
+    expect(jobName.getAttribute("title")).toBe("[RUNNER] pixels | 0f1f0a3b2a5f8c7d6e5f4a3b2c1d0e9f");
+  });
+
+  it("renders empty lastRun as 'Not yet run' and formats past ISO timestamps in UTC", async () => {
+    // Backend contract (persona-audit wave): lastRun is empty ONLY when the
+    // job has never run — the old "Unavailable" copy implied missing data.
+    fetchAdminControlCenter.mockResolvedValue({
+      ...controlCenterPayload,
+      scheduledJobs: [
+        {
+          id: "job-10",
+          name: "Quality profiler",
+          schedule: "Manual",
+          lastRun: "",
+          status: "Manual",
+        },
+        {
+          id: "job-11",
+          name: "UC metadata sweeper",
+          schedule: "Daily 03:00 UTC",
+          lastRun: "2026-07-19T03:00:00Z",
+          status: "Scheduled",
+        },
+      ],
+    });
+    renderAdmin();
+
+    expect(await screen.findByText("Not yet run")).toBeDefined();
+    // Year-carrying, UTC-labeled timestamp — never raw ISO.
+    expect(screen.getByText("Jul 19, 2026, 03:00 AM UTC")).toBeDefined();
+    expect(screen.queryByText("2026-07-19T03:00:00Z")).toBeNull();
+    // Honest Manual/Scheduled statuses render as shipped by the backend
+    // (schedule column + status pill may both say "Manual").
+    expect(screen.getAllByText("Manual").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
+  });
+
+  it("renders activity timestamps in UTC, never the browser's local zone", async () => {
+    fetchAdminControlCenter.mockResolvedValue({
+      ...controlCenterPayload,
+      recentAdminActivity: [
+        {
+          id: "activity-1",
+          title: "Certification updated",
+          detail: "finance_prod.curated.revenue_daily",
+          createdAt: "2026-05-05T20:38:00Z",
+        },
+      ],
+    });
+    renderAdmin();
+
+    // 20:38 UTC must render as 08:38 PM UTC — not 04:38 PM EDT.
+    expect(await screen.findByText(/08:38\s?PM UTC/)).toBeDefined();
   });
 
   it("rejects diagnostics flagged by evidenceKind before rendering runtime rows", async () => {

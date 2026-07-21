@@ -3,7 +3,7 @@
 Covers the backend halves of:
 - G4/G13: `_cde_item` derives lastReview from real row timestamps, reports the
   real certification as status, and splits source-backing into its own signal.
-- G5: `cde_dashboard_payload` computes protectedCdes/overdueReviews, and
+- G5: `cde_dashboard_payload` computes sensitivityLabeledCdes/overdueReviews, and
   `api_cde_dashboard` only reports degraded when signals are genuinely missing.
 """
 
@@ -92,9 +92,13 @@ class CdeDashboardPayloadTests(unittest.TestCase):
             visible_assets=pd.DataFrame([_cde_row()])
         )
         self.assertEqual(payload["summary"]["totalCdes"], 1)
-        self.assertEqual(payload["summary"]["protectedCdes"], 1)
+        # Honest rename (persona audit): the old `protectedCdes` claimed
+        # protection from a sensitivity label while every control category
+        # was unavailable. The same count now ships as sensitivityLabeledCdes.
+        self.assertEqual(payload["summary"]["sensitivityLabeledCdes"], 1)
+        self.assertNotIn("protectedCdes", payload["summary"])
         self.assertEqual(
-            payload["summary"]["protectedCdes"],
+            payload["summary"]["sensitivityLabeledCdes"],
             payload["summary"]["sensitiveCandidates"],
         )
 
@@ -102,7 +106,7 @@ class CdeDashboardPayloadTests(unittest.TestCase):
         payload = atlas_metrics.cde_dashboard_payload(
             visible_assets=pd.DataFrame([_cde_row(sensitivity="Internal")])
         )
-        self.assertEqual(payload["summary"]["protectedCdes"], 0)
+        self.assertEqual(payload["summary"]["sensitivityLabeledCdes"], 0)
 
     def test_overdue_reviews_counts_rows_with_both_signals(self) -> None:
         stale = _cde_row(updated_at="2020-01-01T00:00:00Z")
@@ -159,7 +163,7 @@ class CdeDashboardRouteStateTests(unittest.TestCase):
         self.assertTrue(
             any("control coverage" in warning.lower() for warning in dashboard["meta"]["warnings"])
         )
-        self.assertEqual(dashboard["summary"]["protectedCdes"], 1)
+        self.assertEqual(dashboard["summary"]["sensitivityLabeledCdes"], 1)
 
     def test_empty_registry_stays_degraded(self) -> None:
         dashboard = self._dashboard(pd.DataFrame())

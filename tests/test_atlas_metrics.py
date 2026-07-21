@@ -663,6 +663,58 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(pending_kpi["value"], 1)
         self.assertEqual(policy_kpi["value"], 0)
 
+    def test_governance_workbench_reports_out_of_scope_open_requests(self) -> None:
+        # S3: the workbench shows ALL open requests; when given the visible
+        # estate it must also say how many target assets sit outside it so the
+        # 40-vs-21 split reads as scoping, not contradiction.
+        class TwoAssetStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "REQ-VISIBLE",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "main.customer.customer_dim",
+                            "new_comment": "Assign owner: needs review",
+                        },
+                        {
+                            "request_id": "REQ-HIDDEN-TARGET",
+                            "created_at": "2026-04-24 02:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "datapact.ops.run_history",
+                            "new_comment": "Cleanup: dedupe tasks",
+                        },
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+        payload = atlas_metrics.governance_workbench_payload(
+            store=TwoAssetStore(),
+            visible_asset_fqns=["main.customer.customer_dim"],
+        )
+
+        scope = payload["openRequestScope"]
+        self.assertEqual(scope["totalOpen"], 2)
+        self.assertEqual(scope["visibleOpenCount"], 1)
+        self.assertEqual(scope["outOfScopeOpenCount"], 1)
+        self.assertEqual(scope["outOfScopeAssetCount"], 1)
+        self.assertIn("outside the visible estate", scope["caption"])
+        # All open requests still ship — the scope block captions, it never
+        # hides the out-of-estate queue from the workbench.
+        self.assertEqual(len(payload["requests"]), 2)
+
+    def test_governance_workbench_omits_scope_split_without_visibility(self) -> None:
+        payload = atlas_metrics.governance_workbench_payload(store=FakeStore())
+        scope = payload["openRequestScope"]
+        self.assertEqual(scope["scope"], "all-requests")
+        # No fabricated 0s when the visible estate is unknown.
+        self.assertNotIn("outOfScopeOpenCount", scope)
+
     def test_governance_workbench_rejects_seed_and_prototype_request_rows(self) -> None:
         class SeededRequestStore(FakeStore):
             def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
@@ -745,18 +797,26 @@ class AtlasMetricsTests(unittest.TestCase):
         payload = atlas_metrics.cde_dashboard_payload(visible_assets=_assets_df())
 
         self.assertEqual(payload["summary"]["totalCdes"], 1)
-        # protectedCdes is now computed from real sensitivity metadata
-        # (customer_dim carries sensitivity=Confidential in this fixture).
-        self.assertEqual(payload["summary"]["protectedCdes"], 1)
+        # Honest rename: a sensitivity label is not a protection control, so
+        # the count ships as sensitivityLabeledCdes (customer_dim carries
+        # sensitivity=Confidential in this fixture). `protectedCdes` must be
+        # gone — the payload may never claim protection from a label.
+        self.assertEqual(payload["summary"]["sensitivityLabeledCdes"], 1)
+        self.assertNotIn("protectedCdes", payload["summary"])
         self.assertEqual(payload["summary"]["sensitiveCandidates"], 1)
+        # Groups are domain summaries referencing item ids — they no longer
+        # double-list full item payloads (clients read rows from `items` only).
         self.assertEqual(payload["groups"][0]["domain"], "Customer")
-        self.assertIsNone(payload["groups"][0]["items"][0]["controlCoverage"])
-        self.assertEqual(payload["groups"][0]["items"][0]["controlState"], "unavailable")
+        self.assertEqual(payload["groups"][0]["count"], 1)
+        self.assertNotIn("items", payload["groups"][0])
+        self.assertEqual(payload["groups"][0]["itemIds"], [payload["items"][0]["id"]])
+        self.assertIsNone(payload["items"][0]["controlCoverage"])
+        self.assertEqual(payload["items"][0]["controlState"], "unavailable")
         # Status now reflects the asset's real certification instead of
         # conflating missing control evidence with overall health.
-        self.assertEqual(payload["groups"][0]["items"][0]["status"], "Certified")
-        self.assertIsNone(payload["groups"][0]["items"][0]["linkedPolicies"])
-        self.assertEqual(payload["groups"][0]["items"][0]["linkedPolicyState"], "unavailable")
+        self.assertEqual(payload["items"][0]["status"], "Certified")
+        self.assertIsNone(payload["items"][0]["linkedPolicies"])
+        self.assertEqual(payload["items"][0]["linkedPolicyState"], "unavailable")
 
     def test_cde_detail_preserves_unavailable_control_and_lineage_contract(self) -> None:
         payload = atlas_metrics.cde_detail_payload(
@@ -796,6 +856,43 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["glossaryTerms"][0]["assetCount"], 1)
         self.assertEqual(payload["classifications"][0]["classification_id"], "class-1")
 
+    def test_taxonomy_overview_preserves_real_ga_taxonomy_term_ids(self) -> None:
+        # Persona-audit fix: real persisted glossary ids ("ga-taxonomy-term-*")
+        # were being blanked by the generic non-authoritative-marker scrub, so
+        # 19/20 terms shipped termId "" and the hierarchy panel had no joinable
+        # parent/child structure. Identifiers must survive; prose is still
+        # sanitized.
+        enriched = [
+            {
+                "termId": "ga-taxonomy-term-net-revenue",
+                "parentTermId": "ga-taxonomy-term-revenue",
+                "term": "Net Revenue",
+                "definition": "Recognized revenue net of adjustments.",
+                "assetCount": 2,
+            },
+            {
+                "termId": "ga-taxonomy-term-revenue",
+                "parentTermId": "",
+                "term": "Revenue",
+                "definition": "Prototype mock definition should be scrubbed.",
+                "assetCount": 0,
+            },
+        ]
+
+        payload = atlas_metrics.taxonomy_overview_payload(
+            store=FakeStore(),
+            glossary_terms=enriched,
+        )
+
+        terms = {row["termId"]: row for row in payload["glossaryTerms"]}
+        self.assertIn("ga-taxonomy-term-net-revenue", terms)
+        self.assertEqual(
+            terms["ga-taxonomy-term-net-revenue"]["parentTermId"],
+            "ga-taxonomy-term-revenue",
+        )
+        # Prose containing genuine non-authoritative markers is still scrubbed.
+        self.assertEqual(terms["ga-taxonomy-term-revenue"]["definition"], "")
+
     def test_insights_formula_weights_sum_to_one(self) -> None:
         payload = atlas_metrics.insights_dashboard_payload(
             visible_assets=_assets_df(),
@@ -824,6 +921,11 @@ class AtlasMetricsTests(unittest.TestCase):
         )
 
     def test_insights_quality_availability_tracks_score_not_raw_rows(self) -> None:
+        # Intended behavior changed: insights_dashboard_payload now derives
+        # quality_health from the SAME _quality_sla_signal pass-rate the
+        # Command Center publishes (it was previously hardcoded None, which
+        # made Insights claim "Quality health score is unavailable" while the
+        # Command Center showed a real SLA). Evaluated rows => available score.
         class QualityRowsOnlyStore(FakeStore):
             def list_quality_run_results(self, limit: int = 1000) -> pd.DataFrame:
                 return pd.DataFrame([{"asset_fqn": "main.customer.customer_dim", "outcome": "passed"}])
@@ -833,9 +935,104 @@ class AtlasMetricsTests(unittest.TestCase):
             store=QualityRowsOnlyStore(),
         )
 
+        self.assertTrue(payload["signalAvailability"]["quality"])
+        self.assertTrue(payload["signalAvailability"]["qualityRowsAvailable"])
+        self.assertIn("qualityHealth", payload["scoring"]["availableSignals"])
+
+    def test_insights_quality_unavailable_when_rows_have_no_evaluated_outcomes(self) -> None:
+        # The spirit of the original test still holds: raw row presence alone
+        # is not availability. Rows without evaluated outcomes (e.g. skipped)
+        # produce no pass rate, so the signal stays honestly unavailable.
+        class SkippedOnlyStore(FakeStore):
+            def list_quality_run_results(self, limit: int = 1000) -> pd.DataFrame:
+                return pd.DataFrame([{"asset_fqn": "main.customer.customer_dim", "outcome": "skipped"}])
+
+        payload = atlas_metrics.insights_dashboard_payload(
+            visible_assets=_assets_df(),
+            store=SkippedOnlyStore(),
+        )
+
         self.assertFalse(payload["signalAvailability"]["quality"])
         self.assertTrue(payload["signalAvailability"]["qualityRowsAvailable"])
         self.assertNotIn("qualityHealth", payload["scoring"]["availableSignals"])
+
+    def test_policy_exceptions_ignore_resolved_requests_and_asset_fqn_substrings(self) -> None:
+        # Regression: Insights said "Critical Policy Exceptions 2" while the
+        # Command Center said 0. The two counted rows were RESOLVED change
+        # requests whose target FQNs merely contain "exception"
+        # (risk_policy_exception_register / finance_exception_review). Closed
+        # requests are not open exposures, and an asset's NAME is not an
+        # exception signal.
+        class ResolvedExceptionFqnStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "REQ-A",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "approved",
+                            "uc_full_name": "main.risk.risk_policy_exception_register",
+                            "new_comment": "Certify table",
+                        },
+                        {
+                            "request_id": "REQ-B",
+                            "created_at": "2026-04-24 02:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "rejected",
+                            "uc_full_name": "main.finance.finance_exception_review",
+                            "new_comment": "Grant policy exception for quarterly load",
+                        },
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "AUD-X",
+                            "entity_fqn": "main.risk.risk_policy_exception_register",
+                            "action": "change-request-status-updated",
+                            "status": "success",
+                            "detail": "Approved",
+                            "created_at": "2026-04-24 03:00:00",
+                            "actor_email": "skyler@entrada.ai",
+                        }
+                    ]
+                )
+
+        insights = atlas_metrics.insights_dashboard_payload(
+            visible_assets=_assets_df(),
+            store=ResolvedExceptionFqnStore(),
+        )
+        exception_kpi = next(item for item in insights["kpis"] if item["key"] == "criticalExceptions")
+        self.assertEqual(exception_kpi["value"], 0)
+        self.assertEqual(exception_kpi["state"], "available")
+
+        # Same-store parity with the Command Center signal: both must say 0.
+        command = atlas_metrics.command_center_payload(
+            visible_assets=_assets_df(),
+            store=ResolvedExceptionFqnStore(),
+        )
+        self.assertEqual(command["governance"]["policyExceptions"], 0)
+
+    def test_policy_exceptions_still_count_open_requests_by_their_own_text(self) -> None:
+        # An OPEN request that itself asks for a policy exception remains a
+        # live exposure and must keep counting.
+        count = atlas_metrics._policy_exception_count(
+            [
+                {
+                    "request_id": "REQ-OPEN",
+                    "status": "pending",
+                    "new_comment": "Policy exception requested for PII export",
+                }
+            ],
+            [],
+        )
+        self.assertEqual(count, 1)
 
     def test_ai_recommendations_route_certification_questions_to_certification_evidence(self) -> None:
         assets = _assets_df().copy()

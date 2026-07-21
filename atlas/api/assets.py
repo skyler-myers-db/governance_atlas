@@ -239,7 +239,12 @@ def api_asset_detail(
             visibility.get("reason")
             or "Asset metadata is hydrating from live Unity Catalog inventory."
         )
-        return _cacheable_json_response(
+        # P4 perf fix: loading envelopes must NEVER be HTTP-cacheable. The
+        # previous max-age=5 + stale-while-revalidate=30 headers let the
+        # browser keep re-serving this stale "loading" body for up to 30s
+        # after the server had already hydrated, so client polls never saw
+        # real data. no-store forces every poll to hit the server.
+        response = JSONResponse(
             _with_meta(
                 payload,
                 request,
@@ -255,11 +260,10 @@ def api_asset_detail(
                     "hydrating": True,
                 },
                 warnings=[reason],
-            ),
-            request,
-            max_age=5,
-            stale_while_revalidate=30,
+            )
         )
+        response.headers["Cache-Control"] = "no-store"
+        return response
     if not visibility.get("openable"):
         if visibility.get("visibilityState") == "hidden":
             return _error_response(
