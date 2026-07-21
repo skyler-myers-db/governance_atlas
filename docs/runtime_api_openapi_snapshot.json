@@ -525,6 +525,16 @@
       },
       "GovernanceRequestStatusPatch": {
         "properties": {
+          "assignee": {
+            "default": "",
+            "title": "Assignee",
+            "type": "string"
+          },
+          "priority": {
+            "default": "",
+            "title": "Priority",
+            "type": "string"
+          },
           "reviewNote": {
             "default": "",
             "title": "Reviewnote",

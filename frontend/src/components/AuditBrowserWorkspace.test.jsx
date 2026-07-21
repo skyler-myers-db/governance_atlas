@@ -1,16 +1,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchAuditEvidence } from "../lib/api";
+import { fetchAuditEvents, fetchAuditEvidence } from "../lib/api";
 import AuditBrowserWorkspace from "./AuditBrowserWorkspace";
 
 vi.mock("../lib/api", () => ({
+  fetchAuditEvents: vi.fn(),
   fetchAuditEvidence: vi.fn(),
 }));
 
 const auditEvents = [
   {
     audit_id: "AUD-1",
+    displayAuditId: "AUD-1",
+    auditEventId: "9f1c2d3e4a5b6c7d8e9f0a1b2c3d4e5f",
     entity_fqn: "finance_prod.curated.revenue_daily",
     entity_type: "table",
     action: "Certification",
@@ -25,6 +28,8 @@ const auditEvents = [
   },
   {
     audit_id: "AUD-2",
+    displayAuditId: "AUD-2",
+    auditEventId: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
     entity_fqn: "experimental.sandbox.pricing_experiment_2025q4",
     entity_type: "table",
     action: "Policy violation",
@@ -45,7 +50,15 @@ function auditEnvelope() {
       summary: {
         events24h: 2184,
         policyViolations: 6,
-        accessReviewsOpen: 3,
+        // Renamed contract: governanceRequests replaced the accessReviews*
+        // keys — both counts come from the change-request ledger and the
+        // label ships in the payload.
+        governanceRequests: {
+          label: "Governance requests",
+          open: 3,
+          resolved: 5,
+          source: "governance change requests",
+        },
         retentionYears: 7,
       },
       events: auditEvents,
@@ -76,6 +89,8 @@ describe("AuditBrowserWorkspace", () => {
   beforeEach(() => {
     fetchAuditEvidence.mockReset();
     fetchAuditEvidence.mockResolvedValue(auditEnvelope());
+    fetchAuditEvents.mockReset();
+    fetchAuditEvents.mockResolvedValue([]);
   });
 
   it("renders the prototype audit evidence surface", async () => {
@@ -87,7 +102,9 @@ describe("AuditBrowserWorkspace", () => {
     expect(screen.queryByText(/cryptographically ordered/i)).toBeNull();
     expect(await screen.findByText("Events · 24h")).toBeDefined();
     expect(screen.getByText("Policy violations")).toBeDefined();
-    expect(screen.getByText("Access reviews · open")).toBeDefined();
+    // Renamed tile: label comes from summary.governanceRequests.label.
+    expect(screen.getByText("Governance requests · open")).toBeDefined();
+    expect(screen.getByText("5 resolved · governance change requests")).toBeDefined();
     expect(screen.getByRole("button", { name: /Generate report/i })).toBeDefined();
     expect(screen.getByRole("button", { name: /Export CSV/i })).toBeDefined();
 
@@ -147,8 +164,10 @@ describe("AuditBrowserWorkspace", () => {
     renderAudit();
 
     await within(screen.getByLabelText("Audit events")).findByText("Certification");
+    // Fetch limit matches the backend max (500); 200 provably dropped
+    // in-range 90d events from the view and its exports.
     expect(fetchAuditEvidence).toHaveBeenLastCalledWith(
-      expect.objectContaining({ dateRange: "24h", limit: 200 }),
+      expect.objectContaining({ dateRange: "24h", limit: 500 }),
     );
 
     fireEvent.click(screen.getByRole("button", { name: /^Date range/i }));
@@ -156,7 +175,7 @@ describe("AuditBrowserWorkspace", () => {
 
     expect(await screen.findByText("Audit date range set to 7d.")).toBeDefined();
     expect(fetchAuditEvidence).toHaveBeenLastCalledWith(
-      expect.objectContaining({ dateRange: "7d", limit: 200 }),
+      expect.objectContaining({ dateRange: "7d", limit: 500 }),
     );
   });
 
@@ -208,6 +227,133 @@ describe("AuditBrowserWorkspace", () => {
     expect(screen.getByText("No audit events match the current filters.")).toBeDefined();
     expect(screen.getByText("Events · 24h")).toBeDefined();
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("renders an explicit truncation caption and no longer hides marker-text rows client-side", async () => {
+    fetchAuditEvidence.mockResolvedValue({
+      data: {
+        summary: {
+          events24h: 500,
+          windowTruncated: true,
+          fetchedRows: 500,
+          fetchLimit: 500,
+          nonAuthoritativeRowsExcluded: 4,
+        },
+        events: [
+          auditEvents[0],
+          {
+            ...auditEvents[1],
+            audit_id: "AUD-3",
+            displayAuditId: "AUD-3",
+            action: "Comment added",
+            // An actor writing "mock" in a comment must NOT hide the event:
+            // suppression is server-side and counted, never a client regex.
+            detail: "Please mock up the new tag layout before approving.",
+          },
+        ],
+      },
+      meta: {
+        source: "governance-store+metadata-audit-log",
+        state: "available",
+        authoritative: true,
+      },
+    });
+    renderAudit();
+
+    const table = screen.getByLabelText("Audit events");
+    expect(await within(table).findByText("Comment added")).toBeDefined();
+    expect(within(table).getByText("Please mock up the new tag layout before approving.")).toBeDefined();
+    expect(
+      screen.getByText("Results truncated at 500 events — narrow the range for complete evidence."),
+    ).toBeDefined();
+    expect(screen.getByText(/4 non-authoritative rows excluded server-side/)).toBeDefined();
+  });
+
+  it("wires the structured filter bar through /api/audit/events", async () => {
+    fetchAuditEvents.mockResolvedValue([
+      {
+        audit_id: "AUD-9",
+        displayAuditId: "AUD-9",
+        auditEventId: "abcdefabcdefabcdefabcdefabcdef12",
+        entity_fqn: "finance_prod.curated.revenue_daily",
+        action: "Description updated",
+        status: "success",
+        detail: "Filtered row from the audit events API.",
+        created_at: "2026-07-20T10:00:00Z",
+        actor_email: "marisol.reyes@entrada.ai",
+      },
+    ]);
+    renderAudit();
+    await within(screen.getByLabelText("Audit events")).findByText("Certification");
+
+    fireEvent.change(screen.getByLabelText("Filter by actor email"), {
+      target: { value: "marisol.reyes@entrada.ai" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+
+    await waitFor(() => {
+      expect(fetchAuditEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorEmail: "marisol.reyes@entrada.ai",
+          limit: 500,
+          since: expect.any(String),
+        }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+    const table = screen.getByLabelText("Audit events");
+    expect(await within(table).findByText("Description updated")).toBeDefined();
+    expect(screen.getByText(/Server-side filter active · 1 matching event/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(await within(table).findByText("Certification")).toBeDefined();
+  });
+
+  it("handles a 403 from the filtered audit events endpoint gracefully", async () => {
+    const forbidden = Object.assign(new Error("Steward or admin role required."), { status: 403 });
+    fetchAuditEvents.mockRejectedValue(forbidden);
+    renderAudit();
+    await within(screen.getByLabelText("Audit events")).findByText("Certification");
+
+    fireEvent.change(screen.getByLabelText("Filter by actor email"), {
+      target: { value: "someone@entrada.ai" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+
+    expect(
+      await screen.findByText(/Audit event filters require steward or admin permissions/),
+    ).toBeDefined();
+  });
+
+  it("classifies real service principals in the By services chip", async () => {
+    fetchAuditEvidence.mockResolvedValue({
+      data: {
+        summary: { events24h: 3 },
+        events: [
+          ...auditEvents,
+          {
+            audit_id: "AUD-4",
+            displayAuditId: "AUD-4",
+            entity_fqn: "finance_prod.curated.revenue_daily",
+            action: "Quality run recorded",
+            status: "success",
+            detail: "Scheduled quality sweep.",
+            created_at: "2026-04-27T06:00:00Z",
+            actor_email: "metadata.quality@entrada.ai",
+          },
+        ],
+      },
+      meta: { source: "governance-store+metadata-audit-log", state: "available", authoritative: true },
+    });
+    renderAudit();
+
+    const table = screen.getByLabelText("Audit events");
+    await within(table).findByText("Certification");
+    // svc-policy-engine + metadata.quality@ are services; marisol is not.
+    expect(screen.getByRole("button", { name: "By services, 2 events" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /By services/i }));
+    expect(within(table).getByText("Quality run recorded")).toBeDefined();
+    expect(within(table).queryByText("Certification")).toBeNull();
   });
 
   it("rejects non-authoritative audit payload values before rendering source rows", async () => {

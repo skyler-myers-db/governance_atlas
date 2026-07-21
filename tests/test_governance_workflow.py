@@ -382,6 +382,178 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertIn("INSERT INTO `main`.`atlas`.`thread_posts`", executed_sql)
         self.assertIn("INSERT INTO `main`.`atlas`.`activity_events`", executed_sql)
 
+    def test_set_request_status_applies_assignee_and_priority_triage(self) -> None:
+        # Triage-only update: status stays "pending" (task stays open) while
+        # assignee + priority land on the task row and the audit log records a
+        # distinct task-triage-updated action.
+        workflow_rows = pd.DataFrame(
+            [
+                {
+                    "task_id": "task-123",
+                    "thread_id": "thread-123",
+                    "entity_id": "entity-123",
+                    "entity_fqn_snapshot": "main.sales.orders",
+                    "column_name": None,
+                    "task_type": "description_change",
+                    "diff_before_json": None,
+                    "diff_after_json": '{"title":"Update description"}',
+                    "requested_payload_json": '{"title":"Update description","note":"Add owner context","fullComment":"Update description: Add owner context","requestedTags":{}}',
+                    "assignee_entry_id": None,
+                    "assignee_email": None,
+                    "reviewer_entry_id": None,
+                    "reviewer_email": None,
+                    "due_at": None,
+                    "task_status": "open",
+                    "resolution_code": None,
+                    "resolved_payload_json": None,
+                    "expected_version": 1,
+                    "created_at": "2026-04-14 22:00:00",
+                    "updated_at": "2026-04-14 22:00:00",
+                    "thread_type": "task_request",
+                    "thread_status": "open",
+                    "created_by_entry_id": "entry-123",
+                    "created_by_email": "writer@example.com",
+                }
+            ]
+        )
+        uc = FakeUC(responses=[("FROM `main`.`atlas`.`tasks` t", workflow_rows)])
+        store = GovernanceStore(uc, "main", "atlas")
+
+        store.set_request_status(
+            request_id="task-123",
+            status="pending",
+            reviewed_by="steward@example.com",
+            actor_role="steward",
+            refresh_projection=False,
+            assignee="steward@example.com",
+            priority="p1",
+        )
+
+        executed_sql = "\n".join(uc.executed)
+        self.assertIn("UPDATE `main`.`atlas`.`tasks`", executed_sql)
+        self.assertIn("assignee_entry_id =", executed_sql)
+        # Priority is stashed in requested_payload_json.requestedTags (the
+        # tasks table has no priority column) so the workbench payload can
+        # read it back through _request_record.
+        self.assertIn('"priority": "p1"', executed_sql)
+        self.assertIn("task-triage-updated", executed_sql)
+        # No status transition happened, so this must NOT be recorded as a
+        # status change.
+        self.assertNotIn("task-status-updated", executed_sql)
+
+    def test_set_request_status_status_change_carries_triage_in_same_audit_row(self) -> None:
+        workflow_rows = pd.DataFrame(
+            [
+                {
+                    "task_id": "task-321",
+                    "thread_id": "thread-321",
+                    "entity_id": "entity-321",
+                    "entity_fqn_snapshot": "main.sales.orders",
+                    "column_name": None,
+                    "task_type": "description_change",
+                    "diff_before_json": None,
+                    "diff_after_json": None,
+                    "requested_payload_json": '{"title":"Update description","requestedTags":{"priority":"p3"}}',
+                    "assignee_entry_id": None,
+                    "assignee_email": None,
+                    "reviewer_entry_id": None,
+                    "reviewer_email": None,
+                    "due_at": None,
+                    "task_status": "open",
+                    "resolution_code": None,
+                    "resolved_payload_json": None,
+                    "expected_version": 1,
+                    "created_at": "2026-04-14 22:00:00",
+                    "updated_at": "2026-04-14 22:00:00",
+                    "thread_type": "task_request",
+                    "thread_status": "open",
+                    "created_by_entry_id": "entry-321",
+                    "created_by_email": "writer@example.com",
+                }
+            ]
+        )
+        uc = FakeUC(responses=[("FROM `main`.`atlas`.`tasks` t", workflow_rows)])
+        store = GovernanceStore(uc, "main", "atlas")
+
+        store.set_request_status(
+            request_id="task-321",
+            status="resolved",
+            reviewed_by="steward@example.com",
+            review_note="Resolved with new priority.",
+            actor_role="steward",
+            priority="p2",
+        )
+
+        executed_sql = "\n".join(uc.executed)
+        self.assertIn("task-status-updated", executed_sql)
+        self.assertIn('"priority": "p2"', executed_sql)
+        self.assertNotIn("task-triage-updated", executed_sql)
+
+    def test_governance_request_status_patch_validates_triage_fields(self) -> None:
+        from pydantic import ValidationError
+
+        from atlas.api.governance import GovernanceRequestStatusPatch
+
+        patch = GovernanceRequestStatusPatch(
+            status="Pending",
+            assignee="Steward@Example.com",
+            priority="P1",
+        )
+        self.assertEqual(patch.status, "pending")
+        self.assertEqual(patch.assignee, "steward@example.com")
+        self.assertEqual(patch.priority, "p1")
+
+        # Empty triage fields are valid and mean "no change".
+        empty = GovernanceRequestStatusPatch(status="resolved")
+        self.assertEqual(empty.assignee, "")
+        self.assertEqual(empty.priority, "")
+
+        with self.assertRaises(ValidationError):
+            GovernanceRequestStatusPatch(status="pending", priority="urgent")
+        with self.assertRaises(ValidationError):
+            GovernanceRequestStatusPatch(status="pending", assignee="not-an-email")
+
+    def test_workflow_rows_surface_assignee_email_as_assigned_to(self) -> None:
+        workflow_rows = pd.DataFrame(
+            [
+                {
+                    "task_id": "task-777",
+                    "thread_id": "thread-777",
+                    "entity_id": "entity-777",
+                    "entity_fqn_snapshot": "main.sales.orders",
+                    "column_name": None,
+                    "task_type": "description_change",
+                    "diff_before_json": None,
+                    "diff_after_json": None,
+                    "requested_payload_json": '{"title":"Update description","requestedTags":{"priority":"p1"}}',
+                    "assignee_entry_id": "entry-steward",
+                    "assignee_email": "steward@example.com",
+                    "reviewer_entry_id": None,
+                    "reviewer_email": None,
+                    "due_at": None,
+                    "task_status": "open",
+                    "resolution_code": None,
+                    "resolved_payload_json": None,
+                    "expected_version": 1,
+                    "created_at": "2026-04-14 22:00:00",
+                    "updated_at": "2026-04-14 22:00:00",
+                    "thread_type": "task_request",
+                    "thread_status": "open",
+                    "created_by_entry_id": "entry-777",
+                    "created_by_email": "writer@example.com",
+                }
+            ]
+        )
+        uc = FakeUC(responses=[("FROM `main`.`atlas`.`tasks` t", workflow_rows)])
+        store = GovernanceStore(uc, "main", "atlas")
+
+        frame = store.list_change_requests()
+
+        self.assertEqual(len(frame.index), 1)
+        row = frame.iloc[0].to_dict()
+        self.assertEqual(row.get("assigned_to"), "steward@example.com")
+        self.assertIn('"priority": "p1"', str(row.get("new_uc_tags_json")))
+
     def test_create_change_request_fans_out_owner_inbox_notification(self) -> None:
         owners_df = pd.DataFrame(
             [

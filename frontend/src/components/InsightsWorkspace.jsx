@@ -24,13 +24,15 @@ const KPI_ORDER = [
   {
     key: "certifiedAssets",
     label: "Certified Assets",
-    tooltip: "Count of visible assets with certified or approved certification metadata.",
+    // Strict semantics: only certification == "Certified" counts. Trusted /
+    // Draft / Approved are NOT folded in (canonical definition, wave 1).
+    tooltip: "Count of visible assets whose certification is exactly \"Certified\" — Trusted, Draft, and Approved are excluded.",
     icon: "certified",
   },
   {
     key: "criticalExceptions",
     label: "Critical Policy Exceptions",
-    tooltip: "Text-derived policy exception evidence from governance requests and audit records until a dedicated source exists.",
+    tooltip: "Policy exceptions from governance request and audit sources. A zero with responding sources is a real zero, not a missing signal.",
     icon: "exception",
   },
   {
@@ -98,10 +100,25 @@ function kpiState(kpi) {
   return "available";
 }
 
-function kpiFooterText(state) {
-  if (state === "unavailable") return "Signal unavailable";
-  if (state === "degraded") return "Degraded signal";
-  return "Live signal";
+// Evidence timestamps render as a UTC calendar date; unparseable strings pass
+// through untouched (never fabricate a date).
+function evidenceDateLabel(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+// State-aware footer: prefers the payload's own reason string (the backend
+// now explains WHY a signal is unavailable/degraded) and date-stamps live
+// signals whose evidence carries a timestamp.
+function kpiFooterText(state, kpi = null) {
+  const reason = typeof kpi?.reason === "string" ? kpi.reason.trim() : "";
+  if (state === "unavailable") return reason || "Signal unavailable";
+  if (state === "degraded") return reason || "Degraded signal";
+  const evidenceAt = evidenceDateLabel(kpi?.evidenceAt || kpi?.qualityEvidenceAt);
+  return evidenceAt ? `Live signal · evidence from ${evidenceAt}` : "Live signal";
 }
 
 function kpiProgress(kpi) {
@@ -235,7 +252,7 @@ function KpiCard({ definition, kpi }) {
         </div>
       ) : null}
       <p className={`gh-insights-kpi-foot tone-${unavailable ? "muted" : degraded ? "degraded" : "good"}`}>
-        {kpiFooterText(state)}
+        {kpiFooterText(state, kpi)}
       </p>
     </article>
   );
@@ -771,6 +788,13 @@ export function InsightsWorkspace({
 
           <section className="gh-insights-card gh-insights-risk-card">
             <CardHeader title="Risk Heatmap" tooltip="Risk counts from live criticality and metadata-gap evidence." />
+            {/* Date-stamp quality-derived evidence when the payload carries a
+                timestamp so stale runs never masquerade as today's signal. */}
+            {evidenceDateLabel(data.riskEvidenceAt || data.qualityEvidenceAt) ? (
+              <p className="gh-insights-evidence-stamp">
+                {`Evidence from ${evidenceDateLabel(data.riskEvidenceAt || data.qualityEvidenceAt)} (UTC)`}
+              </p>
+            ) : null}
             <RiskHeatmapPanel cells={data.riskHeatmap} />
           </section>
 

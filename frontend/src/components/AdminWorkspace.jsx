@@ -54,20 +54,44 @@ function percentValue(value) {
  * Human-readable timestamp for backend ISO strings. Raw ISO ("2026-07-19T22:04:11Z")
  * reads as machine output on an operator surface; fall back to the raw text when
  * the value doesn't parse so we never fabricate a date.
+ * Rendered in UTC: every other governance surface labels evidence times UTC,
+ * and browser-local rendering here produced contradictory EDT labels.
  */
 function humanTimestamp(value) {
   const raw = text(value);
   if (!raw) return "Unavailable";
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return raw;
-  return parsed.toLocaleString(undefined, {
+  return parsed.toLocaleString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC",
     timeZoneName: "short",
   });
+}
+
+/**
+ * A future timestamp under "Last run" is a scheduling artifact, not history —
+ * route it to "Next run" and report "Not yet run" honestly. Unparseable
+ * relative strings ("4 min ago") pass through untouched as last-run text.
+ */
+function splitJobRunTimes(rawLastRun) {
+  const raw = text(rawLastRun);
+  if (!raw) return { lastRun: "Unavailable", nextRun: "" };
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime()) && parsed.getTime() > Date.now()) {
+    return { lastRun: "Not yet run", nextRun: humanTimestamp(raw) };
+  }
+  return { lastRun: raw, nextRun: "" };
+}
+
+// Job names can embed raw run hashes ("[RUNNER] pixels | 0f1f0a3b2a5f…").
+// Truncate long hex tails for display; the full name stays on the title attr.
+function compactJobName(name) {
+  return text(name).replace(/\b([0-9a-f]{12,})\b/gi, (_match, hash) => `${hash.slice(0, 8)}…`);
 }
 
 function statusTone(state) {
@@ -147,15 +171,40 @@ function normalizeJobs(dashboard) {
     dashboard.runtime?.scheduledJobs ||
     [];
   if (!Array.isArray(candidates)) return [];
-  const rows = candidates.map((job, index) => ({
-    id: label(job.id || job.key || job.name, `job-${index}`),
-    name: label(job.name || job.label || job.job),
-    schedule: label(job.schedule || job.cron || job.frequency),
-    lastRun: label(job.lastRun || job.last_run || job.relativeTime || job.updatedAt),
-    status: label(job.status || job.state, "unavailable"),
-    url: text(job.url || job.runUrl || job.jobUrl),
-  }));
+  const rows = candidates.map((job, index) => {
+    const name = label(job.name || job.label || job.job);
+    // "Next run" prefers an explicit backend field; otherwise a future
+    // timestamp mistakenly shipped as lastRun is rerouted there.
+    const split = splitJobRunTimes(job.lastRun || job.last_run || job.relativeTime || job.updatedAt);
+    const explicitNextRun = text(job.nextRun || job.next_run);
+    return {
+      id: label(job.id || job.key || job.name, `job-${index}`),
+      name,
+      displayName: compactJobName(name),
+      schedule: label(job.schedule || job.cron || job.frequency),
+      lastRun: split.lastRun,
+      nextRun: explicitNextRun ? humanTimestamp(explicitNextRun) : split.nextRun,
+      status: label(job.status || job.state, "unavailable"),
+      url: text(job.url || job.runUrl || job.jobUrl),
+    };
+  });
   return rows;
+}
+
+// Policy requirement cards (policyRequirements.cards): the backed exceptions
+// signal plus honest-unavailable library/enforcement cards with the API's
+// own reason strings.
+function normalizePolicyCards(dashboard) {
+  const cards = Array.isArray(dashboard.policyRequirements?.cards)
+    ? dashboard.policyRequirements.cards
+    : [];
+  return cards.map((card, index) => ({
+    id: label(card.key || card.label, `policy-card-${index}`),
+    label: label(card.label),
+    value: card.value,
+    state: text(card.state) || (card.value == null ? "unavailable" : "available"),
+    reason: text(card.reason),
+  }));
 }
 
 function normalizeIntegrations(dashboard) {
@@ -240,7 +289,10 @@ function JobTable({ activeId = "", emptyMessage = "", hydrating = false, jobs, o
       <div className="gh-admin-control-job-head" role="row">
         <span>Job</span>
         <span>Schedule</span>
+        {/* Split columns: a FUTURE date under "Last run" was a lie — the
+            next scheduled run now has its own honest column. */}
         <span>Last run</span>
+        <span>Next run</span>
         <span>Status</span>
         <span aria-hidden="true" />
       </div>
@@ -259,9 +311,12 @@ function JobTable({ activeId = "", emptyMessage = "", hydrating = false, jobs, o
             title={job.unavailable ? "Open unavailable scheduled-job diagnostics" : undefined}
             type="button"
           >
-            <span className="gh-admin-job-name"><ControlIcon name={controlIconName(job.name)} /><strong>{job.name}</strong></span>
+            {/* Hash tails truncate for display; the raw job name stays
+                reachable on the title attribute. */}
+            <span className="gh-admin-job-name"><ControlIcon name={controlIconName(job.name)} /><strong title={job.name}>{job.displayName || job.name}</strong></span>
             <span>{job.schedule}</span>
             <span>{job.lastRun}</span>
+            <span>{job.nextRun || "—"}</span>
             <StatusPill tone={statusTone(job.status)}>
               {stateText(job.status)}
             </StatusPill>
@@ -271,6 +326,47 @@ function JobTable({ activeId = "", emptyMessage = "", hydrating = false, jobs, o
           <UnavailableRow message={emptyMessage || "No backed scheduled-job inventory is available yet."} />
         )}
       </div>
+    </section>
+  );
+}
+
+/**
+ * PolicyRequirementsPanel — the "policy" the page header promises. Renders
+ * the backed policy-exceptions signal (consistent with the Command Center)
+ * plus the API's honest-unavailable policy library/enforcement cards with
+ * their reason strings — never fabricated coverage.
+ */
+function PolicyRequirementsPanel({ cards, hydrating = false }) {
+  return (
+    <section className="gh-admin-control-card gh-admin-policy-cards" aria-label="Policy requirements">
+      <header>
+        <div>
+          <h2>Policy</h2>
+          <p>
+            {cards.some((card) => card.state === "available")
+              ? "Backed policy signals; unsupported checks stay marked unavailable"
+              : "Policy diagnostics unavailable"}
+          </p>
+        </div>
+      </header>
+      {!cards.length && hydrating ? (
+        <SkeletonBlock lines={3} message="Loading policy diagnostics" />
+      ) : cards.length ? (
+        <div className="gh-admin-policy-card-grid" role="group" aria-label="Policy requirement cards">
+          {cards.map((card) => (
+            <article
+              className={card.state === "available" ? "gh-admin-policy-card" : "gh-admin-policy-card is-unavailable"}
+              key={card.id}
+            >
+              <small>{card.label}</small>
+              <strong>{card.state === "available" ? numberValue(card.value) : "Unavailable"}</strong>
+              {card.reason ? <span>{card.reason}</span> : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <UnavailableRow message="No policy diagnostics were reported by the control-center payload." />
+      )}
     </section>
   );
 }
@@ -812,6 +908,7 @@ export default function AdminWorkspace({ shell = null } = {}) {
   const jobs = useMemo(() => normalizeJobs(safeDashboard), [safeDashboard]);
   const integrations = useMemo(() => normalizeIntegrations(safeDashboard), [safeDashboard]);
   const policies = useMemo(() => normalizePolicies(safeDashboard), [safeDashboard]);
+  const policyCards = useMemo(() => normalizePolicyCards(safeDashboard), [safeDashboard]);
   const activity = useMemo(() => normalizeActivity(safeDashboard), [safeDashboard]);
   // Hydrating = the backend is still warming its payload (meta.state
   // "loading" / capabilities.hydrating) or the first fetch is in flight.
@@ -843,6 +940,8 @@ export default function AdminWorkspace({ shell = null } = {}) {
       rows: [
         { label: "Schedule", value: job.schedule },
         { label: "Last run", value: job.lastRun },
+        // "—" (not "Unavailable"): most jobs legitimately report no next run.
+        { label: "Next run", value: job.nextRun || "—" },
         { label: "Status", value: stateText(job.status) },
         { label: "Evidence", value: job.unavailable ? "No backed scheduled-job row was reported by diagnostics." : "Admin diagnostics payload" },
       ],
@@ -959,6 +1058,7 @@ export default function AdminWorkspace({ shell = null } = {}) {
                   integrations={integrations}
                   onSelect={handleIntegrationSelect}
                 />
+                <PolicyRequirementsPanel cards={policyCards} hydrating={hydrating} />
                 <PolicyCoverage
                   activeId={selectedControl?.kind === "Policy coverage" ? selectedControl.id : ""}
                   hydrating={hydrating}

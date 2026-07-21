@@ -1430,6 +1430,11 @@ LIMIT {int(limit)}
                     "reviewed_at": reviewed_at or None,
                     "reviewed_by": str(row.get("reviewer_email") or row.get("assignee_email") or "").strip() or None,
                     "review_note": str(resolved_payload.get("reviewNote") or "").strip() or None,
+                    # Real task assignment (tasks.assignee_entry_id joined to
+                    # the identity directory). _request_record surfaces this as
+                    # assignedTo, which backs the workbench "Assigned to me"
+                    # filter — previously always empty for workflow rows.
+                    "assigned_to": str(row.get("assignee_email") or "").strip() or None,
                 }
             )
         return pd.DataFrame(rows)
@@ -2078,6 +2083,8 @@ WHEN NOT MATCHED THEN INSERT (
         review_note: str | None = None,
         actor_role: str = "reader",
         refresh_projection: bool = True,
+        assignee: str | None = None,
+        priority: str | None = None,
     ) -> None:
         workflow_df = self._list_workflow_task_rows(task_id=task_id, limit=1)
         if workflow_df is None or workflow_df.empty:
@@ -2116,7 +2123,39 @@ WHEN NOT MATCHED THEN INSERT (
             current_task_status != str(task_status or "").strip().lower()
             or current_resolution_code != next_resolution_code
         )
-        if status_changed or not fast_mode:
+        # Triage riders (Stewardship Workbench "Assign to me" / priority
+        # picker). Both are no-ops when None/empty so a plain status update
+        # never clears recorded triage state.
+        normalized_assignee = str(assignee or "").strip().lower()
+        current_assignee = str(row.get("assignee_email") or "").strip().lower()
+        assignee_changed = bool(normalized_assignee) and normalized_assignee != current_assignee
+        assignee_entry: Dict[str, Any] | None = None
+        if assignee_changed:
+            assignee_entry = self._ensure_identity_email_entry(
+                normalized_assignee,
+                source="governance_assignee",
+                updated_by=reviewed_by,
+                actor_role=actor_role,
+            )
+        normalized_priority = str(priority or "").strip().lower()
+        requested_tags = requested_payload.get("requestedTags")
+        if not isinstance(requested_tags, dict):
+            requested_tags = {}
+            requested_payload["requestedTags"] = requested_tags
+        current_priority = str(requested_tags.get("priority") or "").strip().lower()
+        priority_changed = bool(normalized_priority) and normalized_priority != current_priority
+        if priority_changed:
+            # The tasks table has no priority column; requestedTags inside
+            # requested_payload_json is the migration-free stash the workbench
+            # payload already reads priority from (_request_record).
+            requested_tags["priority"] = normalized_priority
+        triage_changed = assignee_changed or priority_changed
+        if status_changed or triage_changed or not fast_mode:
+            triage_sets = ""
+            if assignee_changed and assignee_entry is not None:
+                triage_sets += f",\n    assignee_entry_id = {sql_literal(assignee_entry.get('entryId'))}"
+            if priority_changed:
+                triage_sets += f",\n    requested_payload_json = {sql_literal(_json_text(requested_payload))}"
             self.uc.execute(
                 f"""UPDATE {self._fq("tasks")}
 SET status = {sql_literal(task_status)},
@@ -2124,7 +2163,7 @@ SET status = {sql_literal(task_status)},
     reviewer_entry_id = {sql_literal(reviewer_entry.get("entryId"))},
     resolved_payload_json = {sql_literal(_json_text(resolved_payload))},
     expected_version = COALESCE(expected_version, 0) + 1,
-    updated_at = timestamp({sql_literal(ts)})
+    updated_at = timestamp({sql_literal(ts)}){triage_sets}
 WHERE task_id = {sql_literal(task_id)}"""
             )
             self.uc.execute(
@@ -2184,7 +2223,18 @@ WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
                     recipients=comment_recipients,
                 )
         task_event_id = None
-        if status_changed or not fast_mode:
+        if status_changed or triage_changed or not fast_mode:
+            activity_payload: Dict[str, Any] = {
+                "status": task_status,
+                "resolutionCode": resolution_code,
+                "reviewNote": review_note or "",
+            }
+            # Triage changes ride the same activity event so assignment and
+            # priority updates are visible in the asset activity stream.
+            if assignee_changed:
+                activity_payload["assignedTo"] = normalized_assignee
+            if priority_changed:
+                activity_payload["priority"] = normalized_priority
             task_event_id = self._append_activity_event(
                 event_type="task_state_changed",
                 actor_entry_id=str(reviewer_entry.get("entryId") or ""),
@@ -2193,7 +2243,7 @@ WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
                 column_name=str(row.get("column_name") or "") or None,
                 thread_id=str(row.get("thread_id") or ""),
                 task_id=task_id,
-                payload={"status": task_status, "resolutionCode": resolution_code, "reviewNote": review_note or ""},
+                payload=activity_payload,
             )
         if task_event_id and not fast_mode:
             state_recipients = self._workflow_notification_recipients(
@@ -2224,22 +2274,34 @@ WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
                 status=request_status_label,
                 recipients=state_recipients,
             )
+        # Audit contract: triage-only updates (assign/priority with no status
+        # transition) still land an audit row, labeled distinctly so evidence
+        # reviews can tell "assigned" apart from "status changed".
+        audit_after: Dict[str, Any] = {
+            "status": task_status,
+            "resolutionCode": resolution_code,
+            "reviewNote": review_note or "",
+            "updatedAt": ts,
+        }
+        if assignee_changed:
+            audit_after["assignedTo"] = normalized_assignee
+        if priority_changed:
+            audit_after["priority"] = normalized_priority
         self.append_metadata_audit(
             entity_type="task",
             entity_id=task_id,
             entity_fqn=str(row.get("entity_fqn_snapshot") or ""),
             column_name=str(row.get("column_name") or "") or None,
             request_id=task_id,
-            action="task-status-updated" if status_changed else "task-comment-added",
+            action=(
+                "task-status-updated"
+                if status_changed
+                else ("task-triage-updated" if triage_changed else "task-comment-added")
+            ),
             actor_email=reviewed_by,
             actor_role=actor_role,
             before=self._workflow_rows_to_legacy_requests(workflow_df).iloc[0].to_dict(),
-            after={
-                "status": task_status,
-                "resolutionCode": resolution_code,
-                "reviewNote": review_note or "",
-                "updatedAt": ts,
-            },
+            after=audit_after,
             detail=review_note,
         )
         if refresh_projection:
@@ -2940,6 +3002,8 @@ WHEN NOT MATCHED THEN INSERT * """)
         review_note: str | None = None,
         actor_role: str = "reader",
         refresh_projection: bool = True,
+        assignee: str | None = None,
+        priority: str | None = None,
     ) -> None:
         workflow_df = self._list_workflow_task_rows(task_id=request_id, limit=1)
         if workflow_df is not None and not workflow_df.empty:
@@ -2950,15 +3014,30 @@ WHEN NOT MATCHED THEN INSERT * """)
                 review_note=review_note,
                 actor_role=actor_role,
                 refresh_projection=refresh_projection,
+                assignee=assignee,
+                priority=priority,
             )
             return
         before = self.get_change_request(request_id)
         ts = _utc_now_ts()
+        # Legacy change_requests rows have no assignee/priority columns; the
+        # migration-free stash for such fields is new_uc_tags_json (the
+        # workbench payload reads assignedTo/priority back out of it via
+        # _request_record). Merge rather than overwrite so tag-change payloads
+        # survive a triage update.
+        triage_set = ""
+        if (assignee or priority) and before is not None:
+            stashed_tags = dict(before.new_uc_tags or {})
+            if assignee:
+                stashed_tags["assignedTo"] = str(assignee).strip().lower()
+            if priority:
+                stashed_tags["priority"] = str(priority).strip().lower()
+            triage_set = f",\n    new_uc_tags_json = {sql_literal(_json_text(stashed_tags))}"
         self.uc.execute(f"""UPDATE {self._fq("change_requests")}
 SET status      = {sql_literal(status)},
     reviewed_at = timestamp({sql_literal(ts)}),
     reviewed_by = {sql_literal(reviewed_by)},
-    review_note = {sql_literal(review_note) if review_note else "NULL"}
+    review_note = {sql_literal(review_note) if review_note else "NULL"}{triage_set}
 WHERE request_id = {sql_literal(request_id)}""")
         after = self.get_change_request(request_id)
         self.append_metadata_audit(

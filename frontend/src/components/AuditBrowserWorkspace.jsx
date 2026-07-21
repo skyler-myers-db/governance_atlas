@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAuditEvidence } from "../lib/api";
+import { fetchAuditEvents, fetchAuditEvidence } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyState } from "./northstar";
 import "../styles/operations-pages.css";
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20, 50];
-const DEFAULT_LIMIT = 200;
+// Must match the backend default/max (AUDIT_EVIDENCE_DEFAULT_LIMIT = 500).
+// The old 200 silently starved the 90d view — in-range events (and their CSV
+// exports) were provably missing while the page presented itself as complete.
+const DEFAULT_LIMIT = 500;
 
 function envelopeData(payload) {
   return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
@@ -27,10 +30,6 @@ function text(value, fallback = "") {
   return String(value).trim() || fallback;
 }
 
-function safeOrdinal(index = 0) {
-  return String(Number(index) + 1).padStart(2, "0");
-}
-
 // Full UUID-style evidence ids overflow the evidence rail; render a stable
 // GOV-<first 8 hex> short form and keep the full id on title/copy paths.
 function shortEvidenceId(value) {
@@ -41,55 +40,17 @@ function shortEvidenceId(value) {
   return `GOV-${hex.slice(0, 8).toLowerCase()}`;
 }
 
-function customerSafeEvidenceId(value, index = 0, prefix = "AUD") {
-  const raw = text(value);
-  if (!raw) return `${prefix}-${safeOrdinal(index)}`;
-  const homeMatch = raw.match(/^GOV-HOME-EVIDENCE-(request|audit)-(\d+)$/i);
-  if (homeMatch) {
-    const safePrefix = homeMatch[1].toLowerCase() === "request" ? "GOV" : "AUD";
-    return `${safePrefix}-${String(Number(homeMatch[2])).padStart(2, "0")}`;
-  }
-  if (/^(ga-home-seed|ga-taxonomy-seed|prototype|mock|fixture|seed)/i.test(raw)) return "";
-  if (/GOV-HOME-EVIDENCE/i.test(raw)) return `${prefix}-${safeOrdinal(index)}`;
-  return raw;
-}
-
-function sanitizeCustomerEvidenceText(value, index = 0) {
+// Cosmetic label rewrite only. Row SUPPRESSION on content markers was removed:
+// an actor merely writing "mock" in a comment used to silently delete a real
+// audit event from the view AND its exports. Server-side counted exclusion
+// (summary.nonAuthoritativeRowsExcluded) is the only row filter now.
+function sanitizeCustomerEvidenceText(value) {
   const raw = text(value);
   if (!raw) return raw;
-  if (hasNonAuthoritativeAuditMarker(raw)) return "";
   return raw
     .replace(/GOV-HOME-EVIDENCE-request-(\d+)/gi, (_, ordinal) => `GOV-${String(Number(ordinal)).padStart(2, "0")}`)
     .replace(/GOV-HOME-EVIDENCE-audit-(\d+)/gi, (_, ordinal) => `AUD-${String(Number(ordinal)).padStart(2, "0")}`)
-    .replace(/\bga-taxonomy-node-[a-z0-9-]+\b/gi, "Glossary parent record")
-    .replace(/\bga-home-[a-z0-9-]+\b/gi, `Governance evidence ${safeOrdinal(index)}`);
-}
-
-function hasNonAuthoritativeAuditMarker(...values) {
-  const haystack = values.map((value) => {
-    if (value == null) return "";
-    if (typeof value === "object") {
-      try {
-        return JSON.stringify(value);
-      } catch (_error) {
-        return "";
-      }
-    }
-    return String(value);
-  }).join(" ").toLowerCase();
-  return /prototype|mock|fixture|validation[_\s-]*seed|validation sample|home[_\s-]*northstar[_\s-]*seed|home[_\s-]*evidence[_\s-]*plane|ga[_\s-]*home[_\s-]*seed|ga[_\s-]*taxonomy[_\s-]*seed/.test(haystack);
-}
-
-function isNonAuthoritativeAuditEvent(event = {}) {
-  return Boolean(
-    hasNonAuthoritativeAuditMarker(event) ||
-      isNonAuthoritativeMockEvidence(
-        event,
-        event?.meta,
-        event?.provenance,
-        event?.warnings,
-      ),
-  );
+    .replace(/\bga-taxonomy-node-[a-z0-9-]+\b/gi, "Glossary parent record");
 }
 
 function eventId(event, index = 0) {
@@ -141,6 +102,8 @@ function compactDateTime(value) {
   if (!raw) return "Unavailable";
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
+  // Always UTC: audit evidence is a compliance surface, and browser-local
+  // rendering (EDT etc.) contradicted the "Time (UTC)" table on this page.
   return date.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
@@ -148,6 +111,7 @@ function compactDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "UTC",
     timeZoneName: "short",
   });
 }
@@ -201,8 +165,10 @@ function diffRows(beforeValue, afterValue) {
     .slice(0, 8)
     .map((key) => ({
       key,
-      before: before.get(key) || "Unavailable",
-      after: after.get(key) || "Unavailable",
+      // "—" not "Unavailable": a creation event legitimately HAS no prior
+      // value — labeling that "Unavailable" implied missing evidence.
+      before: before.get(key) || "—",
+      after: after.get(key) || "—",
     }));
 }
 
@@ -219,11 +185,18 @@ function auditCsv(events, provenance = {}) {
     "target",
     "evidence",
     "evidence_id",
+    // Stable identity contract: audit_id is the display form (AUD-<8 hex of
+    // the event UUID>) and audit_event_id is the full backing UUID so
+    // exported rows stay joinable across surfaces and re-exports.
+    "audit_id",
+    "audit_event_id",
     "evidence_kind",
     "authoritative",
     "runtime_authoritative",
     "live_databricks_evidence",
     "evidence_boundary",
+    "window_truncated",
+    "truncation_warning",
   ];
   const rows = events.map((event) => [
     event.createdAt,
@@ -233,11 +206,15 @@ function auditCsv(events, provenance = {}) {
     event.objectLabel,
     evidenceReference(event),
     event.displayRequestId || event.displayAuditId,
+    event.displayAuditId,
+    event.auditEventId,
     provenance.evidenceKind || "unavailable",
     provenance.authoritative ? "true" : "false",
     provenance.runtimeAuthoritative ? "true" : "false",
     provenance.liveDatabricksEvidence ? "true" : "false",
     provenance.evidenceBoundary || "unavailable",
+    provenance.windowTruncated ? "true" : "false",
+    provenance.truncationWarning || "",
   ]);
   return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
 }
@@ -272,49 +249,38 @@ function normalizeEvent(event, index = 0) {
   const entityType = text(value.entity_type || value.entityType || value.kind || "Audit object");
   const actor = text(value.actor_email || value.actorEmail || value.created_by || value.createdBy);
   const requestId = text(value.request_id || value.requestId);
-  const displayRequestId = customerSafeEvidenceId(
-    value.display_request_id || value.displayRequestId || requestId,
-    index,
-    "GOV",
-  );
-  const displayAuditId = customerSafeEvidenceId(
+  const displayRequestId = text(value.display_request_id || value.displayRequestId || requestId);
+  // Stable identity contract: the backend derives displayAuditId from the
+  // real event UUID (AUD-<first 8 hex>) and ships the full UUID as
+  // auditEventId/audit_id. NO positional fallback here — a client-invented
+  // AUD-<index> id changed with every filter and broke cross-surface joins.
+  const displayAuditId = text(
     value.display_audit_id || value.displayAuditId || value.audit_id || value.auditId || value.id,
-    index,
-    "AUD",
   );
+  const auditEventId = text(value.auditEventId || value.audit_event_id || value.audit_id || value.auditId);
   const createdAt = text(value.created_at || value.createdAt);
   return {
     ...value,
     id,
     displayAuditId,
+    auditEventId,
     displayRequestId,
     actor,
     actorRole: text(value.actor_role || value.actorRole || "Audit actor"),
     entityFqn,
     entityId,
     entityType,
-    objectLabel: sanitizeCustomerEvidenceText(text(value.object_label || value.objectLabel) || entityFqn || entityId || "Unavailable object", index),
-    action: sanitizeCustomerEvidenceText(text(value.action) || "change recorded", index),
-    source: sanitizeCustomerEvidenceText(text(value.display_source || value.displaySource || value.source) || "Evidence source unavailable", index),
+    objectLabel: sanitizeCustomerEvidenceText(text(value.object_label || value.objectLabel) || entityFqn || entityId || "Unavailable object"),
+    action: sanitizeCustomerEvidenceText(text(value.action) || "change recorded"),
+    source: sanitizeCustomerEvidenceText(text(value.display_source || value.displaySource || value.source) || "Evidence source unavailable"),
     status: text(value.status) || "unavailable",
     requestId,
-    detail: sanitizeCustomerEvidenceText(text(value.display_detail || value.displayDetail || value.detail), index),
+    detail: sanitizeCustomerEvidenceText(text(value.display_detail || value.displayDetail || value.detail)),
     createdAt,
     beforeJson: value.before_json ?? value.beforeJson ?? value.before ?? "",
     afterJson: value.after_json ?? value.afterJson ?? value.after ?? "",
     domain: text(value.domain) || inferDomain(entityFqn || entityId),
   };
-}
-
-function isInternalMaintenanceEvent(event = {}) {
-  const haystack = [
-    event.action,
-    event.detail,
-    event.objectLabel,
-    event.entityType,
-    event.source,
-  ].map(text).join(" ");
-  return /identity directory upserted|identity directory|actor_entry_id|assignee_entry_id|reviewer_entry_id/i.test(haystack);
 }
 
 function inferDomain(value) {
@@ -328,14 +294,28 @@ function inferDomain(value) {
   return "Unassigned";
 }
 
-function uniqueOptions(items, key) {
-  return ["All", ...Array.from(new Set(items.map((item) => item[key]).filter(Boolean))).sort()];
-}
-
 function filterByText(item, query, keys) {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
   return keys.some((key) => text(item[key]).toLowerCase().includes(needle));
+}
+
+// Service-actor identity for the "By services" chip. The audit payload does
+// not carry an actorKind field yet (noted in the wave2 handoff), so match the
+// REAL service principals observed on this estate plus conventional service
+// prefixes. The old /^svc-|bot|service/ regex matched no live service actor.
+function isServiceActor(actor) {
+  const value = text(actor).toLowerCase();
+  if (!value) return false;
+  if (/^(?:svc-|bot[-._]|service[-._@])/.test(value)) return true;
+  return /^(?:metadata\.quality|taxonomy\.curator|quality\.runner|governance\.sweeper)@/.test(value);
+}
+
+// Map the page's date-range scope to an ISO lower bound for /api/audit/events.
+function rangeSinceIso(range) {
+  const hours = { "24h": 24, "7d": 24 * 7, "30d": 24 * 30, "90d": 24 * 90 }[range];
+  if (!hours) return "";
+  return new Date(Date.now() - hours * 3_600_000).toISOString();
 }
 
 function KpiCard({ icon, label, value, support, tone = "neutral" }) {
@@ -411,6 +391,9 @@ function auditEvidenceSummary(event = {}) {
 function auditReportEvent(event, provenance = {}) {
   return {
     auditId: event.displayAuditId || event.id,
+    // Full backing event UUID — keeps report rows joinable with the audit
+    // table and other surfaces (same identity contract as the CSV export).
+    auditEventId: event.auditEventId || null,
     occurredAt: event.createdAt || "unavailable",
     actor: event.actor || "unavailable",
     actorRole: event.actorRole || "unavailable",
@@ -488,7 +471,7 @@ function AuditActionIcon({ name }) {
 }
 
 function ActorMark({ actor }) {
-  return <AuditActionIcon name={/^svc-|bot|service/i.test(text(actor)) ? "service" : "user"} />;
+  return <AuditActionIcon name={isServiceActor(actor) ? "service" : "user"} />;
 }
 
 /**
@@ -501,6 +484,11 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE_OPTIONS[0]);
+  // Real filter bar (actor / action / target asset / free text). Draft edits
+  // locally; Apply commits, which drives the server-filtered
+  // /api/audit/events query for the structured fields.
+  const [filterDraft, setFilterDraft] = useState({ actor: "", action: "", target: "", search: "" });
+  const [appliedFilters, setAppliedFilters] = useState({ actor: "", action: "", target: "", search: "" });
 
   const canReadAudit = auditRoleAllowed(shell);
   const query = useQuery({
@@ -509,6 +497,29 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
     enabled: canReadAudit,
     placeholderData: (previousData) => previousData,
     refetchInterval: (currentQuery) => envelopeHydrating(currentQuery?.state?.data) ? 3_000 : false,
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  // Structured filters go server-side: /api/audit/events applies the same
+  // steward/admin gate + visibility scoping + field whitelist as the main
+  // evidence feed, so filtered rows can never leak more than the page shows.
+  const serverFiltersActive = Boolean(
+    appliedFilters.actor || appliedFilters.action || appliedFilters.target,
+  );
+  const eventsQuery = useQuery({
+    queryKey: ["atlas", "audit-events", dateRange, appliedFilters.actor, appliedFilters.action, appliedFilters.target],
+    queryFn: ({ signal }) => fetchAuditEvents(
+      {
+        actorEmail: appliedFilters.actor,
+        action: appliedFilters.action,
+        entityFqn: appliedFilters.target,
+        since: rangeSinceIso(dateRange),
+        limit: DEFAULT_LIMIT,
+      },
+      { signal },
+    ),
+    enabled: canReadAudit && serverFiltersActive,
     retry: false,
     staleTime: 60_000,
   });
@@ -523,22 +534,45 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   );
   const payload = nonAuthoritativeAuditPayload ? {} : rawPayload;
   const meta = nonAuthoritativeAuditPayload ? {} : rawMeta;
+  // No client-side content-regex row suppression here: the backend excludes
+  // non-authoritative and internal rows server-side and COUNTS them
+  // (nonAuthoritativeRowsExcluded / internalRowsExcluded) so the caption can
+  // account for every withheld row instead of silently deleting evidence.
   const events = useMemo(
-    () => (Array.isArray(payload.events) ? payload.events : [])
-      .filter((event) => !isNonAuthoritativeAuditEvent(event))
-      .map(normalizeEvent)
-      .filter((event) => !isInternalMaintenanceEvent(event)),
+    () => (Array.isArray(payload.events) ? payload.events : []).map(normalizeEvent),
     [payload.events],
+  );
+  const serverFilteredEvents = useMemo(
+    () => (Array.isArray(eventsQuery.data) ? eventsQuery.data : []).map(normalizeEvent),
+    [eventsQuery.data],
+  );
+  const filtersForbidden = serverFiltersActive && responseStatus(eventsQuery.error) === 403;
+  const filtersError = serverFiltersActive && !filtersForbidden ? eventsQuery.error?.message || "" : "";
+  const filteredQueryFailed = Boolean(eventsQuery.error);
+  const baseEvents = useMemo(
+    () => (serverFiltersActive ? (filteredQueryFailed ? [] : serverFilteredEvents) : events),
+    [events, filteredQueryFailed, serverFilteredEvents, serverFiltersActive],
   );
   const summary = payload.summary || {};
   const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
-      if (activeFilter === "Violations") return /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`);
-      if (activeFilter === "By users") return !/^svc-|bot|service/i.test(event.actor);
-      if (activeFilter === "By services") return /^svc-|bot|service/i.test(event.actor);
-      return true;
-    });
-  }, [activeFilter, events]);
+    return baseEvents
+      .filter((event) => {
+        if (activeFilter === "Violations") return /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`);
+        if (activeFilter === "By users") return !isServiceActor(event.actor);
+        if (activeFilter === "By services") return isServiceActor(event.actor);
+        return true;
+      })
+      .filter((event) => filterByText(event, appliedFilters.search, [
+        "actor",
+        "action",
+        "detail",
+        "objectLabel",
+        "entityFqn",
+        "source",
+        "displayAuditId",
+        "displayRequestId",
+      ]));
+  }, [activeFilter, appliedFilters.search, baseEvents]);
 
   const pageRows = filteredEvents.slice(0, visibleCount);
   const selectedInFiltered = selectedId ? filteredEvents.find((event) => event.id === selectedId) : null;
@@ -562,18 +596,33 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   const queryError = canReadAudit ? query.error?.message || "" : "Audit trail requires steward or admin permissions.";
   const forbidden = !canReadAudit || responseStatus(query.error) === 403;
   const events24h = numberOrNull(summary.events24h ?? summary.totalChanges);
-  // policyViolations / accessReviewsOpen are the backed summary fields; the
+  // policyViolations / governanceRequests are the backed summary fields; the
   // old failedActions / text-match "approv" fallbacks mislabeled the KPIs.
   const policyViolations = numberOrNull(summary.policyViolations);
-  const accessReviews = numberOrNull(summary.accessReviewsOpen);
-  const reviewsResolved = numberOrNull(summary.reviewsResolved);
+  // Renamed tile: summary.governanceRequests replaced the accessReviews*
+  // keys (these are governance change requests, not access reviews). The
+  // label ships in the payload so the UI cannot re-mislabel it.
+  const governanceRequests = summary.governanceRequests && typeof summary.governanceRequests === "object"
+    ? summary.governanceRequests
+    : {};
+  const governanceRequestsLabel = text(governanceRequests.label, "Governance requests");
+  const governanceRequestsOpen = numberOrNull(governanceRequests.open);
+  const governanceRequestsResolved = numberOrNull(governanceRequests.resolved);
   const lastEventAt = text(summary.lastEventAt);
   const hiddenRowsExcluded = numberOrNull(summary.hiddenRowsExcluded) || 0;
   // Exclusions split by cause so the caption never conflates row-level
   // security (assets outside the actor's visibility scope) with internal
-  // maintenance noise.
+  // maintenance noise or non-authoritative rows.
   const visibilityScopedRowsExcluded = numberOrNull(summary.visibilityScopedRowsExcluded) || 0;
   const internalRowsExcluded = numberOrNull(summary.internalRowsExcluded) || 0;
+  const nonAuthoritativeRowsExcluded = numberOrNull(summary.nonAuthoritativeRowsExcluded) || 0;
+  // Truncation honesty: when the raw fetch filled the whole window, older
+  // in-range rows exist beyond it and every count is a lower bound.
+  const windowTruncated = summary.windowTruncated === true;
+  const fetchLimit = numberOrNull(summary.fetchLimit) ?? DEFAULT_LIMIT;
+  const truncationWarning = windowTruncated
+    ? `Results truncated at ${fetchLimit} events — narrow the range for complete evidence.`
+    : "";
   const auditSource = text(
     summary.sourceTable ||
       summary.auditTable ||
@@ -623,22 +672,16 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
   );
   // Backed by store change-request state; when unavailable the KPI stays an
   // honest "Unavailable" instead of falling back to an audit-text match.
-  const accessSupport = reviewsResolved == null
-    ? text(
-        summary.accessReviewsDeltaText ||
-          summary.accessReviewsSupport ||
-          summary.accessReviewSource ||
-          summary.summarySource,
-        "Access review summary unavailable unless reported by audit API",
-      )
-    : `${reviewsResolved} resolved · ${text(summary.accessReviewSource, "governance change requests")}`;
+  const governanceRequestsSupport = governanceRequestsOpen == null
+    ? text(governanceRequests.source, "Governance request summary unavailable unless reported by audit API")
+    : `${governanceRequestsResolved == null ? "Resolved count unavailable" : `${governanceRequestsResolved} resolved`} · ${text(governanceRequests.source, "governance change requests")}`;
   const scopedEventMetric = events24h ?? null;
   const eventsMetricLabel = `Events · ${dateRange}`;
   const filters = [
-    ["All events", events.length],
-    ["By users", events.filter((event) => !/^svc-|bot|service/i.test(event.actor)).length],
-    ["By services", events.filter((event) => /^svc-|bot|service/i.test(event.actor)).length],
-    ["Violations", events.filter((event) => /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`)).length],
+    ["All events", baseEvents.length],
+    ["By users", baseEvents.filter((event) => !isServiceActor(event.actor)).length],
+    ["By services", baseEvents.filter((event) => isServiceActor(event.actor)).length],
+    ["Violations", baseEvents.filter((event) => /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`)).length],
   ];
   const dateRanges = ["24h", "7d", "30d", "90d"];
   const auditExportUnavailableReason = loading
@@ -656,6 +699,26 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
     setActiveFilter(name);
     setVisibleCount(PAGE_SIZE_OPTIONS[0]);
   };
+  const filtersApplied = Boolean(
+    appliedFilters.actor || appliedFilters.action || appliedFilters.target || appliedFilters.search,
+  );
+  const filtersLoading = serverFiltersActive && eventsQuery.isLoading;
+  const applyFilters = () => {
+    setAppliedFilters({
+      actor: filterDraft.actor.trim(),
+      action: filterDraft.action.trim(),
+      target: filterDraft.target.trim(),
+      search: filterDraft.search.trim(),
+    });
+    setVisibleCount(PAGE_SIZE_OPTIONS[0]);
+    setStatus("Audit filters applied.");
+  };
+  const clearFilters = () => {
+    setFilterDraft({ actor: "", action: "", target: "", search: "" });
+    setAppliedFilters({ actor: "", action: "", target: "", search: "" });
+    setVisibleCount(PAGE_SIZE_OPTIONS[0]);
+    setStatus("Audit filters cleared.");
+  };
   const loadMoreRows = () => {
     setVisibleCount((count) => Math.min(filteredEvents.length, count + PAGE_SIZE_OPTIONS[0]));
   };
@@ -672,6 +735,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
         evidenceKind,
         liveDatabricksEvidence: deployedDatabricksAppEvidence,
         evidenceBoundary,
+        // The export must carry the same completeness warning the view shows.
+        windowTruncated,
+        truncationWarning,
       }),
       "text/csv;charset=utf-8",
     );
@@ -698,11 +764,15 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
       warning: deployedDatabricksAppEvidence
         ? ""
         : "This report was generated from the local runtime boundary and is not deployed Databricks App closure evidence.",
+      // Fetch-window truncation rides in the artifact itself so an exported
+      // report can never present a truncated window as the complete ledger.
+      windowTruncated,
+      truncationWarning,
       summary: {
         events: filteredEvents.length,
         policyViolations: policyViolations ?? null,
-        accessReviewsOpen: accessReviews ?? null,
-        reviewsResolved: reviewsResolved ?? null,
+        governanceRequestsOpen: governanceRequestsOpen ?? null,
+        governanceRequestsResolved: governanceRequestsResolved ?? null,
         authoritative: closureAuthoritativeEvidence,
         evidenceKind,
         source: auditSource || "unavailable",
@@ -711,8 +781,12 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
         liveDatabricksEvidence: deployedDatabricksAppEvidence,
         closureEvidence: closureAuthoritativeEvidence,
         evidenceBoundary,
+        windowTruncated,
+        truncationWarning,
       },
-      events: filteredEvents.slice(0, 25).map((event) => auditReportEvent(event, {
+      // Export EVERYTHING the view claims — the old silent slice(0,25)
+      // shipped a report that contradicted its own summary.events count.
+      events: filteredEvents.map((event) => auditReportEvent(event, {
         authoritative: closureAuthoritativeEvidence,
         runtimeAuthoritative: authoritativeEvidence,
         evidenceKind,
@@ -825,7 +899,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
           <div className="gh-audit-kpis gh-audit-prototype-kpis" aria-label="Audit metrics" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             <KpiCard icon="▦" label={eventsMetricLabel} value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(scopedEventMetric)} support={loading ? "Reading audit rows" : eventSupport} tone="info" />
             <KpiCard icon="!" label="Policy violations" value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(policyViolations)} support={policySupport} tone="bad" />
-            <KpiCard icon="✓" label="Access reviews · open" value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(accessReviews)} support={accessSupport} tone="good" />
+            <KpiCard icon="✓" label={`${governanceRequestsLabel} · open`} value={loading ? "Loading..." : queryError ? "Unavailable" : metricValue(governanceRequestsOpen)} support={governanceRequestsSupport} tone="good" />
           </div>
 
           {loading ? (
@@ -848,6 +922,70 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                 </button>
               ) : null}
             />
+          ) : null}
+
+          <section className="gh-audit-filter-bar" aria-label="Audit evidence filters">
+            <Field label="Actor email">
+              <input
+                aria-label="Filter by actor email"
+                onChange={(event) => setFilterDraft((draft) => ({ ...draft, actor: event.target.value }))}
+                onKeyDown={(event) => { if (event.key === "Enter") applyFilters(); }}
+                placeholder="e.g. steward@company.com"
+                type="text"
+                value={filterDraft.actor}
+              />
+            </Field>
+            <Field label="Action">
+              <input
+                aria-label="Filter by action"
+                onChange={(event) => setFilterDraft((draft) => ({ ...draft, action: event.target.value }))}
+                onKeyDown={(event) => { if (event.key === "Enter") applyFilters(); }}
+                placeholder="e.g. task-status-updated"
+                type="text"
+                value={filterDraft.action}
+              />
+            </Field>
+            <Field label="Target asset">
+              <input
+                aria-label="Filter by target asset FQN"
+                onChange={(event) => setFilterDraft((draft) => ({ ...draft, target: event.target.value }))}
+                onKeyDown={(event) => { if (event.key === "Enter") applyFilters(); }}
+                placeholder="catalog.schema.table"
+                type="text"
+                value={filterDraft.target}
+              />
+            </Field>
+            <Field label="Search">
+              <input
+                aria-label="Search audit events"
+                onChange={(event) => setFilterDraft((draft) => ({ ...draft, search: event.target.value }))}
+                onKeyDown={(event) => { if (event.key === "Enter") applyFilters(); }}
+                placeholder="Free text across visible rows"
+                type="search"
+                value={filterDraft.search}
+              />
+            </Field>
+            <div className="gh-audit-filter-actions">
+              <button className="is-primary" onClick={applyFilters} type="button">
+                Apply filters
+              </button>
+              <button disabled={!filtersApplied} onClick={clearFilters} type="button">
+                Clear
+              </button>
+            </div>
+          </section>
+          {filtersForbidden ? (
+            <div className="gh-audit-filter-note tone-warn" role="status">
+              Audit event filters require steward or admin permissions; showing the unfiltered evidence feed is not possible for this actor.
+            </div>
+          ) : filtersError ? (
+            <div className="gh-audit-filter-note tone-warn" role="status">
+              {`Filtered audit query failed: ${filtersError}`}
+            </div>
+          ) : serverFiltersActive && !filtersLoading ? (
+            <div className="gh-audit-filter-note" role="status">
+              {`Server-side filter active · ${serverFilteredEvents.length} matching event${serverFilteredEvents.length === 1 ? "" : "s"} in the last ${rangeNoun(dateRange)} (visibility-scoped).`}
+            </div>
           ) : null}
 
           <section className="gh-audit-prototype-tabs" aria-label="Audit filters">
@@ -921,9 +1059,18 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                   </span>
                 </div>
               )) : (
-                <div className="gh-audit-empty">No audit events match the current filters.</div>
+                <div className="gh-audit-empty">
+                  {filtersLoading ? "Loading filtered audit events..." : "No audit events match the current filters."}
+                </div>
               )}
             </div>
+            {truncationWarning ? (
+              // Explicit completeness warning: counts and exports over a
+              // truncated window are lower bounds, never the full ledger.
+              <div className="gh-audit-table-caption is-truncation" role="status">
+                <small>{truncationWarning}</small>
+              </div>
+            ) : null}
             {filteredEvents.length || hiddenRowsExcluded ? (
               <div className="gh-audit-table-caption">
                 <small>
@@ -935,7 +1082,10 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                     internalRowsExcluded
                       ? `${internalRowsExcluded} internal/maintenance rows excluded`
                       : "",
-                    !visibilityScopedRowsExcluded && !internalRowsExcluded && hiddenRowsExcluded
+                    nonAuthoritativeRowsExcluded
+                      ? `${nonAuthoritativeRowsExcluded} non-authoritative rows excluded server-side`
+                      : "",
+                    !visibilityScopedRowsExcluded && !internalRowsExcluded && !nonAuthoritativeRowsExcluded && hiddenRowsExcluded
                       ? `${hiddenRowsExcluded} rows excluded by governance scoping`
                       : "",
                   ].filter(Boolean).join(" · ")}
@@ -971,6 +1121,15 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell =
                       the title attribute and the copy button. */}
                   <dd title={selected.displayRequestId || selected.displayAuditId || undefined}>
                     {shortEvidenceId(selected.displayRequestId || selected.displayAuditId) || "Unavailable"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Audit ID</dt>
+                  {/* Stable AUD-<8 hex of the event UUID> — identical across
+                      Audit Evidence, asset timelines, and exports. Full UUID on
+                      the title attribute. */}
+                  <dd title={selected.auditEventId || undefined}>
+                    {selected.displayAuditId || "Unavailable"}
                   </dd>
                 </div>
               </dl>

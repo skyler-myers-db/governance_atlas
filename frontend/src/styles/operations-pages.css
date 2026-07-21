@@ -3365,7 +3365,9 @@
 .gh-admin-control-job-head,
 .gh-admin-control-job-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(132px, 0.56fr) minmax(82px, 0.36fr) minmax(82px, 0.34fr) 18px;
+  /* 6 columns: Job | Schedule | Last run | Next run | Status | chevron.
+     "Next run" was split out of "Last run" (a future date is not history). */
+  grid-template-columns: minmax(200px, 1.4fr) minmax(120px, 0.52fr) minmax(82px, 0.36fr) minmax(82px, 0.36fr) minmax(82px, 0.34fr) 18px;
   gap: 12px;
   align-items: center;
 }
@@ -7742,4 +7744,298 @@
 .gh-admin-truth-check-table tbody tr:hover td,
 .gh-admin-truth-check-table tbody tr:hover th {
   background: var(--ga-surface-soft);
+}
+
+/* ==========================================================================
+   Persona-audit fixes (2026-07) — audit filter bar, stewardship triage,
+   Control Center policy cards. New rules use --ga-* tokens + the same rgba
+   tint families as their host panels.
+   ========================================================================== */
+
+/* --- Audit Evidence: structured filter bar (actor/action/target/search) --- */
+.gh-audit-filter-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(75, 163, 215, 0.24);
+  border-radius: 10px;
+  background: rgba(8, 31, 50, 0.55);
+}
+
+.gh-audit-filter-bar .gh-audit-filter-actions {
+  grid-column: auto;
+  align-items: center;
+}
+
+.gh-audit-filter-note {
+  margin: 6px 0 0;
+  padding: 7px 12px;
+  border: 1px solid rgba(75, 163, 215, 0.24);
+  border-radius: 8px;
+  background: rgba(15, 52, 79, 0.5);
+  color: var(--ga-text-soft);
+  font-size: 0.76rem;
+}
+
+.gh-audit-filter-note.tone-warn {
+  border-color: rgba(255, 181, 71, 0.34);
+  background: rgba(255, 181, 71, 0.1);
+  color: var(--ga-warning);
+}
+
+/* Truncation caption gets warning emphasis: counts over a truncated fetch
+   window are lower bounds, and that must not read like a routine footnote. */
+.gh-audit-table-caption.is-truncation small {
+  color: var(--ga-warning);
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .gh-audit-filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* --- Stewardship Workbench: scope caption, asset facet, bulk triage --- */
+.gh-governance-ns-scope-caption {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--ga-text-muted);
+  font-size: 0.76rem;
+}
+
+.gh-governance-ns-panel-head .gh-governance-ns-asset-facet {
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.gh-governance-ns-asset-facet > span {
+  color: var(--ga-text-muted);
+  font-size: 0.66rem;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gh-governance-ns-asset-facet select {
+  min-height: 30px;
+  max-width: 320px;
+  padding: 0 8px;
+  border: 1px solid rgba(75, 163, 215, 0.28);
+  border-radius: 6px;
+  background: rgba(15, 52, 79, 0.72);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.gh-governance-ns-asset-filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(102, 197, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(102, 197, 255, 0.08);
+  color: var(--ga-text-soft);
+  font-size: 0.76rem;
+}
+
+.gh-governance-ns-asset-filter-chip button,
+.gh-governance-ns-bulk-bar button,
+.gh-governance-ns-bulk-confirm button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(75, 163, 215, 0.28);
+  border-radius: 6px;
+  background: rgba(15, 52, 79, 0.72);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.gh-governance-ns-asset-filter-chip button:hover,
+.gh-governance-ns-bulk-bar button:hover:not(:disabled),
+.gh-governance-ns-bulk-confirm button:hover {
+  background: rgba(28, 127, 190, 0.3);
+}
+
+.gh-governance-ns-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(75, 163, 215, 0.28);
+  border-radius: 8px;
+  background: rgba(11, 47, 75, 0.62);
+  color: var(--ga-text-soft);
+  font-size: 0.78rem;
+}
+
+.gh-governance-ns-bulk-bar button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gh-governance-ns-bulk-progress {
+  color: var(--ga-bright-blue);
+  font-weight: 700;
+}
+
+.gh-governance-ns-bulk-confirm {
+  margin: 0 14px 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 181, 71, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 181, 71, 0.08);
+  color: var(--ga-text-soft);
+  font-size: 0.8rem;
+}
+
+.gh-governance-ns-bulk-confirm p {
+  margin: 0 0 8px;
+}
+
+.gh-governance-ns-bulk-confirm div {
+  display: flex;
+  gap: 8px;
+}
+
+.gh-governance-ns-bulk-confirm button.tone-approve {
+  border-color: rgba(46, 230, 166, 0.32);
+  background: rgba(46, 230, 166, 0.12);
+  color: var(--ga-success);
+}
+
+/* Row wrapper: leading checkbox cell + the existing row button. The head row
+   reuses the same grid so columns stay aligned with body rows. */
+.gh-governance-ns-table-rowwrap {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.gh-governance-ns-table-rowwrap.is-head .gh-governance-ns-table-row.is-head {
+  border-bottom: 1px solid rgba(71, 166, 223, 0.16);
+}
+
+.gh-governance-ns-bulk-cell {
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid rgba(71, 166, 223, 0.16);
+}
+
+.gh-governance-ns-bulk-cell input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ga-bright-blue);
+  cursor: pointer;
+}
+
+/* Real empty state for empty filter tabs — replaces the pseudo-row of
+   "—/Unassigned/Evidence unavailable" cells that read as broken data. */
+.gh-governance-ns-queue-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 34px 16px;
+  color: var(--ga-text-soft);
+  text-align: center;
+}
+
+.gh-governance-ns-queue-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(75, 163, 215, 0.28);
+  border-radius: 50%;
+  color: var(--ga-text-muted);
+}
+
+.gh-governance-ns-queue-empty-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.gh-governance-ns-queue-empty strong {
+  color: var(--ga-text);
+  font-size: 0.9rem;
+}
+
+.gh-governance-ns-queue-empty span {
+  color: var(--ga-text-muted);
+  font-size: 0.78rem;
+}
+
+.gh-governance-ns-priority-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+}
+
+.gh-governance-ns-priority-picker select {
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid rgba(75, 163, 215, 0.28);
+  border-radius: 6px;
+  background: rgba(15, 52, 79, 0.72);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 0.74rem;
+}
+
+.gh-governance-ns-priority-picker select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- Control Center: policy requirement cards --- */
+.gh-admin-policy-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 12px 16px 16px;
+}
+
+.gh-admin-policy-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(74, 156, 206, 0.18);
+  border-radius: 8px;
+  background: rgba(11, 47, 75, 0.62);
+}
+
+.gh-admin-policy-card small {
+  color: var(--ga-text-muted);
+  font-size: 0.64rem;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gh-admin-policy-card strong {
+  color: var(--ga-text);
+  font-size: 1.15rem;
+}
+
+.gh-admin-policy-card span {
+  color: var(--ga-text-muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.gh-admin-policy-card.is-unavailable strong {
+  color: var(--ga-text-muted);
+  font-size: 0.86rem;
 }

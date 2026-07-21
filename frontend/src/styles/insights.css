@@ -1237,3 +1237,11 @@
   outline: 2px solid var(--ga-focus) !important;
   outline-offset: -2px;
 }
+
+/* Evidence date-stamp for quality-derived tiles (persona-audit item 13):
+   stale runs must never masquerade as today's signal. */
+.gh-insights-evidence-stamp {
+  margin: 0 0 8px;
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+}

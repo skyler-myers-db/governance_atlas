@@ -157,6 +157,77 @@ describe("InsightsWorkspace", () => {
     expect(onNavigate).toHaveBeenCalledWith("governance");
   });
 
+  it("treats a zero policy-exception count with responding sources as a real zero", () => {
+    renderWorkspace({
+      data: {
+        kpis: [
+          { key: "criticalExceptions", label: "Critical Policy Exceptions", value: 0, state: "available", reason: "" },
+        ],
+        metadataCoverageHeatmap: [],
+        certificationCoverageByTier: [],
+        riskHeatmap: [],
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
+      },
+    });
+
+    expect(screen.getByText("0")).toBeDefined();
+    expect(screen.getAllByText("Live signal").length).toBeGreaterThan(0);
+  });
+
+  it("surfaces the payload's own reason string for degraded and unavailable KPIs", () => {
+    renderWorkspace({
+      data: {
+        kpis: [
+          {
+            key: "criticalExceptions",
+            label: "Critical Policy Exceptions",
+            value: 1,
+            state: "degraded",
+            reason: "Derived only from backed policy-exception audit/request text.",
+          },
+          {
+            key: "policyCompliance",
+            label: "Policy Compliance",
+            value: null,
+            state: "unavailable",
+            reason: "No authoritative policy-compliance evaluation source is configured.",
+          },
+        ],
+        metadataCoverageHeatmap: [],
+        certificationCoverageByTier: [],
+        riskHeatmap: [],
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
+      },
+    });
+
+    expect(screen.getByText("Derived only from backed policy-exception audit/request text.")).toBeDefined();
+    expect(screen.getByText("No authoritative policy-compliance evaluation source is configured.")).toBeDefined();
+  });
+
+  it("date-stamps quality-derived evidence when the payload carries a timestamp", () => {
+    renderWorkspace({
+      data: {
+        kpis: [],
+        metadataCoverageHeatmap: [],
+        certificationCoverageByTier: [],
+        riskHeatmap: [{ row: "Very High", column: "High", value: 2 }],
+        riskEvidenceAt: "2026-05-03T09:00:00Z",
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
+      },
+    });
+
+    expect(screen.getByText("Evidence from May 3, 2026 (UTC)")).toBeDefined();
+  });
+
   it("calls onSurfaceReady once the hook is settled", () => {
     const ready = vi.fn();
     render(

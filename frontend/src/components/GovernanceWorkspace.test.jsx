@@ -571,7 +571,10 @@ describe("GovernanceWorkspace", () => {
       expectVisibleText("Owner missing");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /experimental\.sandbox\.pricing_experiment_2025q4/ }));
+    // Scope to the detail rail: since the bulk-select restructure, queue row
+    // buttons also expose the FQN as part of their accessible name.
+    const detailRail = screen.getByRole("complementary", { name: "Selected governance request" });
+    fireEvent.click(within(detailRail).getByRole("button", { name: /experimental\.sandbox\.pricing_experiment_2025q4/ }));
     await waitFor(() => {
       expect(openAssetRecordSafely).toHaveBeenCalledWith(
         "experimental.sandbox.pricing_experiment_2025q4",
@@ -643,7 +646,10 @@ describe("GovernanceWorkspace", () => {
     await waitFor(() => {
       expect(screen.getByText("No actor-visible work items")).not.toBeNull();
     });
-    expect(screen.getByText("Queue shape retained; no synthetic `SI-*` request row is created.")).not.toBeNull();
+    // Real empty state, not a pseudo-row of "—/Unassigned/Evidence
+    // unavailable" cells masquerading as data.
+    expect(screen.getByText("No open work items target datapact.governance_atlas_demo.unrelated_asset.")).not.toBeNull();
+    expect(screen.queryByText("Assignee unavailable")).toBeNull();
     expect(screen.getByText((content) => content.includes("SLA evidence unavailable"))).not.toBeNull();
 
     const detailRail = screen.getByRole("complementary", { name: "Selected governance request" });
@@ -652,5 +658,153 @@ describe("GovernanceWorkspace", () => {
         within(detailRail).getByText(/Select a work item to review evidence/),
       ).not.toBeNull();
     });
+  });
+
+  it("renders the openRequestScope split so visible vs out-of-scope counts cannot be confused", async () => {
+    apiMocks.fetchGovernanceWorkbench.mockResolvedValueOnce({
+      ...workbenchPayload,
+      openRequestScope: {
+        totalOpen: 2,
+        scope: "all-requests",
+        visibleOpenCount: 1,
+        outOfScopeOpenCount: 1,
+        outOfScopeAssetCount: 1,
+        caption: "1 target asset outside the visible estate",
+      },
+    });
+
+    renderGovernance();
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(
+          "1 in the visible estate · 1 on out-of-scope assets (1 target asset outside the visible estate)",
+        ).length,
+      ).toBeGreaterThan(0);
+    });
+  });
+
+  it("assigns the selected work item to the signed-in user through the PATCH API", async () => {
+    apiMocks.updateGovernanceRequest.mockResolvedValue({ ok: true });
+    renderGovernance({ currentUser: { name: "Skyler Myers", email: "skyler.myers@entrada.ai" } });
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateGovernanceRequest).toHaveBeenCalledWith("SI-2491", {
+        status: "pending",
+        assignee: "skyler.myers@entrada.ai",
+        priority: "",
+      }, { fast: true });
+    });
+    expect(await screen.findByText("Assigned to you (skyler.myers@entrada.ai).")).not.toBeNull();
+  });
+
+  it("sets priority from the triage picker through the PATCH API", async () => {
+    apiMocks.updateGovernanceRequest.mockResolvedValue({ ok: true });
+    renderGovernance();
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+    });
+
+    fireEvent.change(screen.getByLabelText("Set work item priority"), { target: { value: "p2" } });
+
+    await waitFor(() => {
+      expect(apiMocks.updateGovernanceRequest).toHaveBeenCalledWith("SI-2491", {
+        status: "pending",
+        assignee: "",
+        priority: "p2",
+      }, { fast: true });
+    });
+    expect(await screen.findByText("Priority set to P2.")).not.toBeNull();
+  });
+
+  it("bulk-resolves selected work items with confirmation and per-request PATCH calls", async () => {
+    apiMocks.updateGovernanceRequest.mockResolvedValue({ ok: true });
+    renderGovernance();
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+      expectVisibleText("Description missing");
+    });
+
+    fireEvent.click(screen.getByLabelText("Select SI-2491 for bulk actions"));
+    fireEvent.click(screen.getByLabelText("Select SI-2487 for bulk actions"));
+    expect(screen.getByText("2 selected")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Resolve selected" }));
+    expect(screen.getByRole("alertdialog", { name: "Confirm bulk resolve" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm resolve" }));
+
+    await waitFor(() => {
+      expect(apiMocks.updateGovernanceRequest).toHaveBeenCalledWith("SI-2491", {
+        status: "resolved",
+        reviewNote: "Bulk-resolved from Stewardship Workbench.",
+      }, { fast: true });
+      expect(apiMocks.updateGovernanceRequest).toHaveBeenCalledWith("SI-2487", {
+        status: "resolved",
+        reviewNote: "Bulk-resolved from Stewardship Workbench.",
+      }, { fast: true });
+    });
+    expect(await screen.findByText("2 work items resolved.")).not.toBeNull();
+  });
+
+  it("filters the queue by asset facet and syncs the ?asset= route param", async () => {
+    const onRouteAssetChange = vi.fn();
+    renderGovernance({ onRouteAssetChange });
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+      expectVisibleText("Description missing");
+    });
+
+    fireEvent.change(screen.getByLabelText("Filter work queue by asset"), {
+      target: { value: "product_events.bronze.clickstream_events" },
+    });
+
+    expect(onRouteAssetChange).toHaveBeenCalledWith("product_events.bronze.clickstream_events");
+    await waitFor(() => {
+      expect(screen.queryByText("Owner missing")).toBeNull();
+    });
+    expectVisibleText("Description missing");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear asset filter" }));
+    expect(onRouteAssetChange).toHaveBeenLastCalledWith("");
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+    });
+  });
+
+  it("shows a toast when the request id is copied", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const longIdDetail = {
+      ...workbenchDetail,
+      requestId: "0f1f0a3b2a5f4e6d8c9b0a1f2e3d4c5b",
+      id: "0f1f0a3b2a5f4e6d8c9b0a1f2e3d4c5b",
+    };
+    apiMocks.fetchGovernanceWorkbench.mockResolvedValueOnce({
+      ...workbenchPayload,
+      requests: [longIdDetail],
+      selectedRequest: longIdDetail,
+    });
+    apiMocks.fetchGovernanceRequestDetail.mockResolvedValueOnce(longIdDetail);
+
+    renderGovernance();
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy ID" }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("0f1f0a3b2a5f4e6d8c9b0a1f2e3d4c5b");
+    });
+    expect(await screen.findByText("Request ID copied.")).not.toBeNull();
   });
 });

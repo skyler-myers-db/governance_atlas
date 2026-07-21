@@ -5,6 +5,7 @@ import AuditBrowserWorkspace from "../AuditBrowserWorkspace";
 import { fetchAuditEvidence } from "../../lib/api";
 
 vi.mock("../../lib/api", () => ({
+  fetchAuditEvents: vi.fn(() => Promise.resolve([])),
   fetchAuditEvidence: vi.fn(),
 }));
 
@@ -36,8 +37,8 @@ function envelope(events, summaryOverrides = {}, metaOverrides = {}) {
         policyChanges: 0,
         policyViolations: 0,
         approvals: 0,
-        accessReviewsOpen: null,
-        reviewsResolved: null,
+        // Renamed contract: governanceRequests replaced accessReviews* keys.
+        governanceRequests: { label: "Governance requests", open: null, resolved: null, source: "" },
         failedActions: 0,
         lastEventAt: "",
         hiddenRowsExcluded: 0,
@@ -94,23 +95,29 @@ describe("AuditBrowserWorkspace gap fixes", () => {
     expect(container.querySelectorAll(".gh-audit-row")).toHaveLength(16);
   });
 
-  it("reads policyViolations and accessReviewsOpen from the backed summary and drops the Retention tile", async () => {
+  it("reads policyViolations and the renamed governanceRequests tile from the backed summary", async () => {
     renderWorkspace(
       envelope([auditEvent("AUD-0001")], {
         policyViolations: 4,
         failedActions: 9,
-        accessReviewsOpen: 2,
-        reviewsResolved: 5,
-        accessReviewSource: "governance change requests",
+        // Renamed contract (wave 1): the tile is "Governance requests" with
+        // both counts from the change-request ledger; accessReviews* is gone.
+        governanceRequests: {
+          label: "Governance requests",
+          open: 2,
+          resolved: 5,
+          source: "governance change requests",
+        },
       }),
     );
     // Wait for the payload to land — the KPI labels render during loading too.
     await screen.findByText(/Showing 1 of 1 events/);
     const policyCard = screen.getByText("Policy violations").closest("article");
     expect(policyCard.querySelector("strong").textContent).toBe("4");
-    const accessCard = screen.getByText("Access reviews · open").closest("article");
-    expect(accessCard.querySelector("strong").textContent).toBe("2");
+    const requestsCard = screen.getByText("Governance requests · open").closest("article");
+    expect(requestsCard.querySelector("strong").textContent).toBe("2");
     expect(screen.getByText(/5 resolved · governance change requests/)).toBeTruthy();
+    expect(screen.queryByText("Access reviews · open")).toBeNull();
     expect(screen.queryByText("Retention")).toBeNull();
     // The impossible "· 7d" label variant is gone for good.
     expect(screen.queryByText("Policy violations · 7d")).toBeNull();
