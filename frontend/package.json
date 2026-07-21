@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "lint": "eslint src vite.config.js",
+    "check:css": "node ../scripts/check-css.mjs",
     "test": "NODE_OPTIONS=--no-experimental-webstorage node --no-experimental-webstorage ./node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vite build && node scripts/write_build_manifest.mjs",

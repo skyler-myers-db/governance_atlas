@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "note": "CSS-debt ratchet baseline (scripts/check-css.mjs). Counts may only go DOWN. Regenerate ONLY after removing debt: node scripts/check-css.mjs --update-baseline",
+  "files": {
+    "App.jsx": {
+      "gh": 10
+    },
+    "components/AdminWorkspace.jsx": {
+      "gh": 60,
+      "hex": 2,
+      "cssImport": 1
+    },
+    "components/AppErrorBoundary.jsx": {
+      "gh": 8
+    },
+    "components/AppFrame.jsx": {
+      "gh": 34
+    },
+    "components/Asset360Drawer.jsx": {
+      "gh": 2,
+      "hex": 10
+    },
+    "components/AuditBrowserWorkspace.jsx": {
+      "gh": 48,
+      "cssImport": 1
+    },
+    "components/CapabilityDashboard.jsx": {
+      "gh": 31
+    },
+    "components/CdeWorkspace.jsx": {
+      "gh": 53,
+      "cssImport": 1
+    },
+    "components/DiscoveryWorkspace.jsx": {
+      "gh": 682,
+      "hex": 24
+    },
+    "components/EntityWorkspace.jsx": {
+      "gh": 260
+    },
+    "components/GovernanceWorkspace.jsx": {
+      "gh": 81,
+      "cssImport": 1
+    },
+    "components/HelpPage.jsx": {
+      "gh": 18
+    },
+    "components/HomePage.jsx": {
+      "gh": 86,
+      "hex": 3
+    },
+    "components/InboxPage.jsx": {
+      "gh": 20
+    },
+    "components/InsightsWorkspace.jsx": {
+      "gh": 86,
+      "hex": 7
+    },
+    "components/LineageWorkspace.jsx": {
+      "gh": 10,
+      "hex": 1
+    },
+    "components/ShellLayoutPrimitives.jsx": {
+      "gh": 68
+    },
+    "components/ShellStatePrimitives.jsx": {
+      "gh": 24
+    },
+    "components/TaxonomyWorkspace.jsx": {
+      "gh": 174,
+      "cssImport": 1
+    },
+    "components/WorkspaceDiagnosticsSurface.jsx": {
+      "gh": 130
+    },
+    "components/WorkspaceSetupWizard.jsx": {
+      "gh": 77
+    },
+    "components/lineage-v2/LineageCanvasV2.jsx": {
+      "gh": 1,
+      "hex": 1,
+      "cssImport": 1
+    },
+    "components/lineage-v2/LineageNodeCard.jsx": {
+      "hex": 12
+    },
+    "components/primitives/AccessExplainerBanner.jsx": {
+      "gh": 16
+    },
+    "components/primitives/ActionButton.jsx": {
+      "gh": 5
+    },
+    "components/primitives/AssetHoverCard.jsx": {
+      "gh": 24
+    },
+    "components/primitives/AssetTypeIcon.jsx": {
+      "gh": 1,
+      "hex": 26
+    },
+    "components/primitives/AuditTimelineDrawer.jsx": {
+      "gh": 24
+    },
+    "components/primitives/Breadcrumbs.jsx": {
+      "gh": 6
+    },
+    "components/primitives/ClassificationEvidenceDrawer.jsx": {
+      "gh": 44
+    },
+    "components/primitives/CommandPalette.jsx": {
+      "gh": 26
+    },
+    "components/primitives/CustomPropertiesPanel.jsx": {
+      "gh": 18
+    },
+    "components/primitives/EntityHero.jsx": {
+      "gh": 64
+    },
+    "components/primitives/GlobalHeader.jsx": {
+      "gh": 1
+    },
+    "components/primitives/GlobalSearch.jsx": {
+      "gh": 24
+    },
+    "components/primitives/GlobalSearchDropdown.jsx": {
+      "gh": 25
+    },
+    "components/primitives/InboxPanel.jsx": {
+      "gh": 26
+    },
+    "components/primitives/InlineEditableDescription.jsx": {
+      "gh": 13
+    },
+    "components/primitives/MarkdownBlock.jsx": {
+      "gh": 1
+    },
+    "components/primitives/MetadataChip.jsx": {
+      "gh": 6
+    },
+    "components/primitives/OwnerAvatar.jsx": {
+      "gh": 5,
+      "hex": 20
+    },
+    "components/primitives/OwnerAvatarStack.jsx": {
+      "gh": 4,
+      "hex": 18
+    },
+    "components/primitives/ProfilePanel.jsx": {
+      "gh": 23
+    },
+    "components/primitives/QualityPanel.jsx": {
+      "gh": 36
+    },
+    "components/primitives/SideIconRail.jsx": {
+      "gh": 1
+    },
+    "components/primitives/StatusBadge.jsx": {
+      "gh": 1
+    },
+    "components/primitives/TabIcon.jsx": {
+      "gh": 1
+    },
+    "components/primitives/TopbarSearch.jsx": {
+      "gh": 6
+    },
+    "components/primitives/UserChip.jsx": {
+      "gh": 17
+    },
+    "components/system/Button.jsx": {
+      "gh": 1
+    },
+    "design/tokens/colors.css": {
+      "gh": 25
+    },
+    "design/tokens/layout.css": {
+      "gh": 15
+    },
+    "design/tokens/motion.css": {
+      "gh": 11
+    },
+    "design/tokens/radius.css": {
+      "gh": 7
+    },
+    "design/tokens/shadow.css": {
+      "gh": 8
+    },
+    "design/tokens/spacing.css": {
+      "gh": 10
+    },
+    "design/tokens/typography.css": {
+      "gh": 8
+    },
+    "design/tokens/z-index.css": {
+      "gh": 9
+    },
+    "hooks/useLineage.js": {
+      "hex": 1
+    },
+    "lib/exportLineagePng.js": {
+      "hex": 2
+    },
+    "lib/renderMarkdown.js": {
+      "gh": 4
+    },
+    "styles/app.css": {
+      "gh": 2060,
+      "hex": 160,
+      "important": 765
+    },
+    "styles/capability-dashboard.css": {
+      "gh": 39
+    },
+    "styles/discovery.css": {
+      "gh": 710,
+      "hex": 148,
+      "important": 81
+    },
+    "styles/entity.css": {
+      "gh": 398,
+      "hex": 52,
+      "important": 4
+    },
+    "styles/governance.css": {
+      "gh": 42
+    },
+    "styles/insights.css": {
+      "gh": 259,
+      "hex": 10,
+      "important": 5
+    },
+    "styles/lineage-v2.css": {
+      "gh": 1,
+      "important": 24
+    },
+    "styles/lineage.css": {
+      "gh": 44
+    },
+    "styles/northstar.css": {
+      "gh": 1459,
+      "hex": 136,
+      "important": 434
+    },
+    "styles/operations-pages.css": {
+      "gh": 1509,
+      "hex": 5,
+      "important": 5
+    },
+    "styles/shell-rail.css": {
+      "gh": 532,
+      "hex": 65,
+      "important": 151
+    }
+  }
+}
