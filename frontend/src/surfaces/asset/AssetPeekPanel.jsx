@@ -30,9 +30,22 @@ export function AssetPeekPanel({ fqn = "", open = true, onClose = null }) {
   const a360 = useAsset360(fqn, { enabled: active });
   const navigate = useAtlasNavigate();
 
-  const asset = detail.detail || (a360.data?.sameAsset ? a360.data.asset : null) || null;
+  // Same stub guards as AssetHubPage: hydrating inventory stubs are not
+  // assets, and unknown owner slots stay busy while /360 is pending —
+  // without this the peek contradicted the hub (score-0 flash, permanent
+  // "Unassigned" owners; C1/C2 verifier BLOCK).
+  const isHydratingStub = (candidate) =>
+    Boolean(candidate) &&
+    (candidate.hydrating === true ||
+      String(candidate.headerSource || "") === "live-metadata-hydrating");
+  const a360Asset = a360.data?.sameAsset ? a360.data.asset : null;
+  const asset =
+    (isHydratingStub(detail.detail) ? null : detail.detail) ||
+    (isHydratingStub(a360Asset) ? null : a360Asset) ||
+    null;
   const freshness = a360.data?.freshness || null;
   const ownership = a360.data?.ownership || null;
+  const ownershipPending = a360.loading || isHydratingStub(a360Asset);
 
   const facts = useMemo(
     () => [
@@ -72,6 +85,7 @@ export function AssetPeekPanel({ fqn = "", open = true, onClose = null }) {
         freshness={freshness}
         ownership={ownership}
         hydrating={!asset && (detail.loading || a360.loading)}
+        ownershipPending={ownershipPending}
         compact
       />
 

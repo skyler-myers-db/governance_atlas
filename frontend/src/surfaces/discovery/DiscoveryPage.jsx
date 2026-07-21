@@ -827,6 +827,19 @@ export function DiscoveryPage({
             </>
           ) : hasResults ? (
             <>
+              {/* The backend silently runs the near-match pass and returns
+                  corrected results + didYouMean; without this caption a typo
+                  shows "21 results" under the wrong chip with no explanation
+                  (C1/C2 verifier BLOCK). */}
+              {didYouMean && didYouMean.toLowerCase() !== trimmedQuery.toLowerCase() ? (
+                <p className="ga-disc-correction" role="status">
+                  Showing close matches for <strong>“{didYouMean}”</strong> — corrected from
+                  “{trimmedQuery}”.
+                  <Button onClick={() => setParams({ q: didYouMean })} size="small" variant="tertiary">
+                    Search “{didYouMean}” exactly
+                  </Button>
+                </p>
+              ) : null}
               {layout === "grid" ? (
                 <DiscoveryResultsGrid
                   assets={renderedAssets}

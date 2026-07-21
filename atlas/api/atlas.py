@@ -593,7 +593,7 @@ def api_command_center(
         loading_payload = atlas_metrics.empty_command_center_payload()
         loading_payload["meta"] = {
             "warnings": [
-                "Command-center metrics are hydrating from live Databricks metadata."
+                "Command-center metrics are still loading from live Databricks metadata."
             ]
         }
         return _wrap(
@@ -655,7 +655,7 @@ def api_command_center(
             loading_payload = atlas_metrics.empty_command_center_payload()
             loading_payload["meta"] = {
                 "warnings": [
-                    "Command-center metrics are hydrating from live Databricks metadata."
+                    "Command-center metrics are still loading from live Databricks metadata."
                 ]
             }
             return _wrap(
@@ -734,7 +734,7 @@ def api_asset_360(asset_fqn: str, request: Request) -> JSONResponse:
         )
         reason = (
             visibility.get("reason")
-            or "Asset 360 is hydrating from live Unity Catalog inventory."
+            or "The asset record is still loading from live Unity Catalog inventory."
         )
         return _wrap(
             payload,
