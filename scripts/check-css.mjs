@@ -43,9 +43,11 @@ const HEX_EXEMPT_PREFIXES = ["design/tokens/"];
 // every existing use is baselined and must ratchet to zero (target: 0/1,451).
 const IMPORTANT_WHITELIST = [];
 // Files/dirs allowed to import CSS: main.jsx owns the global cascade order;
-// the system kit (Wave A1) carries its own system.css.
+// the system kit (Wave A1) carries its own system.css. Wave-B surfaces follow
+// the same convention — each surface owns ONE stylesheet (surfaces/<x>/<x>.css)
+// imported by its own components, so consumers pull the styles automatically.
 const CSS_IMPORT_ALLOWED = ["main.jsx"];
-const CSS_IMPORT_ALLOWED_PREFIXES = ["components/system/"];
+const CSS_IMPORT_ALLOWED_PREFIXES = ["components/system/", "surfaces/"];
 
 // Tests are excluded: they reference legacy gh- DOM until their surface
 // migrates, and they contain no shippable CSS.

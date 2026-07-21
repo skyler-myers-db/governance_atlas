@@ -1,0 +1,584 @@
+/*
+ * surfaces/asset/asset.css — Asset 360 hub styles (Wave B2).
+ * Convention mirrors components/system/system.css: every component in this
+ * surface imports this one file, so any consumer pulls the styles with it.
+ * All classes are `ga-asset-*`, all colors are `--ga-*` tokens, zero hex,
+ * zero specificity overrides (COHESION law 8 / check-css guardrails).
+ */
+
+/* ---------------------------------------------------------------- frame */
+
+.ga-asset-breadcrumbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ga-asset-breadcrumb-fqn {
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------- header actions */
+
+.ga-asset-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-asset-menu-root {
+  position: relative;
+}
+
+.ga-asset-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 260px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--ga-surface-strong);
+  border: 1px solid var(--ga-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--ga-shadow-md);
+}
+
+.ga-asset-menu-note {
+  margin: 2px 4px 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ga-surface-soft);
+  color: var(--ga-text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ga-asset-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ga-asset-menu-item:hover:not(:disabled),
+.ga-asset-menu-item:focus-visible {
+  background: var(--ga-surface-soft);
+  color: var(--ga-text-strong);
+  outline: none;
+}
+
+.ga-asset-menu-item:disabled {
+  color: var(--ga-text-faint);
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------- request dialog */
+
+.ga-asset-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ga-asset-dialog-scope {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ga-asset-dialog-scope strong {
+  color: var(--ga-text-soft);
+  word-break: break-all;
+}
+
+.ga-asset-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ga-asset-field > span {
+  color: var(--ga-text-soft);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ga-asset-field input,
+.ga-asset-field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: 8px;
+  background: var(--ga-surface-muted);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.ga-asset-field input:focus-visible,
+.ga-asset-field textarea:focus-visible {
+  border-color: var(--ga-highlight-blue);
+  box-shadow: var(--ga-shadow-focus);
+  outline: none;
+}
+
+.ga-asset-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------- trust verdict */
+
+.ga-asset-verdict {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 20px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  background: var(--ga-surface);
+  border: 1px solid var(--ga-border);
+  border-radius: 12px;
+}
+
+.ga-asset-verdict.is-compact {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+.ga-asset-verdict-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-asset-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: 999px;
+  background: var(--ga-surface-soft);
+}
+
+.ga-asset-score-label {
+  color: var(--ga-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ga-asset-score-value {
+  color: var(--ga-text-strong);
+  font-size: 15px;
+}
+
+.ga-asset-fresh {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
+
+.ga-asset-fresh-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ga-asset-fresh-label {
+  color: var(--ga-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ga-asset-fresh-value {
+  color: var(--ga-text-strong);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ga-asset-fresh-value.is-empty {
+  color: var(--ga-text-faint);
+}
+
+.ga-asset-fresh-skeleton {
+  width: 160px;
+  height: 14px;
+}
+
+.ga-asset-owners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+
+.ga-asset-owner-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ga-asset-owner-role-label {
+  flex: 0 0 150px;
+  color: var(--ga-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ga-asset-owner-unassigned {
+  color: var(--ga-text-faint);
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------- tab body */
+
+.ga-asset-tab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.ga-asset-about-card {
+  grid-column: 1 / -1;
+}
+
+.ga-asset-description {
+  margin: 0 0 12px;
+  color: var(--ga-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ga-asset-description.is-empty {
+  color: var(--ga-text-faint);
+  font-style: italic;
+}
+
+.ga-asset-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-asset-chip-row + .ga-asset-chip-row {
+  margin-top: 10px;
+}
+
+/* ----------------------------------------------------------- mini lineage */
+
+.ga-asset-minimap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ga-asset-minimap-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ga-asset-minimap-col.is-focus {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  border: 1px solid var(--ga-border-strong);
+  border-radius: 10px;
+  background: var(--ga-surface-soft);
+}
+
+.ga-asset-minimap-col-title {
+  color: var(--ga-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ga-asset-minimap-focus {
+  color: var(--ga-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.ga-asset-minimap-none {
+  color: var(--ga-text-faint);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------ quality & usage */
+
+.ga-asset-quality-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ga-asset-evidence-line {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+}
+
+.ga-asset-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ga-asset-usage-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ga-asset-usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ga-border-muted);
+}
+
+.ga-asset-usage-row:last-child {
+  border-bottom: 0;
+}
+
+.ga-asset-usage-label {
+  color: var(--ga-text-soft);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ga-asset-usage-source {
+  color: var(--ga-text-faint);
+  font-size: 11px;
+}
+
+.ga-asset-usage-row strong {
+  color: var(--ga-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.ga-asset-usage-reason {
+  color: var(--ga-text-faint);
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------------- columns */
+
+.ga-asset-col-name {
+  color: var(--ga-text-strong);
+  font-weight: 500;
+}
+
+.ga-asset-col-name.is-highlight {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--ga-surface-soft);
+  box-shadow: 0 0 0 1px var(--ga-highlight-blue);
+}
+
+.ga-asset-col-type {
+  color: var(--ga-light-blue);
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- access */
+
+.ga-asset-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ga-asset-fact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ga-border-muted);
+}
+
+.ga-asset-fact:last-child {
+  border-bottom: 0;
+}
+
+.ga-asset-fact dt {
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.ga-asset-fact dd {
+  margin: 0;
+  color: var(--ga-text-soft);
+  font-size: 13px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.ga-asset-deeplink-row {
+  margin: 12px 0 0;
+}
+
+.ga-asset-deeplink {
+  color: var(--ga-bright-blue);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ga-asset-deeplink:hover,
+.ga-asset-deeplink:focus-visible {
+  color: var(--ga-light-blue);
+}
+
+.ga-asset-remediation-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--ga-text-soft);
+  font-size: 13px;
+}
+
+.ga-asset-remediation-list p {
+  margin: 4px 0 0;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* -------------------------------------------------------------- activity */
+
+.ga-asset-activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ga-asset-activity-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ga-border-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ga-asset-activity-row:last-child {
+  border-bottom: 0;
+}
+
+.ga-asset-activity-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-asset-activity-title {
+  color: var(--ga-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ga-asset-activity-detail {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ga-asset-activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+}
+
+.ga-asset-activity-meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------- lineage */
+
+.ga-asset-lineage-embed {
+  height: 620px;
+  min-height: 420px;
+  border: 1px solid var(--ga-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ga-surface-muted);
+}
+
+/* ------------------------------------------------------------------ peek */
+
+.ga-asset-peek-fqn {
+  margin: 0 0 14px;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ga-asset-peek-facts {
+  margin-top: 16px;
+}
+
+.ga-asset-peek-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
