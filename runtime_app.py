@@ -260,11 +260,15 @@ class _HashedAssetStaticFiles(StaticFiles):
         return response
 
     async def get_response(self, path: str, scope):  # type: ignore[override]
-        response = await super().get_response(path, scope)
-        last_segment = path.rsplit("/", 1)[-1]
-        if response.status_code == 404 and "." not in last_segment:
-            return HTMLResponse(_render_index())
-        return response
+        # Starlette RAISES HTTPException(404) on a miss (it does not return a
+        # 404 response), so the fall-through must catch, not status-check.
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as exc:
+            last_segment = path.rsplit("/", 1)[-1]
+            if exc.status_code == 404 and "." not in last_segment:
+                return HTMLResponse(_render_index())
+            raise
 
 
 app.mount(
