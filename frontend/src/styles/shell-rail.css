@@ -8,7 +8,8 @@
 }
 
 /* --- app shell grid: rail + content column --- */
-.gh-app.gh-app-with-rail {
+.gh-app.gh-app-with-rail,
+.ga-shell-app {
   grid-template-columns: var(--gh-side-rail-w) minmax(0, 1fr);
   grid-template-areas:
     "rail header"
@@ -21,11 +22,13 @@
   column-gap: 0;
 }
 
-.gh-app.gh-app-with-rail > .gh-side-rail {
+.gh-app.gh-app-with-rail > .gh-side-rail,
+.ga-shell-app > .ga-shell-rail {
   grid-area: rail;
 }
 
-.gh-app.gh-app-with-rail > .gh-shell-header {
+.gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
   grid-area: header;
   /* Round 14: header sits closer to the viewport top so the top-left
      corner of the side rail reads as a ~64×64 square. */
@@ -53,16 +56,14 @@
   padding-bottom: 0;
 }
 
-.gh-app.gh-app-with-rail > .gh-main {
+.gh-app.gh-app-with-rail > .gh-main,
+.ga-shell-app > .ga-shell-main {
   grid-area: main;
 }
 
-.gh-app.gh-app-with-rail > .gh-app-footer-controls {
-  grid-area: footer;
-}
-
 /* --- left icon rail --- */
-.gh-side-rail {
+.gh-side-rail,
+.ga-shell-rail {
   position: sticky;
   top: 0;
   align-self: stretch;
@@ -85,7 +86,8 @@
   max-height: 100vh;
   overflow-y: auto;
 }
-.gh-side-rail::after {
+.gh-side-rail::after,
+.ga-shell-rail::after {
   content: "";
   position: absolute;
   right: 0;
@@ -1807,7 +1809,8 @@ input:focus-visible {
 
 /* --- Responsive rules --- */
 @media (max-width: 1200px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     column-gap: 12px;
   }
   .gh-discovery-main-grid {
@@ -1832,7 +1835,8 @@ input:focus-visible {
 }
 
 @media (max-width: 820px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "header"
@@ -1841,7 +1845,8 @@ input:focus-visible {
       "footer";
     column-gap: 0;
   }
-  .gh-side-rail {
+  .gh-side-rail,
+.ga-shell-rail {
     position: static;
     flex-direction: row;
     max-height: none;
@@ -2325,7 +2330,9 @@ body {
 .gh-shell-header,
 .gh-filters-rail,
 .gh-selection-preview,
-.gh-side-rail {
+.gh-side-rail,
+.ga-shell-header,
+.ga-shell-rail {
   border: 0 !important;
   box-shadow: none !important;
   background: transparent !important;
@@ -2335,7 +2342,8 @@ body {
 .gh-filters-rail {
   border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
-.gh-side-rail {
+.gh-side-rail,
+.ga-shell-rail {
   border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
 
@@ -2393,7 +2401,8 @@ body {
    tint + full darker beige border that extends above "Asset preview". */
 .gh-side-rail.gh-side-rail,
 aside.gh-filters-rail,
-aside.gh-discovery-sidebar.gh-surface-rail {
+aside.gh-discovery-sidebar.gh-surface-rail,
+.ga-shell-rail.ga-shell-rail {
   background: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
@@ -2407,14 +2416,16 @@ aside.gh-filters-rail,
 aside.gh-discovery-sidebar.gh-surface-rail {
   border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
-.gh-side-rail.gh-side-rail {
+.gh-side-rail.gh-side-rail,
+.ga-shell-rail.ga-shell-rail {
   /* Round 10: zero out the border — the ::after pseudo above draws
      a 1px line from the top horizontal down so the rail edge stops
      at the subtab border and doesn't extend up next to the brand. */
   border-right: 0 !important;
   position: sticky !important;
 }
-.gh-side-rail.gh-side-rail {
+.gh-side-rail.gh-side-rail,
+.ga-shell-rail.ga-shell-rail {
   overflow: visible !important;
 }
 
@@ -2422,25 +2433,29 @@ aside.gh-discovery-sidebar.gh-surface-rail {
 body,
 .gh-app,
 .gh-workspace,
-.gh-discovery-shell {
+.gh-discovery-shell,
+.ga-shell-app {
   background: var(--gh-bg) !important;
   background-image: none !important;
 }
 
-.gh-app.gh-app-with-rail {
+.gh-app.gh-app-with-rail,
+.ga-shell-app {
   width: 100%;
   min-height: 100vh;
   margin: 0;
 }
 
-.gh-app.gh-app-with-rail > .gh-shell-header {
+.gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
   margin: 0;
   background: var(--ga-chrome-bg) !important;
   border-bottom: 1px solid var(--gh-line, #dfe3e6) !important;
   box-shadow: none !important;
 }
 
-.gh-shell-topbar {
+.gh-shell-topbar,
+.ga-shell-topbar {
   min-height: 40px !important;
   background: transparent !important;
 }
@@ -2576,7 +2591,8 @@ body,
   margin-left: 0;
 }
 
-.gh-side-rail.gh-side-rail {
+.gh-side-rail.gh-side-rail,
+.ga-shell-rail.ga-shell-rail {
   width: var(--gh-side-rail-w, 54px);
   padding: calc(var(--gh-shell-header-height, 41px) + 8px) 0 10px;
   gap: 8px;
@@ -2586,7 +2602,8 @@ body,
   overflow: hidden !important;
 }
 
-.gh-side-rail::after {
+.gh-side-rail::after,
+.ga-shell-rail::after {
   display: none;
 }
 
@@ -2656,11 +2673,13 @@ body,
   box-shadow: inset 3px 0 0 var(--gh-indigo, #3d2bc4);
 }
 
-.gh-side-rail.is-collapsed .gh-side-rail-label {
+.gh-side-rail.is-collapsed .gh-side-rail-label,
+.ga-shell-rail.is-collapsed .gh-side-rail-label {
   display: none;
 }
 
-.gh-side-rail.is-collapsed .gh-side-rail-button {
+.gh-side-rail.is-collapsed .gh-side-rail-button,
+.ga-shell-rail.is-collapsed .gh-side-rail-button {
   height: 34px;
   justify-content: center;
 }
@@ -2670,21 +2689,20 @@ body:has(.gh-lineage-stage-shell.is-full) {
   overflow: hidden;
 }
 
-body:has(.gh-lineage-stage-shell.is-full) .gh-app-footer-controls {
+/* Wave B1 compat: the floating Atlas AI chat was renamed to .ga-ai-dock /
+   .ga-ai-fab (app-shell). These preserve the legacy behavior of hiding it
+   while a Discovery preview pane is open. Delete with discovery.css in C1. */
+.ga-shell-app:not([data-ai-open="true"]):has(.gh-discovery-main-grid[data-preview-open="true"]) .ga-ai-dock {
   display: none;
 }
 
-/* Final shell-height lock for mockup parity. App.css still carries older
-   56px topbar rules, so keep these selectors scoped and stronger. */
-.gh-app.gh-app-with-rail .gh-shell-topbar,
-.gh-app.gh-app-with-rail .gh-shell-spine,
-.gh-app.gh-app-with-rail .gh-shell-brand-band {
-  min-height: 40px !important;
-  height: 40px !important;
+.ga-shell-app:has(.gh-discovery-main-grid[data-preview-open="true"]) .ga-ai-fab {
+  display: none;
 }
 
-.gh-app.gh-app-with-rail .gh-shell-brand-band,
-.gh-app.gh-app-with-rail .gh-shell-brand-tail,
-.gh-app.gh-app-with-rail .gh-shell-brand {
-  align-items: center !important;
+/* Wave B1 bridge: the new shell measures its header into
+   --ga-shell-header-height; legacy surface CSS still reads the old var name.
+   Dies with this file's Wave C cleanup. */
+.ga-shell-app {
+  --gh-shell-header-height: var(--ga-shell-header-height, 0px);
 }

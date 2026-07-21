@@ -8,7 +8,8 @@ body {
    dark-theme block. That block now defers to the token layer, so the
    base rules above are already the dark values.) */
 
-.gh-app.gh-app-with-rail {
+.gh-app.gh-app-with-rail,
+.ga-shell-app {
   --ga-topbar-bg: #08172a;
   --gh-side-rail-w: clamp(208px, 7.9vw, 240px);
   --ga-topbar-h: 56px;
@@ -33,7 +34,8 @@ body {
   overflow: hidden;
 }
 
-.gh-app.gh-app-with-rail > .gh-shell-header {
+.gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
   grid-area: header;
   position: sticky;
   top: 0;
@@ -49,7 +51,8 @@ body {
   backdrop-filter: blur(18px);
 }
 
-.gh-main {
+.gh-main,
+.ga-shell-main {
   grid-area: main;
   position: relative;
   min-width: 0;
@@ -59,139 +62,58 @@ body {
   padding-right: var(--ga-responsive-ai-reserve, 0px);
 }
 
-.gh-app.gh-app-with-rail:has(.ga-lineage-explorer) {
+.gh-app.gh-app-with-rail:has(.ga-lineage-explorer),
+.ga-shell-app:has(.ga-lineage-explorer) {
   --ga-responsive-ai-reserve: 0px;
-}
-
-.gh-app.gh-app-with-rail:has(.ga-lineage-explorer) .gh-atlas-ai-fab {
-  display: none;
 }
 
 .gh-app-footer-controls {
   display: none !important;
 }
 
-.gh-atlas-ai-fab {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 1120;
-  width: 48px;
-  height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 999px;
-  /* Flat brand-highlight pill (matches the design's `tb-btn primary`).
-     The previous radial-gradient + 48px cyan glow read as a 3-D sphere; the
-     handoff bundle uses a clean filled pill with an inset highlight. */
-  background: #3d84ad;
-  color: #011b2d;
-  box-shadow: 0 8px 20px rgba(2, 80, 128, 0.45), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
-  cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
-}
-
-.gh-atlas-ai-fab:hover:not(:disabled),
-.gh-atlas-ai-fab:focus-visible:not(:disabled) {
-  transform: translateY(-1px);
-  background: #4f99c4;
-  box-shadow: 0 12px 28px rgba(2, 80, 128, 0.55), 0 1px 0 rgba(255, 255, 255, 0.22) inset;
-  outline: none;
-}
-
-.gh-atlas-ai-fab:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.gh-atlas-ai-fab .ga-ai-mark {
-  width: 24px;
-  height: 24px;
-}
-
 @media (max-width: 1600px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     --ga-responsive-ai-reserve: 60px;
-  }
-
-  .gh-atlas-ai-fab {
-    right: 14px;
-    bottom: 14px;
-    width: 44px;
-    height: 44px;
-    box-shadow: 0 6px 16px rgba(2, 80, 128, 0.40), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
-  }
-
-  .gh-atlas-ai-fab .ga-ai-mark {
-    width: 21px;
-    height: 21px;
   }
 }
 
 @media (max-width: 980px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     --ga-responsive-ai-reserve: 0px;
-  }
-
-  .gh-atlas-ai-fab {
-    right: 10px;
-    bottom: 10px;
-    width: 44px;
-    height: 44px;
   }
 }
 
 @media (max-width: 1320px) and (min-width: 981px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     --ga-responsive-ai-reserve: 52px;
   }
 }
 
-.gh-floating-ai-chat {
-  position: fixed;
-  z-index: 1200;
-  width: min(360px, calc(100vw - 24px));
-  height: min(432px, calc(100vh - 110px));
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  overflow: hidden;
-  border: 1px solid rgba(102, 197, 255, 0.34);
-  border-radius: var(--ga-radius-lg);
-  background:
-    linear-gradient(180deg, rgba(8, 50, 78, 0.99), rgba(5, 25, 41, 0.99));
-  color: var(--ga-text);
-  box-shadow: 0 24px 72px rgba(0, 5, 14, 0.46), var(--ga-glass-highlight);
-  min-width: 320px;
-  min-height: 382px;
-  max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 72px);
-}
-
-.gh-app.gh-app-with-rail[data-ai-open="true"] .gh-floating-ai-chat {
-  width: var(--ga-ai-dock-width);
-}
-
 @media (min-width: 1800px) {
-  .gh-app.gh-app-with-rail[data-ai-open="true"] {
+  .gh-app.gh-app-with-rail[data-ai-open="true"],
+.ga-shell-app[data-ai-open="true"] {
     --ga-ai-dock-reserve: calc(var(--ga-ai-dock-width) + 28px);
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-main {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-main,
+.ga-shell-app[data-ai-open="true"] .ga-shell-main {
     overflow-x: hidden !important;
     padding-right: var(--ga-ai-dock-reserve);
   }
 }
 
 @media (min-width: 1800px) {
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-state-card {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-state-card,
+.ga-shell-app[data-ai-open="true"] .gh-command-center-state-card {
     grid-template-columns: 170px minmax(0, 1fr);
     gap: 28px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-changes {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-changes,
+.ga-shell-app[data-ai-open="true"] .gh-command-center-changes {
     grid-column: 1 / -1;
     padding-top: 18px;
     padding-left: 0;
@@ -201,205 +123,28 @@ body {
 }
 
 @media (min-width: 2200px) {
-  .gh-app.gh-app-with-rail[data-ai-open="true"] {
+  .gh-app.gh-app-with-rail[data-ai-open="true"],
+.ga-shell-app[data-ai-open="true"] {
     --ga-ai-dock-width: min(440px, calc(100vw - 24px));
     --ga-ai-dock-reserve: calc(min(440px, calc(100vw - 24px)) + 40px);
     --ga-prototype-wide-offset: 0px;
     --ga-prototype-wide-rail: 1760px;
   }
 
-  .gh-floating-ai-chat {
-    width: min(440px, calc(100vw - 24px));
-    height: min(640px, calc(100vh - 110px));
-  }
-
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-state-card {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-state-card,
+.ga-shell-app[data-ai-open="true"] .gh-command-center-state-card {
     grid-template-columns: 220px minmax(0, 1fr) 360px;
     gap: 36px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-changes {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-command-center-changes,
+.ga-shell-app[data-ai-open="true"] .gh-command-center-changes {
     grid-column: auto;
     padding-top: 0;
     padding-left: 28px;
     border-top: 0;
     border-left: 1px solid var(--ga-border);
   }
-}
-
-.gh-floating-ai-header {
-  min-height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 12px 10px;
-  border-bottom: 1px solid rgba(102, 197, 255, 0.18);
-  background: rgba(5, 26, 43, 0.82);
-  cursor: grab;
-  user-select: none;
-}
-
-.gh-floating-ai-header:active {
-  cursor: grabbing;
-}
-
-.gh-floating-ai-header > div {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  gap: 9px;
-}
-
-.gh-floating-ai-header .ga-ai-mark {
-  width: 32px;
-  height: 32px;
-  padding: 6px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(102, 197, 255, 0.96), rgba(48, 153, 203, 0.96));
-  color: #04243a;
-  box-shadow: 0 0 0 1px rgba(207, 239, 255, 0.28) inset, 0 10px 24px rgba(51, 189, 231, 0.2);
-  flex: 0 0 auto;
-}
-
-.gh-floating-ai-header span {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.gh-floating-ai-header strong {
-  font-size: 0.96rem;
-  font-weight: 700;
-}
-
-.gh-floating-ai-header em {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-  font-style: normal;
-}
-
-.gh-floating-ai-header em::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--ga-green);
-  box-shadow: 0 0 0 2px rgba(68, 238, 171, 0.1);
-}
-
-.gh-floating-ai-header button {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(207, 239, 255, 0.18);
-  border-radius: 8px;
-  background: rgba(207, 239, 255, 0.06);
-  color: var(--ga-text-soft);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.86rem;
-}
-
-.gh-floating-ai-body {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  overflow-y: auto;
-  padding: 16px 18px 12px;
-}
-
-.gh-floating-ai-greeting {
-  margin: 0;
-  color: var(--ga-text);
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.gh-floating-ai-transcript {
-  min-height: auto;
-  flex: 0 0 auto;
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  overflow: visible;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.gh-floating-ai-message {
-  display: grid;
-  gap: 4px;
-  padding: 11px 13px;
-  border: 1px solid rgba(102, 197, 255, 0.2);
-  border-radius: var(--ga-radius-md);
-  background: rgba(207, 239, 255, 0.07);
-}
-
-.gh-floating-ai-message.is-empty {
-  min-height: 110px;
-  align-content: start;
-  border-left: 3px solid var(--ga-bright-blue);
-  background: rgba(24, 68, 103, 0.56);
-}
-
-.gh-floating-ai-message.tone-user {
-  margin-left: 22px;
-  border-color: rgba(92, 225, 230, 0.3);
-  background: rgba(92, 225, 230, 0.1);
-}
-
-.gh-floating-ai-message.tone-assistant {
-  margin-right: 12px;
-}
-
-.gh-floating-ai-message.tone-warn {
-  border-color: rgba(255, 184, 77, 0.34);
-  background: rgba(255, 184, 77, 0.1);
-}
-
-.gh-floating-ai-message.is-pending strong::after {
-  content: "";
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-left: 7px;
-  vertical-align: -2px;
-  border: 2px solid rgba(207, 239, 255, 0.2);
-  border-top-color: var(--ga-bright-blue);
-  border-radius: 50%;
-  animation: gh-loading-spin 0.8s linear infinite;
-}
-
-.gh-floating-ai-message span {
-  color: var(--ga-bright-blue);
-  font-size: 0.66rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.gh-floating-ai-message.is-empty span {
-  display: none;
-}
-
-.gh-floating-ai-message strong,
-.gh-floating-ai-message .gh-ai-message-markdown {
-  color: var(--ga-text);
-  font-size: 0.82rem;
-  font-weight: 500;
-  line-height: 1.35;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .gh-ai-message-markdown p {
@@ -425,317 +170,6 @@ body {
   background: rgba(2, 9, 20, 0.26);
   color: var(--ga-light-blue);
   padding: 0.05em 0.32em;
-}
-
-.gh-floating-ai-evidence {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 3px;
-}
-
-.gh-floating-ai-evidence button,
-.gh-floating-ai-evidence-chip {
-  min-width: 0;
-  max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid rgba(102, 197, 255, 0.22);
-  border-radius: 999px;
-  background: rgba(102, 197, 255, 0.09);
-  color: var(--ga-text-soft);
-  font: inherit;
-  font-size: 0.66rem;
-  line-height: 1.1;
-  padding: 4px 7px;
-}
-
-.gh-floating-ai-evidence button {
-  cursor: pointer;
-}
-
-.gh-floating-ai-evidence button:hover,
-.gh-floating-ai-evidence button:focus-visible {
-  border-color: rgba(102, 197, 255, 0.5);
-  background: rgba(102, 197, 255, 0.16);
-  color: var(--ga-text);
-  outline: none;
-}
-
-.gh-floating-ai-evidence span {
-  min-width: 0;
-  color: inherit;
-  font: inherit;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.gh-floating-ai-evidence em {
-  color: var(--ga-bright-blue);
-  font-size: 0.58rem;
-  font-style: normal;
-  white-space: nowrap;
-}
-
-.gh-floating-ai-message em {
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  font-style: normal;
-}
-
-.gh-floating-ai-evidence-detail {
-  border: 1px solid rgba(102, 197, 255, 0.18);
-  border-radius: 8px;
-  background: rgba(3, 17, 32, 0.52);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  color: var(--ga-text-soft);
-  display: grid;
-  gap: 7px;
-  margin-top: 8px;
-  padding: 9px;
-}
-
-.gh-floating-ai-evidence-detail header {
-  align-items: flex-start;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.gh-floating-ai-evidence-detail header div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.gh-floating-ai-evidence-detail header span,
-.gh-floating-ai-evidence-statement {
-  color: var(--ga-text-muted);
-  font-size: 0.6rem;
-  letter-spacing: 0.09em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.gh-floating-ai-evidence-detail header strong {
-  color: var(--ga-text);
-  font-size: 0.72rem;
-  letter-spacing: 0;
-}
-
-.gh-floating-ai-evidence-detail header button {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(226, 242, 255, 0.12);
-  border-radius: 6px;
-  color: var(--ga-text-muted);
-  cursor: pointer;
-  display: inline-flex;
-  height: 22px;
-  justify-content: center;
-  width: 22px;
-}
-
-.gh-floating-ai-evidence-detail header button:hover,
-.gh-floating-ai-evidence-detail header button:focus-visible {
-  border-color: rgba(102, 197, 255, 0.5);
-  color: var(--ga-text);
-  outline: none;
-}
-
-.gh-floating-ai-evidence-sql {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(226, 242, 255, 0.1);
-  border-radius: 6px;
-  color: var(--ga-text);
-  font-size: 0.66rem;
-  line-height: 1.35;
-  margin: 0;
-  max-height: 116px;
-  overflow: auto;
-  padding: 8px;
-  white-space: pre-wrap;
-}
-
-.gh-floating-ai-evidence-empty {
-  color: var(--ga-text-muted);
-  font-size: 0.68rem;
-  margin: 0;
-}
-
-.gh-floating-ai-evidence-table {
-  border: 1px solid rgba(226, 242, 255, 0.08);
-  border-radius: 6px;
-  display: grid;
-  font-size: 0.62rem;
-  overflow: hidden;
-}
-
-.gh-floating-ai-evidence-table [role="row"] {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-}
-
-.gh-floating-ai-evidence-table [role="row"] + [role="row"] {
-  border-top: 1px solid rgba(226, 242, 255, 0.08);
-}
-
-.gh-floating-ai-evidence-table span {
-  min-width: 0;
-  overflow: hidden;
-  padding: 5px 6px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-floating-ai-evidence-table [role="columnheader"] {
-  color: var(--ga-text-muted);
-  font-weight: 700;
-}
-
-.gh-floating-ai-prompts {
-  display: grid;
-  gap: 6px;
-}
-
-.gh-floating-ai-prompt-group {
-  flex: 0 0 auto;
-  display: grid;
-  gap: 7px;
-}
-
-.gh-floating-ai-prompt-label {
-  color: var(--ga-text-muted);
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.gh-floating-ai-prompts button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  min-height: 54px;
-  padding: 8px 10px;
-  border: 1px solid rgba(102, 197, 255, 0.2);
-  border-radius: var(--ga-radius-md);
-  background: rgba(207, 239, 255, 0.07);
-  color: var(--ga-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.76rem;
-  line-height: 1.18;
-  text-align: left;
-}
-
-.gh-floating-ai-prompt-icon {
-  width: 15px;
-  height: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid rgba(102, 197, 255, 0.42);
-  border-radius: 999px;
-  color: var(--ga-bright-blue);
-  font-size: 0.62rem;
-  line-height: 1;
-}
-
-.gh-floating-ai-prompts button > span:nth-child(2) {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.gh-floating-ai-prompts button:disabled {
-  cursor: not-allowed;
-  opacity: 0.66;
-}
-
-.gh-floating-ai-prompt-arrow {
-  color: var(--ga-bright-blue);
-  flex: 0 0 auto;
-}
-
-.gh-floating-ai-input {
-  position: relative;
-  padding: 0 18px 10px;
-}
-
-.gh-floating-ai-input input {
-  width: 100%;
-  min-height: 42px;
-  border: 1px solid rgba(102, 197, 255, 0.24);
-  border-radius: var(--ga-radius-md);
-  background: rgba(207, 239, 255, 0.08);
-  color: var(--ga-text);
-  font: inherit;
-  padding: 0 44px 0 12px;
-}
-
-.gh-floating-ai-input button {
-  position: absolute;
-  right: 17px;
-  top: 5px;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(102, 197, 255, 0.22);
-  border-radius: 8px;
-  background: rgba(102, 197, 255, 0.1);
-  color: var(--ga-bright-blue);
-  cursor: pointer;
-}
-
-.gh-floating-ai-input button:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
-}
-
-.gh-floating-ai-disclaimer {
-  margin: 0;
-  padding: 0 12px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-}
-
-.gh-floating-ai-disclaimer button {
-  width: 15px;
-  height: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid rgba(207, 239, 255, 0.28);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ga-text-muted);
-  cursor: help;
-  font: inherit;
-  font-size: 0.62rem;
-  line-height: 1;
-  padding: 0;
-}
-
-.gh-floating-ai-info {
-  margin: -8px 12px 12px;
-  padding: 8px 10px;
-  border: 1px solid rgba(102, 197, 255, 0.2);
-  border-radius: 7px;
-  background: rgba(5, 28, 45, 0.92);
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-  line-height: 1.35;
 }
 
 .ga-shell-footer {
@@ -811,7 +245,8 @@ body {
   box-shadow: 0 0 10px rgba(255, 92, 108, 0.48);
 }
 
-.ga-side-nav.gh-side-rail {
+.ga-side-nav.gh-side-rail,
+.ga-side-nav.ga-shell-rail {
   grid-area: rail;
   position: sticky !important;
   top: 0;
@@ -828,7 +263,8 @@ body {
   box-shadow: none !important;
 }
 
-.gh-app.gh-app-with-rail[data-rail-collapsed="true"] {
+.gh-app.gh-app-with-rail[data-rail-collapsed="true"],
+.ga-shell-app[data-rail-collapsed="true"] {
   --gh-side-rail-w: 72px;
 }
 
@@ -3119,13 +2555,6 @@ body {
   color: var(--ga-bright-blue);
 }
 
-/* The FAB is a filled bright pill — the shared .ga-ai-mark bright-blue icon
-   color above drops to 1.6:1 on its hover fill. Pin the pill's glyph dark. */
-.gh-atlas-ai-fab .ga-ai-mark,
-.gh-atlas-ai-fab svg {
-  color: var(--ga-navy-950);
-}
-
 .ga-sparkline {
   width: 96px;
   height: 32px;
@@ -3469,7 +2898,8 @@ body {
     padding: 12px 16px;
   }
 
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     grid-template-rows: auto minmax(0, 1fr) 56px;
   }
 
@@ -3486,11 +2916,13 @@ body {
 }
 
 @media (max-width: 1440px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     --gh-side-rail-w: clamp(208px, 10.15vw, 298px);
   }
 
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     grid-template-columns: minmax(170px, 0.8fr) minmax(300px, 1fr) minmax(300px, 0.9fr) !important;
     gap: 12px !important;
     padding: 0 16px 0 18px !important;
@@ -3507,7 +2939,8 @@ body {
    Older shell-rail rules still carry !important declarations from the
    pre-Atlas layout, so this block intentionally wins the topbar and
    degraded-banner geometry without changing component behavior. */
-.gh-app.gh-app-with-rail {
+.gh-app.gh-app-with-rail,
+.ga-shell-app {
   grid-template-columns: var(--gh-side-rail-w, 240px) minmax(0, 1fr) !important;
   grid-template-rows: 72px minmax(0, 1fr) !important;
   grid-template-areas:
@@ -3516,7 +2949,8 @@ body {
   overflow: clip !important;
 }
 
-.gh-app.gh-app-with-rail > .gh-shell-header {
+.gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
   height: 72px !important;
   min-height: 72px !important;
   overflow: visible !important;
@@ -3524,7 +2958,8 @@ body {
   border-bottom: 1px solid var(--ga-border) !important;
 }
 
-.gh-app.gh-app-with-rail > .ga-side-nav.gh-side-rail {
+.gh-app.gh-app-with-rail > .ga-side-nav.gh-side-rail,
+.ga-shell-app > .ga-side-nav.ga-shell-rail {
   grid-area: rail !important;
   position: relative !important;
   inset: auto !important;
@@ -3540,7 +2975,8 @@ body {
   overflow: hidden !important;
 }
 
-.gh-shell-topbar.ga-topbar {
+.gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
   height: 72px !important;
   display: grid !important;
   grid-template-columns: minmax(300px, 1fr) minmax(440px, 720px) minmax(420px, 1fr) !important;
@@ -3552,20 +2988,24 @@ body {
   box-shadow: none !important;
 }
 
-:root[data-theme="dark"] .gh-shell-topbar.ga-topbar {
+:root[data-theme="dark"] .gh-shell-topbar.ga-topbar,
+:root[data-theme="dark"] .ga-shell-topbar.ga-topbar {
   background: var(--ga-topbar-bg, #08172a) !important;
 }
 
-.gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb {
+.gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
+.ga-shell-topbar.ga-topbar .ga-workspace-breadcrumb {
   display: inline-flex !important;
   min-width: 0 !important;
 }
 
-.gh-shell-topbar.ga-topbar .ga-topbar-search-slot {
+.gh-shell-topbar.ga-topbar .ga-topbar-search-slot,
+.ga-shell-topbar.ga-topbar .ga-topbar-search-slot {
   min-width: 320px !important;
 }
 
-.gh-shell-topbar.ga-topbar .ga-topbar-actions {
+.gh-shell-topbar.ga-topbar .ga-topbar-actions,
+.ga-shell-topbar.ga-topbar .ga-topbar-actions {
   display: inline-flex !important;
   flex-wrap: nowrap !important;
   justify-content: flex-end !important;
@@ -3614,7 +3054,8 @@ body {
 /* Discovery North Star page contract. Imported after the older discovery
    extraction so these rules intentionally override the legacy light card
    browser without disturbing the shared data hooks. */
-.gh-main {
+.gh-main,
+.ga-shell-main {
   overflow: auto !important;
 }
 
@@ -4803,55 +4244,67 @@ body {
 }
 
 @media (max-width: 1800px) and (min-width: 1180px) {
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"],
+.ga-shell-app[data-ai-open="true"] .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"] {
     grid-template-columns: minmax(150px, 188px) minmax(0, 1fr) !important;
     gap: 12px !important;
     padding-inline: 16px !important;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-table-grid {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-table-grid,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-table-grid {
     gap: 10px;
     padding: 8px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-table-row {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-table-row,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-table-row {
     min-height: 98px !important;
     padding: 12px 78px 11px 14px !important;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-cell {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-cell,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-cell {
     flex: 0 0 100%;
     width: calc(100% - 94px);
     max-width: calc(100% - 94px);
     gap: 11px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-stack {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-stack,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-stack {
     align-items: flex-start;
     gap: 3px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-stack span {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-stack span,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-name-stack span {
     max-width: 100%;
   }
 
   .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-cert-cell,
   .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-sensitivity-cell,
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-linkage-cell {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-linkage-cell,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-cert-cell,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-sensitivity-cell,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-linkage-cell {
     order: 2 !important;
     margin-top: 0;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-cert-cell {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-cert-cell,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-cert-cell {
     margin-left: 49px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-description-cell {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-description-cell,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-description-cell {
     order: 3;
     padding-left: 49px;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-prototype-meta-line {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-prototype-meta-line,
+.ga-shell-app[data-ai-open="true"] .gh-discovery-main-grid[data-prototype-filters="true"] .gh-discovery-prototype-meta-line {
     gap: 5px 10px;
     font-size: 0.64rem;
   }
@@ -5420,19 +4873,6 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   padding: 0;
 }
 
-.gh-app:not([data-ai-open="true"]):has(.gh-discovery-main-grid[data-preview-open="true"]) .gh-floating-ai-chat {
-  display: none !important;
-}
-
-/* The FAB itself (not just the chat panel) must also yield when the
-   Discovery preview sidecar is open — the fixed bottom-right pill sat
-   on top of the preview's footer corner. Same precedent as the lineage
-   explorer, which hides the FAB; Atlas AI stays reachable from the
-   topbar chip. */
-.gh-app:has(.gh-discovery-main-grid[data-preview-open="true"]) .gh-atlas-ai-fab {
-  display: none;
-}
-
 @media (min-width: 2200px) {
   .gh-discovery-shell .gh-discovery-main-grid[data-prototype-filters="true"][data-preview-open="true"] {
     width: calc(100% - 40px) !important;
@@ -5994,69 +5434,83 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 
 @media (max-width: 1600px) and (min-width: 1281px) {
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     grid-template-columns: minmax(170px, 0.72fr) minmax(300px, 480px) minmax(0, max-content) !important;
     gap: 12px !important;
     padding-right: 12px !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-topbar-search-slot {
+  .gh-shell-topbar.ga-topbar .ga-topbar-search-slot,
+.ga-shell-topbar.ga-topbar .ga-topbar-search-slot {
     min-width: 0 !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-topbar-actions {
+  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
+.ga-shell-topbar.ga-topbar .ga-topbar-actions {
     gap: 8px !important;
     min-width: 0 !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-env-chip {
+  .gh-shell-topbar.ga-topbar .ga-env-chip,
+.ga-shell-topbar.ga-topbar .ga-env-chip {
     max-width: 220px !important;
     padding-inline: 10px !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-env-chip > span:not(.ga-status-dot) {
+  .gh-shell-topbar.ga-topbar .ga-env-chip > span:not(.ga-status-dot),
+.ga-shell-topbar.ga-topbar .ga-env-chip > span:not(.ga-status-dot) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-icon-button {
+  .gh-shell-topbar.ga-topbar .ga-icon-button,
+.ga-shell-topbar.ga-topbar .ga-icon-button {
     width: 36px !important;
   }
 }
 
 @media (max-width: 1280px) {
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     grid-template-columns: minmax(180px, auto) minmax(240px, 1fr) auto !important;
     gap: 12px !important;
     padding: 0 18px !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb {
+  .gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
+.ga-shell-topbar.ga-topbar .ga-workspace-breadcrumb {
     min-width: 0 !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-topbar-search-slot {
+  .gh-shell-topbar.ga-topbar .ga-topbar-search-slot,
+.ga-shell-topbar.ga-topbar .ga-topbar-search-slot {
     min-width: 240px !important;
   }
 
   .gh-shell-topbar.ga-topbar .ga-env-chip,
-  .gh-shell-topbar.ga-topbar .ga-ai-chip {
+  .gh-shell-topbar.ga-topbar .ga-ai-chip,
+.ga-shell-topbar.ga-topbar .ga-env-chip,
+.ga-shell-topbar.ga-topbar .ga-ai-chip {
     padding-inline: 10px !important;
   }
 }
 
 @media (max-width: 980px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     grid-template-rows: auto minmax(0, 1fr) !important;
   }
 
-  .gh-app.gh-app-with-rail > .gh-shell-header {
+  .gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
     height: auto !important;
     min-height: 56px !important;
   }
 
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     height: auto !important;
     min-height: 56px !important;
     grid-template-columns: minmax(0, 1fr) !important;
@@ -6067,28 +5521,35 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 
   .gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
   .gh-shell-topbar.ga-topbar .ga-topbar-search-slot,
-  .gh-shell-topbar.ga-topbar .ga-topbar-actions {
+  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
+.ga-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
+.ga-shell-topbar.ga-topbar .ga-topbar-search-slot,
+.ga-shell-topbar.ga-topbar .ga-topbar-actions {
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .gh-shell-topbar.ga-topbar .ga-topbar-actions {
+  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
+.ga-shell-topbar.ga-topbar .ga-topbar-actions {
     flex-wrap: wrap !important;
     justify-content: flex-start !important;
   }
 }
 
 @media (max-height: 760px) and (min-width: 981px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     grid-template-rows: 56px minmax(0, 1fr) !important;
   }
 
-  .gh-app.gh-app-with-rail > .gh-shell-header {
+  .gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
     height: 56px !important;
     min-height: 56px !important;
   }
 
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     height: 56px !important;
     gap: 14px !important;
     padding: 0 20px !important;
@@ -6115,7 +5576,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
     font-size: 14px !important;
   }
 
-  .ga-side-nav.gh-side-rail {
+  .ga-side-nav.gh-side-rail,
+.ga-side-nav.ga-shell-rail {
     padding: 14px 12px 0;
   }
 
@@ -6981,11 +6443,13 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 
 @media (max-width: 1440px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     --gh-side-rail-w: 240px;
   }
 
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     grid-template-columns: minmax(140px, auto) minmax(260px, 1fr) max-content !important;
     gap: 12px !important;
     padding: 0 16px 0 18px !important;
@@ -6994,7 +6458,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 
 /* Current North Star shell authority. Keep these variables late in the cascade
    because legacy shell rules still carry fixed header assumptions. */
-.gh-app.gh-app-with-rail {
+.gh-app.gh-app-with-rail,
+.ga-shell-app {
   --gh-side-rail-w: clamp(208px, 7.9vw, 240px);
   --ga-topbar-h: 56px;
   --ga-topbar-search-w: clamp(480px, 18.5vw, 560px);
@@ -7002,20 +6467,23 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 
 @media (min-width: 1800px) {
-  .gh-app.gh-app-with-rail {
+  .gh-app.gh-app-with-rail,
+.ga-shell-app {
     --gh-side-rail-w: clamp(240px, 10.15vw, 298px);
     --ga-topbar-h: clamp(56px, 2.39vw, 70px);
   }
 }
 
-.gh-app.gh-app-with-rail > .gh-shell-header {
+.gh-app.gh-app-with-rail > .gh-shell-header,
+.ga-shell-app > .ga-shell-header {
   height: var(--ga-topbar-h, 70px) !important;
   min-height: var(--ga-topbar-h, 70px) !important;
   border-bottom: 1px solid var(--ga-border) !important;
   background: var(--ga-topbar-bg, #08172a) !important;
 }
 
-.gh-shell-topbar.ga-topbar {
+.gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
   height: var(--ga-topbar-h, 70px) !important;
   grid-template-columns: minmax(300px, 1fr) minmax(440px, var(--ga-topbar-search-w, 700px)) minmax(420px, 1fr) !important;
   gap: 16px !important;
@@ -7024,7 +6492,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   box-shadow: inset 0 -1px 0 #142c46 !important;
 }
 
-.ga-side-nav.gh-side-rail {
+.ga-side-nav.gh-side-rail,
+.ga-side-nav.ga-shell-rail {
   padding: 0 12px 0 !important;
 }
 
@@ -7053,7 +6522,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 
 @media (max-width: 1600px) and (min-width: 1281px) {
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     grid-template-columns: minmax(170px, 0.72fr) minmax(300px, 480px) minmax(0, max-content) !important;
     gap: 12px !important;
     padding-right: 12px !important;
@@ -7061,7 +6531,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 
 @media (max-width: 1280px) {
-  .gh-shell-topbar.ga-topbar {
+  .gh-shell-topbar.ga-topbar,
+.ga-shell-topbar.ga-topbar {
     grid-template-columns: minmax(180px, auto) minmax(240px, 1fr) auto !important;
     gap: 12px !important;
     padding: 0 16px !important;
@@ -7585,7 +7056,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
    ========================================================================== */
 
 /* Shell header — was hardcoded #faf6ec !important */
-.gh-shell-header {
+.gh-shell-header,
+.ga-shell-header {
   background: var(--ga-shell, #08172a) !important;
   border-bottom: 1px solid rgba(20, 44, 70, 0.85) !important;
 }
@@ -7615,11 +7087,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 .gh-shell-inbox-panel p {
   color: var(--ga-text-muted, #b2bdc2) !important;
 }
-
-/* Search dropdowns + filters popovers + command palette */
 .gh-search-dropdown,
 .gh-filters-popover,
-.gh-cmdk,
 .gh-discovery-result-row,
 .gh-entity-record-tabs,
 .gh-discovery-results.gh-surface-panel-section,
@@ -7923,24 +7392,6 @@ input.gh-input,
 }
 
 /* ============================================================
-   Persona-audit fixes — Command palette result type badges
-   ============================================================ */
-
-.gh-cmdk-item-badge {
-  margin-left: auto;
-  flex: none;
-  padding: 2px 8px;
-  border: 1px solid var(--ga-border);
-  border-radius: 999px;
-  background: rgba(207, 239, 255, 0.05);
-  color: var(--ga-text-muted);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* ============================================================
    Persona-audit fixes — Inbox page work sections
    ============================================================ */
 
@@ -8062,19 +7513,6 @@ input.gh-input,
 .gh-discovery-preview-action-toast.is-error .gh-discovery-preview-action-toast-icon {
   background: color-mix(in srgb, var(--ga-danger) 24%, transparent);
   color: var(--ga-danger);
-}
-
-/* ---------------------------------------------------------------------------
- * Command palette — live-search status rows.
- * ------------------------------------------------------------------------ */
-.gh-cmdk-live-status {
-  padding: 8px 14px;
-  font-size: 12px;
-  color: var(--ga-text-muted);
-  border-top: 1px solid var(--ga-border, rgba(255, 255, 255, 0.08));
-}
-.gh-cmdk-empty.is-loading {
-  color: var(--ga-text-muted);
 }
 
 /* ---------------------------------------------------------------------------

@@ -1,5 +1,20 @@
-import { PRODUCT } from "../../config/product";
-import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
+/*
+ * app-shell/Header.jsx — the global top bar (Wave B1).
+ *
+ * Absorbs components/primitives/GlobalHeader.jsx. Changes vs the original:
+ *   - The inline TopbarSearch typeahead is gone: header search and ⌘K are
+ *     unified on the one palette (usePaletteSearch) — the search box is a
+ *     trigger that opens it (Wave B1 spec).
+ *   - The bell no longer toggles a transient panel/dead InboxPanel: it links
+ *     to /stewardship?assignee=me (the inbox's absorbed address). It stays a
+ *     real anchor so it is middle-clickable.
+ */
+
+import { PRODUCT } from "../config/product";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
+import { refHref } from "../nav/refs.js";
+import { useAtlasNavigate } from "../nav/useAtlasNavigate.js";
+import { SHELL_CLASSNAMES } from "./legacyShellContract.js";
 
 const BellIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -34,24 +49,18 @@ const HelpIcon = () => (
   </svg>
 );
 
+const SearchIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </svg>
+);
+
 function resolveProductName(shell) {
   const shellProductName = shell?.product?.productName;
   return typeof shellProductName === "string" && shellProductName.trim()
     ? shellProductName.trim()
     : PRODUCT.productName;
-}
-
-function resolveEnvironmentLabel(shell) {
-  const environment = shell?.environment || {};
-  const displayLabel = environment.displayLabel || environment.label || shell?.environmentLabel;
-  if (typeof displayLabel === "string" && displayLabel.trim()) return displayLabel.trim();
-  const target = environment.target || "";
-  const catalog = environment.catalog || "";
-  const schema = environment.schema || "";
-  const namespace = [catalog, schema].filter(Boolean).join(".");
-  if (target && namespace) return `${target} · ${namespace}`;
-  if (namespace) return namespace;
-  return "Workspace";
 }
 
 function resolveEnvironmentTitle(shell) {
@@ -65,6 +74,19 @@ function resolveEnvironmentTitle(shell) {
     environment.workspaceHost ? `Workspace: ${environment.workspaceHost}` : "",
   ].filter(Boolean);
   return parts.length ? parts.join(" | ") : "Workspace environment";
+}
+
+function resolveWorkspaceLabel(shell) {
+  const environment = shell?.environment || {};
+  const explicit =
+    shell?.workspaceLabel ||
+    shell?.workspaceName ||
+    shell?.workspace?.name ||
+    environment.workspaceLabel ||
+    environment.workspaceName ||
+    environment.target ||
+    environment.label;
+  return typeof explicit === "string" && explicit.trim() ? explicit.trim() : "Workspace";
 }
 
 function resolveUcStatusLabel(environmentTone = "", coverageScore = null, statusState = "") {
@@ -84,87 +106,102 @@ function resolveUcStatusLabel(environmentTone = "", coverageScore = null, status
   return "UC status unknown";
 }
 
-function resolveWorkspaceLabel(shell) {
-  const environment = shell?.environment || {};
-  const explicit =
-    shell?.workspaceLabel ||
-    shell?.workspaceName ||
-    shell?.workspace?.name ||
-    environment.workspaceLabel ||
-    environment.workspaceName ||
-    environment.target ||
-    environment.label;
-  return typeof explicit === "string" && explicit.trim() ? explicit.trim() : "Workspace";
+function isModifiedClick(event) {
+  return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
 }
 
-export function GlobalHeader({
+export function Header({
   shell,
-  shellDisabled,
-  shellDisabledReason,
-  onOpenHome,
-  showInbox,
-  inboxOpen,
-  inboxUnreadCount,
+  shellDisabled = false,
+  shellDisabledReason = "",
+  showInbox = false,
+  inboxUnreadCount = 0,
   inboxState = "",
   inboxMessage = "",
-  onToggleInbox,
-  onOpenCapabilities,
-  onOpenAiCopilot,
-  onOpenHelp,
-  aiCopilotAvailable = true,
   environmentTone = "",
   ucCoverageScore = null,
   ucStatusState = "",
-  topbarSearchSlot,
+  aiCopilotAvailable = false,
+  aiUnavailableReason = "",
+  onOpenPalette,
+  onOpenAiCopilot,
 }) {
+  const navigate = useAtlasNavigate();
   const productName = resolveProductName(shell);
   const environmentTitle = resolveEnvironmentTitle(shell);
   const workspaceLabel = resolveWorkspaceLabel(shell);
-  const aiProviderMessage = typeof shell?.ai?.message === "string" ? shell.ai.message.trim() : "";
   const environmentLabel = resolveUcStatusLabel(environmentTone, ucCoverageScore, ucStatusState);
-  const inboxUnavailable = ["unavailable", "degraded", "error"].includes(String(inboxState || "").trim().toLowerCase());
-  const notificationsLabel = inboxUnreadCount > 0
-    ? `Notifications (${inboxUnreadCount} unread)`
-    : inboxUnavailable
-      ? "Notifications unavailable"
-      : "Notifications";
+  const inboxUnavailable = ["unavailable", "degraded", "error"].includes(
+    String(inboxState || "").trim().toLowerCase(),
+  );
+  const notificationsLabel =
+    inboxUnreadCount > 0
+      ? `Notifications (${inboxUnreadCount} unread)`
+      : inboxUnavailable
+        ? "Notifications unavailable"
+        : "Notifications";
   const notificationsTitle = inboxUnavailable
-    ? (inboxMessage || "Notification delivery health is unavailable. Open inbox for details.")
-    : "Notifications";
+    ? inboxMessage || "Notification delivery health is unavailable. Open your work queue for details."
+    : "Notifications — open your stewardship work";
+  // The inbox surface was absorbed: its address is the queue scoped to me.
+  const inboxTarget = { surface: "stewardship", params: { assignee: "me" } };
+  const helpTarget = { surface: "help" };
+
+  const anchorNav = (target) => (event) => {
+    if (isModifiedClick(event)) return;
+    event.preventDefault();
+    if (shellDisabled) return;
+    navigate(target);
+  };
 
   return (
-    <div className="gh-shell-topbar ga-topbar">
-      <button
+    <div className={`ga-topbar ${SHELL_CLASSNAMES.topbar}`}>
+      <a
         aria-label={`Open ${productName} Command Center`}
         className="ga-workspace-breadcrumb"
-        disabled={shellDisabled}
-        onClick={onOpenHome}
+        href={refHref({ surface: "home" })}
+        onClick={anchorNav({ surface: "home" })}
         title={shellDisabledReason || "Open Command Center"}
-        type="button"
       >
         <WorkspaceIcon />
         <span>Workspace</span>
         <span aria-hidden="true" className="ga-workspace-breadcrumb-separator">›</span>
         <strong>{workspaceLabel}</strong>
-      </button>
+      </a>
       <div className="ga-topbar-search-slot">
-        {topbarSearchSlot}
+        {/* Search and ⌘K are one system now: the box opens the palette with
+            focus, so typing continues seamlessly. */}
+        <button
+          aria-haspopup="dialog"
+          aria-label="Search assets, glossary terms, and owners"
+          className="ga-shell-search-trigger"
+          disabled={shellDisabled}
+          onClick={() => onOpenPalette?.()}
+          title={shellDisabled ? shellDisabledReason : "Search (⌘K)"}
+          type="button"
+        >
+          <SearchIcon />
+          <span>Search assets, terms, owners…</span>
+          <span aria-hidden="true" className="ga-shell-search-kbd">
+            <kbd>⌘</kbd>
+            <kbd>K</kbd>
+          </span>
+        </button>
       </div>
       <div className="ga-topbar-actions">
         <span
           className={`ga-env-chip ${environmentTone ? `tone-${environmentTone}` : ""}`.trim()}
           title={environmentTitle}
         >
-          {environmentTone ? <span className="ga-status-dot" aria-hidden="true" /> : null}
+          {environmentTone ? <span aria-hidden="true" className="ga-status-dot" /> : null}
           <span>{environmentLabel}</span>
         </span>
         {showInbox ? (
-          <button
+          <a
             aria-label={notificationsLabel}
-            aria-pressed={inboxOpen}
             className={`ga-icon-button ga-notifications-button ${inboxUnavailable ? "is-unavailable" : ""}`.trim()}
-            onClick={onToggleInbox || (() => {})}
-            type="button"
+            href={refHref(inboxTarget)}
+            onClick={anchorNav(inboxTarget)}
             title={notificationsTitle}
           >
             <BellIcon />
@@ -173,17 +210,17 @@ export function GlobalHeader({
                 {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount}
               </span>
             ) : null}
-          </button>
+          </a>
         ) : null}
-        <button
+        <a
           aria-label="Help"
           className="ga-icon-button ga-help-button"
-          onClick={onOpenHelp || onOpenCapabilities || (() => {})}
+          href={refHref(helpTarget)}
+          onClick={anchorNav(helpTarget)}
           title="Help"
-          type="button"
         >
           <HelpIcon />
-        </button>
+        </a>
         <button
           aria-disabled={!aiCopilotAvailable}
           className="ga-ai-chip is-primary"
@@ -192,7 +229,7 @@ export function GlobalHeader({
           title={
             aiCopilotAvailable
               ? "Open Atlas AI"
-              : aiProviderMessage || "Atlas AI requires an evidence-backed endpoint before activation."
+              : aiUnavailableReason || "Atlas AI requires an evidence-backed endpoint before activation."
           }
           type="button"
         >
@@ -204,4 +241,4 @@ export function GlobalHeader({
   );
 }
 
-export default GlobalHeader;
+export default Header;

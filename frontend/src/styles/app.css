@@ -92,7 +92,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.gh-app {
+.gh-app,
+.ga-shell-app {
   width: min(1940px, calc(100vw - clamp(18px, 1.7vw, 42px)));
   /* Round 10: reduced top margin so the title bar sits closer to the
      top of the page. Operator: "Governance Atlas row with the search
@@ -109,7 +110,8 @@ body {
 }
 /* Shell header: no surrounding card but dark background so
    scrolled content doesn't bleed through. Uses dark Entrada palette. */
-.gh-shell-header {
+.gh-shell-header,
+.ga-shell-header {
   border-radius: 0;
   border: 0;
   box-shadow: none;
@@ -839,7 +841,8 @@ button.gh-chip:disabled,
   align-items: center;
 }
 
-.gh-main {
+.gh-main,
+.ga-shell-main {
   display: grid;
   gap: 12px;
 }
@@ -1610,13 +1613,15 @@ button.gh-chip:disabled,
 }
 
 @media (max-width: 860px) {
-  .gh-app {
+  .gh-app,
+.ga-shell-app {
     width: min(100vw - 16px, 100%);
     margin: 8px auto 20px;
   }
 
   .gh-shell-header,
-.gh-panel {
+.gh-panel,
+.ga-shell-header {
     border-radius: 18px;
   }
   .gh-task-list-compact {
@@ -1624,7 +1629,8 @@ button.gh-chip:disabled,
   }
 
   .gh-global-search,
-.gh-shell-topbar {
+.gh-shell-topbar,
+.ga-shell-topbar {
     grid-template-columns: 1fr;
   }
 
@@ -1636,13 +1642,15 @@ button.gh-chip:disabled,
 }
 
 .gh-shell-topbar,
-.gh-shell-commandbar {
+.gh-shell-commandbar,
+.ga-shell-topbar {
   display: grid;
   gap: 18px;
   align-items: center;
 }
 
-.gh-shell-topbar {
+.gh-shell-topbar,
+.ga-shell-topbar {
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 16px;
@@ -2269,7 +2277,8 @@ button:focus-visible,
   }
 }
 
-.gh-main {
+.gh-main,
+.ga-shell-main {
   gap: 16px;
 }
 
@@ -2680,7 +2689,8 @@ button:focus-visible,
 .gh-discovery-shell,
 .gh-discovery-main,
 .gh-results-column,
-.gh-workspace {
+.gh-workspace,
+.ga-shell-main {
   overflow: visible;
   min-width: 0;
 }
@@ -2702,7 +2712,8 @@ button:focus-visible,
 .gh-discovery-main-grid,
 .gh-entity-record-layout,
 .gh-entity-record-layout-governance,
-.gh-entity-record-header {
+.gh-entity-record-header,
+.ga-shell-topbar {
     grid-template-columns: 1fr;
     display: grid;
   }
@@ -2740,18 +2751,21 @@ button:focus-visible,
 }
 
 @media (max-width: 860px) {
-  .gh-app {
+  .gh-app,
+.ga-shell-app {
     width: min(100vw - 18px, 100%);
     margin: 10px auto 18px;
     gap: 14px;
   }
 
   .gh-shell-header,
-.gh-panel {
+.gh-panel,
+.ga-shell-header {
     border-radius: 20px;
   }
 
-  .gh-shell-header {
+  .gh-shell-header,
+.ga-shell-header {
     padding: 16px;
   }
 
@@ -2780,11 +2794,13 @@ button:focus-visible,
 .gh-discovery-shell,
 .gh-discovery-main,
 .gh-results-column,
-.gh-workspace {
+.gh-workspace,
+.ga-shell-main {
   overflow: visible !important;
 }
 
-.gh-shell-header {
+.gh-shell-header,
+.ga-shell-header {
   background:
     radial-gradient(circle at top left, rgba(120, 88, 255, 0.1), transparent 28%),
     radial-gradient(circle at top right, rgba(77, 140, 255, 0.08), transparent 26%),
@@ -3235,7 +3251,8 @@ button.gh-lineage-linked-row:focus-visible {
 }
 
 @media (min-width: 1920px) {
-  .gh-app {
+  .gh-app,
+.ga-shell-app {
     width: min(2020px, calc(100vw - 44px));
   }
 
@@ -3271,7 +3288,8 @@ button.gh-lineage-linked-row:focus-visible {
   }}
 
 @media (min-width: 2400px) {
-  .gh-app {
+  .gh-app,
+.ga-shell-app {
     width: min(3300px, calc(100vw - 84px));
   }
 
@@ -3362,7 +3380,8 @@ body::after {
   z-index: 1;
 }
 
-.gh-app {
+.gh-app,
+.ga-shell-app {
   width: min(1880px, calc(100vw - clamp(16px, 1.55vw, 34px)));
   /* Round 15: anchor the app flush to the left edge of the page so
      the side-rail icons sit at x≈32 (the midpoint between the page
@@ -3383,7 +3402,8 @@ body::after {
 .gh-lineage-drawer,
 .gh-lineage-overlay-card,
 .gh-search-dropdown,
-.gh-filters-popover {
+.gh-filters-popover,
+.ga-shell-header {
   backdrop-filter: blur(16px);
 }
 
@@ -3663,7 +3683,8 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
    legacy of the old purple-haloed shell, not the mockup. Keeping body
    flat off-white (see shell-rail.css body rule). */
 
-.gh-app {
+.gh-app,
+.ga-shell-app {
   --gh-shell-sticky-gap: clamp(8px, 0.6vw, 16px);
   --gh-shell-header-height: 0px;
   --gh-shell-sticky-stack-gap: 14px;
@@ -3894,7 +3915,8 @@ span.gh-state-pill {
 }
 
 @media (min-width: 981px) {
-  .gh-shell-header {
+  .gh-shell-header,
+.ga-shell-header {
     position: sticky;
     top: var(--gh-shell-sticky-gap);
     z-index: 140;
@@ -3945,7 +3967,8 @@ span.gh-state-pill {
 }
 
 @media (max-width: 1440px) {
-  .gh-app {
+  .gh-app,
+.ga-shell-app {
     width: calc(100vw - 20px);
   }
 
@@ -3989,7 +4012,8 @@ span.gh-state-pill {
 }
 
 @media (max-width: 720px) {
-  .gh-app {
+  .gh-app,
+.ga-shell-app {
     width: calc(100vw - 14px);
   }
 
@@ -4112,7 +4136,8 @@ and single-line
    Top bar shares the cream body per the mockup — only the search input
    inside it is white. Operator 2026-04-19 flagged the white header as
    the last holdout of the "only cards/search/checkboxes are white" rule. */
-.gh-shell-topbar {
+.gh-shell-topbar,
+.ga-shell-topbar {
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
   padding: 0 !important;
@@ -4479,7 +4504,8 @@ body { background: var(--gh-bg) !important; }
 }
 
 /* Workspace background — no big gradient */
-.gh-app, .gh-workspace, body { background: var(--gh-bg) !important; }
+.gh-app, .gh-workspace, body,
+.ga-shell-app { background: var(--gh-bg) !important; }
 
 /* ---- Shell overhaul tranche 3 — correct rail class names + kill purple accent bars ---- */
 .gh-surface-rail,
@@ -4636,7 +4662,8 @@ body { background: var(--gh-bg) !important; }
 }
 
 /* Global gradient background off */
-body, .gh-app, .gh-workspace, .gh-discovery-shell {
+body, .gh-app, .gh-workspace, .gh-discovery-shell,
+.ga-shell-app {
   background: var(--gh-bg) !important;
   background-image: none !important;
 }
@@ -5439,7 +5466,8 @@ button[class*="back-to-discovery"] {
 :root[data-theme="dark"] body,
 :root[data-theme="dark"] .gh-app,
 :root[data-theme="dark"] .gh-workspace,
-:root[data-theme="dark"] .gh-discovery-shell { background: var(--gh-bg) !important; }
+:root[data-theme="dark"] .gh-discovery-shell,
+:root[data-theme="dark"] .ga-shell-app { background: var(--gh-bg) !important; }
 :root[data-theme="dark"] .gh-shell-topbar,
 :root[data-theme="dark"] .gh-shell-commandbar,
 :root[data-theme="dark"] .gh-panel,
@@ -5450,7 +5478,9 @@ button[class*="back-to-discovery"] {
 :root[data-theme="dark"] .gh-discovery-row,
 :root[data-theme="dark"] .gh-discovery-table,
 :root[data-theme="dark"] .gh-panel.gh-discovery-command-panel,
-:root[data-theme="dark"] .gh-shell-header {
+:root[data-theme="dark"] .gh-shell-header,
+:root[data-theme="dark"] .ga-shell-topbar,
+:root[data-theme="dark"] .ga-shell-header {
   background: var(--gh-surface) !important;
   border-color: var(--gh-border) !important;
   color: var(--gh-text) !important;
@@ -5492,175 +5522,10 @@ button[class*="back-to-discovery"] {
   border-bottom-color: var(--gh-border) !important;
 }
 
-/* ============================================================
-   Command palette (#13)
-   ============================================================ */
-.gh-cmdk-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 15, 23, 0.55);
-  backdrop-filter: blur(6px);
-  z-index: 2000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 10vh;
-  animation: gh-cmdk-fade 120ms ease-out;
-}
-@keyframes gh-cmdk-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.gh-cmdk {
-  width: min(640px, 92vw);
-  max-height: 70vh;
-  background: var(--gh-surface);
-  color: var(--gh-text, #14213d);
-  border: 1px solid var(--gh-border);
-  border-radius: 10px;
-  box-shadow: 0 28px 62px rgba(10, 15, 23, 0.38), 0 1px 0 rgba(207, 239, 255, 0.08) inset;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.gh-cmdk-input-row {
-  display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--gh-border);
-  gap: 10px;
-}
-.gh-cmdk-prefix { color: var(--gh-text-muted, #5c6b82); font-weight: 700; }
-.gh-cmdk-input {
-  flex: 1 1 auto;
-  background: transparent;
-  border: 0;
-  outline: none;
-  font-size: 14px;
-  color: var(--gh-text, #14213d);
-}
-.gh-cmdk-hint {
-  font-size: 11px;
-  color: var(--gh-text-muted, #5c6b82);
-  background: var(--gh-surface-muted);
-  padding: 2px 8px;
-  border-radius: 3px;
-  border: 1px solid var(--gh-border);
-}
-.gh-cmdk-list { flex: 1 1 auto; overflow-y: auto; padding: 6px 0; }
-.gh-cmdk-group {
-  font-size: 10px;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--gh-text-muted, #5c6b82);
-  padding: 8px 14px 4px;
-}
-.gh-cmdk-item {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 14px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-}
-.gh-cmdk-item.is-active { background: var(--gh-accent-soft); }
-.gh-cmdk-item-glyph { color: var(--gh-accent, #5b3ff2); display: inline-flex; align-items: center; justify-content: center; }
-.gh-cmdk-generic-glyph { font-size: 14px; }
-.gh-cmdk-item-text { display: flex; flex-direction: column; min-width: 0; }
-.gh-cmdk-item-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--gh-text, #14213d);
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.gh-cmdk-item-subtitle {
-  font-size: 11px;
-  color: var(--gh-text-muted, #5c6b82);
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.gh-cmdk-empty {
-  padding: 24px;
-  color: var(--gh-text-muted, #5c6b82);
-  text-align: center;
-  font-size: 13px;
-}
-.gh-cmdk-footer {
-  display: flex;
-  gap: 12px;
-  padding: 8px 14px;
-  border-top: 1px solid var(--gh-border);
-  font-size: 11px;
-  color: var(--gh-text-muted, #5c6b82);
-  background: var(--gh-surface-muted);
-}
-.gh-cmdk-footer-hint { display: inline-flex; align-items: center; gap: 4px; }
-.gh-cmdk kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  border: 1px solid var(--gh-border);
-  border-bottom-width: 2px;
-  border-radius: 3px;
-  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 10px;
-  min-width: 16px;
-  text-align: center;
-  line-height: 1.3;
-}
+/* Wave B1: the command palette + footer hint pill moved to the new shell
+   (app-shell/CommandPalette.jsx + app-shell/shell.css, ga-cmdk-*). The
+   legacy gh cmdk/footer-controls blocks were deleted with AppFrame. */
 
-/* ============================================================
-   Footer controls (theme toggle + ⌘K hint pill)
-   ============================================================ */
-.gh-app-footer-controls {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  z-index: 9999; /* sits above sticky sidecars / shell headers */
-  pointer-events: auto;
-}
-.gh-cmdk-hint-pill {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  padding: 6px 10px;
-  border: 1px solid var(--gh-border);
-  border-radius: 20px;
-  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
-  font-size: 11px;
-  color: var(--gh-text-muted, #5c6b82);
-  cursor: pointer;
-  box-shadow: 0 6px 16px rgba(20, 33, 61, 0.12);
-}
-.gh-cmdk-hint-pill:hover {
-  border-color: var(--gh-accent, #5b3ff2);
-  color: var(--gh-accent, #5b3ff2);
-}
-.gh-cmdk-hint-pill kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  border: 1px solid var(--gh-border);
-  border-bottom-width: 2px;
-  border-radius: 3px;
-  font-size: 10px;
-  min-width: 14px;
-  background: var(--gh-surface-muted);
-}
 .gh-theme-toggle {
   width: 40px;
   height: 40px;

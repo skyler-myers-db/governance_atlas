@@ -16,6 +16,9 @@ import "./styles/capability-dashboard.css";
 import "./styles/insights.css";
 import "./styles/northstar.css";
 import "./styles/lineage-v2.css";
+// New-shell chrome (Wave B1): loads AFTER the legacy sheets so ga-shell-*
+// rules win where both target the same element during the migration.
+import "./app-shell/shell.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

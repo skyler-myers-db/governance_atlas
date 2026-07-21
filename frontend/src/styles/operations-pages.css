@@ -1285,135 +1285,9 @@
   }
 }
 
-.gh-cde-ns.ga-page {
-  height: 100%;
-  padding: 18px 18px 0;
-  overflow: hidden;
-  color: var(--ga-text);
-}
-
-.gh-cde-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 424px);
-  gap: 16px;
-  width: min(100%, 1290px);
-  height: 100%;
-  min-height: 0;
-  margin-inline: auto;
-}
-
-.gh-cde-main {
-  display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
-  gap: 12px;
-  contain: inline-size;
-  min-width: 0;
-  min-height: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.gh-cde-main > * {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.gh-cde-ns .ga-degraded-banner {
-  min-height: 38px;
-  margin: 0;
-  padding: 8px 10px;
-}
-
-.gh-cde-ns .ga-degraded-banner span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-cde-hero h1 {
-  margin: 0;
-  color: var(--ga-text);
-  font-size: clamp(1.95rem, 2.6vw, 2.35rem);
-  font-weight: 720;
-  line-height: 1.06;
-}
-
-.gh-cde-hero p {
-  margin: 8px 0 0;
-  color: var(--ga-text-soft);
-  font-size: 0.98rem;
-}
-
-.gh-cde-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.gh-cde-kpi {
-  min-height: 106px;
-  border: 1px solid rgba(60, 168, 224, 0.33);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(12, 52, 76, 0.94), rgba(6, 37, 59, 0.96));
-  padding: 14px 14px 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.gh-cde-kpi-head {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--ga-text);
-  font-size: 0.78rem;
-}
-
-.gh-cde-kpi-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(52, 199, 255, 0.36);
-  border-radius: 7px;
-  color: var(--ga-bright-blue);
-  background: rgba(34, 178, 255, 0.1);
-}
-
-.gh-cde-kpi strong {
-  display: block;
-  margin-top: 14px;
-  color: var(--ga-text);
-  font-size: 1.55rem;
-  line-height: 1;
-}
-
-.gh-cde-kpi p {
-  margin: 8px 0 0;
-  color: var(--ga-text-muted);
-  font-size: 0.72rem;
-}
-
-.gh-cde-toolbar {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) repeat(4, minmax(108px, 0.7fr)) auto auto auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 36px;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.gh-cde-search,
-.gh-cde-select,
-.gh-cde-toolbar-button,
-.gh-cde-icon-button {
-  min-height: 36px;
-  border: 1px solid rgba(75, 163, 215, 0.28);
-  border-radius: 6px;
-  background: rgba(15, 52, 79, 0.72);
-  color: var(--ga-text);
-}
+/* Wave B1: leading CdeWorkspace hero/KPI rules removed — the /cde route
+   was absorbed into /glossary?tab=cdes (TaxonomyWorkspace UI); the rest of
+   the gh-cde block dies with CdeWorkspace in Wave C4. */
 
 .gh-cde-search {
   display: flex;
@@ -7010,7 +6884,8 @@
     display: none;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns {
     grid-template-rows: auto auto auto;
   }
 
@@ -7019,20 +6894,29 @@
   .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-layout,
   .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-settings-panel,
   .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-action-message,
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-action-panel {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-action-panel,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-hero,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-filter-pills,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-layout,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-settings-panel,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-action-message,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-action-panel {
     width: min(100%, 1120px);
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-layout {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-layout,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-layout {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-detail {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-detail,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-detail {
     min-height: 0;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-table-row {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-table-row,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-table-row {
     grid-template-columns: 52px minmax(92px, 0.74fr) minmax(128px, 1fr) minmax(76px, 0.48fr) 68px 72px;
     gap: 6px;
     min-height: 44px;
@@ -7040,17 +6924,21 @@
     font-size: 0.78rem;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-table-row small {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-table-row small,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-table-row small {
     display: none;
   }
 
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-table-row.is-head {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-table-row.is-head,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-table-row.is-head {
     font-size: 0.58rem;
     letter-spacing: 0.11em;
   }
 
   .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-priority,
-  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-sla {
+  .gh-app.gh-app-with-rail[data-ai-open="true"] .gh-governance-ns-sla,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-priority,
+.ga-shell-app[data-ai-open="true"] .gh-governance-ns-sla {
     font-size: 0.66rem;
   }
 }

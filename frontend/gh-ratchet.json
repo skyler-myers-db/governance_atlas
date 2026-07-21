@@ -2,9 +2,6 @@
   "version": 1,
   "note": "CSS-debt ratchet baseline (scripts/check-css.mjs). Counts may only go DOWN. Regenerate ONLY after removing debt: node scripts/check-css.mjs --update-baseline",
   "files": {
-    "App.jsx": {
-      "gh": 10
-    },
     "components/AdminWorkspace.jsx": {
       "gh": 60,
       "hex": 2,
@@ -12,9 +9,6 @@
     },
     "components/AppErrorBoundary.jsx": {
       "gh": 8
-    },
-    "components/AppFrame.jsx": {
-      "gh": 34
     },
     "components/Asset360Drawer.jsx": {
       "gh": 2,
@@ -106,17 +100,11 @@
     "components/primitives/ClassificationEvidenceDrawer.jsx": {
       "gh": 44
     },
-    "components/primitives/CommandPalette.jsx": {
-      "gh": 26
-    },
     "components/primitives/CustomPropertiesPanel.jsx": {
       "gh": 18
     },
     "components/primitives/EntityHero.jsx": {
       "gh": 64
-    },
-    "components/primitives/GlobalHeader.jsx": {
-      "gh": 1
     },
     "components/primitives/GlobalSearch.jsx": {
       "gh": 24
@@ -150,17 +138,11 @@
     "components/primitives/QualityPanel.jsx": {
       "gh": 36
     },
-    "components/primitives/SideIconRail.jsx": {
-      "gh": 1
-    },
     "components/primitives/StatusBadge.jsx": {
       "gh": 1
     },
     "components/primitives/TabIcon.jsx": {
       "gh": 1
-    },
-    "components/primitives/TopbarSearch.jsx": {
-      "gh": 6
     },
     "components/primitives/UserChip.jsx": {
       "gh": 17
@@ -206,8 +188,8 @@
       "gh": 4
     },
     "styles/app.css": {
-      "gh": 2060,
-      "hex": 160,
+      "gh": 2008,
+      "hex": 147,
       "important": 765
     },
     "styles/capability-dashboard.css": {
@@ -239,19 +221,19 @@
       "gh": 44
     },
     "styles/northstar.css": {
-      "gh": 1459,
-      "hex": 136,
-      "important": 434
+      "gh": 1395,
+      "hex": 132,
+      "important": 433
     },
     "styles/operations-pages.css": {
-      "gh": 1509,
+      "gh": 1505,
       "hex": 5,
       "important": 5
     },
     "styles/shell-rail.css": {
-      "gh": 532,
+      "gh": 514,
       "hex": 65,
-      "important": 151
+      "important": 148
     }
   }
 }
