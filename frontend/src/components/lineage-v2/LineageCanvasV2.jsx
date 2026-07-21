@@ -172,6 +172,9 @@ function CanvasInner({
   selectedNodeFqn = "",
   selectedColumn = null,
   onColumnSelect = null,
+  warming = false,
+  onRetry = null,
+  onRenderedGraphChange = null,
 }) {
   const reactFlow = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
@@ -216,6 +219,17 @@ function CanvasInner({
   const nodesArray = accumulatedGraph.nodes.length ? accumulatedGraph.nodes : graph.nodes;
   const edgesArray = accumulatedGraph.edges.length ? accumulatedGraph.edges : graph.edges;
   const useSticky = !graph.nodes.length && accumulatedGraph.nodes.length > 0;
+  // Report the RENDERED graph (accumulated superset) upward so chrome like
+  // the hero's "N edges" chip reflects what the user actually sees, not the
+  // raw in-flight payload (which reads "0 edges / Hydrating…" mid-refocus
+  // while edges are visibly drawn — persona audit P2).
+  useEffect(() => {
+    onRenderedGraphChange?.({
+      nodeCount: nodesArray.length,
+      edgeCount: edgesArray.length,
+      sticky: useSticky,
+    });
+  }, [nodesArray.length, edgesArray.length, useSticky, onRenderedGraphChange]);
   const adjacency = useMemo(() => buildAdjacency(edgesArray), [edgesArray]);
   const tracedNodeIds = useMemo(() => tracedSubgraph(adjacency, hoveredNodeId), [adjacency, hoveredNodeId]);
 
@@ -245,11 +259,18 @@ function CanvasInner({
   // { id, source, target, type } for edges. We wrap the node id in
   // a stable object so we can pass tracing flags into LineageFlowNode
   // through `data` without the parent re-mounting React Flow.
+  // Single-FOCUS rule (persona audit P2): the accumulated graph keeps stale
+  // node copies whose `isFocus` / kicker still say "Focus" from a previous
+  // payload. Only the CURRENT payload focus may render the FOCUS treatment;
+  // every other card is demoted to a plain peer.
+  const currentFocusFqn = graph.focus?.fqn || "";
   const flowNodes = useMemo(() => {
     return nodesArray.map((node) => {
       const position = positions.get(node.id) || { x: 0, y: 0 };
       const measuredHeight = nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT;
-      const isFocus = node.isFocus;
+      const isFocus = currentFocusFqn
+        ? node.fqn === currentFocusFqn
+        : node.isFocus;
       const isHovered = hoveredNodeId === node.id;
       const isTraced = !hoveredNodeId || tracedNodeIds.has(node.id);
       const isDimmed = false;
@@ -306,6 +327,7 @@ function CanvasInner({
     selectedColumn?.assetFqn,
     selectedColumn?.columnName,
     onColumnSelect,
+    currentFocusFqn,
   ]);
 
   const focusReactFlowId = graph.focus?.id;
@@ -395,6 +417,23 @@ function CanvasInner({
     );
   }
 
+  if (!nodesArray.length && warming) {
+    // Honest terminal state for an exhausted poll loop (persona audit P1):
+    // the graph build is still warming server-side — offer a real retry
+    // instead of an infinite spinner.
+    return (
+      <div className="ga-lineage-v2-canvas-state">
+        <strong>Lineage is still warming</strong>
+        <span>The lineage build has not finished on the server yet. Retry in a moment.</span>
+        {onRetry ? (
+          <button className="gh-secondary-button" onClick={() => onRetry()} type="button">
+            Retry lineage
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
   if (!nodesArray.length && hydrating) {
     return (
       <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-hydrating">
@@ -406,10 +445,12 @@ function CanvasInner({
   }
 
   if (!nodesArray.length) {
+    // True-empty copy must not blame the user's visibility scope for an
+    // app-side condition (fix_plan lineage-truth rule).
     return (
       <div className="ga-lineage-v2-canvas-state">
-        <strong>No lineage edges returned</strong>
-        <span>Unity Catalog hasn't reported any actor-visible upstream or downstream edges for this asset.</span>
+        <strong>No lineage recorded</strong>
+        <span>Unity Catalog has no table-lineage rows for this asset.</span>
       </div>
     );
   }
@@ -472,9 +513,26 @@ function CanvasInner({
           padding: "3px 10px",
         }}
       >
-        Showing {Number(graph.meta?.graphDepthLimit) > 1
-          ? `${graph.meta.graphDepthLimit} hops`
-          : "1 hop"} from focus — click a node to extend the graph
+        {(() => {
+          // Truncation honesty (persona audit P1): when the backend capped
+          // the graph, say exactly how much is shown. Falls back to the
+          // hop-limit caption when no truncation metadata is present.
+          const truncation = graph.meta?.truncation;
+          const edgesShown = Number(truncation?.edgesShown);
+          const edgesTotal = Number(truncation?.edgesTotal);
+          const nodesShown = Number(truncation?.nodesShown);
+          const nodesTotal = Number(truncation?.nodesTotal);
+          if (Number.isFinite(edgesShown) && Number.isFinite(edgesTotal) && edgesTotal > edgesShown) {
+            return `Showing ${edgesShown} of ${edgesTotal} edges — highest-traffic neighbors first`;
+          }
+          if (Number.isFinite(nodesShown) && Number.isFinite(nodesTotal) && nodesTotal > nodesShown) {
+            return `Showing ${nodesShown} of ${nodesTotal} connected assets — highest-traffic neighbors first`;
+          }
+          const hops = Number(graph.meta?.graphDepthLimit) > 1
+            ? `${graph.meta.graphDepthLimit} hops`
+            : "1 hop";
+          return `Showing ${hops} from focus — select a node and use Re-anchor to extend the graph`;
+        })()}
       </div>
     </div>
   );
@@ -490,6 +548,9 @@ export function LineageCanvasV2({
   selectedNodeFqn = "",
   selectedColumn = null,
   onColumnSelect = null,
+  warming = false,
+  onRetry = null,
+  onRenderedGraphChange = null,
 }) {
   // ReactFlowProvider is mounted at the application root in main.jsx, so we
   // don't need to wrap the canvas here. CanvasInner consumes the provider
@@ -503,8 +564,11 @@ export function LineageCanvasV2({
       nodeHeaders={nodeHeaders}
       onFocusChange={onFocusChange}
       onColumnSelect={onColumnSelect}
+      onRenderedGraphChange={onRenderedGraphChange}
+      onRetry={onRetry}
       selectedColumn={selectedColumn}
       selectedNodeFqn={selectedNodeFqn}
+      warming={warming}
     />
   );
 }

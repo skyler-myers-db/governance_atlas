@@ -315,10 +315,14 @@ function RecommendationList({
   return (
     <div className={`ga-lineage-recommendations ${compact ? "is-compact" : ""}`.trim()}>
       {degraded ? (
+        // Persona audit P1: internal scope tokens
+        // ("actor-openable-candidate-aggregate" etc.) leaked into this
+        // caption. Human copy only — the raw tokens explain nothing to a
+        // steward and read as debug output.
         <p className="ga-lineage-v2-rail-empty">
-          Ranked from degraded Databricks lineage evidence. Candidate assets were verified openable
-          {visibilityScope ? ` for ${visibilityScope}` : ""}, but edge counts may include relationships outside the actor-openable endpoint set
-          {relationshipVisibilityScope ? ` (${relationshipVisibilityScope})` : ""}.
+          Ranked from degraded Databricks lineage evidence. Each candidate asset is
+          verified openable for you, but edge counts include assets outside your
+          visible catalogs.
         </p>
       ) : null}
       {recommendations.slice(0, compact ? 4 : 6).map((item) => (
@@ -526,8 +530,10 @@ function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear, lo
               <FocusChip tone={certified ? "good" : "neutral"}>
                 {certified ? "Certified" : "Not certified"}
               </FocusChip>
+              {/* Freshness label honesty (fix_plan #6): this value derives
+                  from updatedAt — a data write — so label it as such. */}
               <FocusChip tone={freshness ? "info" : "neutral"}>
-                {freshness ? `Freshness · ${freshness}` : "No freshness signal"}
+                {freshness ? `Data updated · ${freshness}` : "No freshness signal"}
               </FocusChip>
               <FocusChip tone={classification ? "warn" : "neutral"} title={classification}>
                 {classification || "No sensitivity label"}
@@ -1045,7 +1051,9 @@ function LineageDetailRail({
             // L2: merged rail stats (asset detail for focus; batch node
             // header for non-focus subjects) — see railFreshness et al.
             <div className="ga-lineage-v2-rail-stats">
-              <div><span>Last refresh</span><strong>{railFreshness || "Unavailable"}</strong></div>
+              {/* "Data updated" (not "Last refresh"): the value derives from
+                  updatedAt / Delta write history (fix_plan #6). */}
+              <div><span>Data updated</span><strong>{railFreshness || "Unavailable"}</strong></div>
               <div><span>Rows</span><strong>{railRows || "Unavailable"}</strong></div>
               <div><span>Owner</span><strong>{railOwner || "Unavailable"}</strong></div>
               {railType ? <div><span>Type</span><strong>{railType}</strong></div> : null}
@@ -1197,6 +1205,11 @@ export default function LineageWorkspace({
   // when nodes arrive. The user perceives this as a full reload. We pin
   // the canvas open so the only thing that swaps is the graph data inside.
   const [canvasEverRendered, setCanvasEverRendered] = useState(false);
+  // Rendered-graph stats reported by the canvas (its accumulated superset).
+  // The hero chip counts read from here so they describe what is actually
+  // drawn — the raw payload reads "0 edges" mid-refocus while the sticky
+  // canvas still shows a full graph (persona audit P2).
+  const [renderedGraphStats, setRenderedGraphStats] = useState(null);
 
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
@@ -1380,31 +1393,26 @@ export default function LineageWorkspace({
     workspaceAccessResolved,
   ]);
 
-  // Click handler for in-canvas node selection. The user wants UC-style
-  // seamless navigation: clicking a node should INSTANTLY shift the
-  // visual focus + rail subject (no waiting), AND fetch that node's
-  // lineage in the background to ADD any new neighbors to the canvas.
-  // The canvas's accumulatedGraph state merges incoming payloads with
-  // the existing visible set instead of replacing — so the graph
-  // extends outward as the user explores rather than blanking and
-  // rebuilding on every click.
-  //
-  // Both effects fire together:
-  //   1. setSelectedNodeFqn — instant visual focus shift + rail update
-  //   2. onRouteAssetChange — URL change → useLineage refetches the
-  //      new fqn → canvas merges new nodes/edges into accumulatedGraph
+  // Click handler for in-canvas node selection. Persona audit P2 rolled
+  // this back to SELECT-ONLY: clicking a node updates the rail subject and
+  // the visual highlight, and nothing else. The previous behavior (click
+  // also changed the URL focus) made every click an implicit refocus, which
+  //   • rendered TWO "FOCUS" kickers (stale + new) on the merged canvas,
+  //   • flashed a false "0 edges / Hydrating…" hero chip mid-refetch,
+  //   • hid the rail's Re-anchor affordance (selection always equaled
+  //     focus, so the eyebrow never switched to "Selected Node").
+  // To actually re-anchor (fetch lineage centered on the node and extend
+  // the accumulated graph), the user clicks "Re-anchor lineage" in the
+  // rail — an explicit, labeled action.
   const handleNodeSelect = (nextNodeFqn) => {
     if (!nextNodeFqn) return;
     setSelectedNodeFqn(nextNodeFqn);
-    if (nextNodeFqn !== focusAssetFqn) {
-      onRouteAssetChange?.(nextNodeFqn, "Data Lineage");
-    }
   };
 
-  // Kept for the rail's explicit "Re-anchor lineage on this node"
-  // button as a backup affordance when the user wants to force a
-  // fresh fetch (e.g. cache-bust). Identical to handleNodeSelect now
-  // that click does both selection + URL change.
+  // Explicit re-anchor: change the URL focus → useLineage fetches the new
+  // fqn → the canvas MERGES the new payload into its accumulated graph
+  // (EXPAND — the clicked node is already on canvas), preserving the
+  // traversed edge and extending outward.
   const handleReAnchor = (nextNodeFqn) => {
     if (!nextNodeFqn) return;
     setSelectedNodeFqn(nextNodeFqn);
@@ -1536,49 +1544,70 @@ export default function LineageWorkspace({
     );
   }
 
+  // Degraded build ≠ empty lineage (fix_plan lineage-truth rule): a failed /
+  // degraded build must render honest "build degraded — retry" copy, never
+  // the empty-state copy (and never blame the user's visibility scope).
+  const graphMetaState = String(graph.meta?.state || "").toLowerCase();
+  const graphDegraded = graphMetaState === "degraded" || graph.meta?.degraded === true;
+  const graphWarnings = Array.isArray(graph.meta?.warnings) ? graph.meta.warnings : [];
   const zeroEdgeLoaded = Boolean(
     focusAssetFqn &&
       !graph.loading &&
       !graph.hydrating &&
+      !graph.warming &&
       !graph.error &&
+      !graphDegraded &&
       graph.nodes.length <= 1 &&
       graph.edges.length === 0,
   );
-  const visibilityScope = String(
-    graph.meta?.visibilityScope ||
-      graph.meta?.capabilities?.visibilityScope ||
-      graph.payload?.meta?.visibilityScope ||
-      "",
+  const degradedNoGraph = Boolean(
+    focusAssetFqn && graphDegraded && graph.nodes.length <= 1 && graph.edges.length === 0,
   );
-  const lineageScopeLabel = visibilityScope.includes("workspace-app-principal")
-    ? "workspace-scoped"
-    : "actor-visible";
+  const heroEdgeCount = renderedGraphStats?.edgeCount ?? graph.edges.length;
 
   return (
     <section className="gh-lineage-shell" data-testid="lineage-northstar-explorer">
       <LineageHero
         asset={asset}
-        edgeCount={graph.edges.length}
+        edgeCount={heroEdgeCount}
         focus={graph.focus}
         focusFqn={focusAssetFqn}
-        hydrating={graph.hydrating}
+        // The chip must reflect the RENDERED graph: while a sticky
+        // accumulated graph is on screen, don't flash "Hydrating…" over
+        // visibly drawn edges.
+        hydrating={graph.hydrating && !renderedGraphStats?.edgeCount}
         loading={heroMetadataLoading}
         onClear={handleClearFocus}
         restricted={focusRestricted}
       />
       <div className="ga-lineage-v2-workbench">
         <div className="ga-lineage-v2-workbench-canvas">
+          {degradedNoGraph ? (
+            <div className="ga-lineage-zero-state" role="status">
+              <div>
+                <span className="ga-lineage-eyebrow">Lineage Build Degraded</span>
+                <strong>The lineage build failed or returned degraded evidence for this asset.</strong>
+                <p>
+                  {graphWarnings[0] ||
+                    "The lineage graph could not be built from system.access.table_lineage on this attempt. This is an app/warehouse condition — not a reflection of your access."}
+                </p>
+                <button className="gh-secondary-button" onClick={() => graph.refresh?.()} type="button">
+                  Retry lineage build
+                </button>
+              </div>
+            </div>
+          ) : null}
           {zeroEdgeLoaded ? (
             <div className="ga-lineage-zero-state" role="status">
               <div>
-                <span className="ga-lineage-eyebrow">
-                  {lineageScopeLabel === "workspace-scoped" ? "No Workspace-Scoped Lineage" : "No Actor-Visible Lineage"}
-                </span>
-                <strong>No {lineageScopeLabel} lineage edges returned for this asset.</strong>
+                {/* True empty: state the fact without blaming the caller's
+                    visibility scope (persona audit P1). */}
+                <span className="ga-lineage-eyebrow">No Lineage Recorded</span>
+                <strong>Unity Catalog has no table-lineage rows for this asset.</strong>
                 <p>
-                  Unity Catalog did not return upstream or downstream table-lineage edges
-                  for the selected focus. Open a ranked high-lineage asset below, or keep
-                  this asset selected to inspect its unavailable evidence boundaries.
+                  No upstream or downstream table-lineage edges are recorded for the
+                  selected focus. Open a ranked high-lineage asset below, or keep this
+                  asset selected to inspect its evidence boundaries.
                 </p>
               </div>
               <RecommendationList
@@ -1601,8 +1630,11 @@ export default function LineageWorkspace({
             nodeHeaders={canvasNodeHeaders}
             onColumnSelect={handleColumnSelect}
             onFocusChange={handleNodeSelect}
+            onRenderedGraphChange={setRenderedGraphStats}
+            onRetry={graph.refresh}
             selectedColumn={selectedColumn}
             selectedNodeFqn={selectedNodeFqn}
+            warming={graph.warming}
           />
         </div>
         <LineageDetailRail

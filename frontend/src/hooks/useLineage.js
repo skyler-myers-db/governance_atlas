@@ -96,8 +96,54 @@ function lineagePayloadHydrating(payload) {
   return state === "loading" || capabilities.hydrating === true;
 }
 
+function lineagePayloadHasNodes(payload) {
+  const nodes = payload?.graphs?.data?.nodes || payload?.graph?.nodes || [];
+  return Array.isArray(nodes) && nodes.length > 0;
+}
+
+// Poll-loop guard (perf audit P1): the 3s "still loading" refetch used to
+// run forever when the backend kept returning state=="loading" (17+ polls
+// observed per asset — each one a warehouse query). Terminate the poll when
+// (a) the payload already carries nodes, (b) the state is terminal, or
+// (c) we've burned the attempt budget. Counters are module-scoped per
+// queryKey so remounts don't restart an exhausted loop within a session.
+export const LINEAGE_POLL_ATTEMPT_LIMIT = 10;
+const lineagePollAttempts = new Map();
+
+function lineagePollKey(profile, assetFqn) {
+  return `${profile}|${assetFqn}`;
+}
+
+export function lineagePollExhausted(assetFqn) {
+  return (
+    (lineagePollAttempts.get(lineagePollKey(LINEAGE_PROFILE_INITIAL, assetFqn)) || 0) >= LINEAGE_POLL_ATTEMPT_LIMIT ||
+    (lineagePollAttempts.get(lineagePollKey(LINEAGE_PROFILE_FULL, assetFqn)) || 0) >= LINEAGE_POLL_ATTEMPT_LIMIT
+  );
+}
+
+function resetLineagePollAttempts(assetFqn) {
+  lineagePollAttempts.delete(lineagePollKey(LINEAGE_PROFILE_INITIAL, assetFqn));
+  lineagePollAttempts.delete(lineagePollKey(LINEAGE_PROFILE_FULL, assetFqn));
+}
+
 function lineageRefetchInterval(query) {
-  return lineagePayloadHydrating(query?.state?.data) ? 3_000 : false;
+  const payload = query?.state?.data;
+  const profile = String(query?.queryKey?.[1] || LINEAGE_PROFILE_FULL);
+  const assetFqn = String(query?.queryKey?.[2] || "");
+  const key = lineagePollKey(profile, assetFqn);
+  if (!lineagePayloadHydrating(payload)) {
+    // Terminal state reached — clear the budget so a future legitimate
+    // rebuild (e.g. explicit refresh) can poll again.
+    lineagePollAttempts.delete(key);
+    return false;
+  }
+  // A hydrating payload that already carries nodes is renderable — stop
+  // hammering the warehouse; the user has a graph.
+  if (lineagePayloadHasNodes(payload)) return false;
+  const attempts = lineagePollAttempts.get(key) || 0;
+  if (attempts >= LINEAGE_POLL_ATTEMPT_LIMIT) return false;
+  lineagePollAttempts.set(key, attempts + 1);
+  return 3_000;
 }
 
 export function primeLineagePayload(assetFqn, payload) {
@@ -175,6 +221,8 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
   // early returns below so hook order is stable (React error #310 rule).
   const refresh = useCallback(async () => {
     if (!assetFqn) return null;
+    // Explicit user retry: hand the poll loop a fresh attempt budget.
+    resetLineagePollAttempts(assetFqn);
     atlasQueryClient.removeQueries({
       queryKey: [LINEAGE_QUERY_PREFIX],
       exact: false,
@@ -204,6 +252,7 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
       payload: null,
       authoritative: false,
       provisional: false,
+      warming: false,
       refresh: async () => null,
     };
   }
@@ -235,6 +284,14 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
       ),
   );
   const provisional = Boolean(safePayload) && !authoritative;
+  // "Warming" = the backend is still reporting a loading envelope with no
+  // renderable nodes AND we've exhausted the bounded poll budget. Consumers
+  // render an honest "still warming — retry" affordance instead of an
+  // infinite spinner (persona-audit finding 4).
+  const warming =
+    lineagePayloadHydrating(safePayload) &&
+    !lineagePayloadHasNodes(safePayload) &&
+    lineagePollExhausted(assetFqn);
 
   if (!enabled) {
     return {
@@ -244,6 +301,7 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
       payload: safePayload || null,
       authoritative,
       provisional,
+      warming,
       refresh: async () => safePayload,
     };
   }
@@ -257,6 +315,7 @@ export function useLineage(assetFqn, enabled = true, options = {}) {
     payload: safePayload || null,
     authoritative,
     provisional,
+    warming,
     refresh,
   };
 }

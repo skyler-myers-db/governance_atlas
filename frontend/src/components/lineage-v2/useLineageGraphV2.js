@@ -42,6 +42,11 @@ function normalizeKind(rawType) {
   const trimmed = String(rawType || "").trim().toLowerCase();
   if (!trimmed) return "table";
   if (NODE_KIND_FROM_TYPE[trimmed]) return NODE_KIND_FROM_TYPE[trimmed];
+  // Backend contract: out-of-inventory neighbors arrive as kind
+  // "Lineage Reference" with restricted/dashed edges. Render them with the
+  // restricted (lock) glyph so the legend's "Restricted" node type matches
+  // what the canvas draws.
+  if (trimmed.includes("reference") || trimmed.includes("restricted")) return "restricted";
   if (trimmed.includes("notebook")) return "notebook";
   if (trimmed.includes("pipeline")) return "pipeline";
   if (trimmed.includes("job")) return "job";
@@ -235,6 +240,9 @@ export function useLineageGraphV2(assetFqn, options = {}) {
       columnLineage: { upstream: [], downstream: [], meta: {} },
       edgeDetails: {},
       hydrating: false,
+      // Warming: the backend envelope is still "loading" with no nodes and
+      // the bounded poll budget is spent — surface an honest retry state.
+      warming: lineage.warming === true,
       loading: lineage.loading,
       error: lineage.error || "",
       meta: payload?.meta || null,
@@ -299,6 +307,7 @@ export function useLineageGraphV2(assetFqn, options = {}) {
       },
       edgeDetails: payload.edgeDetails || {},
       hydrating,
+      warming: lineage.warming === true,
       loading: lineage.loading,
       error: lineage.error || "",
       meta,
@@ -306,7 +315,7 @@ export function useLineageGraphV2(assetFqn, options = {}) {
       payload,
       refresh: lineage.refresh,
     };
-  }, [payload, focusFqn, lineage.error, lineage.loading, lineage.refresh]);
+  }, [payload, focusFqn, lineage.error, lineage.loading, lineage.refresh, lineage.warming]);
 }
 
 export default useLineageGraphV2;

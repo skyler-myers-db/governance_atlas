@@ -287,10 +287,16 @@ describe("LineageWorkspace (v2)", () => {
     expect(useAssetDatabricksEvidence).toHaveBeenCalledWith("a.b.focus", { enabled: true });
   });
 
-  it("propagates canvas onFocusChange through onRouteAssetChange", () => {
+  // Persona-audit P2 behavior change: canvas click is SELECT-ONLY (rail
+  // subject + highlight). The route/focus only changes via the rail's
+  // explicit "Re-anchor lineage" button.
+  it("selects on canvas click and only re-anchors via the rail button", () => {
     useLineageGraphV2.mockReturnValue({
-      focus: { id: "f", fqn: "a.b.focus" },
-      nodes: [{ id: "f", fqn: "a.b.focus" }],
+      focus: { id: "f", fqn: "a.b.focus", label: "focus" },
+      nodes: [
+        { id: "f", fqn: "a.b.focus", isFocus: true, label: "focus" },
+        { id: "u", fqn: "a.b.upstream", label: "upstream", subtitle: "a / b" },
+      ],
       edges: [],
       columnEdges: [],
       columnLineage: { upstream: [], downstream: [], meta: {} },
@@ -314,6 +320,12 @@ describe("LineageWorkspace (v2)", () => {
       />,
     );
     fireEvent.click(screen.getByTestId("canvas-pick-upstream"));
+    // Click alone must not refetch/refocus.
+    expect(onRouteAssetChange).not.toHaveBeenCalled();
+    // Selecting a non-focus node switches the rail eyebrow and exposes the
+    // explicit Re-anchor affordance, which performs the route change.
+    expect(screen.getByText("Selected Node")).toBeTruthy();
+    fireEvent.click(screen.getByText("Re-anchor lineage"));
     expect(onRouteAssetChange).toHaveBeenCalledWith("a.b.upstream", "Data Lineage");
   });
 
@@ -365,7 +377,9 @@ describe("LineageWorkspace (v2)", () => {
         workspaceAccess={baseWorkspaceAccess}
       />,
     );
-    expect(screen.getByText("No actor-visible lineage edges returned for this asset.")).toBeTruthy();
+    // Copy updated (persona audit P1): true-empty states the fact without
+    // blaming the caller's visibility scope.
+    expect(screen.getByText("Unity Catalog has no table-lineage rows for this asset.")).toBeTruthy();
     fireEvent.click(screen.getByText("rich"));
     expect(onRouteAssetChange).toHaveBeenCalledWith("a.b.rich", "Data Lineage");
   });
@@ -529,7 +543,12 @@ describe("LineageWorkspace (v2)", () => {
       />,
     );
 
-    expect(screen.getByText(/Candidate assets were verified openable for actor-scoped/i)).toBeTruthy();
+    // Copy updated (persona audit P1): internal scope tokens like
+    // "actor-openable-candidate-aggregate" must not leak into the caption.
+    expect(
+      screen.getByText(/edge counts include assets outside your visible catalogs/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/actor-openable-candidate-aggregate/i)).toBeNull();
     expect(screen.queryByText(/workspace-scoped Databricks lineage because actor-scoped/i)).toBeNull();
   });
 
