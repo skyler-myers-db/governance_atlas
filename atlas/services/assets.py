@@ -823,7 +823,16 @@ def inventory_row(
     if uc_client is not None:
         exact_row = None if asset_fqn_is_hidden(resolved_asset_fqn, hidden_catalogs=hidden_catalogs) else exact_identity_row(uc_client, resolved_asset_fqn)
         if exact_row is not None:
-            return exact_row
+            # The raw identity probe knows nothing about the governance store,
+            # so out-of-inventory assets rendered "Open requests: 0" while the
+            # store held real open requests for them (run_history showed 0
+            # against 19 pre-cleanup — an affirmatively false negative on the
+            # lineage Impact Brief). Join owners + request counts before
+            # returning so per-asset counts are true regardless of inventory
+            # membership; store handle is only present in this branch.
+            return _enrich_identity_row_with_store(
+                exact_row, store_or_asset_fqn, resolved_asset_fqn
+            )
     if inventory_df is None or inventory_df.empty:
         return lineage_asset_stub(pd.DataFrame(), resolved_asset_fqn)
     return lineage_asset_stub(inventory_df, resolved_asset_fqn)
