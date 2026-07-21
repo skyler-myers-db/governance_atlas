@@ -1191,12 +1191,25 @@ def _trend_fields(history: Sequence[Mapping[str, Any]], column: str, *, suffix: 
     ]
     if not points:
         return {}
-    if len(points) == 1:
+    # "Collecting" until a week of daily snapshots exists — the accuracy
+    # verifier caught 2 snapshots rendering as a full-width line captioned
+    # "over the last 26 weeks". A day-scale delta must never be dressed as a
+    # multi-week trend; ship the real points so the UI can draw them small.
+    if len(points) < 7:
+        latest = points[-1]["value"]
+        previous = points[0]["value"]
+        delta = latest - previous
         return {
-            "sparkline": [points[0]["value"]],
+            "sparkline": [point["value"] for point in points],
             "trendPoints": points,
             "trendState": "collecting",
             "collectingSince": points[0]["date"],
+            "collectedSnapshots": len(points),
+            "previousValue": previous,
+            # Honest short-span delta ("+14pp since 2026-07-20"), never a
+            # window-suffixed claim while collecting.
+            "delta": _format_delta(int(round(delta)), suffix=f"since {points[0]['date']}") if len(points) > 1 else "",
+            "deltaTone": "good" if delta >= 0 else "bad",
         }
     latest = points[-1]["value"]
     previous = points[0]["value"]
