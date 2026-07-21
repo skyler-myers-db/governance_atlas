@@ -34,6 +34,17 @@ const DETAIL_SECTION_FIELDS = {
     "sensitivity",
     "criticality",
     "openRequests",
+    // Freshness split + role/CDE facts ride the header payload; omitting
+    // them from the merge list left stub-cached empties in place until the
+    // /360 composite turned terminal (verifier round-4 hygiene note).
+    "dataUpdatedAt",
+    "lastAltered",
+    "updatedAt",
+    "isCde",
+    "ucOwner",
+    "businessOwner",
+    "technicalOwner",
+    "steward",
     "owners",
     "tags",
     "glossaryTerm",
