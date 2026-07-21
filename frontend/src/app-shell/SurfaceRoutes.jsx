@@ -21,11 +21,10 @@ const DiscoveryPage = lazy(() => import("../surfaces/discovery/DiscoveryPage.jsx
 const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
 const LineageWorkspace = lazy(() => import("../components/LineageWorkspace"));
 const StewardshipPage = lazy(() => import("../surfaces/stewardship/StewardshipPage.jsx"));
-const AuditBrowserWorkspace = lazy(() => import("../components/AuditBrowserWorkspace"));
+const EvidencePage = lazy(() => import("../surfaces/evidence/EvidencePage.jsx"));
 const GlossaryPage = lazy(() => import("../surfaces/glossary/GlossaryPage.jsx"));
 const HomePage = lazy(() => import("../surfaces/home/HomePage.jsx"));
-const AdminWorkspace = lazy(() => import("../components/AdminWorkspace"));
-const CapabilityDashboard = lazy(() => import("../components/CapabilityDashboard"));
+const AdminPage = lazy(() => import("../surfaces/admin/AdminPage.jsx"));
 const HelpPage = lazy(() => import("../components/HelpPage"));
 
 function RouteFallback({ eyebrow, message }) {
@@ -283,50 +282,42 @@ function LineageRoute() {
 
 function EvidenceRoute() {
   const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
+  // Wave-C5 flipped: the unified Evidence surface (audit events + quality
+  // findings) is router-self-sufficient — it reads ?tab/?event/?finding and
+  // every filter via useSurfaceParams and renders real anchors through the
+  // system refs contract, so no legacy adapter props are threaded. Only the
+  // shell identity rides in (the audit-events tab is steward/admin gated).
   return (
     <Suspense
       fallback={
-        <RouteFallback eyebrow="Loading audit browser" message="Preparing cross-entity audit events and filters." />
+        <RouteFallback eyebrow="Loading evidence" message="Preparing audit events and quality findings." />
       }
     >
-      <AuditBrowserWorkspace onOpenAsset={adapters.onOpenAsset} shell={shellCtx.shell} />
+      <EvidencePage shell={shellCtx.shell} />
     </Suspense>
   );
 }
 
 function AdminRoute() {
   const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
-  const location = useLocation();
-  const tab = new URLSearchParams(location.search).get("tab") || "";
 
-  // /capabilities was folded into Control Center as ?tab=diagnostics. The
-  // legacy AdminWorkspace has no diagnostics tab until Wave C6, so the
-  // capability dashboard renders here for those deep links — nothing lost.
-  if (tab === "diagnostics") {
-    return (
-      <Suspense
-        fallback={
-          <RouteFallback eyebrow="Loading capabilities" message="Preparing the operator capability snapshot." />
-        }
-      >
-        <CapabilityDashboard onBack={() => adapters.navigate({ surface: "admin" })} />
-      </Suspense>
-    );
-  }
+  // Wave-C6 flipped: the rebuilt Control Center is router-self-sufficient —
+  // it reads ?tab= itself via useSurfaceParams (operations | integrations |
+  // policy | diagnostics), and the /capabilities alias seeds ?tab=diagnostics
+  // upstream in nav/routes.js, so the separate CapabilityDashboard mount is
+  // gone. Only shell-owned signals are threaded: identity for the admin gate
+  // (same predicate the rail uses) and bootstrap for the diagnostics
+  // runtime-vs-bootstrap capability comparison.
   return (
     <Suspense
       fallback={
         <RouteFallback
-          eyebrow="Loading admin control center"
-          message="Preparing runtime, integration, and governance-store diagnostics."
+          eyebrow="Loading Control Center"
+          message="Preparing runtime, integration, and capability diagnostics."
         />
       }
     >
-      {/* Legacy App passed onNavigate here too — AdminWorkspace never read
-          it (dead prop, dropped). */}
-      <AdminWorkspace shell={shellCtx.shell} />
+      <AdminPage bootstrap={shellCtx.bootstrap} shell={shellCtx.shell} />
     </Suspense>
   );
 }

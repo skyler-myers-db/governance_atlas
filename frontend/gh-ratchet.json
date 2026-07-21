@@ -2,20 +2,8 @@
   "version": 1,
   "note": "CSS-debt ratchet baseline (scripts/check-css.mjs). Counts may only go DOWN. Regenerate ONLY after removing debt: node scripts/check-css.mjs --update-baseline",
   "files": {
-    "components/AdminWorkspace.jsx": {
-      "gh": 60,
-      "hex": 2,
-      "cssImport": 1
-    },
     "components/AppErrorBoundary.jsx": {
       "gh": 8
-    },
-    "components/AuditBrowserWorkspace.jsx": {
-      "gh": 48,
-      "cssImport": 1
-    },
-    "components/CapabilityDashboard.jsx": {
-      "gh": 31
     },
     "components/HelpPage.jsx": {
       "gh": 18
@@ -161,9 +149,6 @@
       "hex": 147,
       "important": 765
     },
-    "styles/capability-dashboard.css": {
-      "gh": 39
-    },
     "styles/entity.css": {
       "gh": 398,
       "hex": 52,
@@ -185,9 +170,8 @@
       "important": 432
     },
     "styles/operations-pages.css": {
-      "gh": 600,
-      "hex": 3,
-      "important": 5
+      "gh": 3,
+      "important": 1
     },
     "styles/shell-rail.css": {
       "gh": 514,

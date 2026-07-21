@@ -11,7 +11,6 @@ import "./styles/lineage.css";
 import "./styles/entity.css";
 import "./styles/governance.css";
 import "./styles/shell-rail.css";
-import "./styles/capability-dashboard.css";
 import "./styles/northstar.css";
 import "./styles/lineage-v2.css";
 // New-shell chrome (Wave B1): loads AFTER the legacy sheets so ga-shell-*

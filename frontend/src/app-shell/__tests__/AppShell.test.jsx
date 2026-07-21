@@ -26,7 +26,6 @@ const governanceMock = vi.fn(() => <div data-testid="governance-workspace" />);
 const auditMock = vi.fn(() => <div data-testid="audit-workspace" />);
 const glossaryMock = vi.fn(() => <div data-testid="glossary-page" />);
 const adminMock = vi.fn(() => <div data-testid="admin-workspace" />);
-const capabilityMock = vi.fn(() => <div data-testid="capability-dashboard" />);
 const helpMock = vi.fn(() => <div data-testid="help-page" />);
 // Wave-B2 contract: the peek panel receives {fqn, open, onClose} and owns
 // its own drawer chrome.
@@ -63,12 +62,15 @@ vi.mock("../../components/LineageWorkspace", () => ({ default: (props) => lineag
 // Wave C3: Stewardship lives at surfaces/stewardship (components/
 // GovernanceWorkspace and InboxPage were deleted with the queue merge).
 vi.mock("../../surfaces/stewardship/StewardshipPage.jsx", () => ({ default: (props) => governanceMock(props) }));
-vi.mock("../../components/AuditBrowserWorkspace", () => ({ default: (props) => auditMock(props) }));
+// Wave C5: Evidence lives at surfaces/evidence (components/
+// AuditBrowserWorkspace was deleted with the quality-findings merge).
+vi.mock("../../surfaces/evidence/EvidencePage.jsx", () => ({ default: (props) => auditMock(props) }));
 // Wave C4: Glossary & CDEs lives at surfaces/glossary (components/
 // TaxonomyWorkspace and CdeWorkspace were deleted with the registry merge).
 vi.mock("../../surfaces/glossary/GlossaryPage.jsx", () => ({ default: (props) => glossaryMock(props) }));
-vi.mock("../../components/AdminWorkspace", () => ({ default: (props) => adminMock(props) }));
-vi.mock("../../components/CapabilityDashboard", () => ({ default: (props) => capabilityMock(props) }));
+// Wave C6: Control Center lives at surfaces/admin (components/AdminWorkspace
+// and CapabilityDashboard were deleted; /capabilities is its Diagnostics tab).
+vi.mock("../../surfaces/admin/AdminPage.jsx", () => ({ default: (props) => adminMock(props) }));
 vi.mock("../../components/HelpPage", () => ({ default: (props) => helpMock(props) }));
 vi.mock("../../surfaces/asset/AssetPeekPanel.jsx", () => ({
   AssetPeekPanel: (props) => asset360DrawerMock(props),
@@ -223,9 +225,11 @@ describe("AppShell routing", () => {
     expect(new URLSearchParams(lastLocation.search).get("tab")).toBe("cdes");
   });
 
-  it("redirects /capabilities to admin diagnostics and renders the capability dashboard", async () => {
+  it("redirects /capabilities to the Control Center diagnostics tab", async () => {
     renderApp("/capabilities");
-    expect(await screen.findByTestId("capability-dashboard")).toBeTruthy();
+    // Wave C6: the Control Center owns ?tab=diagnostics — one surface, one
+    // mount; the standalone capability dashboard is gone.
+    expect(await screen.findByTestId("admin-workspace")).toBeTruthy();
     expect(lastLocation.pathname).toBe("/admin");
     expect(new URLSearchParams(lastLocation.search).get("tab")).toBe("diagnostics");
   });
