@@ -121,6 +121,14 @@ CLIENT_ROUTE_PREFIXES = {
     "lineage-atlas",
     "stewardship",
     "taxonomy",
+    # Cohesion-rebuild canonical routes (Wave B): the SPA shell must serve
+    # these with HTTP 200 — /assets/<fqn> 404'd at the document level while
+    # the client still rendered, breaking crawlability/deep-link semantics.
+    "asset",
+    "assets",
+    "evidence",
+    "exec",
+    "sk",
 }
 MUTATION_ROLES = {"writer", "steward", "admin"}
 APPROVAL_ROLES = {"steward", "admin"}
