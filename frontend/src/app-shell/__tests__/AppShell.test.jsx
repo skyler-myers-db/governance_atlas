@@ -24,7 +24,7 @@ const entityMock = vi.fn(() => <div data-testid="entity-workspace" />);
 const lineageMock = vi.fn(() => <div data-testid="lineage-workspace" />);
 const governanceMock = vi.fn(() => <div data-testid="governance-workspace" />);
 const auditMock = vi.fn(() => <div data-testid="audit-workspace" />);
-const taxonomyMock = vi.fn(() => <div data-testid="taxonomy-workspace" />);
+const glossaryMock = vi.fn(() => <div data-testid="glossary-page" />);
 const adminMock = vi.fn(() => <div data-testid="admin-workspace" />);
 const capabilityMock = vi.fn(() => <div data-testid="capability-dashboard" />);
 const helpMock = vi.fn(() => <div data-testid="help-page" />);
@@ -60,9 +60,13 @@ vi.mock("../../surfaces/home/HomePage.jsx", () => ({ default: (props) => homePag
 vi.mock("../../surfaces/discovery/DiscoveryPage.jsx", () => ({ default: (props) => discoveryMock(props) }));
 vi.mock("../../surfaces/asset/AssetHubPage.jsx", () => ({ default: (props) => entityMock(props) }));
 vi.mock("../../components/LineageWorkspace", () => ({ default: (props) => lineageMock(props) }));
-vi.mock("../../components/GovernanceWorkspace", () => ({ default: (props) => governanceMock(props) }));
+// Wave C3: Stewardship lives at surfaces/stewardship (components/
+// GovernanceWorkspace and InboxPage were deleted with the queue merge).
+vi.mock("../../surfaces/stewardship/StewardshipPage.jsx", () => ({ default: (props) => governanceMock(props) }));
 vi.mock("../../components/AuditBrowserWorkspace", () => ({ default: (props) => auditMock(props) }));
-vi.mock("../../components/TaxonomyWorkspace", () => ({ default: (props) => taxonomyMock(props) }));
+// Wave C4: Glossary & CDEs lives at surfaces/glossary (components/
+// TaxonomyWorkspace and CdeWorkspace were deleted with the registry merge).
+vi.mock("../../surfaces/glossary/GlossaryPage.jsx", () => ({ default: (props) => glossaryMock(props) }));
 vi.mock("../../components/AdminWorkspace", () => ({ default: (props) => adminMock(props) }));
 vi.mock("../../components/CapabilityDashboard", () => ({ default: (props) => capabilityMock(props) }));
 vi.mock("../../components/HelpPage", () => ({ default: (props) => helpMock(props) }));
@@ -194,7 +198,7 @@ describe("AppShell routing", () => {
       ["/sk", "/stewardship", "governance-workspace"],
       ["/audit", "/evidence", "audit-workspace"],
       ["/audit-evidence", "/evidence", "audit-workspace"],
-      ["/taxonomy", "/glossary", "taxonomy-workspace"],
+      ["/taxonomy", "/glossary", "glossary-page"],
       ["/control-center", "/admin", "admin-workspace"],
     ];
     for (const [from, to, testId] of cases) {
@@ -214,7 +218,7 @@ describe("AppShell routing", () => {
 
   it("redirects /cde to the glossary CDE tab", async () => {
     renderApp("/cde");
-    expect(await screen.findByTestId("taxonomy-workspace")).toBeTruthy();
+    expect(await screen.findByTestId("glossary-page")).toBeTruthy();
     expect(lastLocation.pathname).toBe("/glossary");
     expect(new URLSearchParams(lastLocation.search).get("tab")).toBe("cdes");
   });
@@ -236,10 +240,11 @@ describe("AppShell routing", () => {
 
   it("promotes transient /glossary?term= links to the durable term path", async () => {
     renderApp("/glossary?term=Churn%20Rate");
-    expect(await screen.findByTestId("taxonomy-workspace")).toBeTruthy();
+    expect(await screen.findByTestId("glossary-page")).toBeTruthy();
     expect(lastLocation.pathname).toBe("/glossary/Churn%20Rate");
-    // The legacy TaxonomyWorkspace consumer still gets its staged handoff.
-    expect(window.sessionStorage.getItem("ga-pending-glossary-term")).toBe("Churn Rate");
+    // Wave C4: the sessionStorage/window-event pending-term handoff is dead —
+    // the rebuilt surface reads the durable path itself.
+    expect(window.sessionStorage.getItem("ga-pending-glossary-term")).toBeNull();
   });
 
   it("normalizes legacy discovery grammar into flat canonical params on /discovery", async () => {

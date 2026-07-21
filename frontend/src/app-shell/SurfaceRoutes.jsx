@@ -8,12 +8,10 @@
  * canonical gate (resolveUrl), so only canonical paths appear here.
  */
 
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Suspense, lazy, useMemo, useState } from "react";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 
 import { WorkspaceStateCard } from "../components/ShellStatePrimitives";
-import { useGovernanceSummary } from "../hooks/useGovernanceSummary";
-import { normalizeGovernancePayload } from "../lib/api";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 import { normalizeLegacyDiscoverySearch } from "../surfaces/discovery/discoveryParams.js";
 import { useShellContext } from "./ShellContext.jsx";
@@ -22,9 +20,9 @@ import { useLegacyNavAdapters } from "./legacyAdapters.js";
 const DiscoveryPage = lazy(() => import("../surfaces/discovery/DiscoveryPage.jsx"));
 const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
 const LineageWorkspace = lazy(() => import("../components/LineageWorkspace"));
-const GovernanceWorkspace = lazy(() => import("../components/GovernanceWorkspace"));
+const StewardshipPage = lazy(() => import("../surfaces/stewardship/StewardshipPage.jsx"));
 const AuditBrowserWorkspace = lazy(() => import("../components/AuditBrowserWorkspace"));
-const TaxonomyWorkspace = lazy(() => import("../components/TaxonomyWorkspace"));
+const GlossaryPage = lazy(() => import("../surfaces/glossary/GlossaryPage.jsx"));
 const HomePage = lazy(() => import("../surfaces/home/HomePage.jsx"));
 const AdminWorkspace = lazy(() => import("../components/AdminWorkspace"));
 const CapabilityDashboard = lazy(() => import("../components/CapabilityDashboard"));
@@ -171,73 +169,19 @@ function AssetHubRoute() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Stewardship (absorbs /inbox as ?assignee=me)                         */
+/* Stewardship (Wave C3 — absorbed /inbox as ?assignee=me)              */
 /* ------------------------------------------------------------------ */
-
-function degradedGovernanceState(message) {
-  return normalizeGovernancePayload({
-    authoritative: false,
-    provenance: { warnings: message ? [message] : [] },
-    metrics: [],
-    backlog: [],
-    glossary: [],
-    inbox: {
-      state: "unavailable",
-      message: message || "Governance summary is unavailable right now.",
-      unreadCount: 0,
-      items: [],
-    },
-  });
-}
-
-function overlayGovernanceDegradedState(governance, message) {
-  const normalizedGovernance = normalizeGovernancePayload(governance || {});
-  const provenanceWarnings = [
-    ...(normalizedGovernance?.provenance?.warnings || []),
-    message,
-  ].filter(Boolean);
-  const inbox = normalizedGovernance?.inbox;
-  return normalizeGovernancePayload({
-    ...normalizedGovernance,
-    authoritative: false,
-    provenance: {
-      ...(normalizedGovernance?.provenance || {}),
-      warnings: [...new Set(provenanceWarnings)],
-    },
-    inbox: {
-      ...(inbox || {}),
-      state: "degraded",
-      message: message || inbox?.message || "Governance summary is stale right now.",
-      unreadCount: Number.isFinite(Number(inbox?.unreadCount))
-        ? Math.max(0, Math.trunc(Number(inbox.unreadCount)))
-        : 0,
-      items: Array.isArray(inbox?.items) ? inbox.items : [],
-    },
-  });
-}
 
 function StewardshipRoute() {
   const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
-  const location = useLocation();
-  const routerNavigate = useNavigate();
-  const initialAssetFqn = new URLSearchParams(location.search).get("asset") || "";
 
-  // Same query key/sections as the shell's bell → one shared cache entry.
-  const governanceSummary = useGovernanceSummary({
-    enabled: shellCtx.summariesEnabled,
-    sections: ["inbox"],
-  });
-  // Surface-local live-governance overlay (was App's lifted bus): keeps
-  // optimistic workbench mutations visible without wiping the summary seed.
-  const [liveGovernance, setLiveGovernance] = useState(null);
-  const governanceBase = liveGovernance || governanceSummary.data || null;
-  const governance = governanceSummary.refreshError && governanceBase
-    ? overlayGovernanceDegradedState(governanceBase, governanceSummary.refreshError)
-    : governanceBase;
-  const governanceRouteFallback =
-    governance || degradedGovernanceState(governanceSummary.error || governanceSummary.refreshError);
-
+  // Wave-C3 flipped: the rebuilt Stewardship surface is router-self-
+  // sufficient — it reads ?assignee/?item/?asset/?lens via useSurfaceParams
+  // and loads the ONE queue through useInboxWork (workbench + glossary on
+  // the same canonical cache keys as the rail badge and bell popover). The
+  // /inbox alias resolves upstream in nav/routes.js to ?assignee=me, so
+  // InboxPage has no mount here — the queue IS the inbox. Only shell-owned
+  // identity is threaded (for assign-to-me + role-gated triage).
   return (
     <Suspense
       fallback={
@@ -247,35 +191,12 @@ function StewardshipRoute() {
         />
       }
     >
-      <GovernanceWorkspace
-        bootstrap={shellCtx.bootstrap}
-        contextSeedAssets={shellCtx.contextSeedAssets}
+      <StewardshipPage
         currentUser={{
           email: shellCtx.shell.userEmail || "",
           name: shellCtx.shell.userName || "",
           role: shellCtx.shell.role || "",
         }}
-        initialAssetFqn={initialAssetFqn}
-        governance={governanceRouteFallback}
-        onGovernanceChange={(next) => {
-          if (!next) return;
-          setLiveGovernance((current) =>
-            normalizeGovernancePayload({
-              ...next,
-              inbox: next.inbox || current?.inbox || governanceSummary.data?.inbox || null,
-            }),
-          );
-        }}
-        onRouteAssetChange={(assetFqn) => {
-          const params = new URLSearchParams(location.search);
-          if (assetFqn) params.set("asset", assetFqn);
-          else params.delete("asset");
-          const qs = params.toString();
-          routerNavigate(`/stewardship${qs ? `?${qs}` : ""}`, { replace: false });
-        }}
-        onOpenAsset={(assetFqn) => adapters.onOpenAsset(assetFqn, "Overview")}
-        onOpenLineage={adapters.onOpenLineage}
-        runtimeFeatureFlags={shellCtx.runtimeFeatureFlags}
       />
     </Suspense>
   );
@@ -286,36 +207,23 @@ function StewardshipRoute() {
 /* ------------------------------------------------------------------ */
 
 function GlossaryRoute() {
-  const adapters = useLegacyNavAdapters();
-  const termId = useSplatParam();
-
-  // Re-stage the durable /glossary/:termId address through the LEGACY
-  // pending-term handoff (sessionStorage + window event) that
-  // TaxonomyWorkspace still consumes. app-shell is the sanctioned event
-  // dispatcher; both markers die in Wave C4 when the surface reads the path.
-  useEffect(() => {
-    if (!termId || typeof window === "undefined") return;
-    try {
-      window.sessionStorage?.setItem("ga-pending-glossary-term", termId);
-    } catch {
-      /* The event below still covers the mounted case. */
-    }
-    window.dispatchEvent(new CustomEvent("ga:select-glossary-term", { detail: { term: termId } }));
-  }, [termId]);
-
+  // Wave-C4 flipped: the rebuilt Glossary & CDEs surface is
+  // router-self-sufficient — it reads /glossary/:termId via useParams and
+  // ?tab=/?cde=/?q=/?status= via useSurfaceParams, and renders real anchors
+  // through the system refs contract. The legacy pending-term handoff
+  // (ga-pending-glossary-term sessionStorage + ga:select-glossary-term
+  // window event) is dead: nav/routes.js promotes legacy ?term= links to
+  // the durable /glossary/<termId> path in the canonical gate upstream.
   return (
     <Suspense
       fallback={
         <RouteFallback
-          eyebrow="Loading taxonomy"
-          message="Preparing classifications, domains, data products, and column groups."
+          eyebrow="Loading glossary"
+          message="Preparing governed glossary terms and the CDE registry."
         />
       }
     >
-      <TaxonomyWorkspace
-        onOpenAsset={(assetFqn, nextTab = "Overview") => adapters.onOpenAsset(assetFqn, nextTab)}
-        onOpenLineage={adapters.onOpenLineage}
-      />
+      <GlossaryPage />
     </Suspense>
   );
 }

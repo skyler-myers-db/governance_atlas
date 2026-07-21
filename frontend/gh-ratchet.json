@@ -21,15 +21,8 @@
       "gh": 53,
       "cssImport": 1
     },
-    "components/GovernanceWorkspace.jsx": {
-      "gh": 81,
-      "cssImport": 1
-    },
     "components/HelpPage.jsx": {
       "gh": 18
-    },
-    "components/InboxPage.jsx": {
-      "gh": 20
     },
     "components/LineageWorkspace.jsx": {
       "gh": 10,
@@ -200,8 +193,8 @@
       "important": 432
     },
     "styles/operations-pages.css": {
-      "gh": 1505,
-      "hex": 5,
+      "gh": 1076,
+      "hex": 3,
       "important": 5
     },
     "styles/shell-rail.css": {
