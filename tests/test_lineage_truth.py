@@ -79,6 +79,26 @@ class BatchLineageSQLShapeTests(unittest.TestCase):
         # Ranked by activity so the most-active partners survive the cap.
         self.assertIn("ORDER BY edge_event_count DESC", sql)
 
+    def test_batch_sql_collapses_entity_type_churn_out_of_the_dedup_key(self) -> None:
+        # Adversarial verify P1 (false truncation flags): grouping on
+        # source_type/target_type let a partner recorded under multiple
+        # entity types (TABLE vs STREAMING_TABLE churn) occupy several
+        # deduped rows — inflating seed_total_edges past the real distinct
+        # partner count (mip.silver.property_master: 21 reported vs 12
+        # actual) and raising downstreamTruncated while every real edge was
+        # already drawn. The type columns must be aggregated (MAX) so the
+        # dedup key is the (source, target) table-name pair only, making
+        # COUNT(*) OVER the honest distinct-partner total per direction.
+        sql = self._generated_sql()
+        self.assertIn("MAX(source_type) AS source_type", sql)
+        self.assertIn("MAX(target_type) AS target_type", sql)
+        group_by_pos = sql.index("GROUP BY ALL")
+        # Bare (un-aggregated) type columns must not appear in the dedup
+        # CTE's select list before GROUP BY ALL.
+        dedup_segment = sql[: group_by_pos]
+        self.assertNotIn("\n        source_type,", dedup_segment)
+        self.assertNotIn("\n        target_type,", dedup_segment)
+
     def test_query_failure_propagates_instead_of_silent_empty_frame(self) -> None:
         # The old `except Exception: return pd.DataFrame()` swallowed the
         # invalid-SQL failure for months. Callers now depend on the raise

@@ -252,7 +252,17 @@ export function useLineageGraphV2(assetFqn, options = {}) {
     };
     if (!payload || typeof payload !== "object") return empty;
     const profile = String(payload.profile || "").toLowerCase();
-    const meta = payload.meta || {};
+    // Two meta shapes ride on the payload: the response ENVELOPE meta
+    // (state / warnings / capabilities, added by the API layer) and the
+    // DATA-GRAPH meta (truncation totals, upstreamTruncated /
+    // downstreamTruncated, emptyReason, lineageQueryFailed, hop limits —
+    // emitted by the graph build at graphs.data.meta). Consumers (canvas
+    // truncation caption, Decision Packet) read graph.meta, so merge both
+    // here — adapter contract: downstream components never reach into
+    // payload directly. Envelope keys win on collision (none overlap today).
+    const envelopeMeta = payload.meta || {};
+    const dataGraphMeta = payload.graphs?.data?.meta || payload.graph?.meta || {};
+    const meta = { ...dataGraphMeta, ...envelopeMeta };
     const stats = payload.stats || {};
     const hydrating =
       profile === "initial" ||

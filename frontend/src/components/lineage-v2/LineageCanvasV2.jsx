@@ -417,7 +417,15 @@ function CanvasInner({
     );
   }
 
-  if (!nodesArray.length && warming) {
+  // A pending payload's data graph carries exactly ONE stub focus node and
+  // zero edges (cold-cache full build). Treat that stub-only shape the same
+  // as a truly empty graph for the warming/hydrating states below —
+  // otherwise the single stub suppressed both, leaving no progress copy and
+  // no Retry affordance (adversarial verify P0). A sticky accumulated graph
+  // (nodes > 1) keeps rendering instead.
+  const stubOnlyGraph = nodesArray.length <= 1 && !edgesArray.length;
+
+  if (stubOnlyGraph && warming) {
     // Honest terminal state for an exhausted poll loop (persona audit P1):
     // the graph build is still warming server-side — offer a real retry
     // instead of an infinite spinner.
@@ -434,7 +442,7 @@ function CanvasInner({
     );
   }
 
-  if (!nodesArray.length && hydrating) {
+  if (stubOnlyGraph && hydrating) {
     return (
       <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-hydrating">
         <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />

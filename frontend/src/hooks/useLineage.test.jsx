@@ -2,7 +2,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { atlasQueryClient } from "../lib/queryClient";
-import { primeLineagePayload, useLineage } from "./useLineage";
+import {
+  LINEAGE_POLL_ATTEMPT_LIMIT,
+  lineageRefetchInterval,
+  primeLineagePayload,
+  useLineage,
+} from "./useLineage";
 
 const fetchLineageMock = vi.fn();
 
@@ -301,5 +306,120 @@ describe("useLineage", () => {
     expect(result.current.payload?.meta?.visibilityScope).toBe("workspace-app-principal");
     expect(result.current.authoritative).toBe(false);
     expect(result.current.provisional).toBe(true);
+  });
+});
+
+// Cold-cache poll termination (adversarial verify P0): while the server's
+// full build is warming it serves a stale envelope whose data graph carries
+// exactly ONE stub focus node. The old predicate treated "has nodes" as
+// terminal, so the frontend never re-polled and every first visitor after
+// cache expiry got a permanent empty canvas. Terminality must be
+// STATE-based: keep polling while the payload is deferred / still-initial
+// for a full-profile request; stop only on a genuinely terminal full
+// payload or when the attempt budget is spent.
+describe("lineageRefetchInterval (poll terminality)", () => {
+  function queryFor(payload, { profile = "full", assetFqn = "main.poll.asset" } = {}) {
+    return { state: { data: payload }, queryKey: ["lineage", profile, assetFqn] };
+  }
+
+  // The deferred stale payload the live API serves during a cold full build:
+  // profile "initial", buildState ok, ONE stub node, zero edges.
+  function deferredStubPayload() {
+    return {
+      fqn: "main.poll.asset",
+      profile: "initial",
+      buildState: "ok",
+      meta: { state: "loading", capabilities: { hydrating: true } },
+      stats: { progressive: { tableLineageDeferred: true } },
+      graphs: {
+        data: {
+          nodes: [{ id: "focus-main.poll.asset", assetFqn: "main.poll.asset", role: "focus" }],
+          edges: [],
+          meta: { deferred: true },
+        },
+      },
+    };
+  }
+
+  function terminalFullPayload() {
+    return {
+      fqn: "main.poll.asset",
+      profile: "full",
+      buildState: "ok",
+      meta: { state: "available" },
+      stats: { progressive: { tableLineageDeferred: false } },
+      graphs: {
+        data: {
+          nodes: [
+            { id: "focus-main.poll.asset", assetFqn: "main.poll.asset", role: "focus" },
+            { id: "source-a.b.c", assetFqn: "a.b.c", role: "source" },
+          ],
+          edges: [{ source: "source-a.b.c", target: "focus-main.poll.asset" }],
+          meta: { deferred: false },
+        },
+      },
+    };
+  }
+
+  it("keeps polling a deferred stub payload even though it carries a node", () => {
+    expect(
+      lineageRefetchInterval(queryFor(deferredStubPayload(), { assetFqn: "main.poll.stub" })),
+    ).toBe(3000);
+  });
+
+  it("keeps polling when a full request is answered with a still-initial profile", () => {
+    // Even with a non-loading envelope state, profile "initial" under a
+    // full-profile query key means the build has not delivered yet.
+    const payload = deferredStubPayload();
+    payload.meta = { state: "degraded" };
+    expect(
+      lineageRefetchInterval(queryFor(payload, { assetFqn: "main.poll.stale" })),
+    ).toBe(3000);
+  });
+
+  it("stops polling when a genuinely terminal full payload arrives", () => {
+    expect(
+      lineageRefetchInterval(queryFor(terminalFullPayload(), { assetFqn: "main.poll.done" })),
+    ).toBe(false);
+  });
+
+  it("treats a terminal degraded full payload as terminal (no infinite retry)", () => {
+    const payload = terminalFullPayload();
+    payload.buildState = "degraded";
+    payload.meta = { state: "degraded", warnings: ["Lineage query failed"] };
+    expect(
+      lineageRefetchInterval(queryFor(payload, { assetFqn: "main.poll.degraded" })),
+    ).toBe(false);
+  });
+
+  it("does not poll the initial-profile query for its own terminal initial payload", () => {
+    // The initial profile is inherently "deferred by design"; only
+    // loading/hydrating envelope states keep the initial query polling.
+    const payload = deferredStubPayload();
+    payload.meta = { state: "available" };
+    expect(
+      lineageRefetchInterval(
+        queryFor(payload, { profile: "initial", assetFqn: "main.poll.initialdone" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("exhausts the bounded attempt budget instead of polling forever", () => {
+    vi.useFakeTimers();
+    try {
+      const results = [];
+      for (let i = 0; i < LINEAGE_POLL_ATTEMPT_LIMIT + 3; i += 1) {
+        results.push(
+          lineageRefetchInterval(queryFor(deferredStubPayload(), { assetFqn: "main.poll.cap" })),
+        );
+        vi.advanceTimersByTime(3000); // real polls are 3s apart
+      }
+      expect(results.slice(0, LINEAGE_POLL_ATTEMPT_LIMIT)).toEqual(
+        Array(LINEAGE_POLL_ATTEMPT_LIMIT).fill(3000),
+      );
+      expect(results.slice(LINEAGE_POLL_ATTEMPT_LIMIT)).toEqual([false, false, false]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

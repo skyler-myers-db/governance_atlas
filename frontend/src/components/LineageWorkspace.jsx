@@ -816,6 +816,36 @@ function LineageDetailRail({
     : null;
   const truncated = graph.stats?.truncated || {};
   const progressive = graph.stats?.progressive || {};
+  // Truncation honesty (adversarial verify P1): the API emits exact totals
+  // at graphs.data.meta.truncation ({nodesShown,nodesTotal,edgesShown,
+  // edgesTotal}) plus upstreamTruncated/downstreamTruncated flags — the
+  // adapter merges them into graph.meta. The old row only looked at
+  // stats.truncated and rendered "No truncation flag returned" while the
+  // payload said upstreamTruncated true. Consume the real fields.
+  const truncationTotals =
+    graph.meta?.truncation && typeof graph.meta.truncation === "object"
+      ? graph.meta.truncation
+      : null;
+  const truncatedDirections = [
+    graph.meta?.upstreamTruncated ? "upstream" : "",
+    graph.meta?.downstreamTruncated ? "downstream" : "",
+  ].filter(Boolean);
+  const truncationEdgesShown = Number(truncationTotals?.edgesShown);
+  const truncationEdgesTotal = Number(truncationTotals?.edgesTotal);
+  const truncationSummary =
+    Number.isFinite(truncationEdgesShown) &&
+    Number.isFinite(truncationEdgesTotal) &&
+    truncationEdgesTotal > truncationEdgesShown
+      ? `Showing ${truncationEdgesShown} of ${truncationEdgesTotal} edges${
+          truncatedDirections.length ? ` (${truncatedDirections.join(" + ")} capped)` : ""
+        } — highest-traffic neighbors first`
+      : truncatedDirections.length || Object.values(truncated).some(Boolean)
+        ? `One or more lineage limits were reached${
+            truncatedDirections.length ? ` (${truncatedDirections.join(" + ")})` : ""
+          }`
+        : truncationTotals
+          ? "Not truncated — all recorded lineage edges shown"
+          : "No truncation flag returned";
   const evidenceRecords = buildEvidenceRecords({
     accessExplain,
     columnLineageCount,
@@ -836,6 +866,10 @@ function LineageDetailRail({
       downstreamCount: consumers.length,
       stats: graph.stats || {},
       truncated,
+      // Exact "shown of total" truncation counts from graphs.data.meta so
+      // the exported brief matches the on-screen Decision Packet row.
+      truncation: truncationTotals,
+      truncatedDirections,
       progressive,
       source: graph.payload?.source || graph.meta?.source || "unity-catalog-lineage",
       authoritative: graph.payload?.authoritative === true || graph.meta?.authoritative === true,
@@ -971,7 +1005,7 @@ function LineageDetailRail({
               <li>Databricks profile: {profileMetricRows.length ? `${profileMetricRows.length} metric table row(s)` : profileMetrics?.monitor?.profileMetricsTableName ? "Monitor configured; metric tables not visible" : "No profile monitor returned"}</li>
               <li>Lakeflow: {lakeflowJobs.length || lakeflowPipelines.length ? `${lakeflowJobs.length} job run(s), ${lakeflowPipelines.length} pipeline update(s)` : "No Lakeflow rows joined from lineage"}</li>
               <li>Required approvals: {focusedAsset?.openRequests == null ? "Not returned for this selection" : Number(focusedAsset.openRequests) ? `${focusedAsset.openRequests} open request(s)` : "No open approval requests"}</li>
-              <li>Truncation: {Object.values(truncated).some(Boolean) ? "One or more lineage limits were reached" : "No truncation flag returned"}</li>
+              <li>Truncation: {truncationSummary}</li>
               <li>Hydration: {Object.values(progressive).some(Boolean) ? "Progressive lineage state is active" : "Full profile currently displayed"}</li>
             </ul>
           </div>
@@ -1544,24 +1578,46 @@ export default function LineageWorkspace({
     );
   }
 
-  // Degraded build ≠ empty lineage (fix_plan lineage-truth rule): a failed /
-  // degraded build must render honest "build degraded — retry" copy, never
-  // the empty-state copy (and never blame the user's visibility scope).
-  const graphMetaState = String(graph.meta?.state || "").toLowerCase();
-  const graphDegraded = graphMetaState === "degraded" || graph.meta?.degraded === true;
+  // Three honest states, in priority order (adversarial verify P0 —
+  // "dishonest build-failed banner"):
+  //   (a) pending/warming — the full build is still hydrating server-side;
+  //       progress copy only, NEVER the words "failed"/"degraded".
+  //   (b) build degraded — ONLY when the payload itself says the build
+  //       failed: buildState "degraded"/"failed", lineageQueryFailed, or
+  //       emptyReason "lineage-query-failed".
+  //   (c) true empty — ONLY a terminal, non-deferred payload whose
+  //       emptyReason is "no-lineage-rows".
+  // The envelope's meta.degraded is true whenever ANY warning rides on the
+  // response — including the benign "hydrating" warning on every pending
+  // envelope and the non-OBO scope warning — so it MUST NOT drive the
+  // "build failed" banner. Only the build's own failure signals may.
   const graphWarnings = Array.isArray(graph.meta?.warnings) ? graph.meta.warnings : [];
+  const payloadBuildState = String(graph.payload?.buildState || "").toLowerCase();
+  const buildFailed = Boolean(
+    payloadBuildState === "degraded" ||
+      payloadBuildState === "failed" ||
+      graph.meta?.lineageQueryFailed === true ||
+      String(graph.meta?.emptyReason || "") === "lineage-query-failed",
+  );
+  // Pending = the hook still reports hydrating (deferred/initial/loading
+  // envelope) or the poll budget is spent (warming). A failed build is
+  // terminal, never pending.
+  const graphPending = Boolean((graph.hydrating || graph.warming) && !buildFailed);
   const zeroEdgeLoaded = Boolean(
     focusAssetFqn &&
       !graph.loading &&
-      !graph.hydrating &&
-      !graph.warming &&
+      !graphPending &&
       !graph.error &&
-      !graphDegraded &&
+      !buildFailed &&
       graph.nodes.length <= 1 &&
-      graph.edges.length === 0,
+      graph.edges.length === 0 &&
+      // Require the backend's explicit true-empty marker: a payload without
+      // it (older cache shape, partial envelope) must not claim "Unity
+      // Catalog has no rows" — the canvas's neutral empty state covers it.
+      String(graph.meta?.emptyReason || "") === "no-lineage-rows",
   );
   const degradedNoGraph = Boolean(
-    focusAssetFqn && graphDegraded && graph.nodes.length <= 1 && graph.edges.length === 0,
+    focusAssetFqn && buildFailed && graph.nodes.length <= 1 && graph.edges.length === 0,
   );
   const heroEdgeCount = renderedGraphStats?.edgeCount ?? graph.edges.length;
 

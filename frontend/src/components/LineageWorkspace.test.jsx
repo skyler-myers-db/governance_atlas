@@ -360,11 +360,15 @@ describe("LineageWorkspace (v2)", () => {
       columnLineage: { upstream: [], downstream: [], meta: {} },
       edgeDetails: {},
       stats: {},
-      payload: { source: "unity-catalog-lineage" },
+      // True-empty now requires the backend's explicit marker (adversarial
+      // verify P0): a terminal, non-deferred payload with emptyReason
+      // "no-lineage-rows". Payloads without it (e.g. the pending stub the
+      // server serves mid-build) must never claim "Unity Catalog has no rows".
+      payload: { source: "unity-catalog-lineage", profile: "full", buildState: "ok" },
       hydrating: false,
       loading: false,
       error: "",
-      meta: null,
+      meta: { state: "available", emptyReason: "no-lineage-rows" },
       refresh: () => null,
     });
     const onRouteAssetChange = vi.fn();
@@ -382,6 +386,130 @@ describe("LineageWorkspace (v2)", () => {
     expect(screen.getByText("Unity Catalog has no table-lineage rows for this asset.")).toBeTruthy();
     fireEvent.click(screen.getByText("rich"));
     expect(onRouteAssetChange).toHaveBeenCalledWith("a.b.rich", "Data Lineage");
+  });
+
+  // Honest-state separation (adversarial verify P0): a merely-PENDING build
+  // (deferred stale payload, buildState ok, envelope carries the benign
+  // hydrating warning that flips meta.degraded true) must never render the
+  // "build failed / degraded" banner nor the true-empty copy.
+  it("never shows the build-degraded banner while the full build is merely pending", () => {
+    useLineageGraphV2.mockReturnValue({
+      focus: { id: "f", fqn: "a.b.focus", label: "focus", subtitle: "a / b" },
+      nodes: [{ id: "f", fqn: "a.b.focus", isFocus: true, label: "focus" }],
+      edges: [],
+      columnEdges: [],
+      columnLineage: { upstream: [], downstream: [], meta: {} },
+      edgeDetails: {},
+      stats: { progressive: { tableLineageDeferred: true } },
+      // The live shape mid-build: stale initial profile, buildState ok.
+      payload: { source: "unity-catalog-lineage", profile: "initial", buildState: "ok" },
+      hydrating: true,
+      warming: false,
+      loading: false,
+      error: "",
+      // meta.degraded true purely because the envelope has a warning —
+      // exactly the input that used to fire the dishonest banner.
+      meta: {
+        state: "loading",
+        degraded: true,
+        deferred: true,
+        warnings: ["Full lineage topology is hydrating from Unity Catalog system lineage tables."],
+        capabilities: { hydrating: true },
+      },
+      refresh: () => null,
+    });
+    render(
+      <LineageWorkspace
+        bootstrap={baseBootstrap}
+        initialAssetFqn="a.b.focus"
+        runtimeFeatureFlags={baseRuntimeFeatureFlags}
+        workspaceAccess={baseWorkspaceAccess}
+      />,
+    );
+    expect(screen.queryByText(/lineage build failed/i)).toBeNull();
+    expect(screen.queryByText("Lineage Build Degraded")).toBeNull();
+    expect(
+      screen.queryByText("Unity Catalog has no table-lineage rows for this asset."),
+    ).toBeNull();
+  });
+
+  it("shows the build-degraded banner only for a genuinely failed build", () => {
+    useLineageGraphV2.mockReturnValue({
+      focus: { id: "f", fqn: "a.b.focus", label: "focus", subtitle: "a / b" },
+      nodes: [{ id: "f", fqn: "a.b.focus", isFocus: true, label: "focus" }],
+      edges: [],
+      columnEdges: [],
+      columnLineage: { upstream: [], downstream: [], meta: {} },
+      edgeDetails: {},
+      stats: {},
+      payload: { source: "unity-catalog-lineage", profile: "full", buildState: "degraded" },
+      hydrating: false,
+      warming: false,
+      loading: false,
+      error: "",
+      meta: {
+        state: "degraded",
+        lineageQueryFailed: true,
+        emptyReason: "lineage-query-failed",
+        warnings: ["Lineage query failed; showing cached/partial data."],
+      },
+      refresh: () => null,
+    });
+    render(
+      <LineageWorkspace
+        bootstrap={baseBootstrap}
+        initialAssetFqn="a.b.focus"
+        runtimeFeatureFlags={baseRuntimeFeatureFlags}
+        workspaceAccess={baseWorkspaceAccess}
+      />,
+    );
+    expect(screen.getByText("Lineage Build Degraded")).toBeTruthy();
+    expect(
+      screen.queryByText("Unity Catalog has no table-lineage rows for this asset."),
+    ).toBeNull();
+  });
+
+  // Truncation honesty (adversarial verify P1): the Decision Packet row must
+  // consume graphs.data.meta.truncation totals + directional flags (merged
+  // into graph.meta by the adapter), not render "No truncation flag
+  // returned" while the API says upstreamTruncated true.
+  it("renders exact truncation totals in the Decision Packet row", () => {
+    useLineageGraphV2.mockReturnValue({
+      focus: { id: "f", fqn: "a.b.focus", label: "focus", subtitle: "a / b" },
+      nodes: [
+        { id: "f", fqn: "a.b.focus", isFocus: true, label: "focus" },
+        { id: "u", fqn: "a.b.up", label: "up" },
+      ],
+      edges: [{ id: "e1", source: "u", target: "f" }],
+      columnEdges: [],
+      columnLineage: { upstream: [], downstream: [], meta: {} },
+      edgeDetails: {},
+      stats: { truncated: { upstream: true, downstream: false } },
+      payload: { source: "unity-catalog-lineage", profile: "full", buildState: "ok" },
+      hydrating: false,
+      warming: false,
+      loading: false,
+      error: "",
+      meta: {
+        state: "available",
+        truncation: { nodesShown: 21, nodesTotal: 660, edgesShown: 20, edgesTotal: 659 },
+        upstreamTruncated: true,
+        downstreamTruncated: false,
+      },
+      refresh: () => null,
+    });
+    render(
+      <LineageWorkspace
+        bootstrap={baseBootstrap}
+        initialAssetFqn="a.b.focus"
+        runtimeFeatureFlags={baseRuntimeFeatureFlags}
+        workspaceAccess={baseWorkspaceAccess}
+      />,
+    );
+    expect(
+      screen.getByText(/Showing 20 of 659 edges \(upstream capped\) — highest-traffic neighbors first/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/No truncation flag returned/)).toBeNull();
   });
 
   it("traces a selected column through the inspector column tab", () => {

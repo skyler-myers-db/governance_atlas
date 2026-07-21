@@ -1745,10 +1745,12 @@ def build_data_graph(
     #   authoritative empty graph.
     # - truncation: exact "showing N of M" counts. Totals come from
     #   seed_total_edges in the batched SQL, so they are honest even when
-    #   the per-seed cap truncated the result (e.g. 40 of 659 for
-    #   main.datapact.run_history). Totals are per-direction distinct
-    #   partner-edge counts; a partner appearing both upstream and
-    #   downstream counts once per direction.
+    #   the per-seed cap truncated the result (e.g. 20 of 659 for
+    #   main.datapact.run_history). Totals count DISTINCT partner tables
+    #   per direction — the SQL collapses entity-type churn so a partner
+    #   recorded under several source_type/target_type values counts once
+    #   (false-truncation fix, adversarial verify P1); a partner appearing
+    #   both upstream and downstream still counts once per direction.
     query_failed = bool(upstream_branch.get("queryFailed")) or bool(
         downstream_branch.get("queryFailed")
     )

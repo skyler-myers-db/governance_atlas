@@ -1145,10 +1145,22 @@ LIMIT {int(limit)}
           target_table_full_name, target_table_catalog, target_table_schema,
           target_table_name, target_type,
           edge_event_count (raw lineage-event rows behind the deduped pair),
-          seed_total_edges (TOTAL distinct partner edges for that seed —
-          present on every returned row even when the per-seed cap
-          truncates, so callers can surface honest "showing N of M"
-          truncation instead of pretending the graph is complete).
+          seed_total_edges (TOTAL count of DISTINCT partner tables for that
+          seed in the queried direction — present on every returned row even
+          when the per-seed cap truncates, so callers can surface honest
+          "showing N of M" truncation instead of pretending the graph is
+          complete).
+
+        Distinctness is by partner TABLE NAME, not (partner, entity_type)
+        tuple: system.access.table_lineage records the same partner under
+        multiple source_type/target_type values over time (TABLE vs
+        STREAMING_TABLE vs VIEW churn). Grouping on the type columns
+        double-counted such partners — mip.silver.property_master reported
+        seed_total_edges=21 vs 12 real distinct partners and raised a FALSE
+        downstreamTruncated flag while every real edge was already drawn
+        (adversarial verify P1). The type columns are therefore aggregated
+        (MAX) out of the dedup key so one partner occupies exactly one row,
+        one cap slot, and one unit of seed_total_edges.
 
         `per_seed_limit` is the per-seed truncation cap that mirrors the
         old per-call LIMIT 50 — it's enforced via ROW_NUMBER() in the
@@ -1202,9 +1214,15 @@ LIMIT {int(limit)}
         # single-CTE version failed on EVERY call and the failure was
         # swallowed, so upstream lineage silently rendered empty product
         # wide. The window functions MUST stay in a separate CTE that
-        # ranks the already-aggregated result. Verified live against
-        # warehouse da02d15a9490650b on 2026-07-21 (main.datapact.
-        # run_history → 655 upstream / 659 total edges).
+        # ranks the already-aggregated result. Because `deduped` now
+        # collapses entity-type churn (one row per (seed, partner) pair —
+        # see docstring), the plain COUNT(*) OVER seed partition in
+        # `ranked` IS the distinct-partner total per direction; the
+        # truncated flags upstream only fire when that total exceeds what
+        # survived the cap. Verified live against warehouse
+        # da02d15a9490650b on 2026-07-21 (main.datapact.run_history →
+        # 659 distinct upstream partners; mip.silver.property_master →
+        # 12 distinct downstream partners, previously inflated to 21).
         seed_partition = f"""CASE WHEN source_table_full_name IN ({seed_list_sql})
                      THEN source_table_full_name
                      ELSE target_table_full_name
@@ -1216,12 +1234,12 @@ WITH deduped AS (
         source_table_catalog,
         source_table_schema,
         source_table_name,
-        source_type,
+        MAX(source_type) AS source_type,
         target_table_full_name,
         target_table_catalog,
         target_table_schema,
         target_table_name,
-        target_type,
+        MAX(target_type) AS target_type,
         COUNT(*) AS edge_event_count
     FROM system.access.table_lineage
     WHERE {where_clause}
