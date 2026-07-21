@@ -21,10 +21,6 @@
       "gh": 53,
       "cssImport": 1
     },
-    "components/DiscoveryWorkspace.jsx": {
-      "gh": 682,
-      "hex": 24
-    },
     "components/GovernanceWorkspace.jsx": {
       "gh": 81,
       "cssImport": 1
@@ -170,7 +166,7 @@
       "hex": 2
     },
     "lib/prefs.js": {
-      "gh": 5
+      "gh": 4
     },
     "lib/renderMarkdown.js": {
       "gh": 4
@@ -182,11 +178,6 @@
     },
     "styles/capability-dashboard.css": {
       "gh": 39
-    },
-    "styles/discovery.css": {
-      "gh": 710,
-      "hex": 148,
-      "important": 81
     },
     "styles/entity.css": {
       "gh": 398,
@@ -217,9 +208,6 @@
       "gh": 514,
       "hex": 65,
       "important": 148
-    },
-    "surfaces/discovery/DiscoverySavedSearches.jsx": {
-      "gh": 1
     }
   }
 }

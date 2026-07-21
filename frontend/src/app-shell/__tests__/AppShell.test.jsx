@@ -55,7 +55,9 @@ vi.mock("../../hooks/useAtlasAiConversation", () => ({
 // Wave C2: the Command Center lives at surfaces/home (components/HomePage
 // was deleted with the legacy dashboard).
 vi.mock("../../surfaces/home/HomePage.jsx", () => ({ default: (props) => homePageMock(props) }));
-vi.mock("../../components/DiscoveryWorkspace", () => ({ default: (props) => discoveryMock(props) }));
+// Wave C1: Discover lives at surfaces/discovery (components/DiscoveryWorkspace
+// was deleted with the legacy workspace).
+vi.mock("../../surfaces/discovery/DiscoveryPage.jsx", () => ({ default: (props) => discoveryMock(props) }));
 vi.mock("../../surfaces/asset/AssetHubPage.jsx", () => ({ default: (props) => entityMock(props) }));
 vi.mock("../../components/LineageWorkspace", () => ({ default: (props) => lineageMock(props) }));
 vi.mock("../../components/GovernanceWorkspace", () => ({ default: (props) => governanceMock(props) }));
@@ -240,13 +242,21 @@ describe("AppShell routing", () => {
     expect(window.sessionStorage.getItem("ga-pending-glossary-term")).toBe("Churn Rate");
   });
 
-  it("keeps discovery URL state on /discovery (q + shortcut filter merge)", async () => {
-    renderApp('/discovery?q=churn&domain=Customer&filters={"tiers":["Gold"]}');
+  it("normalizes legacy discovery grammar into flat canonical params on /discovery", async () => {
+    // Wave C1: ?filters=<JSON> + shortcut params rewrite (replace) into the
+    // flat grammar the rebuilt surface reads via useSurfaceParams — the URL,
+    // not drilled props, is the contract now.
+    renderApp('/discovery?q=churn&domain=Customer&filters={"tiers":["Gold"]}&preview=main.core.orders');
     expect(await screen.findByTestId("discovery-workspace")).toBeTruthy();
-    const props = discoveryMock.mock.calls.at(-1)[0];
-    expect(props.initialQuery).toBe("churn");
-    expect(props.initialFilterGroups.domains).toEqual(["Customer"]);
-    expect(props.initialFilterGroups.tiers).toEqual(["Gold"]);
+    await waitFor(() => expect(new URLSearchParams(lastLocation.search).get("tier")).toBe("Gold"));
+    const search = new URLSearchParams(lastLocation.search);
+    expect(lastLocation.pathname).toBe("/discovery");
+    expect(search.get("q")).toBe("churn");
+    expect(search.getAll("domain")).toEqual(["Customer"]);
+    expect(search.get("filters")).toBeNull();
+    // ?preview= promotes to the addressable ?peek= drawer binding.
+    expect(search.get("peek")).toBe("main.core.orders");
+    expect(search.get("preview")).toBeNull();
   });
 
   it("routes bare /lineage to the picker and /lineage/<fqn> to the focused graph", async () => {

@@ -8,7 +8,6 @@ import AppErrorBoundary from "./components/AppErrorBoundary";
 import { atlasQueryClient } from "./lib/queryClient";
 import "./styles/app.css";
 import "./styles/lineage.css";
-import "./styles/discovery.css";
 import "./styles/entity.css";
 import "./styles/governance.css";
 import "./styles/shell-rail.css";

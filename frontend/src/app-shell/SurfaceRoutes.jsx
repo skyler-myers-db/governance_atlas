@@ -15,10 +15,11 @@ import { WorkspaceStateCard } from "../components/ShellStatePrimitives";
 import { useGovernanceSummary } from "../hooks/useGovernanceSummary";
 import { normalizeGovernancePayload } from "../lib/api";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
+import { normalizeLegacyDiscoverySearch } from "../surfaces/discovery/discoveryParams.js";
 import { useShellContext } from "./ShellContext.jsx";
-import { useLegacyNavAdapters, compactDiscoveryFilterGroups } from "./legacyAdapters.js";
+import { useLegacyNavAdapters } from "./legacyAdapters.js";
 
-const DiscoveryWorkspace = lazy(() => import("../components/DiscoveryWorkspace"));
+const DiscoveryPage = lazy(() => import("../surfaces/discovery/DiscoveryPage.jsx"));
 const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
 const LineageWorkspace = lazy(() => import("../components/LineageWorkspace"));
 const GovernanceWorkspace = lazy(() => import("../components/GovernanceWorkspace"));
@@ -69,85 +70,26 @@ function HomeRoute() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Discovery — URL state stays on /discovery only (legacy grammar:      */
-/* ?q ?sort ?preview ?views(repeat) ?filters(JSON) + shortcut params)   */
+/* Discovery (Wave C1)                                                  */
 /* ------------------------------------------------------------------ */
-
-const DISCOVERY_SHORTCUT_TO_GROUP = {
-  type: "types",
-  types: "types",
-  catalog: "catalogs",
-  catalogs: "catalogs",
-  domain: "domains",
-  domains: "domains",
-  tier: "tiers",
-  tiers: "tiers",
-  certification: "certifications",
-  certifications: "certifications",
-  sensitivity: "sensitivities",
-  sensitivities: "sensitivities",
-};
-
-function parseDiscoverySearch(search) {
-  const params = new URLSearchParams(search || "");
-  let filterGroups = {};
-  try {
-    const parsed = JSON.parse(params.get("filters") || "null");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) filterGroups = parsed;
-  } catch {
-    filterGroups = {};
-  }
-  // Shortcut params (?domain=Customer) merge into the grouped filters so
-  // chip deep links from other surfaces auto-apply (legacy parseRouteState).
-  const groups = { ...filterGroups };
-  for (const [param, groupKey] of Object.entries(DISCOVERY_SHORTCUT_TO_GROUP)) {
-    const values = params.getAll(param).filter(Boolean);
-    if (!values.length) continue;
-    groups[groupKey] = [...new Set([...(groups[groupKey] || []), ...values])];
-  }
-  return {
-    query: params.get("q") || "",
-    sort: params.get("sort") || "",
-    preview: params.get("preview") || "",
-    views: [...new Set([...params.getAll("views"), ...(params.get("view") ? [params.get("view")] : [])].filter(Boolean))],
-    filterGroups: groups,
-  };
-}
-
-function buildDiscoverySearch({ query, sort, preview, views, filterGroups }) {
-  const params = new URLSearchParams();
-  if (String(query || "").trim()) params.set("q", String(query).trim());
-  if (String(sort || "").trim()) params.set("sort", String(sort).trim());
-  if (String(preview || "").trim()) params.set("preview", String(preview).trim());
-  for (const view of Array.isArray(views) ? views : []) {
-    if (view) params.append("views", view);
-  }
-  const compact = compactDiscoveryFilterGroups(filterGroups);
-  if (compact) params.set("filters", JSON.stringify(compact));
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
-}
 
 function DiscoveryRoute() {
   const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
   const location = useLocation();
-  const routerNavigate = useNavigate();
 
-  const routeState = useMemo(() => parseDiscoverySearch(location.search), [location.search]);
-
-  // Route write-back: the workspace refines state in place → replace by
-  // default; explicit fresh opens push (legacy push/replace discipline).
-  const writeRoute = (patch, options = {}) => {
-    const next = buildDiscoverySearch({ ...routeState, ...patch });
-    const current = `${location.pathname}${location.search}`;
-    const nextUrl = `/discovery${next}`;
-    if (nextUrl === current && !options.fresh) return;
-    routerNavigate(nextUrl, {
-      replace: options.replace ?? true,
-      state: { fresh: Boolean(options.fresh) },
-    });
-  };
+  // Redirect-normalizer: the legacy grammar — ?filters=<JSON>, plural facet
+  // shortcuts (?domains=…), ?views=, ?preview= — rewrites once into the flat
+  // canonical params (?domain=…&view=…&peek=…) so old deep links keep working
+  // while the URL the surface emits is always canonical. The old
+  // sessionStorage snapshot and location.state.fresh channel are dead: the
+  // URL is the state.
+  const normalizedSearch = useMemo(
+    () => normalizeLegacyDiscoverySearch(location.search),
+    [location.search],
+  );
+  if (normalizedSearch !== null) {
+    return <Navigate replace to={{ pathname: "/discovery", search: normalizedSearch }} />;
+  }
 
   return (
     <Suspense
@@ -158,31 +100,15 @@ function DiscoveryRoute() {
         />
       }
     >
-      <DiscoveryWorkspace
-        bootstrap={shellCtx.bootstrap}
-        effectiveBootMessage={shellCtx.effectiveBootMessage}
-        effectiveBootState={shellCtx.effectiveBootState}
-        effectiveVisibleCount={null}
-        initialFilterGroups={routeState.filterGroups}
-        initialQuery={routeState.query}
-        initialSelectedAssetFqn={routeState.preview}
-        initialSort={routeState.sort}
-        initialViews={routeState.views}
-        onRouteFilterGroupsChange={(groups, options) => writeRoute({ filterGroups: groups }, options)}
-        onRoutePreviewChange={(preview, options) => writeRoute({ preview }, options)}
-        onRouteQueryChange={(query, options) => writeRoute({ query }, options)}
-        onRouteSortChange={(sort, options) => writeRoute({ sort }, options)}
-        onRouteViewsChange={(views, options) => writeRoute({ views }, options)}
-        onOpenAsset={adapters.onOpenAsset}
-        onOpenGovernance={adapters.onOpenGovernance}
-        onOpenLineage={adapters.onOpenLineage}
-        querySeedFresh={Boolean(location.state && location.state.fresh === true)}
-        querySeedKey={location.key || `${location.pathname}${location.search}`}
-        sharedVisibleAssetSet={shellCtx.visibleAssetSet}
-        runtimeFeatureFlags={shellCtx.runtimeFeatureFlags}
-        workspaceAccess={shellCtx.surfaceWorkspaceAccess}
+      {/* The rebuilt surface is router-self-sufficient (useSurfaceParams /
+          usePeek); only shell-owned signals — bootstrap seed + boot state +
+          Atlas AI availability — are threaded. */}
+      <DiscoveryPage
         atlasAiAvailable={shellCtx.atlasAiAvailable}
         atlasAiUnavailableReason={shellCtx.atlasAiUnavailableReason}
+        bootMessage={shellCtx.effectiveBootMessage}
+        bootState={shellCtx.effectiveBootState}
+        bootstrap={shellCtx.bootstrap}
       />
     </Suspense>
   );
