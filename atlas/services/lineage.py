@@ -1111,11 +1111,26 @@ def _lineage_neighbor_records_batch(
     direction: str,
     per_seed_limit: int,
     system_uc: Optional[UCSQLClient] = None,
-) -> Dict[str, List[Dict[str, str]]]:
+) -> Tuple[Dict[str, List[Dict[str, str]]], Dict[str, Any]]:
     """Batched neighbor lookup — ONE warehouse query per BFS frontier
-    instead of one per (asset, direction) pair. Returns a dict
+    instead of one per (asset, direction) pair. Returns
+    ``(by_seed, batch_meta)`` where ``by_seed`` is
     {seed_fqn: [{assetFqn, provenance}, ...]} preserving the same record
-    shape `_lineage_neighbor_records` produced.
+    shape `_lineage_neighbor_records` produced, and ``batch_meta`` is::
+
+        {
+            "queryFailed": bool,        # SQL failed — NOT the same as empty
+            "totalsBySeed": {seed: int} # TOTAL partner edges per seed from
+                                        # seed_total_edges, even past the
+                                        # per-seed truncation cap
+        }
+
+    ``queryFailed`` exists because the previous version swallowed SQL
+    errors into an empty dict, which made a broken query
+    indistinguishable from "Unity Catalog has no lineage rows" — the
+    root cause of every asset rendering 0 upstream edges as an
+    "authoritative" empty state. Callers must propagate it as a
+    degraded build, never an honest empty.
 
     For a graph with 8 first-hop neighbors at depth=1, this collapses
     16 round trips (8 nodes × upstream + 8 nodes × downstream) into 2
@@ -1123,14 +1138,15 @@ def _lineage_neighbor_records_batch(
     typically 3-5x because warehouse round-trip latency dominates the
     cost of each individual query.
     """
+    batch_meta: Dict[str, Any] = {"queryFailed": False, "totalsBySeed": {}}
     if not asset_fqns:
-        return {}
+        return {}, batch_meta
     cleaned_seeds = [
         asset_service.normalize_str(fqn) for fqn in asset_fqns if fqn
     ]
     cleaned_seeds = [seed for seed in cleaned_seeds if seed]
     if not cleaned_seeds:
-        return {}
+        return {}, batch_meta
     system_client = system_uc or uc
     try:
         edges_df = system_client.get_table_lineage_edges_batch(
@@ -1139,10 +1155,13 @@ def _lineage_neighbor_records_batch(
             per_seed_limit=per_seed_limit,
         )
     except Exception:
+        # The SQL client already logged the failure. Mark it so the graph
+        # build reports state=degraded instead of a fake empty graph.
+        batch_meta["queryFailed"] = True
         edges_df = pd.DataFrame()
     by_seed: Dict[str, List[Dict[str, str]]] = {seed: [] for seed in cleaned_seeds}
     if edges_df is None or edges_df.empty:
-        return by_seed
+        return by_seed, batch_meta
     if direction == "upstream":
         seed_col = "target_table_full_name"
         neighbor_col = "source_table_full_name"
@@ -1150,7 +1169,8 @@ def _lineage_neighbor_records_batch(
         seed_col = "source_table_full_name"
         neighbor_col = "target_table_full_name"
     if seed_col not in edges_df.columns or neighbor_col not in edges_df.columns:
-        return by_seed
+        return by_seed, batch_meta
+    totals_by_seed: Dict[str, int] = batch_meta["totalsBySeed"]
     seen_pairs: Set[Tuple[str, str]] = set()
     for _, row in edges_df.iterrows():
         seed_value = asset_service.normalize_str(row.get(seed_col))
@@ -1170,6 +1190,14 @@ def _lineage_neighbor_records_batch(
             if matched is None:
                 continue
             seed_value = matched
+        # seed_total_edges rides on every row for its seed; record the max
+        # so truncation copy can say "showing 40 of 655" honestly.
+        try:
+            seed_total = int(row.get("seed_total_edges"))
+        except (TypeError, ValueError):
+            seed_total = 0
+        if seed_total > totals_by_seed.get(seed_value, 0):
+            totals_by_seed[seed_value] = seed_total
         pair = (seed_value, neighbor_value)
         if pair in seen_pairs:
             continue
@@ -1177,7 +1205,7 @@ def _lineage_neighbor_records_batch(
         by_seed.setdefault(seed_value, []).append(
             {"assetFqn": neighbor_value, "provenance": "system.access.table_lineage"}
         )
-    return by_seed
+    return by_seed, batch_meta
 
 
 def _lineage_neighbor_records(
@@ -1281,6 +1309,16 @@ def _recursive_branch_graph(
     truncated = False
     evidence_tag_neighbor_count = 0
     branch_direct_openable_assets = set(direct_openable_assets or set())
+    # Honesty accounting: distinguish "query failed" (degraded build)
+    # from "no rows" (true empty), and carry the focus asset's TOTAL
+    # partner-edge count so truncation is surfaced, never silent.
+    query_failed = False
+    focus_neighbor_total = 0
+    focus_neighbors_shown = 0
+    # Per-asset openability, so edges into non-openable "Lineage
+    # Reference" nodes can be marked kind="restricted" (dashed in the v2
+    # canvas) instead of pretending they are fully-resolved data edges.
+    openable_by_fqn: Dict[str, bool] = {focus_fqn_n: True}
 
     def node_id_for(asset_fqn: str) -> str:
         asset_fqn_n = asset_service.normalize_str(asset_fqn)
@@ -1315,13 +1353,22 @@ def _recursive_branch_graph(
         # frontier instead of one per node. Per-seed truncation in the
         # SQL keeps a hot node from monopolizing the result set.
         frontier_fqns = [fqn for fqn, _ in frontier]
-        batched_neighbors = _lineage_neighbor_records_batch(
+        batched_neighbors, batch_meta = _lineage_neighbor_records_batch(
             uc,
             frontier_fqns,
             direction=direction,
             per_seed_limit=max(TABLE_LINEAGE_LIMIT, per_hop_limit),
             system_uc=system_uc,
         )
+        if batch_meta.get("queryFailed"):
+            # A failed warehouse query is NOT an empty graph. Record it so
+            # the payload reports state=degraded and is not cached as an
+            # authoritative empty result.
+            query_failed = True
+        if frontier_depth == 0:
+            focus_neighbor_total = int(
+                (batch_meta.get("totalsBySeed") or {}).get(focus_fqn_n, 0)
+            )
 
         # Now process each frontier node in turn, but using the
         # already-fetched neighbor map. The governed-tag fallback
@@ -1369,6 +1416,16 @@ def _recursive_branch_graph(
             if len(neighbor_candidates) > per_hop_limit:
                 truncated = True
             neighbors = neighbor_candidates[:per_hop_limit]
+            if current_depth == 0:
+                # Governed-tag supplements can push the observed count past
+                # the SQL total; keep the larger so "N of M" never claims
+                # M < N.
+                focus_neighbor_total = max(
+                    focus_neighbor_total, len(neighbor_candidates)
+                )
+                focus_neighbors_shown = len(neighbors)
+                if focus_neighbor_total > focus_neighbors_shown:
+                    truncated = True
             missing_inventory_rows = [
                 neighbor_fqn
                 for neighbor_fqn in neighbors
@@ -1413,7 +1470,11 @@ def _recursive_branch_graph(
                         0,
                         0,
                         kicker=branch_kicker,
-                        kind="Table",
+                        # kind is intentionally NOT hard-coded to "Table":
+                        # graph_node_for_asset resolves the real kind from
+                        # inventory, and unresolved out-of-inventory
+                        # neighbors honestly become "Lineage Reference"
+                        # instead of a fabricated Table label.
                         depth=current_depth + 1,
                         visible_inventory=visible_inventory,
                         direct_openable_assets=branch_direct_openable_assets,
@@ -1423,6 +1484,9 @@ def _recursive_branch_graph(
                         nodes.append(node)
                         seen_node_ids.add(node_id)
                     visited_assets.add(neighbor_fqn)
+                    openable_by_fqn[neighbor_fqn] = bool(
+                        (node.get("details") or {}).get("isOpenable")
+                    )
                     if current_depth + 1 < depth_limit:
                         if current_depth == 0 and queued_secondary_seeds >= secondary_seed_limit:
                             truncated = True
@@ -1444,6 +1508,16 @@ def _recursive_branch_graph(
                         "target": target_id,
                         "depth": current_depth + 1,
                         "key": edge_key,
+                        # v2 contract: edge kind "restricted" renders dashed
+                        # for edges whose far endpoint is a non-openable
+                        # Lineage Reference node; plain data edges are
+                        # "lineage".
+                        "kind": (
+                            "lineage"
+                            if openable_by_fqn.get(neighbor_fqn, True)
+                            and openable_by_fqn.get(current_fqn, True)
+                            else "restricted"
+                        ),
                         "provenance": provenance_by_neighbor.get(
                             neighbor_fqn,
                             "system.access.table_lineage",
@@ -1465,6 +1539,12 @@ def _recursive_branch_graph(
         "perHopLimit": per_hop_limit,
         "secondaryBranchLimit": secondary_seed_limit,
         "governedLineageEvidenceTagNeighborCount": evidence_tag_neighbor_count,
+        # Honesty accounting for the payload meta: a failed query is a
+        # degraded build (never cached as an authoritative empty), and
+        # focus totals feed meta.truncation ("showing N of M").
+        "queryFailed": query_failed,
+        "focusNeighborTotal": focus_neighbor_total,
+        "focusNeighborsShown": focus_neighbors_shown,
     }
 
 
@@ -1659,10 +1739,44 @@ def build_data_graph(
     nodes = [focus, *upstream_branch["nodes"], *downstream_branch["nodes"]]
     edges = [*upstream_branch["edges"], *downstream_branch["edges"]]
 
+    # Honesty accounting (audit P0/P1):
+    # - lineageQueryFailed: at least one direction's warehouse query FAILED
+    #   (degraded build) — must never be presented, or cached, as an
+    #   authoritative empty graph.
+    # - truncation: exact "showing N of M" counts. Totals come from
+    #   seed_total_edges in the batched SQL, so they are honest even when
+    #   the per-seed cap truncated the result (e.g. 40 of 659 for
+    #   main.datapact.run_history). Totals are per-direction distinct
+    #   partner-edge counts; a partner appearing both upstream and
+    #   downstream counts once per direction.
+    query_failed = bool(upstream_branch.get("queryFailed")) or bool(
+        downstream_branch.get("queryFailed")
+    )
+    upstream_total = int(upstream_branch.get("focusNeighborTotal") or 0)
+    downstream_total = int(downstream_branch.get("focusNeighborTotal") or 0)
+    nodes_shown = len(nodes)
+    edges_shown = len(edges)
+    edges_total = max(edges_shown, upstream_total + downstream_total)
+    nodes_total = max(nodes_shown, 1 + upstream_total + downstream_total)
+    if not edges_shown:
+        # Distinguish the three empty-ish cases the frontend renders:
+        # build failure vs Unity Catalog truly having no rows.
+        empty_reason = "lineage-query-failed" if query_failed else "no-lineage-rows"
+    else:
+        empty_reason = ""
+
     return {
         "nodes": nodes,
         "edges": edges,
         "meta": {
+            "lineageQueryFailed": query_failed,
+            "emptyReason": empty_reason,
+            "truncation": {
+                "nodesShown": nodes_shown,
+                "nodesTotal": nodes_total,
+                "edgesShown": edges_shown,
+                "edgesTotal": edges_total,
+            },
             "upstreamLimit": TABLE_LINEAGE_LIMIT,
             "downstreamLimit": TABLE_LINEAGE_LIMIT,
             "graphDepthLimit": LINEAGE_GRAPH_DEPTH_LIMIT,
@@ -1968,6 +2082,32 @@ def build_operational_graph(
     }
 
 
+# Successful builds cache for 5 minutes; degraded builds (a lineage query
+# failed mid-build) only for 15 seconds. The 15s floor exists purely to
+# avoid hammering a struggling warehouse — a degraded payload must never
+# pin the "0 edges" failure for the full 300s TTL (the audited P0: failed
+# builds were cached 300s and served as state=available/authoritative).
+LINEAGE_CACHE_TTL_S = 300
+LINEAGE_DEGRADED_CACHE_TTL_S = 15
+
+
+def _payload_build_degraded(payload: Any) -> bool:
+    try:
+        return (
+            asset_service.normalize_str(payload.get("buildState")).lower() == "degraded"
+        )
+    except Exception:
+        return False
+
+
+def _payload_cache_ttl_s(payload: Any, ttl_s: int) -> int:
+    return (
+        min(int(ttl_s), LINEAGE_DEGRADED_CACHE_TTL_S)
+        if _payload_build_degraded(payload)
+        else int(ttl_s)
+    )
+
+
 def lineage_payload(
     uc: UCSQLClient,
     store: Any,
@@ -1979,11 +2119,31 @@ def lineage_payload(
 ) -> Dict[str, Any]:
     profile_name = _lineage_profile(profile)
     cache_key = lineage_cache_key(uc, asset_fqn, cache_scope=cache_scope, profile=profile_name)
-    return _ttl_value(
-        cache_key,
-        300,
-        lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc, profile=profile_name),
-    )
+
+    def _fresh(cached: Optional[Tuple[float, Any]]) -> Optional[Dict[str, Any]]:
+        # Degraded builds intentionally expire after ~15s (see TTL comment
+        # above) so a transient warehouse failure retries quickly instead
+        # of serving a fake-empty graph for 5 minutes.
+        if not cached:
+            return None
+        ttl = _payload_cache_ttl_s(cached[1], LINEAGE_CACHE_TTL_S)
+        if time.time() - cached[0] < ttl:
+            return cached[1]
+        return None
+
+    hit = _fresh(_TTL_CACHE.get(cache_key))
+    if hit is not None:
+        return hit
+    lock = _ttl_cache_lock(cache_key)
+    with lock:
+        hit = _fresh(_TTL_CACHE.get(cache_key))
+        if hit is not None:
+            return hit
+        value = _build_lineage_payload(
+            uc, store, asset_fqn, system_uc=system_uc, profile=profile_name
+        )
+        _TTL_CACHE[cache_key] = (time.time(), value)
+        return value
 
 
 def lineage_cache_key(
@@ -2011,7 +2171,9 @@ def cached_lineage_payload(
 ) -> Optional[Dict[str, Any]]:
     cache_key = lineage_cache_key(uc, asset_fqn, cache_scope=cache_scope, profile=profile)
     cached = _TTL_CACHE.get(cache_key)
-    if cached and time.time() - cached[0] < ttl_s:
+    # Degraded builds are only fresh for ~15s — same policy as
+    # lineage_payload — so the API peek never resurrects a stale failure.
+    if cached and time.time() - cached[0] < _payload_cache_ttl_s(cached[1], ttl_s):
         return cached[1]
     return None
 
@@ -2069,9 +2231,22 @@ def _build_lineage_payload(
     operational_edge_details = _operational_edge_details(operational_graph)
     direction_counts = _lineage_graph_direction_counts(data_graph)
 
+    # buildState/buildWarnings tell the API layer (and the cache policy)
+    # whether this build is trustworthy. A failed table-lineage query is a
+    # DEGRADED build: it must surface state="degraded" + a warning, never
+    # an authoritative empty graph, and it only gets a short cache TTL so
+    # the next request retries instead of pinning the failure for 300s.
+    build_failed = bool((data_graph.get("meta") or {}).get("lineageQueryFailed"))
+    build_state = "degraded" if build_failed else "ok"
+    build_warnings = (
+        ["Lineage query failed; showing cached/partial data."] if build_failed else []
+    )
+
     return {
         "fqn": asset_fqn,
         "profile": profile_name,
+        "buildState": build_state,
+        "buildWarnings": build_warnings,
         "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "graphs": {
             "data": data_graph,

@@ -31,17 +31,80 @@ class LineageApiTests(unittest.TestCase):
             runtime_app,
             _ensure_live_runtime=lambda: None,
             _lineage_payload=lambda asset_fqn, request=None: lineage_payload,
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="test"),
+            _request_cache_scope=lambda request: "analyst@example.com",
             _asset_visibility_record=lambda asset_fqn, request=None: (_ for _ in ()).throw(
                 AssertionError("initial lineage shell must not block first paint on visibility probes")
             ),
         ):
+            lineage_api.lineage_service._TTL_CACHE.clear()
             response = lineage_api.api_lineage("main.sales.orders", request)
 
         payload = _response_json(response)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(payload["meta"]["state"], "loading")
+        # Poll-termination fix: the shell reports "hydrating" (a genuine
+        # in-progress state), never a hard-coded "loading", and is never
+        # HTTP-cached — a cached loading body froze the poll loop forever.
+        self.assertEqual(payload["meta"]["state"], "hydrating")
+        self.assertEqual(response.headers.get("cache-control"), "no-store")
         self.assertEqual(payload["meta"]["capabilities"]["visibilityState"], "unverified")
         self.assertEqual(payload["meta"]["capabilities"]["lineageProfile"], "initial")
+
+    def test_initial_profile_returns_warm_full_payload_with_terminal_state(self) -> None:
+        # Poll-termination fix (audited P1): once the full build finished
+        # warming, the initial-profile poll must observe a TERMINAL state
+        # (available/degraded) with the full topology — not the shell.
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "analyst@example.com",
+                "x-forwarded-access-token": "token",
+            },
+            query_params={"profile": "initial"},
+        )
+        full_payload = {
+            "fqn": "main.sales.orders",
+            "profile": "full",
+            "buildState": "ok",
+            "buildWarnings": [],
+            "graphs": {
+                "data": {
+                    "nodes": [
+                        {"id": "source", "assetFqn": "main.sales.customers"},
+                        {"id": "focus", "assetFqn": "main.sales.orders"},
+                    ],
+                    "edges": [{"source": "source", "target": "focus"}],
+                    "meta": {},
+                },
+                "operational": {"nodes": [], "edges": [], "meta": {}},
+            },
+            "stats": {"progressive": {}},
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="test"),
+            _request_cache_scope=lambda request: "analyst@example.com",
+            _lineage_payload=lambda asset_fqn, request=None: (_ for _ in ()).throw(
+                AssertionError("warm full cache must short-circuit the shell build")
+            ),
+        ):
+            with patch.object(
+                lineage_api.lineage_service,
+                "cached_lineage_payload",
+                return_value=full_payload,
+            ):
+                response = lineage_api.api_lineage("main.sales.orders", request)
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["meta"]["state"], "available")
+        self.assertTrue(payload["meta"]["authoritative"])
+        self.assertEqual(payload["meta"]["capabilities"]["lineageProfile"], "full")
+        self.assertEqual(
+            payload["meta"]["capabilities"]["requestedLineageProfile"], "initial"
+        )
+        self.assertEqual(len(payload["graphs"]["data"]["edges"]), 1)
 
     def test_app_principal_lineage_fails_closed_for_hidden_focus_asset(self) -> None:
         request = SimpleNamespace(headers={"x-forwarded-email": "analyst@example.com"})
@@ -163,7 +226,9 @@ class LineageApiTests(unittest.TestCase):
             _request_cache_scope=lambda request: "analyst@example.com",
         ):
             lineage_api.lineage_service._TTL_CACHE.clear()
-            cache_key = "lineage_recommendations:actor-wh:analyst@example.com:actor-wh:1"
+            # Cache-key normalization (audited P1): the key excludes the
+            # requested limit so every ?limit= shares one warm payload.
+            cache_key = "lineage_recommendations:actor-wh:analyst@example.com:actor-wh"
             lineage_api.lineage_service._TTL_CACHE[cache_key] = (time.time(), recommendation_payload)
             response = lineage_api.api_lineage_recommendations(request, limit=1)
 
@@ -208,6 +273,9 @@ class LineageApiTests(unittest.TestCase):
         self.assertEqual(payload["meta"]["state"], "loading")
         self.assertFalse(payload["meta"]["authoritative"])
         self.assertTrue(payload["recommendationMeta"]["hydrating"])
+        # Loading envelopes are never HTTP-cached — a browser-cached
+        # loading body froze the panel's poll loop (audited P1).
+        self.assertEqual(response.headers.get("cache-control"), "no-store")
         thread_cls.assert_called_once()
 
     def test_lineage_recommendations_aggregate_fallback_is_degraded_not_authoritative(self) -> None:
@@ -246,7 +314,7 @@ class LineageApiTests(unittest.TestCase):
             _request_cache_scope=lambda request: "analyst@example.com",
         ):
             lineage_api.lineage_service._TTL_CACHE.clear()
-            cache_key = "lineage_recommendations:actor-wh:analyst@example.com:actor-wh:1"
+            cache_key = "lineage_recommendations:actor-wh:analyst@example.com:actor-wh"
             lineage_api.lineage_service._TTL_CACHE[cache_key] = (time.time(), recommendation_payload)
             response = lineage_api.api_lineage_recommendations(request, limit=1)
 
