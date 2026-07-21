@@ -141,8 +141,18 @@ export function AssetHubPage() {
     setCertOverride(null);
   }, [fqn]);
 
+  // A hydrating-envelope stub (inventory rebuilding: headerSource
+  // "live-metadata-hydrating", hydrating flag) is NOT an asset yet — adopting
+  // it rendered definitive "Unassigned"/score-0 for Certified assets during
+  // cold windows (Wave-B verifier BLOCK). Treat it as still-loading.
+  const detailIsStub =
+    Boolean(detail.detail) &&
+    (detail.detail.hydrating === true ||
+      String(detail.detail.headerSource || "") === "live-metadata-hydrating");
   const baseAsset =
-    detail.detail || (a360.data?.sameAsset ? a360.data.asset : null) || null;
+    (detailIsStub ? null : detail.detail) ||
+    (a360.data?.sameAsset ? a360.data.asset : null) ||
+    null;
   useEffect(() => {
     if (certOverride !== null && String(baseAsset?.certification ?? "") === certOverride) {
       setCertOverride(null);
@@ -156,7 +166,8 @@ export function AssetHubPage() {
 
   const freshness = resolveFreshness(a360.data, asset);
   const ownership = resolveOwnership(a360.data, asset);
-  const heroHydrating = !asset && (detail.loading || a360.loading);
+  const heroHydrating =
+    (!asset && (detail.loading || a360.loading)) || (detailIsStub && !asset);
 
   // Failure contract (PRODUCT §3a): the hub never collapses to a dead end —
   // the frame + retry stay up, and only the failing sections go honest-empty.

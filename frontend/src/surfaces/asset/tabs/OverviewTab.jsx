@@ -49,7 +49,19 @@ function MiniMapColumn({ title, nodes }) {
 }
 
 function LineageMiniMap({ fqn, graph }) {
-  if (!graph || graph.loading) return <LoadingState variant="card" lines={3} />;
+  // A pending focus-only stub (server still walking system lineage) must
+  // render as loading, not "No first-hop lineage observed" — useLineage sets
+  // loading=false once ANY payload exists, so also honor warming/isPolling
+  // (Wave-B verifier BLOCK).
+  const stillWarming =
+    !graph ||
+    graph.loading ||
+    graph.warming ||
+    graph.isPolling ||
+    String(graph.meta?.state || "").toLowerCase() === "loading";
+  if (stillWarming && !(graph?.edges?.length)) {
+    return <LoadingState variant="card" lines={3} />;
+  }
   if (graph.error && !graph.nodes.length) {
     return (
       <UnavailableState

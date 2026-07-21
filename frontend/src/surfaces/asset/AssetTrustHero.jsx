@@ -43,13 +43,17 @@ function FreshnessValue({ label, value, hydrating, fallbackReason }) {
   );
 }
 
-function OwnerRole({ role, entry }) {
+function OwnerRole({ role, entry, hydrating = false }) {
   const ref = ownerRef(entry);
   return (
     <div className="ga-asset-owner-role">
       <span className="ga-asset-owner-role-label">{role}</span>
       {ref ? (
         <EntityChip entity={ref} appearance="inline" />
+      ) : hydrating ? (
+        // Unknown yet — "Unassigned" is a governance claim, not a loading
+        // state (Wave-B verifier BLOCK).
+        <span className="ga-asset-owner-unassigned" aria-busy="true">…</span>
       ) : (
         <span className="ga-asset-owner-unassigned">Unassigned</span>
       )}
@@ -118,9 +122,9 @@ export function AssetTrustHero({ asset, freshness, ownership, hydrating = false,
       </div>
 
       <div className="ga-asset-owners" aria-label="Ownership">
-        <OwnerRole role="Owner (Unity Catalog)" entry={ownership?.ucOwner} />
-        <OwnerRole role="Business owner" entry={ownership?.businessOwner} />
-        <OwnerRole role="Steward" entry={ownership?.steward} />
+        <OwnerRole hydrating={hydrating} role="Owner (Unity Catalog)" entry={ownership?.ucOwner} />
+        <OwnerRole hydrating={hydrating} role="Business owner" entry={ownership?.businessOwner} />
+        <OwnerRole hydrating={hydrating} role="Steward" entry={ownership?.steward} />
       </div>
     </section>
   );
