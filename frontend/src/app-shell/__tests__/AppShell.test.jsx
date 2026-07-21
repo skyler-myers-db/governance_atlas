@@ -58,7 +58,9 @@ vi.mock("../../surfaces/home/HomePage.jsx", () => ({ default: (props) => homePag
 // was deleted with the legacy workspace).
 vi.mock("../../surfaces/discovery/DiscoveryPage.jsx", () => ({ default: (props) => discoveryMock(props) }));
 vi.mock("../../surfaces/asset/AssetHubPage.jsx", () => ({ default: (props) => entityMock(props) }));
-vi.mock("../../components/LineageWorkspace", () => ({ default: (props) => lineageMock(props) }));
+// Wave-C7: the lineage surface is router-self-sufficient (reads the :fqn
+// splat itself), so the mock echoes the splat to keep the route assertions.
+vi.mock("../../surfaces/lineage/LineagePage.jsx", () => ({ default: (props) => lineageMock(props) }));
 // Wave C3: Stewardship lives at surfaces/stewardship (components/
 // GovernanceWorkspace and InboxPage were deleted with the queue merge).
 vi.mock("../../surfaces/stewardship/StewardshipPage.jsx", () => ({ default: (props) => governanceMock(props) }));
@@ -269,14 +271,16 @@ describe("AppShell routing", () => {
   });
 
   it("routes bare /lineage to the picker and /lineage/<fqn> to the focused graph", async () => {
+    // Wave-C7: LineagePage reads the :fqn splat itself (no initialAssetFqn
+    // prop), so the shell contract is: both forms mount the lineage surface
+    // at the canonical path, with the focus FQN preserved in the URL.
     const bare = renderApp("/lineage");
     expect(await screen.findByTestId("lineage-workspace")).toBeTruthy();
-    expect(lineageMock.mock.calls.at(-1)[0].initialAssetFqn).toBe("");
+    expect(lastLocation.pathname).toBe("/lineage");
     bare.unmount();
     renderApp("/lineage/main.core.orders");
-    await waitFor(() =>
-      expect(lineageMock.mock.calls.at(-1)[0].initialAssetFqn).toBe("main.core.orders"),
-    );
+    expect(await screen.findByTestId("lineage-workspace")).toBeTruthy();
+    await waitFor(() => expect(lastLocation.pathname).toBe("/lineage/main.core.orders"));
   });
 
   it("falls back to /home for unknown paths", async () => {

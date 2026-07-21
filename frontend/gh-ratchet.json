@@ -8,10 +8,6 @@
     "components/HelpPage.jsx": {
       "gh": 18
     },
-    "components/LineageWorkspace.jsx": {
-      "gh": 10,
-      "hex": 1
-    },
     "components/ShellLayoutPrimitives.jsx": {
       "gh": 68
     },
@@ -160,9 +156,6 @@
     "styles/lineage-v2.css": {
       "gh": 1,
       "important": 24
-    },
-    "styles/lineage.css": {
-      "gh": 44
     },
     "styles/northstar.css": {
       "gh": 1086,

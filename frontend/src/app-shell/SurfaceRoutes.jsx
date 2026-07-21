@@ -19,7 +19,7 @@ import { useLegacyNavAdapters } from "./legacyAdapters.js";
 
 const DiscoveryPage = lazy(() => import("../surfaces/discovery/DiscoveryPage.jsx"));
 const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
-const LineageWorkspace = lazy(() => import("../components/LineageWorkspace"));
+const LineagePage = lazy(() => import("../surfaces/lineage/LineagePage.jsx"));
 const StewardshipPage = lazy(() => import("../surfaces/stewardship/StewardshipPage.jsx"));
 const EvidencePage = lazy(() => import("../surfaces/evidence/EvidencePage.jsx"));
 const GlossaryPage = lazy(() => import("../surfaces/glossary/GlossaryPage.jsx"));
@@ -233,23 +233,15 @@ function GlossaryRoute() {
 
 function LineageRoute() {
   const shellCtx = useShellContext();
-  const adapters = useLegacyNavAdapters();
-  const location = useLocation();
-  const fqn = useSplatParam();
 
-  // ?context= (Data Lineage vs Operational Context) → legacy workspaceIntent
-  // channel; dies in Wave C7 when LineageWorkspace reads the param.
-  const requestedContext = useMemo(
-    () => String(new URLSearchParams(location.search).get("context") || "").trim(),
-    [location.search],
-  );
-  const [stagedFor, setStagedFor] = useState("");
-  const stageKey = `${fqn}:${requestedContext}`;
-  if (requestedContext && fqn && stagedFor !== stageKey) {
-    setWorkspaceIntent("lineageContext", fqn, requestedContext);
-    setStagedFor(stageKey);
-  }
-
+  // Wave-C7 flipped: the rebuilt Lineage Atlas surface is router-self-
+  // sufficient — it reads /lineage/:fqn via the route splat and
+  // ?context=/?selected= via useSurfaceParams, so the workspaceIntent
+  // "lineageContext" sessionStorage staging that lived here is dead
+  // (FRONTEND_BLUEPRINT §8 kill table) and no legacy adapter callbacks are
+  // threaded. Bare /lineage mounts the search-first asset picker. Only
+  // shell-owned signals ride in: bootstrap + seeds (capability gating and
+  // seeded asset summaries) and runtime/workspace access gates.
   return (
     <Suspense
       fallback={
@@ -259,18 +251,11 @@ function LineageRoute() {
         />
       }
     >
-      <LineageWorkspace
+      <LineagePage
         bootstrap={shellCtx.bootstrap}
         contextSeedAssets={shellCtx.contextSeedAssets}
-        initialAssetFqn={fqn}
-        onRouteAssetChange={(assetFqn, nextContext = "Data Lineage") =>
-          adapters.onOpenLineage(assetFqn, nextContext)}
-        onOpenGovernance={adapters.onOpenGovernance}
-        onOpenAsset={adapters.onOpenAsset}
         runtimeFeatureFlags={shellCtx.runtimeFeatureFlags}
-        sharedVisibleAssetSet={shellCtx.visibleAssetSet}
         workspaceAccess={shellCtx.surfaceWorkspaceAccess}
-        userEmail={shellCtx.shell.userEmail || ""}
       />
     </Suspense>
   );
