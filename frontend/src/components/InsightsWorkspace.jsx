@@ -209,7 +209,26 @@ function Icon({ type }) {
   );
 }
 
-function KpiCard({ definition, kpi }) {
+function KpiCard({ definition, kpi, hydrating = false }) {
+  // While the server envelope is still hydrating, empty KPI values must read
+  // as loading — "Signal unavailable" during a rebuild window is the
+  // hydration-honesty bug class every other surface already fixed.
+  if (hydrating && numberValue(kpi?.value) === null) {
+    return (
+      <article aria-busy="true" className="gh-insights-kpi is-loading">
+        <div className="gh-insights-kpi-head">
+          <Icon type={definition.icon} />
+          <span className="gh-insights-kpi-label">
+            <span>{kpi?.label || definition.label}</span>
+          </span>
+        </div>
+        <div className="gh-insights-kpi-main">
+          <strong>…</strong>
+        </div>
+        <p className="gh-insights-kpi-foot tone-muted">Loading signal…</p>
+      </article>
+    );
+  }
   const progress = kpiProgress(kpi);
   const state = kpiState(kpi);
   const unavailable = state === "unavailable";
@@ -661,6 +680,13 @@ export function InsightsWorkspace({
       : meta.degraded
         ? "degraded"
         : "ready";
+  // Server-side hydrating envelope: HTTP 200 with meta.state "loading" and no
+  // KPI values yet (cold rebuild after deploy / TTL expiry). Must render as
+  // loading, not "Signal unavailable".
+  const insightsHydrating =
+    surfaceState === "loading" ||
+    (data.meta?.state === "loading" &&
+      !arrayValue(data.kpis).some((kpi) => numberValue(kpi?.value) !== null));
 
   return (
     <section
@@ -747,6 +773,7 @@ export function InsightsWorkspace({
         {KPI_ORDER.map((definition) => (
           <KpiCard
             definition={definition}
+            hydrating={insightsHydrating}
             key={definition.key}
             kpi={{
               ...objectValue(kpisByKey.get(definition.key)),

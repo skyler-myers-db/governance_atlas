@@ -1245,3 +1245,12 @@
   color: var(--ga-text-muted);
   font-size: 0.72rem;
 }
+
+/* Hydrating KPI tiles: labeled loading placeholders, never "Signal
+   unavailable" while the server envelope is still rebuilding. */
+.gh-insights-kpi.is-loading strong {
+  color: var(--ga-text-muted);
+}
+.gh-insights-kpi.is-loading .gh-insights-kpi-foot {
+  opacity: 0.75;
+}

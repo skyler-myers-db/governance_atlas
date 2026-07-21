@@ -80,7 +80,16 @@ export function useInsightsDashboard(options = {}) {
     queryFn: ({ signal }) => fetchInsightsDashboard({ signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
-    refetchInterval: resolvedOptions.refetchInterval ?? false,
+    // Poll while the server envelope is still hydrating (cold rebuild after a
+    // deploy/TTL expiry returns 200 + meta.state "loading" with empty KPIs);
+    // without this the page sits on the empty envelope for the full
+    // staleTime and renders as if the signals don't exist.
+    refetchInterval:
+      resolvedOptions.refetchInterval ??
+      ((query) =>
+        String(query?.state?.data?.meta?.state || "").toLowerCase() === "loading"
+          ? 4_000
+          : false),
   });
 
   const usableData = query.data || seedData || null;
