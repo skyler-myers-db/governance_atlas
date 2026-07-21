@@ -246,11 +246,24 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 class _HashedAssetStaticFiles(StaticFiles):
     """Vite content-hashes every filename under /assets, so responses are
-    immutable — without this header every navigation revalidates each chunk."""
+    immutable — without this header every navigation revalidates each chunk.
+
+    The mount path also collides with the SPA's canonical asset-hub route
+    (/assets/<fqn>): StaticFiles matches before the catch-all, so hub deep
+    links 404'd at the document level. An extensionless miss is a page
+    navigation, never a chunk request — serve the SPA shell for those.
+    """
 
     def file_response(self, *args, **kwargs):  # type: ignore[override]
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        last_segment = path.rsplit("/", 1)[-1]
+        if response.status_code == 404 and "." not in last_segment:
+            return HTMLResponse(_render_index())
         return response
 
 
