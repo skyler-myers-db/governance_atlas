@@ -329,19 +329,34 @@ def api_governance_audit_timeline(asset_fqn: str, request: Request) -> JSONRespo
     entries: list[dict[str, object]] = []
     if df is not None and not df.empty:
         for _, row in df.iterrows():
+            actor = _normalize_str(row.get("actor_email"))
             entries.append(
                 {
                     "auditId": _normalize_str(row.get("audit_id")),
+                    # Stable customer-facing AUD id — same derivation as
+                    # Audit Evidence, so timeline rows deep-link to
+                    # /evidence?event=AUD-… (Wave A4 / teardown P1-7).
+                    "displayAuditId": atlas_metrics.audit_display_id(
+                        row.get("audit_id"), row=row
+                    ),
                     "entityType": _normalize_str(row.get("entity_type")),
                     "entityFqn": _normalize_str(row.get("entity_fqn")),
                     "entityId": _normalize_str(row.get("entity_id")),
                     "columnName": _normalize_str(row.get("column_name")) or None,
                     "action": _normalize_str(row.get("action")),
+                    # Humanized server-side so raw slugs ("task-status-updated")
+                    # never reach the timeline as display text.
+                    "title": atlas_metrics._event_title(
+                        _normalize_str(row.get("action"))
+                    ),
                     "source": _normalize_str(row.get("source")),
                     "status": _normalize_str(row.get("status")) or "success",
                     "beforeJson": row.get("before_json"),
                     "afterJson": row.get("after_json"),
-                    "actorEmail": _normalize_str(row.get("actor_email")),
+                    # Both actor names on purpose: renderers variously read
+                    # actorEmail or createdBy (teardown P1-7 mismatch).
+                    "actorEmail": actor,
+                    "createdBy": actor,
                     "actorRole": _normalize_str(row.get("actor_role")),
                     "detail": _normalize_str(row.get("detail")),
                     "createdAt": _normalize_str(row.get("created_at")),

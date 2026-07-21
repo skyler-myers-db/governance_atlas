@@ -21,7 +21,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Sequence
 import pandas as pd
 
 from atlas.services import assets as asset_service
+from atlas.services import capabilities as capability_service
 from atlas.services import insights as insights_service
+from atlas.services import quality as quality_service
 from atlas.services import semantics
 
 
@@ -1617,12 +1619,193 @@ def command_center_payload(
     return _json_safe(_customer_safe_payload(payload))
 
 
+def _owner_entry_for_title(
+    owners: Sequence[Mapping[str, Any]], *titles: str
+) -> Dict[str, Any] | None:
+    """First owner entry whose title matches one of `titles` exactly
+    (case-insensitive). Exact-title matching, NOT substring regex: the old
+    /owner/i pick let the UC-owner entry shadow business owners (P2-10)."""
+    wanted = {title.lower() for title in titles}
+    for owner in owners:
+        if _lower(owner.get("title")) in wanted:
+            return dict(owner)
+    return None
+
+
+def _asset_360_activity_rows(asset: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """Merged activity/timeline rows with the full stored projection (P1-7).
+
+    Every row emits BOTH createdBy and actorEmail (the store writes actor
+    identity to different field names per source, and the frontend read the
+    one the row didn't have), a humanized title (never a raw slug like
+    "task-status-updated"), task/thread deep-link ids and priority when the
+    source row carries them, and — for metadata-audit rows — the stable AUD
+    display id so timeline entries join to Audit Evidence."""
+    rows: List[Dict[str, Any]] = []
+    for item in asset.get("activity") or []:
+        actor = _text(item.get("actorEmail")) or _text(item.get("createdBy"))
+        rows.append(
+            {
+                **dict(item),
+                "title": _text(item.get("title")) or "Governance activity",
+                "createdBy": _text(item.get("createdBy")) or actor,
+                "actorEmail": actor,
+                "taskId": _text(item.get("taskId")),
+                "threadId": _text(item.get("threadId")),
+                "priority": _text(item.get("priority")),
+            }
+        )
+    for item in asset.get("metadataAudit") or []:
+        actor = _text(item.get("createdBy")) or _text(item.get("actorEmail"))
+        raw_id = _text(item.get("id"))
+        # audit_display_id's content-fingerprint fallback expects store-shaped
+        # keys; map the camelCase record back for rows with no raw id.
+        display_id = audit_display_id(
+            raw_id,
+            row={
+                "created_at": _text(item.get("createdAt")),
+                "action": _text(item.get("action")),
+                "entity_fqn": _text(item.get("entityId")),
+                "entity_id": _text(item.get("entityId")),
+                "actor_email": actor,
+            },
+        )
+        rows.append(
+            {
+                "id": raw_id,
+                # Humanized server-side: raw audit slugs ("task-triage-updated")
+                # previously leaked into the timeline next to humanized rows.
+                "title": _event_title(_text(item.get("action"))) if _text(item.get("action")) else "Metadata event",
+                "detail": item.get("detail") or item.get("entityId") or "",
+                "status": item.get("status") or "",
+                "createdAt": item.get("createdAt") or "",
+                "createdBy": actor,
+                "actorEmail": actor,
+                "auditId": raw_id,
+                "displayAuditId": display_id,
+            }
+        )
+    return rows
+
+
+def _asset_360_freshness(asset: Mapping[str, Any], *, hydrating: bool) -> Dict[str, Any]:
+    """Real freshness block from the split detail fields (cohesion law 4).
+
+    Two distinct, labeled signals — dataUpdatedAt (Delta data write) and
+    lastAltered (information_schema metadata change) — each honestly empty
+    when its source reported nothing. Never conflated, never hard-coded."""
+    data_updated_at = _text(asset.get("dataUpdatedAt"))
+    last_altered = _text(asset.get("lastAltered"))
+    legacy_updated_at = _text(asset.get("updatedAt"))
+    if hydrating and not (data_updated_at or last_altered or legacy_updated_at):
+        return {
+            "state": "loading",
+            "dataUpdatedAt": "",
+            "lastAltered": "",
+            "updatedAt": "",
+            "message": "Freshness signals are hydrating from live Unity Catalog metadata.",
+        }
+    has_split_signal = bool(data_updated_at or last_altered)
+    if has_split_signal:
+        state = "available"
+        message = ""
+    elif legacy_updated_at:
+        # Older cached detail payloads predate the field split: the conflated
+        # updatedAt exists but we cannot say WHICH freshness word it is.
+        state = "degraded"
+        message = (
+            "Only a legacy conflated timestamp is available; refresh the asset "
+            "detail to distinguish data writes from metadata changes."
+        )
+    else:
+        state = "unavailable"
+        message = "Unity Catalog reported no freshness timestamps for this asset."
+    return {
+        "state": state,
+        "dataUpdatedAt": data_updated_at,
+        "lastAltered": last_altered,
+        # Legacy conflated field kept for compatibility; new consumers must
+        # read the split fields above.
+        "updatedAt": legacy_updated_at,
+        # Payload-provided labels so no surface can re-mislabel the semantics
+        # ("DATA UPDATED" over a last_altered value was teardown P0-4).
+        "labels": {
+            "dataUpdatedAt": "Data updated",
+            "lastAltered": "Metadata changed",
+        },
+        "message": message,
+    }
+
+
+def _asset_360_usage(
+    asset: Mapping[str, Any],
+    *,
+    operational_included: bool,
+    hydrating: bool,
+) -> Dict[str, Any]:
+    """Usage block with per-source availability truth (teardown P2-11).
+
+    Downstream assets (lineage), consumers (operational context), and queries
+    (query history) are three sources with different availability; each gets
+    its own state + reason instead of rendering as one coherent block of
+    bare zeros. No window framing: these are lifetime list sizes, and the
+    payload says so — the fabricated "(Last 30 days)" caption is banned
+    (cohesion law 7)."""
+    operational = asset.get("operationalContext") or {}
+    consumers = list(operational.get("consumers") or [])
+    related = list(asset.get("relatedAssets") or [])
+    queries = list(asset.get("queries") or [])
+    loaded_sections = {str(s).lower() for s in (asset.get("loadedSections") or [])}
+    operational_loaded = operational_included and "operational" in loaded_sections
+    obo_reason = (
+        "Operational usage requires Databricks per-user authorization (OBO); "
+        "this response was not actor-scoped, so the source was not queried."
+    )
+    hydrate_reason = "Operational context is still hydrating from live metadata."
+
+    def _source(label: str, source: str, values: list, gated: bool) -> Dict[str, Any]:
+        if gated:
+            if not operational_included:
+                return {"label": label, "source": source, "state": "unavailable", "count": None, "reason": obo_reason}
+            if not operational_loaded:
+                return {"label": label, "source": source, "state": "loading" if hydrating else "unavailable", "count": None,
+                        "reason": hydrate_reason if hydrating else "Operational context was not returned for this asset."}
+        elif hydrating and not values:
+            return {"label": label, "source": source, "state": "loading", "count": None,
+                    "reason": "Lineage-derived usage is still hydrating."}
+        return {"label": label, "source": source, "state": "available", "count": len(values), "reason": ""}
+
+    return {
+        **(asset.get("usage") or {}),
+        # Legacy flat counts kept for compatibility with existing consumers.
+        "downstreamAssetCount": len(related),
+        "downstreamConsumerCount": len(consumers),
+        "queryCount": len(queries),
+        "sources": {
+            "downstreamAssets": _source("Downstream assets", "lineage", related, gated=False),
+            "consumers": _source("Consumers", "operational-context", consumers, gated=True),
+            "queries": _source("Queries", "query-history", queries, gated=True),
+        },
+        # Explicit: no windowed usage query exists yet, so no surface may
+        # claim a "(Last 30 days)" or any other window over these counts.
+        "window": {
+            "state": "unavailable",
+            "label": "",
+            "reason": "Counts are lifetime totals per source; no windowed usage query exists yet.",
+        },
+    }
+
+
 def asset_360_payload(
     *,
     detail: Mapping[str, Any] | None = None,
     uc: Any = None,
     store: Any = None,
     asset_fqn: str = "",
+    auth_mode: str = "",
+    actor_email: str = "",
+    operational_included: bool | None = None,
+    hydrating: bool = False,
 ) -> Dict[str, Any]:
     if detail is None:
         detail = asset_service.asset_detail_payload(
@@ -1640,6 +1823,7 @@ def asset_360_payload(
             allow_direct_metadata_write=False,
         )
     asset = dict(detail or {})
+    resolved_fqn = _text(asset.get("fqn")) or _text(asset_fqn)
     owners = list(asset.get("owners") or [])
     stewards = [
         owner
@@ -1657,20 +1841,7 @@ def asset_360_payload(
         )
         if _has_value(value)
     ]
-    activity = [
-        *(asset.get("activity") or []),
-        *[
-            {
-                "id": item.get("id"),
-                "title": item.get("action") or "Metadata event",
-                "detail": item.get("detail") or item.get("entityId") or "",
-                "status": item.get("status") or "",
-                "createdAt": item.get("createdAt") or "",
-                "createdBy": item.get("createdBy") or item.get("actorEmail") or "",
-            }
-            for item in (asset.get("metadataAudit") or [])
-        ],
-    ]
+    activity = _asset_360_activity_rows(asset)
     operational = asset.get("operationalContext") or {}
     consumers = list(operational.get("consumers") or [])
     dashboards = [
@@ -1678,23 +1849,89 @@ def asset_360_payload(
         for item in consumers
         if any(token in _lower(item.get("entityLabel") or item.get("entityType")) for token in ("dashboard", "report", "query"))
     ]
-    usage = {
-        **(asset.get("usage") or {}),
-        "downstreamAssetCount": len(asset.get("relatedAssets") or []),
-        "downstreamConsumerCount": len(consumers),
-        "queryCount": len(asset.get("queries") or []),
-    }
+    if operational_included is None:
+        # Callers that don't say whether operational usage was requested get
+        # the honest inference from what the detail actually loaded.
+        operational_included = "operational" in {
+            str(s).lower() for s in (asset.get("loadedSections") or [])
+        }
+    usage = _asset_360_usage(
+        asset, operational_included=bool(operational_included), hydrating=hydrating
+    )
+
+    # Quality: joined from the SAME quality_run_results ledger that
+    # _quality_sla_signal scores (teardown P0-3 — this block was a hard-coded
+    # "unavailable" constant that no code path could ever populate). The join
+    # runs whenever a store is provided — even while the detail sections are
+    # still hydrating — because the ledger read is independent of the detail
+    # cache and answers immediately.
+    if store is not None and resolved_fqn:
+        quality = {
+            **quality_service.asset_quality_summary(store, resolved_fqn),
+            # Legacy key kept for consumers that iterated `runs`.
+            "runs": [],
+        }
+        if quality.get("latestRun"):
+            quality["runs"] = [quality["latestRun"]]
+    elif hydrating:
+        quality = {
+            "state": "loading",
+            "message": "Quality evidence is hydrating.",
+            "latestRun": None,
+            "evidenceAt": "",
+            "checksEvaluated": 0,
+            "runs": [],
+        }
+    else:
+        quality = {
+            "state": "unavailable",
+            "message": "Quality run ledger is not available from the governance store.",
+            "latestRun": None,
+            "evidenceAt": "",
+            "checksEvaluated": 0,
+            "runs": [],
+        }
+
+    # Access: same core as /api/assets/<fqn>/access-explain, so the composite
+    # and the dedicated endpoint can never disagree (teardown P0-3 / P1-8).
+    if _text(auth_mode):
+        access = {
+            "state": "available",
+            "message": "",
+            **capability_service.access_explain_summary(
+                auth_mode, actor_email, resolved_fqn
+            ),
+        }
+    elif hydrating:
+        access = {
+            "state": "loading",
+            "message": "Access context is hydrating.",
+        }
+    else:
+        # No request context reached this builder (legacy call sites): stay
+        # honest instead of guessing an auth mode.
+        access = {
+            "state": "unavailable",
+            "message": "Access explanation is available from the dedicated asset access endpoint.",
+        }
 
     return {
         "asset": asset,
         "owners": owners,
         "stewards": stewards,
-        "badges": badges,
-        "freshness": {
-            "state": "unavailable",
-            "observedAt": "",
-            "message": "Freshness is unavailable for this asset until a live freshness signal is present.",
+        # Distinct owner roles (teardown P2-10): exact-title picks so the
+        # UC-owner entry can never shadow the business owner, and "steward"
+        # stops depending on the word appearing inside an email address.
+        # `owners`/`stewards` above are kept unchanged for compatibility.
+        "ownership": {
+            "ucOwner": _owner_entry_for_title(owners, "unity catalog owner"),
+            "businessOwner": _owner_entry_for_title(owners, "business owner"),
+            "technicalOwner": _owner_entry_for_title(owners, "technical owner"),
+            "steward": _owner_entry_for_title(owners, "steward")
+            or (dict(stewards[0]) if stewards else None),
         },
+        "badges": badges,
+        "freshness": _asset_360_freshness(asset, hydrating=hydrating),
         "usage": usage,
         "schema": list(asset.get("columns") or []),
         "governance": {
@@ -1708,15 +1945,8 @@ def asset_360_payload(
             "ownerAssignments": asset.get("ownerAssignments") or [],
             "openActivity": asset.get("activity") or [],
         },
-        "quality": {
-            "state": "unavailable",
-            "runs": [],
-            "message": "Quality runs are not included in this composite payload yet.",
-        },
-        "access": {
-            "state": "unavailable",
-            "message": "Access explanation is available from the dedicated asset access endpoint.",
-        },
+        "quality": quality,
+        "access": access,
         "activity": activity,
         "relatedAssets": list(asset.get("relatedAssets") or []),
         "downstreamDashboards": dashboards,

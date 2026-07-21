@@ -3757,6 +3757,128 @@
         ]
       }
     },
+    "/api/quality/findings": {
+      "get": {
+        "description": "Wave A4 \u2014 browseable quality findings for the Evidence quality tab.\n\nQuality-run results joined with run metadata, filterable by asset /\nseverity / outcome / date window. Visibility-scoped like audit evidence:\nrows about assets outside the actor's visible estate are withheld (and\ncounted), and the endpoint fails closed when the visibility scope cannot\nbe verified \u2014 never serving unscoped findings.",
+        "operationId": "api_quality_findings_api_quality_findings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "asset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Quality Findings",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/quality/run": {
       "post": {
         "description": "Phase 10 \u2014 execute a set of quality test cases inline and\npersist the results. Steward/admin gated because custom_sql\ncases touch arbitrary data.",

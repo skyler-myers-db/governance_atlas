@@ -3527,6 +3527,26 @@ ORDER BY executed_at DESC, result_id ASC
 LIMIT {int(limit)}"""
         )
 
+    def list_quality_check_names(self, *, case_ids: Sequence[str]) -> pd.DataFrame:
+        """case_id -> curated display name / test key, for findings payloads.
+
+        Joins quality_test_cases to quality_test_definitions so browse
+        surfaces can show the definition's human display_name instead of a
+        raw case id. Bounded to 500 ids per call (the findings page cap)."""
+        unique_ids = sorted(
+            {str(case_id).strip() for case_id in case_ids if str(case_id).strip()}
+        )[:500]
+        if not unique_ids:
+            return pd.DataFrame(columns=["case_id", "display_name", "test_key"])
+        id_list = ", ".join(sql_literal(case_id) for case_id in unique_ids)
+        return self.uc.query_df(
+            f"""SELECT c.case_id, d.display_name, d.test_key
+FROM {self._fq('quality_test_cases')} c
+LEFT JOIN {self._fq('quality_test_definitions')} d
+  ON d.definition_id = c.definition_id
+WHERE c.case_id IN ({id_list})"""
+        )
+
     # ------------------------------------------------------------------
     # Governance metrics snapshots (trend history)
     # ------------------------------------------------------------------
