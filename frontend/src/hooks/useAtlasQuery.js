@@ -283,7 +283,7 @@ export function useAtlasQuery(config = /** @type {any} */ ({})) {
   const warnings = [...envelopeWarnings(query.data)];
   if (pollExhausted) {
     warnings.push(
-      `Server still hydrating after ${normalizedPoll.maxAttempts} attempts.`,
+      `The server is still preparing this data after ${normalizedPoll.maxAttempts} checks — retry shortly.`,
     );
   }
   if (refreshError && !warnings.includes(refreshError)) warnings.push(refreshError);

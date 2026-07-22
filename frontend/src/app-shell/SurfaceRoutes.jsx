@@ -145,7 +145,7 @@ function AssetHubRoute() {
       fallback={
         <RouteFallback
           eyebrow="Loading metadata record"
-          message="Hydrating the selected asset, schema, sample data, and lineage context."
+          message="Loading the selected asset record, schema, and lineage context."
         />
       }
     >

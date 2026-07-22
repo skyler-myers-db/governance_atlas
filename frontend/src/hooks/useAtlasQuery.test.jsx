@@ -169,7 +169,7 @@ describe("useAtlasQuery", () => {
     );
     expect(result.current.isPolling).toBe(false);
     expect(
-      result.current.warnings.some((warning) => warning.includes("after 2 attempts")),
+      result.current.warnings.some((warning) => warning.includes("after 2 checks")),
     ).toBe(true);
 
     // Explicit refresh restores the budget: a new fetch fires even though the

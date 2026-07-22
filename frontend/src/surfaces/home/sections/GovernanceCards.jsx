@@ -141,7 +141,13 @@ export function ActivityCard({ events, liveEvidence }) {
                     entity={{ kind: "owner", email: event.actor, label: event.actor }}
                   />
                 ) : null}{" "}
-                {event.id ? (
+                {/* Only link when the row carries a real audit id — the
+                    governance-summary feed's store eventIds live in a
+                    different id space than the audit stream, and a link to
+                    "Audit event not found" is worse than plain text (final
+                    verifier BLOCK-B). Backend join of displayAuditId onto
+                    summary activity rows is the follow-up. */}
+                {/^AUD-[0-9A-Fa-f]{8}$/.test(String(event.id || "")) ? (
                   <EntityChip appearance="inline" entity={{ kind: "event", id: event.id, label: event.title }} />
                 ) : (
                   event.title
