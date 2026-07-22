@@ -13,6 +13,23 @@ def _env_value(name: str) -> str:
     return os.getenv(name, "").strip()
 
 
+def _normalize_workspace_host(raw: str) -> str:
+    """Workspace host as an absolute https URL (no trailing slash).
+
+    DATABRICKS_HOST may arrive schemeless (``dbc-xxx.cloud.databricks.com``).
+    Every deep link built from it (`{host}/jobs/<id>`, `/sql/warehouses/<id>`)
+    must be absolute or the browser resolves it relative to the Atlas app
+    origin and 404s — that was the dead "Open" job run-link. Prepend https://
+    when no scheme is present.
+    """
+    host = (raw or "").strip().rstrip("/")
+    if not host:
+        return ""
+    if not host.startswith(("http://", "https://")):
+        host = f"https://{host}"
+    return host
+
+
 def _env_optional(name: str) -> str:
     value = _env_value(name)
     return "" if value.lower() in {"not-configured", "__not_configured__", "none", "null"} else value
@@ -89,7 +106,7 @@ class AppConfig:
             slow_request_ms=_env_int("GOVAT_SLOW_REQUEST_MS", 1500),
             environment_label=_env_value("GOVAT_ENVIRONMENT_LABEL"),
             deploy_target=_env_value("GOVAT_DEPLOY_TARGET"),
-            workspace_host=_env_value("DATABRICKS_HOST").rstrip("/"),
+            workspace_host=_normalize_workspace_host(_env_value("DATABRICKS_HOST")),
             genie_space_id=_env_optional("GOVAT_GENIE_SPACE_ID")
             or _env_optional("GENIE_SPACE_ID"),
             genie_space_title=_env_optional("GOVAT_GENIE_SPACE_TITLE")

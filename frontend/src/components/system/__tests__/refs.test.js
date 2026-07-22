@@ -49,6 +49,14 @@ describe("hrefForRef — Cross-linking contract (COHESION_BLUEPRINT LAW)", () =>
     expect(searchOf(href).get("q")).toBe('owner:"jane@entrada.ai"');
   });
 
+  it("owner → null for non-principal values (system actors, team/domain labels)", () => {
+    // Identity integrity: only real account principals (email-shaped) are
+    // linkable owners; a system action slug or team name has no account page.
+    expect(hrefForRef({ kind: "owner", id: "identity-integrity-cleanup" })).toBeNull();
+    expect(hrefForRef({ kind: "owner", label: "Product" })).toBeNull();
+    expect(hrefForRef({ kind: "owner", email: "svc-governance-sweeper" })).toBeNull();
+  });
+
   it("request → /stewardship?item=GOV-…", () => {
     expect(searchOf(hrefForRef({ kind: "request", id: "GOV-BE17D517" })).get("item")).toBe("GOV-BE17D517");
     expect(hrefForRef({ kind: "request", id: "GOV-BE17D517" }).startsWith("/stewardship?")).toBe(true);

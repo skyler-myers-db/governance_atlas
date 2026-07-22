@@ -64,6 +64,16 @@ describe("EntityChip — the keystone: every entity mention is a real anchor", (
     expect(new URLSearchParams(cde.split("?")[1]).get("cde")).toBe("CDE-4");
   });
 
+  it("renders a non-principal owner as plain text, never a link to a nonexistent user", () => {
+    render(<EntityChip entity={{ kind: "owner", email: "identity-integrity-cleanup", label: "identity-integrity-cleanup" }} />);
+    // No link is emitted…
+    expect(screen.queryByRole("link")).toBeNull();
+    // …but the name still shows as plain muted text.
+    const span = screen.getByText("identity-integrity-cleanup");
+    expect(span.tagName).toBe("SPAN");
+    expect(span.className).toContain("ga-sys-owner-plain");
+  });
+
   it("the FQN text is the anchor label by default (law: text is the anchor)", () => {
     render(<EntityChip entity={{ kind: "asset", fqn: "main.sales.orders" }} />);
     expect(screen.getByRole("link").textContent).toContain("main.sales.orders");

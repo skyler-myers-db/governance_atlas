@@ -580,7 +580,17 @@ export function StewardshipPage({ currentUser = null }) {
               emptyState={emptyState}
               items={visibleItems}
               loading={hydrating && !visibleItems.length}
-              onSelect={(item) => setParams({ item: workItemDisplayId(item) })}
+              // Selecting a row repoints the ?item= rail while KEEPING the
+              // current lens/asset filter — dropping the lens reset the tab out
+              // from under the click and read as "nothing happened".
+              onSelect={(item) =>
+                setParams({
+                  item: workItemDisplayId(item),
+                  lens: params.lens || "",
+                  assignee: params.assignee || "",
+                  asset: params.asset || "",
+                })
+              }
               onToggleBulk={toggleBulk}
               selectedId={selectedRow?.id || ""}
             />

@@ -4,9 +4,44 @@ import os
 import unittest
 from unittest.mock import patch
 
-from atlas.config import AppConfig
+from atlas.config import AppConfig, _normalize_workspace_host
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
+
+
+class WorkspaceHostNormalizationTests(unittest.TestCase):
+    def test_schemeless_host_gets_https(self) -> None:
+        # The dead "Open" job run-link: a schemeless DATABRICKS_HOST built a
+        # relative deep link that 404'd against the app origin.
+        self.assertEqual(
+            _normalize_workspace_host("dbc-3aa503a9.cloud.databricks.com"),
+            "https://dbc-3aa503a9.cloud.databricks.com",
+        )
+
+    def test_scheme_and_trailing_slash_are_respected(self) -> None:
+        self.assertEqual(
+            _normalize_workspace_host("https://dbc.example.com/"),
+            "https://dbc.example.com",
+        )
+        self.assertEqual(_normalize_workspace_host("http://localhost:8080"), "http://localhost:8080")
+
+    def test_empty_stays_empty(self) -> None:
+        self.assertEqual(_normalize_workspace_host(""), "")
+        self.assertEqual(_normalize_workspace_host("   "), "")
+
+    def test_from_env_normalizes_schemeless_host(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "DATABRICKS_HOST": "dbc-xyz.cloud.databricks.com",
+                "DATABRICKS_WAREHOUSE_ID": "warehouse-1",
+                "GOVAT_CATALOG": "main",
+                "GOVAT_SCHEMA": "atlas",
+            },
+            clear=True,
+        ):
+            config = AppConfig.from_env()
+        self.assertEqual(config.workspace_host, "https://dbc-xyz.cloud.databricks.com")
 
 
 class AppConfigTests(unittest.TestCase):

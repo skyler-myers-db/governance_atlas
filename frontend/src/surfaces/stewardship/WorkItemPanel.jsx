@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Badge, Button, EmptyState, EntityChip, StatusBanner, toast } from "../../components/system";
 import {
   auditChipId,
@@ -152,6 +153,28 @@ export function WorkItemPanel({
   onComment,
   onResolve,
 }) {
+  // Hooks run unconditionally (before any early return) per CLAUDE.md.
+  const panelRef = useRef(null);
+  const prevIdRef = useRef("");
+  const itemId = item ? workItemFullId(item) || workItemDisplayId(item) : "";
+  useEffect(() => {
+    const previous = prevIdRef.current;
+    prevIdRef.current = itemId;
+    // Bring the detail panel into view + focus it when the selection changes to
+    // a NEW item — clicking a queue row (or a Command Center request link) that
+    // repoints ?item= otherwise looked like "nothing happened" when the panel
+    // sat below the queue on a narrow layout. Skip the first mount / deep-link
+    // so we never yank the page on load; scrollIntoView({block:"nearest"}) is a
+    // no-op when the panel is already visible.
+    if (!itemId || itemId === previous || previous === "") return;
+    const node = panelRef.current;
+    if (!node || typeof node.scrollIntoView !== "function") return;
+    const reduced =
+      typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    node.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "nearest", inline: "nearest" });
+    if (typeof node.focus === "function") node.focus({ preventScroll: true });
+  }, [itemId]);
+
   if (!item) {
     return (
       <EmptyState
@@ -174,7 +197,7 @@ export function WorkItemPanel({
   const requester = textValue(item.requester);
 
   return (
-    <section aria-label="Work item detail" className="ga-stew-panel">
+    <section aria-label="Work item detail" className="ga-stew-panel" ref={panelRef} tabIndex={-1}>
       {/* What & why ---------------------------------------------------- */}
       <header className="ga-stew-panel-head">
         <div className="ga-sys-eyebrow">Work item</div>
