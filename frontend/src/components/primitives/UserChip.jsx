@@ -232,7 +232,7 @@ export function UserChip({
   };
 
   return (
-    <div className={`gh-user-chip is-${variant}`.trim()} ref={menuRef}>
+    <div className={`ga-user-chip is-${variant}`.trim()} ref={menuRef}>
       {showInbox ? (
         <button
           aria-label={
@@ -241,7 +241,7 @@ export function UserChip({
               : "Notifications"
           }
           aria-pressed={inboxOpen}
-          className="gh-user-chip-bell"
+          className="ga-user-chip-bell"
           onClick={onToggleInbox || (() => {})}
           type="button"
         >
@@ -251,7 +251,7 @@ export function UserChip({
               live-signal, which is exactly the kind of cosmetic-for-cosmetic's-
               sake copy the Tranche C cleanup removes elsewhere. */}
           {inboxUnreadCount > 0 ? (
-            <span aria-hidden="true" className="gh-user-chip-bell-dot">
+            <span aria-hidden="true" className="ga-user-chip-bell-dot">
               {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount}
             </span>
           ) : null}
@@ -263,13 +263,13 @@ export function UserChip({
         aria-expanded={menuOpen}
         aria-haspopup="menu"
         aria-label={`Open profile menu for ${displayName}${roleProvisional ? ". Role verification pending." : ""}`}
-        className="gh-user-chip-trigger"
+        className="ga-user-chip-trigger"
         onClick={() => setMenuOpen((current) => !current)}
         type="button"
       >
-        <OwnerAvatar owner={avatarLabel} size={42} className="gh-user-chip-avatar" imageUrl={avatarUrl} />
+        <OwnerAvatar owner={avatarLabel} size={42} className="ga-user-chip-avatar" imageUrl={avatarUrl} />
         {variant === "sidebar" ? (
-          <span className="gh-user-chip-sidebar-copy">
+          <span className="ga-user-chip-sidebar-copy">
             <strong>{displayName}</strong>
             <em>{displayRole}</em>
           </span>
@@ -277,7 +277,7 @@ export function UserChip({
         {/* Chevron signals this is a dropdown trigger — operator 2026-04-19
             flagged the missing disclosure cue next to the name. */}
         <span
-          className={`gh-user-chip-caret ${menuOpen ? "is-open" : ""}`.trim()}
+          className={`ga-user-chip-caret ${menuOpen ? "is-open" : ""}`.trim()}
           aria-hidden="true"
         >
           <ChevronDownIcon />
@@ -286,23 +286,23 @@ export function UserChip({
       <input
         accept="image/png,image/jpeg,image/gif,image/webp"
         aria-label="Upload profile avatar"
-        className="gh-user-chip-avatar-input"
+        className="ga-user-chip-avatar-input"
         onChange={handleAvatarFile}
         ref={avatarInputRef}
         type="file"
       />
       {menuOpen ? (
-        <div className="gh-user-chip-menu" role="menu">
-          <div className="gh-user-chip-menu-header">
-            <div className="gh-user-chip-menu-name">{displayName}</div>
-            <div className="gh-user-chip-menu-email">{userEmail || "Workspace user"}</div>
+        <div className="ga-user-chip-menu" role="menu">
+          <div className="ga-user-chip-menu-header">
+            <div className="ga-user-chip-menu-name">{displayName}</div>
+            <div className="ga-user-chip-menu-email">{userEmail || "Workspace user"}</div>
             {roleProvisional ? (
-              <div className="gh-user-chip-menu-email">Role verification pending.</div>
+              <div className="ga-user-chip-menu-email">Role verification pending.</div>
             ) : null}
           </div>
           {onOpenSettings ? (
             <button
-              className="gh-user-chip-menu-item"
+              className="ga-user-chip-menu-item"
               onClick={() => { setMenuOpen(false); onOpenSettings(); }}
               role="menuitem"
               type="button"
@@ -311,7 +311,7 @@ export function UserChip({
             </button>
           ) : null}
           <button
-            className="gh-user-chip-menu-item"
+            className="ga-user-chip-menu-item"
             onClick={() => {
               setMenuOpen(false);
               avatarInputRef.current?.click();
@@ -324,7 +324,7 @@ export function UserChip({
           </button>
           {onOpenCapabilities ? (
             <button
-              className="gh-user-chip-menu-item"
+              className="ga-user-chip-menu-item"
               onClick={() => { setMenuOpen(false); onOpenCapabilities(); }}
               role="menuitem"
               type="button"
@@ -334,7 +334,7 @@ export function UserChip({
           ) : null}
           {onSignOut ? (
             <button
-              className="gh-user-chip-menu-item"
+              className="ga-user-chip-menu-item"
               onClick={() => { setMenuOpen(false); onSignOut(); }}
               role="menuitem"
               type="button"

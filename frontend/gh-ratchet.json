@@ -18,11 +18,7 @@
       "gh": 1
     },
     "components/primitives/OwnerAvatar.jsx": {
-      "gh": 5,
       "hex": 20
-    },
-    "components/primitives/UserChip.jsx": {
-      "gh": 17
     },
     "components/system/Button.jsx": {
       "gh": 1
@@ -72,12 +68,12 @@
       "important": 24
     },
     "styles/northstar.css": {
-      "gh": 178,
+      "gh": 146,
       "hex": 28,
       "important": 157
     },
     "styles/shell-rail.css": {
-      "gh": 95,
+      "gh": 70,
       "hex": 10,
       "important": 31
     }

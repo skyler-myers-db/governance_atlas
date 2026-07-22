@@ -20,6 +20,7 @@ import {
 import { envelopeData } from "../../lib/envelope";
 import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
 import { useSurfaceParams } from "../../nav/useSurfaceParams";
+import { useAtlasNavigate } from "../../nav/useAtlasNavigate";
 import {
   canFileWorkItems,
   canMutateRequests,
@@ -176,6 +177,15 @@ export function StewardshipPage({ currentUser = null }) {
     [visibleItems],
   );
   const itemParam = textValue(params.item);
+  const navigate = useAtlasNavigate();
+  // Term reviews live in the Glossary — their mini-hub IS the term page, so a
+  // ?item= deep link to a term id forwards there instead of silently failing
+  // to select anything (follow-up verifier claim-3: unreachable state).
+  useEffect(() => {
+    if (/^ga-taxonomy-term-/.test(itemParam)) {
+      navigate({ kind: "term", id: itemParam }, { replace: true });
+    }
+  }, [itemParam, navigate]);
   const selectedRow = useMemo(() => {
     if (itemParam) {
       // Deep links resolve against the WHOLE queue, not just the active

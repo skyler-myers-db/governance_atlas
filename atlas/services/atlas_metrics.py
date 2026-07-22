@@ -467,9 +467,17 @@ def _recent_events(audit_rows: Sequence[Mapping[str, Any]], limit: int = 8) -> L
         ):
             priority = "high"
             severity = "high"
+        raw_event_id = _text(row.get("audit_id")) or _text(row.get("id"))
         events.append(
             {
-                "id": _text(row.get("audit_id")) or _text(row.get("id")),
+                "id": raw_event_id,
+                # These rows ARE audit rows, so the Evidence address is always
+                # derivable — without it the Home activity feed rendered plain
+                # text for events sitting in the Evidence ledger (follow-up
+                # verifier claim-2 BLOCK: the join landed on governance/summary
+                # while Home reads command-center recentEvents).
+                "displayAuditId": audit_display_id(raw_event_id, row=row) if raw_event_id else "",
+                "auditEventId": raw_event_id,
                 "title": _event_title(action),
                 "detail": _text(row.get("detail"))
                 or _text(row.get("entity_fqn"))
@@ -2255,6 +2263,14 @@ def governance_workbench_payload(
         open_request_scope["outOfScopeOpenCount"] = len(out_of_scope)
         open_request_scope["outOfScopeAssetCount"] = len(out_of_scope_assets)
         open_request_scope["visibleOpenCount"] = len(open_requests) - len(out_of_scope)
+        # Per-request flag so the mini-hub can gate its AUD evidence chips:
+        # Evidence visibility-scopes out events about non-visible assets, so a
+        # chip for an out-of-scope request lands on "Audit event not found"
+        # (follow-up verifier claim-3 BLOCK) — those rows must render as text
+        # with a withheld caption instead of a dead link.
+        for record in open_requests:
+            fqn = _lower(record.get("assetFqn"))
+            record["assetInVisibleScope"] = bool(fqn) and fqn in visible_keys
         open_request_scope["caption"] = (
             f"{len(out_of_scope_assets)} target asset"
             f"{'' if len(out_of_scope_assets) == 1 else 's'} outside the visible estate"

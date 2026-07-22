@@ -93,7 +93,7 @@ function EvidenceComments({ comments }) {
  * backend-joined AUD display id (cross-linking LAW). Rows the backend could
  * not map to the ledger render as text — never a dead link.
  */
-function AuditTrail({ trail }) {
+function AuditTrail({ trail, evidenceResolvable = true }) {
   if (!trail.length) {
     // Honest empty state — an absent `auditTrail` field (older backend) and
     // a genuinely empty trail both mean "nothing to show", not zero-padding.
@@ -108,8 +108,19 @@ function AuditTrail({ trail }) {
           <div className="ga-stew-comment-head">
             <span>{row.action}</span>
             {row.at ? <span>{formatShortDate(row.at) || row.at}</span> : null}
-            {row.displayAuditId ? (
+            {/* Evidence visibility-scopes out events about assets outside
+                the visible estate — a chip there is a guaranteed dead link
+                (follow-up verifier). Show the id as text with the withheld
+                reason instead. */}
+            {row.displayAuditId && evidenceResolvable ? (
               <EntityChip appearance="inline" entity={{ kind: "event", id: row.displayAuditId }} />
+            ) : row.displayAuditId ? (
+              <span
+                className="ga-stew-panel-muted"
+                title="Evidence for this asset is withheld outside your visible estate"
+              >
+                {row.displayAuditId}
+              </span>
             ) : null}
           </div>
         </div>
@@ -341,7 +352,7 @@ export function WorkItemPanel({
           // never show a definitive "no audit events" while it is in flight.
           <p className="ga-stew-panel-muted">Loading the audit trail…</p>
         ) : (
-          <AuditTrail trail={workItemAuditTrail(item)} />
+          <AuditTrail evidenceResolvable={item?.assetInVisibleScope !== false} trail={workItemAuditTrail(item)} />
         )}
 
         <h3>Comments</h3>
