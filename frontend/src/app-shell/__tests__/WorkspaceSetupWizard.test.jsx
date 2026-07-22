@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import WorkspaceSetupWizard from "./WorkspaceSetupWizard";
+import WorkspaceSetupWizard from "../WorkspaceSetupWizard.jsx";
 
 const workspaceDiagnosticsSurfaceMock = vi.fn((props) => (
   <div data-testid="workspace-diagnostics-surface">{props.title || "Workspace diagnostics"}</div>
 ));
 
-vi.mock("./WorkspaceDiagnosticsSurface", () => ({
+vi.mock("../WorkspaceDiagnosticsSurface.jsx", () => ({
   default: (props) => workspaceDiagnosticsSurfaceMock(props),
 }));
 
@@ -120,30 +120,33 @@ function statusPayload(overrides = {}) {
   };
 }
 
-describe("WorkspaceSetupWizard", () => {
+describe("WorkspaceSetupWizard (app-shell, system kit)", () => {
   beforeEach(() => {
     workspaceDiagnosticsSurfaceMock.mockClear();
   });
 
   it("renders a setup loading card when no status payload is available yet", () => {
-    render(<WorkspaceSetupWizard loading />);
+    const { container } = render(<WorkspaceSetupWizard loading />);
 
     expect(screen.getByText("Workspace setup")).not.toBeNull();
     expect(screen.getByText("Loading workspace setup guidance...")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-state-card")).not.toBeNull();
+    expect(container.querySelector('[class*="gh-"]')).toBeNull();
   });
 
   it("renders a setup error card when setup guidance cannot be loaded", () => {
-    render(<WorkspaceSetupWizard error="Runtime status request failed." />);
+    const { container } = render(<WorkspaceSetupWizard error="Runtime status request failed." />);
 
     expect(screen.getByText("Workspace setup")).not.toBeNull();
     expect(screen.getByText("Workspace setup guidance could not be loaded.")).not.toBeNull();
     expect(screen.getByText("Runtime status request failed.")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-state-card.tone-bad")).not.toBeNull();
   });
 
   it("renders readiness, safe sharing, claim narrowing, and advanced diagnostics from the live payload", () => {
     const onRefresh = vi.fn();
 
-    render(<WorkspaceSetupWizard onRefresh={onRefresh} status={statusPayload()} />);
+    const { container } = render(<WorkspaceSetupWizard onRefresh={onRefresh} status={statusPayload()} />);
 
     expect(screen.getByText("Readiness sequence")).not.toBeNull();
     expect(screen.getByText("Safe operational-sharing path")).not.toBeNull();
@@ -152,6 +155,7 @@ describe("WorkspaceSetupWizard", () => {
     expect(screen.getByText("actor-scoped OBO")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Refresh readiness" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Show full diagnostics" })).not.toBeNull();
+    expect(container.querySelector('[class*="gh-"]')).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh readiness" }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
@@ -159,6 +163,8 @@ describe("WorkspaceSetupWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show full diagnostics" }));
     expect(screen.getByTestId("workspace-diagnostics-surface")).not.toBeNull();
     expect(workspaceDiagnosticsSurfaceMock).toHaveBeenCalled();
+    // The toggle flips to the hide affordance once diagnostics are shown.
+    expect(screen.getByRole("button", { name: "Hide full diagnostics" })).not.toBeNull();
   });
 
   it("disables refresh while readiness is refreshing", () => {

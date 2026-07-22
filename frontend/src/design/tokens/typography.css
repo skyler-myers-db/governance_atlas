@@ -1,15 +1,14 @@
 /*
  * Entrada Governance Atlas typography tokens.
  *
- * --ga-* is canonical (Wave C8). The --gh-font alias survives only because
- * the legacy sheets still reference it; it dies with those sheets.
+ * --ga-* is canonical (Wave C8). The --gh-font alias died with app.css in
+ * cohesion follow-up 3 (its last consumer); the base body rule now lives in
+ * app-shell/shell.css on --ga-font-body directly.
  */
 
 :root {
   --ga-font-heading: "Hanken Grotesk", "Instrument Sans", "Inter", "Segoe UI", sans-serif;
   --ga-font-body: "Instrument Sans", "Inter", "Segoe UI", sans-serif;
-
-  --gh-font: var(--ga-font-body);
 
   --ga-heading-weight: 600;
   --ga-body-weight: 400;

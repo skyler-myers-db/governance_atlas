@@ -289,13 +289,13 @@ body {
   outline: none;
 }
 
-.ga-side-nav-user .gh-user-chip {
+.ga-side-nav-user .ga-user-chip {
   position: relative;
   width: 100%;
   min-width: 0;
 }
 
-.ga-side-nav-user .gh-user-chip-trigger {
+.ga-side-nav-user .ga-user-chip-trigger {
   width: 100%;
   min-height: 42px;
   display: grid;
@@ -311,12 +311,12 @@ body {
   text-align: left;
 }
 
-.ga-side-nav-user .gh-user-chip-trigger:hover {
+.ga-side-nav-user .ga-user-chip-trigger:hover {
   border-color: var(--ga-border);
   background: rgba(102, 197, 255, 0.08);
 }
 
-.ga-side-nav-user .gh-user-chip-trigger:focus-visible {
+.ga-side-nav-user .ga-user-chip-trigger:focus-visible {
   border-color: var(--ga-border);
   background: rgba(102, 197, 255, 0.08);
   /* keep the canonical --ga-focus ring (was outline: none) */
@@ -324,7 +324,7 @@ body {
   outline-offset: 2px;
 }
 
-.ga-side-nav-user .gh-user-chip-avatar {
+.ga-side-nav-user .ga-user-chip-avatar {
   width: 32px !important;
   height: 32px !important;
   background: #2f91c6 !important;
@@ -332,41 +332,41 @@ body {
   box-shadow: 0 0 0 2px rgba(207, 239, 255, 0.12);
 }
 
-.ga-side-nav-user .gh-user-chip-sidebar-copy {
+.ga-side-nav-user .ga-user-chip-sidebar-copy {
   display: grid;
   gap: 1px;
   min-width: 0;
 }
 
-.ga-side-nav-user .gh-user-chip-sidebar-copy strong,
-.ga-side-nav-user .gh-user-chip-sidebar-copy em {
+.ga-side-nav-user .ga-user-chip-sidebar-copy strong,
+.ga-side-nav-user .ga-user-chip-sidebar-copy em {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ga-side-nav-user .gh-user-chip-sidebar-copy strong {
+.ga-side-nav-user .ga-user-chip-sidebar-copy strong {
   color: var(--ga-text);
   font-size: 0.76rem;
   line-height: 1.15;
 }
 
-.ga-side-nav-user .gh-user-chip-sidebar-copy em {
+.ga-side-nav-user .ga-user-chip-sidebar-copy em {
   color: var(--ga-text-muted);
   font-size: 0.68rem;
   font-style: normal;
   line-height: 1.1;
 }
 
-.ga-side-nav-user .gh-user-chip-caret {
+.ga-side-nav-user .ga-user-chip-caret {
   color: var(--ga-text-muted);
 }
 
-.ga-side-nav-user .gh-user-chip-avatar-input {
+.ga-side-nav-user .ga-user-chip-avatar-input {
   display: none;
 }
 
-.ga-side-nav-user .gh-user-chip-menu {
+.ga-side-nav-user .ga-user-chip-menu {
   position: absolute;
   left: 0;
   bottom: calc(100% + 8px);
@@ -379,18 +379,18 @@ body {
   box-shadow: var(--ga-shadow-md);
 }
 
-.ga-side-nav-user .gh-user-chip-menu-header {
+.ga-side-nav-user .ga-user-chip-menu-header {
   padding: 12px;
   border-bottom: 1px solid var(--ga-border);
 }
 
-.ga-side-nav-user .gh-user-chip-menu-name {
+.ga-side-nav-user .ga-user-chip-menu-name {
   color: var(--ga-text);
   font-size: 0.82rem;
   font-weight: 800;
 }
 
-.ga-side-nav-user .gh-user-chip-menu-email {
+.ga-side-nav-user .ga-user-chip-menu-email {
   margin-top: 3px;
   color: var(--ga-text-muted);
   font-size: 0.72rem;
@@ -399,7 +399,7 @@ body {
   white-space: nowrap;
 }
 
-.ga-side-nav-user .gh-user-chip-menu-item {
+.ga-side-nav-user .ga-user-chip-menu-item {
   width: 100%;
   min-height: 36px;
   display: block;
@@ -413,8 +413,8 @@ body {
   cursor: pointer;
 }
 
-.ga-side-nav-user .gh-user-chip-menu-item:hover,
-.ga-side-nav-user .gh-user-chip-menu-item:focus-visible {
+.ga-side-nav-user .ga-user-chip-menu-item:hover,
+.ga-side-nav-user .ga-user-chip-menu-item:focus-visible {
   background: rgba(102, 197, 255, 0.1);
   outline: none;
 }
@@ -709,7 +709,7 @@ body {
   justify-content: center;
 }
 
-.ga-topbar .gh-user-chip-trigger {
+.ga-topbar .ga-user-chip-trigger {
   min-width: auto;
   gap: 8px;
   padding: 2px 6px 2px 2px;
@@ -718,44 +718,44 @@ body {
   color: var(--ga-text);
 }
 
-.ga-topbar .gh-user-chip-trigger:hover {
+.ga-topbar .ga-user-chip-trigger:hover {
   border-color: var(--ga-border);
   background: rgba(102, 197, 255, 0.08);
 }
 
-.ga-topbar .gh-user-chip-caret {
+.ga-topbar .ga-user-chip-caret {
   color: var(--ga-text-muted);
 }
 
-.ga-topbar .gh-user-chip-avatar {
+.ga-topbar .ga-user-chip-avatar {
   box-shadow: 0 0 0 2px rgba(207, 239, 255, 0.12);
 }
 
-.ga-topbar .gh-user-chip-menu {
+.ga-topbar .ga-user-chip-menu {
   border-color: var(--ga-border);
   background: var(--ga-surface-strong);
   box-shadow: var(--ga-shadow-md);
 }
 
-.ga-topbar .gh-user-chip-menu-header {
+.ga-topbar .ga-user-chip-menu-header {
   border-bottom-color: var(--ga-border);
 }
 
-.ga-topbar .gh-user-chip-menu-name,
-.ga-topbar .gh-user-chip-menu-item {
+.ga-topbar .ga-user-chip-menu-name,
+.ga-topbar .ga-user-chip-menu-item {
   color: var(--ga-text);
 }
 
-.ga-topbar .gh-user-chip-menu-email {
+.ga-topbar .ga-user-chip-menu-email {
   color: var(--ga-text-muted);
 }
 
-.ga-topbar .gh-user-chip-menu-item:hover,
-.ga-topbar .gh-user-chip-menu-item:focus-visible {
+.ga-topbar .ga-user-chip-menu-item:hover,
+.ga-topbar .ga-user-chip-menu-item:focus-visible {
   background: rgba(102, 197, 255, 0.1);
 }
 
-.ga-topbar .gh-user-chip-avatar-input {
+.ga-topbar .ga-user-chip-avatar-input {
   display: none;
 }
 
@@ -1102,7 +1102,7 @@ body {
     width: 36px;
   }
 
-  .ga-topbar .gh-user-chip-avatar {
+  .ga-topbar .ga-user-chip-avatar {
     width: 36px !important;
     height: 36px !important;
     font-size: 14px !important;

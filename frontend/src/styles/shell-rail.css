@@ -105,7 +105,7 @@
 }
 
 /* --- user chip: avatar + name + role (avatar BEFORE name) --- */
-.gh-user-chip {
+.ga-user-chip {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -118,7 +118,7 @@
   white-space: nowrap;
 }
 
-.gh-user-chip-trigger {
+.ga-user-chip-trigger {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -131,19 +131,19 @@
   transition: background 120ms ease, border-color 120ms ease;
 }
 
-.gh-user-chip-trigger:hover {
+.ga-user-chip-trigger:hover {
   background: rgba(102, 197, 255, 0.1);
   border-color: var(--ga-border-strong);
 }
 
-.gh-user-chip-trigger:focus-visible {
+.ga-user-chip-trigger:focus-visible {
   /* canonical focus ring (was outline:none + a faint purple halo) */
   outline: 2px solid var(--ga-focus, rgba(102, 197, 255, 0.42));
   outline-offset: 2px;
   box-shadow: none;
 }
 
-.gh-user-chip-caret {
+.ga-user-chip-caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -151,18 +151,18 @@
   margin-left: 4px;
   transition: transform 140ms ease, color 120ms ease;
 }
-.gh-user-chip-trigger:hover .gh-user-chip-caret {
+.ga-user-chip-trigger:hover .ga-user-chip-caret {
   color: var(--gh-ink, #14213d);
 }
-.gh-user-chip-caret.is-open {
+.ga-user-chip-caret.is-open {
   transform: rotate(180deg);
 }
 
-.gh-user-chip-avatar {
+.ga-user-chip-avatar {
   box-shadow: 0 0 0 2px var(--ga-shell), 0 0 0 3px var(--ga-border-strong);
 }
 
-.gh-user-chip-bell {
+.ga-user-chip-bell {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -177,18 +177,18 @@
   transition: background 120ms ease, border-color 120ms ease;
 }
 
-.gh-user-chip-bell:hover {
+.ga-user-chip-bell:hover {
   background: rgba(12, 33, 56, 0.96);
   border-color: rgba(91, 67, 238, 0.35);
   color: var(--ga-text-soft);
 }
 
-.gh-user-chip-bell:focus-visible {
+.ga-user-chip-bell:focus-visible {
   outline: none;
   box-shadow: var(--gh-focus-ring);
 }
 
-.gh-user-chip-bell-dot {
+.ga-user-chip-bell-dot {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -207,14 +207,14 @@
 }
 
 /* When there's an unread count, swell the dot to a pill */
-.gh-user-chip-bell-dot:not(:empty) {
+.ga-user-chip-bell-dot:not(:empty) {
   top: -2px;
   right: -2px;
   min-width: 18px;
   height: 18px;
 }
 
-.gh-user-chip-menu {
+.ga-user-chip-menu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -230,25 +230,25 @@
   gap: 2px;
 }
 
-.gh-user-chip-menu-header {
+.ga-user-chip-menu-header {
   padding: 8px 10px 10px;
   border-bottom: 1px solid var(--ga-border-muted);
   margin-bottom: 4px;
 }
 
-.gh-user-chip-menu-name {
+.ga-user-chip-menu-name {
   font-size: 0.84rem;
   font-weight: 800;
   color: var(--gh-ink, #14213d);
 }
 
-.gh-user-chip-menu-email {
+.ga-user-chip-menu-email {
   font-size: 0.72rem;
   color: var(--ga-text-muted);
   margin-top: 2px;
 }
 
-.gh-user-chip-menu-item {
+.ga-user-chip-menu-item {
   display: block;
   text-align: left;
   padding: 8px 10px;
@@ -262,11 +262,11 @@
   transition: background 120ms ease;
 }
 
-.gh-user-chip-menu-item:hover {
+.ga-user-chip-menu-item:hover {
   background: rgba(91, 67, 238, 0.08);
 }
 
-.gh-user-chip-menu-item:focus-visible {
+.ga-user-chip-menu-item:focus-visible {
   outline: none;
   background: rgba(91, 67, 238, 0.12);
 }
@@ -444,18 +444,18 @@ body,
   background: transparent !important;
 }
 
-.gh-user-chip-trigger {
+.ga-user-chip-trigger {
   gap: 7px;
   padding: 0;
   border-radius: 5px;
 }
 
-.gh-user-chip-trigger:hover {
+.ga-user-chip-trigger:hover {
   background: transparent;
   border-color: transparent;
 }
 
-.gh-user-chip-avatar {
+.ga-user-chip-avatar {
   position: relative;
   width: 30px !important;
   height: 30px !important;
@@ -463,7 +463,7 @@ body,
   box-shadow: 0 0 0 1px var(--ga-border-strong) !important;
 }
 
-.gh-user-chip-caret {
+.ga-user-chip-caret {
   margin-left: 0;
 }
 

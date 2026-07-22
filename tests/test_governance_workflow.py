@@ -991,6 +991,215 @@ class GovernanceWorkflowTests(unittest.TestCase):
             ["main.sales.visible_orders"],
         )
 
+    def test_governance_summary_activity_rows_carry_backing_audit_ids(self) -> None:
+        # Contract (cohesion follow-up 1): activity rows join to their
+        # backing metadata_audit_log event via task_id == request_id and emit
+        # displayAuditId ("AUD-"+first-8-hex) + auditEventId (full id) so the
+        # client can deep-link to the Evidence page. Rows with no backing
+        # event emit empty strings — never fabricated ids.
+        from atlas.services.atlas_metrics import audit_display_id
+
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.datapact.run_history",
+                    "table_name": "run_history",
+                    "table_catalog": "main",
+                    "table_schema": "datapact",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "governance_status": "Needs Work",
+                    "pending_requests": 1,
+                    "certification": "",
+                    "steward": "",
+                    "sensitivity": "",
+                    "domain": "Ops",
+                }
+            ]
+        )
+        task_id = "596357596fa8474c865d9cf02488a167"
+
+        class Store(EmptyGovernanceSummaryStore):
+            def list_activity_events(self, limit: int = 200) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "event_id": "evt-comment",
+                            "event_type": "comment_created",
+                            "entity_fqn_snapshot": "main.datapact.run_history",
+                            "task_id": task_id,
+                            "payload_json": '{"body":"Please review"}',
+                            "created_at": "2026-05-05 02:51:37",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                        {
+                            "event_id": "evt-created",
+                            "event_type": "task_created",
+                            "entity_fqn_snapshot": "main.datapact.run_history",
+                            "task_id": task_id,
+                            "payload_json": '{"title":"Review run_history"}',
+                            "created_at": "2026-05-05 02:51:38",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                        {
+                            "event_id": "evt-triage",
+                            "event_type": "task_state_changed",
+                            "entity_fqn_snapshot": "main.datapact.run_history",
+                            "task_id": task_id,
+                            "payload_json": '{"status":"open"}',
+                            "created_at": "2026-07-21 14:59:35",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                        {
+                            "event_id": "evt-orphan",
+                            "event_type": "task_state_changed",
+                            "entity_fqn_snapshot": "main.datapact.run_history",
+                            "task_id": "deadbeefdeadbeefdeadbeefdeadbeef",
+                            "payload_json": '{"status":"open"}',
+                            "created_at": "2026-07-21 15:10:00",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                    ]
+                )
+
+            def list_metadata_audit_for_requests(
+                self, request_ids, *, limit: int = 500
+            ) -> pd.DataFrame:
+                assert task_id in list(request_ids)
+                # Live-shaped rows (task 59635759… on the dev warehouse):
+                # one creation row, two triage rows, one comment-only row.
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "fe36d39ce0a24b05a347f2d4864636e8",
+                            "request_id": task_id,
+                            "action": "task-created",
+                            "created_at": "2026-05-05 02:51:41",
+                        },
+                        {
+                            "audit_id": "45b263d718c6421db73003792af6c706",
+                            "request_id": task_id,
+                            "action": "task-triage-updated",
+                            "created_at": "2026-07-21 14:59:37",
+                        },
+                        {
+                            "audit_id": "4d36964d87bc48d595a439cd6220916c",
+                            "request_id": task_id,
+                            "action": "task-triage-updated",
+                            "created_at": "2026-07-22 00:02:29",
+                        },
+                        {
+                            "audit_id": "b1169eb8cf4e4735a3f666518bb58de7",
+                            "request_id": task_id,
+                            "action": "task-comment-added",
+                            "created_at": "2026-07-22 00:05:24",
+                        },
+                    ]
+                )
+
+        with patch.object(asset_service, "visible_assets", return_value=inventory):
+            payload = governance_service.governance_summary(
+                FakeUC(), Store(), hidden_catalogs=set()
+            )
+
+        by_event = {item["eventId"]: item for item in payload["activity"]}
+        # Creation mutation: both its events bind to the task-created row.
+        self.assertEqual(
+            by_event["evt-created"]["auditEventId"],
+            "fe36d39ce0a24b05a347f2d4864636e8",
+        )
+        self.assertEqual(by_event["evt-created"]["displayAuditId"], "AUD-FE36D39C")
+        self.assertEqual(
+            by_event["evt-comment"]["auditEventId"],
+            "fe36d39ce0a24b05a347f2d4864636e8",
+        )
+        # Update mutation binds to ITS triage row (first at-or-after the
+        # event timestamp), never the later 00:02:29 row.
+        self.assertEqual(
+            by_event["evt-triage"]["auditEventId"],
+            "45b263d718c6421db73003792af6c706",
+        )
+        self.assertEqual(by_event["evt-triage"]["displayAuditId"], "AUD-45B263D7")
+        # Derivation must match the Evidence page exactly.
+        for item in payload["activity"]:
+            if item["auditEventId"]:
+                self.assertEqual(
+                    item["displayAuditId"], audit_display_id(item["auditEventId"])
+                )
+        # No backing audit event → honest empty strings.
+        self.assertEqual(by_event["evt-orphan"]["auditEventId"], "")
+        self.assertEqual(by_event["evt-orphan"]["displayAuditId"], "")
+
+    def test_governance_summary_activity_audit_ids_empty_without_request_index(self) -> None:
+        # Stores without list_metadata_audit_for_requests (or with no task_id
+        # on events) still serve the summary; the AUD fields are present but
+        # empty so the frontend renders plain text.
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.sales.visible_orders",
+                    "table_name": "visible_orders",
+                    "table_catalog": "main",
+                    "table_schema": "sales",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "governance_status": "Needs Work",
+                    "pending_requests": 0,
+                    "certification": "",
+                    "steward": "",
+                    "sensitivity": "",
+                    "domain": "Sales",
+                }
+            ]
+        )
+
+        class Store(EmptyGovernanceSummaryStore):
+            def list_activity_events(self, limit: int = 200) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "event_id": "evt-1",
+                            "event_type": "task_created",
+                            "entity_fqn_snapshot": "main.sales.visible_orders",
+                            "payload_json": '{"title":"Review"}',
+                            "created_at": "2026-04-14 22:00:00",
+                            "actor_email": "writer@example.com",
+                        }
+                    ]
+                )
+
+        with patch.object(asset_service, "visible_assets", return_value=inventory):
+            payload = governance_service.governance_summary(
+                FakeUC(), Store(), hidden_catalogs=set()
+            )
+
+        self.assertEqual(len(payload["activity"]), 1)
+        self.assertEqual(payload["activity"][0]["displayAuditId"], "")
+        self.assertEqual(payload["activity"][0]["auditEventId"], "")
+
+    def test_list_metadata_audit_for_requests_queries_by_request_id(self) -> None:
+        uc = FakeUC()
+        store = GovernanceStore(uc, "main", "atlas")
+
+        result = store.list_metadata_audit_for_requests(
+            ["596357596fa8474c865d9cf02488a167", "", "task-b"]
+        )
+
+        self.assertTrue(result.empty)
+        query = uc.queries[-1]
+        self.assertIn("`main`.`atlas`.`metadata_audit_log`", query)
+        self.assertIn("request_id IN ('596357596fa8474c865d9cf02488a167', 'task-b')", query)
+        self.assertIn("ORDER BY created_at ASC, audit_id ASC", query)
+
+    def test_list_metadata_audit_for_requests_empty_ids_skip_query(self) -> None:
+        uc = FakeUC()
+        store = GovernanceStore(uc, "main", "atlas")
+
+        result = store.list_metadata_audit_for_requests(["", None])
+
+        self.assertTrue(result.empty)
+        self.assertEqual(uc.queries, [])
+
     def test_governance_summary_ignores_queue_projection_when_pending_scope_is_mixed(self) -> None:
         inventory = pd.DataFrame(
             [

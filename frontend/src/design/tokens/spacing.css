@@ -2,9 +2,8 @@
  * Spacing scale.
  * 4px-based modular scale: space-1 = 4, space-2 = 8, step=4 until space-6, then 8.
  *
- * --ga-space-* is canonical (Wave C8). The --gh-space-1..5 aliases survive
- * only because the legacy sheets (app/entity/governance/northstar/shell-rail)
- * still reference them; they die with those sheets.
+ * --ga-space-* is canonical (Wave C8). The --gh-space-* aliases died with
+ * entity.css in cohesion follow-up 3 (their last consumer).
  */
 
 :root {
@@ -18,10 +17,4 @@
   --ga-space-7: 32px;
   --ga-space-8: 40px;
   --ga-space-9: 48px;
-
-  --gh-space-1: var(--ga-space-1);
-  --gh-space-2: var(--ga-space-2);
-  --gh-space-3: var(--ga-space-3);
-  --gh-space-4: var(--ga-space-4);
-  --gh-space-5: var(--ga-space-5);
 }

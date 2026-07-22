@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  auditChipId,
   humanMutationError,
+  humanizeAuditAction,
   isValidationWorkItem,
   lensCounts,
   matchesItemParam,
@@ -9,6 +11,7 @@ import {
   patchWorkbenchRequests,
   scopeSummary,
   termReviewItem,
+  workItemAuditTrail,
   workItemDisplayId,
 } from "../format.js";
 
@@ -83,5 +86,41 @@ describe("stewardship format helpers", () => {
       detailMessage: "Steward role required.",
     });
     expect(humanMutationError(validation, "fallback")).toBe("Steward role required.");
+  });
+
+  it("format-checks and canonicalizes AUD display ids", () => {
+    expect(auditChipId("AUD-12ab34cd")).toBe("AUD-12AB34CD");
+    expect(auditChipId("AUD-NOPE")).toBe("");
+    expect(auditChipId("12AB34CD")).toBe("");
+    expect(auditChipId("")).toBe("");
+  });
+
+  it("humanizes audit actions from snake/kebab case", () => {
+    expect(humanizeAuditAction("request_created")).toBe("Request created");
+    expect(humanizeAuditAction("PRIORITY-CHANGED")).toBe("Priority changed");
+    expect(humanizeAuditAction("")).toBe("Audit event");
+  });
+
+  it("normalizes auditTrail rows and yields [] when the backend field is absent", () => {
+    // Feature detection: pre-join detail payloads carry no auditTrail.
+    expect(workItemAuditTrail({ requestId: "r1" })).toEqual([]);
+    expect(workItemAuditTrail(null)).toEqual([]);
+    const rows = workItemAuditTrail({
+      auditTrail: [
+        { displayAuditId: "AUD-00ff00aa", auditEventId: "41", action: "request_created", createdAt: "2026-07-01T09:00:00Z" },
+        { displayAuditId: "bogus", auditEventId: "42", action: "comment_added" },
+        null,
+      ],
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      key: "AUD-00FF00AA",
+      displayAuditId: "AUD-00FF00AA",
+      auditEventId: "41",
+      action: "Request created",
+      at: "2026-07-01T09:00:00Z",
+    });
+    // Unmappable id degrades to text-only (no dead Evidence link).
+    expect(rows[1]).toMatchObject({ key: "42", displayAuditId: "", action: "Comment added" });
   });
 });

@@ -626,6 +626,116 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["evidence"], [])
         self.assertEqual(payload["evidenceState"], "unavailable")
 
+    def test_governance_request_detail_carries_audit_trail_and_comment_audit_ids(self) -> None:
+        # Contract (cohesion follow-up 1): the request detail joins to the
+        # audit events whose request_id matches this request and exposes
+        # auditTrail plus per-comment displayAuditId/auditEventId so the
+        # mini-hub can render AUD evidence chips that deep-link to Evidence.
+        class AuditTrailStore(FakeStore):
+            def get_change_request(self, request_id: str) -> ChangeRequest | None:
+                if request_id != "596357596fa8474c865d9cf02488a167":
+                    return None
+                return ChangeRequest(
+                    request_id="596357596fa8474c865d9cf02488a167",
+                    created_at="2026-05-05 02:51:38",
+                    created_by="skyler@entrada.ai",
+                    status="pending",
+                    uc_full_name="main.datapact.run_history",
+                    new_comment="description: Run history quality triage",
+                    new_uc_tags={"domain": "Ops"},
+                    reviewed_at="2026-07-22 00:05:24",
+                    reviewed_by="skyler@entrada.ai",
+                    review_note="Reassigned for triage",
+                )
+
+            def list_metadata_audit_for_requests(
+                self, request_ids, *, limit: int = 500
+            ) -> pd.DataFrame:
+                assert list(request_ids) == ["596357596fa8474c865d9cf02488a167"]
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "fe36d39ce0a24b05a347f2d4864636e8",
+                            "request_id": "596357596fa8474c865d9cf02488a167",
+                            "action": "task-created",
+                            "detail": "",
+                            "created_at": "2026-05-05 02:51:41",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                        {
+                            "audit_id": "b1169eb8cf4e4735a3f666518bb58de7",
+                            "request_id": "596357596fa8474c865d9cf02488a167",
+                            "action": "task-comment-added",
+                            "detail": "Reassigned for triage",
+                            "created_at": "2026-07-22 00:05:24",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                    ]
+                )
+
+        payload = atlas_metrics.governance_request_detail_payload(
+            store=AuditTrailStore(),
+            request_id="596357596fa8474c865d9cf02488a167",
+        )
+
+        self.assertIsNotNone(payload)
+        trail = payload["auditTrail"]
+        self.assertEqual(
+            [entry["auditEventId"] for entry in trail],
+            ["fe36d39ce0a24b05a347f2d4864636e8", "b1169eb8cf4e4735a3f666518bb58de7"],
+        )
+        self.assertEqual(
+            [entry["displayAuditId"] for entry in trail],
+            ["AUD-FE36D39C", "AUD-B1169EB8"],
+        )
+        self.assertEqual(trail[0]["action"], "task-created")
+        self.assertTrue(trail[0]["createdAt"].endswith("Z"))
+        # Derivation matches the Evidence page exactly.
+        for entry in trail:
+            self.assertEqual(
+                entry["displayAuditId"],
+                atlas_metrics.audit_display_id(entry["auditEventId"]),
+            )
+        # The audit-backed comments carry the same chip fields; the review
+        # note maps (by exact detail content) to its audit row.
+        by_kind = {}
+        for comment in payload["comments"]:
+            by_kind.setdefault(comment["kind"], []).append(comment)
+        self.assertEqual(
+            by_kind["review-note"][0]["auditEventId"],
+            "b1169eb8cf4e4735a3f666518bb58de7",
+        )
+        self.assertEqual(by_kind["review-note"][0]["displayAuditId"], "AUD-B1169EB8")
+        audit_comment_ids = {comment["auditEventId"] for comment in by_kind["audit"]}
+        self.assertIn("b1169eb8cf4e4735a3f666518bb58de7", audit_comment_ids)
+        for comment in by_kind["audit"]:
+            self.assertTrue(comment["displayAuditId"].startswith("AUD-"))
+
+    def test_governance_request_detail_audit_trail_empty_without_audit_history(self) -> None:
+        # No audit rows for the request → empty trail and empty chip fields
+        # on the review-note comment; nothing fabricated.
+        class NoAuditStore(DetailStore):
+            def list_metadata_audit_for_requests(
+                self, request_ids, *, limit: int = 500
+            ) -> pd.DataFrame:
+                return pd.DataFrame()
+
+        payload = atlas_metrics.governance_request_detail_payload(
+            store=NoAuditStore(),
+            request_id="REQ-1",
+        )
+
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["auditTrail"], [])
+        self.assertEqual(payload["comments"], [])
+
+    def test_governance_workbench_selected_request_includes_audit_trail(self) -> None:
+        payload = atlas_metrics.governance_workbench_payload(store=FakeStore())
+
+        self.assertIsNotNone(payload["selectedRequest"])
+        self.assertIn("auditTrail", payload["selectedRequest"])
+        self.assertIsInstance(payload["selectedRequest"]["auditTrail"], list)
+
     def test_governance_workbench_exposes_open_requests_only(self) -> None:
         class MixedStatusStore(FakeStore):
             def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:

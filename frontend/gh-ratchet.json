@@ -2,24 +2,6 @@
   "version": 1,
   "note": "CSS-debt ratchet baseline (scripts/check-css.mjs). Counts may only go DOWN. Regenerate ONLY after removing debt: node scripts/check-css.mjs --update-baseline",
   "files": {
-    "components/AppErrorBoundary.jsx": {
-      "gh": 8
-    },
-    "components/HelpPage.jsx": {
-      "gh": 18
-    },
-    "components/ShellLayoutPrimitives.jsx": {
-      "gh": 34
-    },
-    "components/ShellStatePrimitives.jsx": {
-      "gh": 19
-    },
-    "components/WorkspaceDiagnosticsSurface.jsx": {
-      "gh": 130
-    },
-    "components/WorkspaceSetupWizard.jsx": {
-      "gh": 77
-    },
     "components/lineage-v2/LineageCanvasV2.jsx": {
       "gh": 1,
       "hex": 1,
@@ -36,11 +18,7 @@
       "gh": 1
     },
     "components/primitives/OwnerAvatar.jsx": {
-      "gh": 5,
       "hex": 20
-    },
-    "components/primitives/UserChip.jsx": {
-      "gh": 17
     },
     "components/system/Button.jsx": {
       "gh": 1
@@ -50,7 +28,7 @@
       "important": 1
     },
     "design/tokens/colors.css": {
-      "gh": 23
+      "gh": 6
     },
     "design/tokens/layout.css": {
       "gh": 3
@@ -59,16 +37,16 @@
       "gh": 1
     },
     "design/tokens/radius.css": {
-      "gh": 2
+      "gh": 1
     },
     "design/tokens/shadow.css": {
       "gh": 1
     },
     "design/tokens/spacing.css": {
-      "gh": 6
+      "gh": 1
     },
     "design/tokens/typography.css": {
-      "gh": 2
+      "gh": 1
     },
     "design/tokens/z-index.css": {
       "gh": 1
@@ -82,30 +60,20 @@
     "lib/renderMarkdown.js": {
       "gh": 4
     },
-    "styles/app.css": {
-      "gh": 573,
-      "hex": 31,
-      "important": 140
-    },
-    "styles/entity.css": {
-      "gh": 398,
-      "hex": 52,
-      "important": 4
-    },
-    "styles/governance.css": {
-      "gh": 42
+    "styles/legacy-remnants.css": {
+      "gh": 5
     },
     "styles/lineage-v2.css": {
       "gh": 1,
       "important": 24
     },
     "styles/northstar.css": {
-      "gh": 178,
+      "gh": 146,
       "hex": 28,
       "important": 157
     },
     "styles/shell-rail.css": {
-      "gh": 95,
+      "gh": 70,
       "hex": 10,
       "important": 31
     }

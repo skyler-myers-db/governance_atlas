@@ -45,7 +45,7 @@ export function OwnerAvatar({ owner = "", size = 22, className = "", imageUrl = 
   return (
     <span
       aria-label={owner || "No owner"}
-      className={`gh-owner-avatar ${className}`.trim()}
+      className={`ga-owner-avatar ${className}`.trim()}
       role="img"
       style={{
         alignItems: "center",
@@ -75,19 +75,19 @@ export function OwnerAvatarStack({ owners = [], limit = 3, size = 22 }) {
   const visible = owners.slice(0, limit);
   const extra = owners.length - visible.length;
   return (
-    <span className="gh-owner-avatar-stack" aria-label={owners.join(", ")}>
+    <span className="ga-owner-avatar-stack" aria-label={owners.join(", ")}>
       {visible.map((o, i) => (
         <OwnerAvatar
           key={`${o}-${i}`}
           owner={o}
           size={size}
-          className={i > 0 ? "gh-owner-avatar-overlap" : ""}
+          className={i > 0 ? "ga-owner-avatar-overlap" : ""}
         />
       ))}
       {extra > 0 ? (
         <span
           aria-hidden="true"
-          className="gh-owner-avatar gh-owner-avatar-overflow"
+          className="ga-owner-avatar ga-owner-avatar-overflow"
           style={{ width: `${size}px`, height: `${size}px`, fontSize: Math.round(size * 0.38) }}
           title={`+${extra} more`}
         >

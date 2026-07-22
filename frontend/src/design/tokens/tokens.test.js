@@ -15,12 +15,17 @@ describe("Governance Atlas design tokens", () => {
   it("uses Entrada dark shell tokens", () => {
     expect(tokenValue("--ga-bright-blue")).toBe("#66c5ff");
     expect(tokenValue("--ga-bg")).toBe("#08172a");
-    expect(tokenValue("--gh-accent")).toBe("var(--ga-bright-blue)");
   });
 
-  it("defines compatibility aliases consumed by existing shell CSS", () => {
-    ["--gh-bg", "--gh-surface", "--gh-border", "--gh-text", "--gh-ink", "--gh-line"].forEach((token) => {
+  it("defines only the compatibility aliases the surviving legacy sheets consume", () => {
+    // Cohesion follow-up 3: app/entity/governance.css are dead, so only the
+    // four aliases northstar.css + shell-rail.css still read may remain.
+    ["--gh-bg", "--gh-line", "--gh-ink", "--gh-ink-muted"].forEach((token) => {
       expect(tokenValue(token)).not.toBe("");
+    });
+    // Aliases must not creep back once their last consumer died.
+    ["--gh-surface", "--gh-border", "--gh-text", "--gh-accent", "--gh-font"].forEach((token) => {
+      expect(tokenValue(token)).toBe("");
     });
   });
 });

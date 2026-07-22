@@ -936,3 +936,346 @@ a.ga-icon-button {
   font-size: 0.72rem;
   line-height: 1.35;
 }
+
+/* ------------------------------------------------------------------ */
+/* Base layer (cohesion follow-up 3)                                    */
+/*                                                                      */
+/* Moved verbatim-in-effect from styles/app.css when the legacy sheets  */
+/* died: the reset, root sizing, body typography/background, the #root  */
+/* stacking context, and the canonical keyboard-focus ring. Effective   */
+/* values are unchanged — body font/color/background resolve to the     */
+/* SAME tokens app.css used (its legacy font/background names were      */
+/* aliases of --ga-font-body / --ga-bg). Tokens import from main.jsx.   */
+/* ------------------------------------------------------------------ */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: clamp(15px, 0.22vw + 12.8px, 18px);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--ga-font-body);
+  color: var(--ga-text);
+  background: var(--ga-bg);
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Stacking context so #root layers above any body-level underlay. */
+  position: relative;
+  isolation: isolate;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* The product ships dark; AppShell stamps data-theme="dark" on <html>. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Canonical keyboard-focus treatment (moved from app.css): a 2px
+   --ga-focus ring with offset on every button. Component rules must not
+   zero this out. */
+button:focus-visible {
+  outline: 2px solid var(--ga-focus);
+  outline-offset: 2px;
+}
+
+/* Frame supplement: app.css used to give the main column its grid flow;
+   the surviving sheets only assign its grid-area/overflow. */
+.ga-shell-main {
+  display: grid;
+  gap: 16px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shell state card (cohesion follow-up 3)                              */
+/*                                                                      */
+/* The ONE pre-boot / route-level state card (ShellStateCard.jsx) —     */
+/* replaces the legacy workspace-state-card. Same dark navy chrome      */
+/* the boot screen always had; tones only shift the border/wash.        */
+/* ------------------------------------------------------------------ */
+
+.ga-shell-state-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid rgba(102, 197, 255, 0.2);
+  border-radius: var(--ga-radius-xl, 24px);
+  background:
+    radial-gradient(circle at top left, rgba(92, 225, 230, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.06), transparent 26%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
+  box-shadow:
+    0 18px 36px rgba(0, 14, 28, 0.32),
+    0 1px 0 rgba(102, 197, 255, 0.08) inset;
+  color: var(--ga-text);
+}
+
+.ga-shell-state-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(102, 197, 255, 0.85) 0%, rgba(61, 132, 173, 0.6) 100%);
+  opacity: 0.86;
+}
+
+.ga-shell-state-card.tone-bad {
+  border-color: color-mix(in srgb, var(--ga-danger) 30%, transparent);
+  background:
+    radial-gradient(circle at top right, rgba(255, 92, 108, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
+}
+
+.ga-shell-state-card.tone-warn {
+  border-color: color-mix(in srgb, var(--ga-warning) 28%, transparent);
+}
+
+.ga-shell-state-card.tone-good {
+  border-color: color-mix(in srgb, var(--ga-success) 26%, transparent);
+}
+
+.ga-shell-state-card h2 {
+  margin: 0;
+  font-size: clamp(1.24rem, 1.08rem + 0.46vw, 1.76rem);
+  letter-spacing: -0.04em;
+}
+
+.ga-shell-state-card-message {
+  margin: 0;
+  max-width: 58ch;
+  color: var(--ga-text-soft);
+  line-height: 1.52;
+  overflow-wrap: anywhere;
+}
+
+.ga-shell-state-card-extra {
+  display: grid;
+  gap: 12px;
+}
+
+.ga-shell-state-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* Skeleton bars inside the card stay narrow like the preboot screen. */
+.ga-shell-state-card .ga-sys-loading {
+  max-width: 520px;
+}
+
+/* Header for the shell-owned readiness view (settings entry). */
+.ga-shell-route-state-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ga-shell-route-state-head h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(1.24rem, 1.06rem + 0.52vw, 1.82rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ga-text-strong);
+}
+
+.ga-shell-route-state-head p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--ga-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------ */
+/* Workspace readiness surfaces (cohesion follow-up 3)                  */
+/*                                                                      */
+/* Layout + list/tile/attribute primitives for the system-kit rebuilds  */
+/* of WorkspaceSetupWizard + WorkspaceDiagnosticsSurface (pre-boot, so  */
+/* they style here rather than in a surface sheet).                     */
+/* ------------------------------------------------------------------ */
+
+.ga-shell-readiness-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.ga-shell-readiness-layout.is-single {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 1440px) {
+  .ga-shell-readiness-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ga-shell-readiness-main,
+.ga-shell-readiness-side {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.ga-shell-readiness-subhead h3 {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ga-text-strong);
+}
+
+.ga-shell-readiness-subhead p {
+  margin: 2px 0 0;
+  color: var(--ga-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.ga-shell-readiness-note {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ga-shell-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.ga-shell-readiness-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.ga-shell-readiness-tile {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md, 12px);
+  background: var(--ga-surface-muted);
+}
+
+.ga-shell-readiness-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ga-shell-readiness-tile-value {
+  font-weight: 800;
+  color: var(--ga-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.ga-shell-readiness-tile-label {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--ga-text-soft);
+}
+
+.ga-shell-readiness-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ga-shell-readiness-item {
+  display: grid;
+  gap: 6px;
+  padding: 9px 11px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md, 10px);
+  background: var(--ga-surface);
+}
+
+.ga-shell-readiness-item-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ga-shell-readiness-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.ga-shell-readiness-item-title {
+  font-weight: 800;
+  color: var(--ga-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.ga-shell-readiness-item-meta {
+  color: var(--ga-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.ga-shell-attr-list {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.ga-shell-attr-row {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.42fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--ga-border-muted);
+}
+
+.ga-shell-attr-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ga-shell-attr-row dt {
+  color: var(--ga-text-muted);
+  font-size: 0.86rem;
+}
+
+.ga-shell-attr-row dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  min-width: 0;
+  color: var(--ga-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

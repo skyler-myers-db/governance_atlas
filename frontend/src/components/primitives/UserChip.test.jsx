@@ -89,7 +89,7 @@ describe("UserChip avatar upload", () => {
         expect.stringMatching(/^data:image\/png;base64,/),
       );
     });
-    expect(container.querySelector(".gh-user-chip-avatar img")).not.toBeNull();
+    expect(container.querySelector(".ga-user-chip-avatar img")).not.toBeNull();
   });
 
   it("does not write rejected avatar uploads to localStorage", async () => {
@@ -117,7 +117,7 @@ describe("UserChip avatar upload", () => {
       <UserChip userEmail="skyler@entrada.ai" userName="Skyler Kohler" role="Admin" />,
     );
 
-    expect(container.querySelector(".gh-user-chip-avatar img")).toBeNull();
+    expect(container.querySelector(".ga-user-chip-avatar img")).toBeNull();
     expect(screen.getByText("SK")).not.toBeNull();
   });
 

@@ -461,6 +461,55 @@ export function workItemComments(detail = null) {
   ];
 }
 
+/* ------------------------------------------------------------------ */
+/* Audit trail (Evidence ledger join)                                   */
+/* ------------------------------------------------------------------ */
+
+// Canonical Evidence event address: AUD- + 8 hex chars. Defensive format
+// check (kept even though the backend emits the field) so a malformed id
+// can never mint a dead /evidence?event= link.
+const AUDIT_DISPLAY_ID_PATTERN = /^AUD-[0-9A-F]{8}$/i;
+
+/** "" unless the value is a well-formed AUD display id (uppercased). */
+export function auditChipId(value = "") {
+  const text = textValue(value);
+  return AUDIT_DISPLAY_ID_PATTERN.test(text) ? text.toUpperCase() : "";
+}
+
+/** "metadata_update-requested" → "Metadata update requested". */
+export function humanizeAuditAction(action = "") {
+  const text = textValue(action).replace(/[_\s-]+/g, " ").trim();
+  if (!text) return "Audit event";
+  const lower = text.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/**
+ * Normalize the workbench detail payload's `auditTrail` rows
+ * ({displayAuditId, auditEventId, action, createdAt}) for the mini-hub's
+ * Evidence trail block. Feature-detecting: payloads predating the backend
+ * join simply have no `auditTrail` and yield [] — the panel renders its
+ * honest empty state instead of inventing events. `displayAuditId` stays ""
+ * for rows the backend could not map to the Evidence ledger, so the render
+ * layer shows them as text (no dead links).
+ */
+export function workItemAuditTrail(item = null) {
+  const raw = Array.isArray(item?.auditTrail) ? item.auditTrail : [];
+  return raw
+    .filter((row) => row && typeof row === "object")
+    .map((row, index) => {
+      const displayAuditId = auditChipId(row.displayAuditId);
+      const auditEventId = textValue(row.auditEventId);
+      return {
+        key: displayAuditId || auditEventId || `audit-${index}`,
+        displayAuditId,
+        auditEventId,
+        action: humanizeAuditAction(row.action),
+        at: textValue(row.createdAt || row.at),
+      };
+    });
+}
+
 export function openingEvidenceFacts(item = {}) {
   if (!item) return [];
   const source = customerSafeEvidenceSource(

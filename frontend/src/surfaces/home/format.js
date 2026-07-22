@@ -180,6 +180,26 @@ export function requestRows(data) {
     .filter((row) => row.id || row.assetFqn);
 }
 
+/*
+ * Canonical Evidence event address: AUD- + 8 hex chars. Defensive format
+ * check (kept even though the backend now emits the field) so a malformed
+ * id can never mint a dead /evidence?event= link.
+ */
+const AUDIT_DISPLAY_ID_PATTERN = /^AUD-[0-9A-Fa-f]{8}$/;
+
+// The governance-summary backend now joins displayAuditId onto activity rows
+// (metadata_audit join — landed). Older/degraded payloads without the field
+// fall back to the row id when it is already AUD-shaped; anything else yields
+// "" and the row renders as plain text instead of a dead link.
+function eventAuditDisplayId(event) {
+  const candidates = [event.displayAuditId, event.auditDisplayId, event.id];
+  for (const candidate of candidates) {
+    const text = String(candidate || "").trim();
+    if (AUDIT_DISPLAY_ID_PATTERN.test(text)) return text.toUpperCase();
+  }
+  return "";
+}
+
 export function eventRows(data, limit = 6) {
   const raw = Array.isArray(data?.recentEvents) ? data.recentEvents : [];
   return raw.slice(0, limit).map((event, index) => {
@@ -188,12 +208,13 @@ export function eventRows(data, limit = 6) {
     // raw backing ids made the activity links land on "not found" (final
     // verifier BLOCK-2). The resolver now also accepts raw ids, but emitting
     // the canonical form keeps URLs consistent app-wide.
+    const displayAuditId = eventAuditDisplayId(event);
     return {
-      id:
-        event.displayAuditId ||
-        event.auditDisplayId ||
-        event.id ||
-        `${event.title || "event"}-${index}`,
+      id: displayAuditId || event.id || `${event.title || "event"}-${index}`,
+      // "" when the row has no Evidence-addressable audit id — the render
+      // layer gates the event link on this field alone.
+      displayAuditId,
+      auditEventId: String(event.auditEventId || "").trim(),
       title: event.title || "Governance event",
       detail: event.detail || "",
       actor: event.actorEmail || event.actor || "",

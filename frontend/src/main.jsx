@@ -6,9 +6,12 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { atlasQueryClient } from "./lib/queryClient";
-import "./styles/app.css";
-import "./styles/entity.css";
-import "./styles/governance.css";
+// Design tokens first (they lived at the top of the deleted app.css).
+import "./design/tokens/index.css";
+// Cohesion follow-up 3: app.css / entity.css / governance.css are DEAD.
+// Their base layer (reset, body, focus ring) moved to app-shell/shell.css;
+// the one surviving legacy-classed rule lives in legacy-remnants.css.
+import "./styles/legacy-remnants.css";
 import "./styles/shell-rail.css";
 import "./styles/northstar.css";
 import "./styles/lineage-v2.css";

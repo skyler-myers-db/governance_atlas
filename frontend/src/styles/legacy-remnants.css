@@ -1,0 +1,50 @@
+/*
+ * styles/legacy-remnants.css — the LAST legacy-classed rules (cohesion
+ * follow-up 3). app.css (1,938 lines), entity.css (781) and governance.css
+ * (135) are deleted; their only surviving rendered-class consumer outside
+ * the sheets that remain (northstar/shell-rail/lineage-v2) is the retry
+ * button in components/lineage-v2/LineageCanvasV2.jsx, which still emits
+ * `gh-secondary-button`. The values below are the EFFECTIVE dark-theme
+ * resolution of the old app.css cascade (base group + secondary + the
+ * always-on data-theme="dark" override), re-expressed on --ga-* tokens.
+ *
+ * Owner note: lineage-v2 owns the rename to the system kit Button; when
+ * LineageCanvasV2 drops this class, DELETE this file and its main.jsx
+ * import (the check-css ratchet will flag the improvement).
+ */
+
+.gh-secondary-button {
+  min-height: 42px;
+  padding: 0 1rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-pill);
+  background: var(--ga-surface);
+  color: var(--ga-text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 130ms ease,
+    border-color 130ms ease,
+    background 130ms ease,
+    color 130ms ease;
+}
+
+.gh-secondary-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.14);
+  color: var(--ga-text);
+}
+
+.gh-secondary-button:active {
+  transform: translateY(0);
+  filter: brightness(0.94);
+}
+
+.gh-secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
