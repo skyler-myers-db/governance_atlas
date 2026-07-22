@@ -310,10 +310,22 @@ def known_scope_values(visible_assets: pd.DataFrame) -> List[str]:
         *_distinct_values(df, "sensitivity"),
     ):
         key = value.lower()
-        if key not in seen:
+        # Generic quality/coverage adjectives that also show up as tier/
+        # sensitivity labels would over-decline legitimate global questions
+        # ("how many assets have low coverage") — skip them. Distinctive labels
+        # (Confidential, Public, Finance, "Tier 1") are kept so scoped questions
+        # still decline. (review F2)
+        if key not in seen and key not in _GENERIC_SCOPE_WORDS:
             seen.add(key)
             values.append(value)
     return values
+
+
+# Words too generic to safely treat as a scoping qualifier (they collide with
+# coverage/quality phrasing in otherwise-global questions).
+_GENERIC_SCOPE_WORDS = frozenset(
+    {"none", "low", "medium", "high", "moderate", "other", "unknown", "n/a", "na", "general"}
+)
 
 
 def asset_ownership(*, visible_assets: pd.DataFrame, fqn: str) -> Dict[str, Any]:

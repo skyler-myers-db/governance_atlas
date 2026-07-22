@@ -1819,6 +1819,14 @@ _GAP_INDICATORS = (
     "have no", "has no", "with no", "need an", "needs an", "need a", "needs a",
     "need owner", "needs owner", "need owners", "don't have", "do not have", "does not have",
     "assign an owner", "assign owners",
+    # Negation phrasings ("how many assets are NOT owned?", "aren't assigned an
+    # owner"). Combined with an owner/steward term in _mentions_owner_gap, so
+    # these don't over-trigger on unrelated negations. Without them these
+    # slipped both gates and returned the global estate total (review F1).
+    "not owned", "not assigned", "not have an owner", "not have a steward",
+    "aren't owned", "arent owned", "aren't assigned", "arent assigned",
+    "isn't owned", "isnt owned", "isn't assigned", "isnt assigned",
+    "no one owns", "no-one owns", "nobody owns", "not stewarded", "not been assigned",
 )
 _OWNER_INTENT_TOKENS = ("owner", "owns", "owned", "ownership", "steward", "stewardship")
 _PER_ASSET_OWNER_PHRASES = (

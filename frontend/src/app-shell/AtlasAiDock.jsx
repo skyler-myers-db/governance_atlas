@@ -35,14 +35,16 @@ const AI_CHAT_MAX = { width: 720, height: 960 };
 // facet grammar, but Glossary/Evidence/Lineage reuse the same param NAMES for
 // their own search boxes. Reading them elsewhere would forward another
 // surface's search text as an authoritative asset filter the user never set.
-function scopeFromSearch(search) {
+export function scopeFromSearch(search) {
   const params = new URLSearchParams(search || "");
   const list = (key) => params.getAll(key).map((value) => value.trim()).filter(Boolean);
   const single = (key) => String(params.get(key) || "").trim();
   const scope = {};
-  // Real Discover array facets (discoveryParams.js): type/catalog were missing
+  // Real Discover array facets (discoveryParams.js). `view` = saved governance
+  // views ("Needs owner", …) — a genuine active filter that changes which
+  // assets are shown, so it MUST stay part of "here". type/catalog were missing
   // before, so a user filtered by those got an incomplete "here".
-  for (const key of ["domain", "criticality", "tier", "certification", "sensitivity", "type", "catalog"]) {
+  for (const key of ["domain", "criticality", "tier", "certification", "sensitivity", "view", "type", "catalog"]) {
     const values = list(key);
     if (values.length) scope[key] = values;
   }

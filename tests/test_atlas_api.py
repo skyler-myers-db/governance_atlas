@@ -981,6 +981,15 @@ class AtlasApiTests(unittest.TestCase):
         self.assertNotIn("4 ", payload["answer"])
         ask_genie.assert_not_called()
 
+    def test_negation_phrased_gap_not_global_total(self) -> None:
+        # Review F1: "not owned" / "aren't assigned an owner" negation phrasings
+        # used to slip both gates and return the global estate total as canonical.
+        for question in ("How many assets are not owned?", "How many assets aren't assigned an owner?"):
+            payload, ask_genie = self._ask_grounded(question)
+            self.assertIn("2", payload["answer"], question)
+            self.assertNotIn("in the current estate", payload["answer"].lower(), question)
+            ask_genie.assert_not_called()
+
     def test_technical_owner_only_asset_is_not_ownerless(self) -> None:
         # Review BLOCKER 2: an asset whose only governance owner is a TECHNICAL
         # owner must not be reported "no owner" (the dashboard counts it owned).
