@@ -197,6 +197,18 @@
             "title": "Assetfqn",
             "type": "string"
           },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
           "surface": {
             "default": "",
             "maxLength": 64,

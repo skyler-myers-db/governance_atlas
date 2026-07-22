@@ -871,6 +871,117 @@ class AtlasApiTests(unittest.TestCase):
         # The user-facing question is preserved, not the augmented prompt.
         self.assertEqual(_response_json(response)["question"], "Who owns this asset?")
 
+    # --- Ownership grounding (fix #1 + #2) -------------------------------
+
+    @staticmethod
+    def _ownership_frame() -> pd.DataFrame:
+        # Finance: 3 assets, 2 ownerless (charges_raw has a UC owner but no
+        # governance owner; orders_raw has neither); Customer: 1 owned.
+        # Global: 4 assets total, 2 ownerless.
+        return pd.DataFrame(
+            [
+                {"fqn": "finance_prod.bronze.charges_raw", "domain": "Finance",
+                 "uc_owner": "skyler@entrada.ai"},
+                {"fqn": "finance_prod.bronze.orders_raw", "domain": "Finance"},
+                {"fqn": "finance_prod.gold.revenue_recognition", "domain": "Finance",
+                 "business_owner": "cfo@entrada.ai"},
+                {"fqn": "main.customer.customer_dim", "domain": "Customer",
+                 "business_owner": "skyler@entrada.ai"},
+            ]
+        )
+
+    def _ask_grounded(self, question, context=None):
+        """Call the endpoint with ownership grounding active (Genie unconfigured
+        is fine — grounding short-circuits before the Genie branch)."""
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="local", genie_space_id="", genie_space_title="",
+            atlas_ai_require_benchmark=False, workspace_host="https://example.cloud.databricks.com",
+        )
+        frame = self._ownership_frame()
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+            _visible_assets=lambda request: frame,
+            _store=lambda: FakeStore(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ), patch.object(atlas_api.genie_service, "ask_genie") as ask_genie:
+            kwargs = {"question": question}
+            if context is not None:
+                kwargs["context"] = context
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo"}),
+                atlas_api.AtlasAiQuestion(**kwargs),
+            )
+        return _response_json(response), ask_genie
+
+    def test_domain_scoped_ownerless_count_not_global_total(self) -> None:
+        # Fix #1 + #2: must answer "2 of 3 Finance" — NOT the global total (4)
+        # stamped canonical, which was the confidently-wrong behaviour.
+        payload, ask_genie = self._ask_grounded(
+            "How many assets in the Finance domain do not have an owner?"
+        )
+        self.assertIn("2", payload["answer"])
+        self.assertIn("Finance", payload["answer"])
+        self.assertNotIn("estate", payload["answer"].lower())
+        self.assertEqual(payload["confidence"], "canonical-grounded")
+        self.assertEqual(payload["intent"], "governed-grounding")
+        ask_genie.assert_not_called()
+
+    def test_domain_superlative_ownerless_matches_dashboard(self) -> None:
+        # Fix #2: "which domain has the most assets without an owner?" must name
+        # Finance (2), not drift to a different domain via Genie.
+        payload, ask_genie = self._ask_grounded(
+            "Which domain has the most assets without an owner?"
+        )
+        self.assertIn("Finance", payload["answer"])
+        self.assertIn("2", payload["answer"])
+        self.assertEqual(payload["intent"], "governed-grounding")
+        ask_genie.assert_not_called()
+
+    def test_per_asset_ownership_reports_uc_owner_and_governance_gap(self) -> None:
+        # Fix #2: an asset with a UC owner but no governance owner must report
+        # BOTH — the AI said "no owner" before while the asset page showed the
+        # UC owner (the app-contradiction defect).
+        payload, ask_genie = self._ask_grounded(
+            "Who owns this asset?",
+            context=atlas_api.AtlasAiContext(surface="assets", assetFqn="finance_prod.bronze.charges_raw"),
+        )
+        self.assertIn("skyler@entrada.ai", payload["answer"])
+        self.assertIn("no assigned business owner or steward", payload["answer"].lower())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        ask_genie.assert_not_called()
+
+    def test_global_ownerless_count_is_not_total_assets(self) -> None:
+        # Fix #1: "how many assets have no owner?" used to return totalAssets (4);
+        # must return the ownerless count (2).
+        payload, ask_genie = self._ask_grounded("How many assets have no owner?")
+        self.assertIn("2", payload["answer"])
+        self.assertNotIn("4 ", payload["answer"])  # not the total-asset count
+        ask_genie.assert_not_called()
+
+    def test_page_scope_resolves_here_to_filtered_domain(self) -> None:
+        # Fix #3: "how many assets here lack an owner?" while filtered to the
+        # Finance domain must resolve "here" to Finance (2), not the estate.
+        payload, ask_genie = self._ask_grounded(
+            "How many assets here do not have an owner?",
+            context=atlas_api.AtlasAiContext(surface="discovery", scope={"domain": ["Finance"]}),
+        )
+        self.assertIn("2", payload["answer"])
+        self.assertIn("Finance", payload["answer"])
+        ask_genie.assert_not_called()
+
+    def test_scope_summary_and_preamble(self) -> None:
+        # The active facet scope reaches the Genie prompt preamble.
+        ctx = atlas_api.AtlasAiContext(
+            surface="discovery", scope={"domain": ["Finance"], "owner": "__unassigned__"}
+        )
+        preamble = atlas_api._ai_context_preamble(ctx)
+        self.assertIn("domain Finance", preamble)
+        self.assertIn("owner unassigned", preamble)
+
 
 def _age_cache_prefix(prefix: str, seconds: float = 3600) -> None:
     """Backdate cached entries so the fresh-TTL check misses but stale data remains."""

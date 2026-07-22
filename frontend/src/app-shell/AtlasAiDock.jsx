@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { AtlasAiMark } from "../components/northstar/AtlasAiPanel";
 import { MarkdownBlock } from "../components/primitives/MarkdownBlock";
@@ -25,6 +26,25 @@ const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
 // to the viewport at drag time so the dock can never exceed the visible area.
 const AI_CHAT_MIN = { width: 320, height: 360 };
 const AI_CHAT_MAX = { width: 720, height: 960 };
+
+// Active facet scope from the URL (the URL is the source of truth for Discover
+// state). Only present filters are included, so an unfiltered page sends no
+// scope. Kept small + string-only for the backend's sanitizer.
+function scopeFromSearch(search) {
+  const params = new URLSearchParams(search || "");
+  const list = (key) => params.getAll(key).map((value) => value.trim()).filter(Boolean);
+  const single = (key) => String(params.get(key) || "").trim();
+  const scope = {};
+  for (const key of ["domain", "criticality", "tier", "certification", "sensitivity", "view"]) {
+    const values = list(key);
+    if (values.length) scope[key] = values;
+  }
+  const owner = single("owner");
+  if (owner) scope.owner = owner;
+  const query = single("q");
+  if (query) scope.query = query;
+  return Object.keys(scope).length ? scope : null;
+}
 
 // Per-surface grounding copy + suggested prompts, keyed by the NEW surface
 // ids (nav/routes.js). Content is unchanged from AppFrame's AI_ROUTE_COPY —
@@ -433,11 +453,20 @@ export function AtlasAiDock({
   const resizeRef = useRef(null);
 
   // Page-awareness context sent with every question so the backend can resolve
-  // "this asset"/"this page" to a concrete entity. Recomputed as the user
-  // navigates; memoized so the ask callbacks get a stable reference per surface.
+  // "this asset"/"this page"/"here" to a concrete scope. Recomputed as the user
+  // navigates OR changes filters; memoized so the ask callbacks get a stable
+  // reference. `scope` carries the ACTIVE facet filters from the URL (the URL is
+  // the state) so "how many assets here lack an owner?" can see the domain the
+  // user is filtered to — not just the surface name.
+  const location = useLocation();
+  const scope = useMemo(() => scopeFromSearch(location.search), [location.search]);
   const aiContext = useMemo(
-    () => ({ surface, assetFqn: String(assetFqn || "").trim() }),
-    [surface, assetFqn],
+    () => ({
+      surface,
+      assetFqn: String(assetFqn || "").trim(),
+      ...(scope ? { scope } : {}),
+    }),
+    [surface, assetFqn, scope],
   );
   const aiChat = useAtlasAiConversation();
 
@@ -521,11 +550,10 @@ export function AtlasAiDock({
     [close, navigate, openPeek],
   );
 
-  // Lineage owns its own side panels — the dock closes when entering it
-  // (same behavior as AppFrame).
-  useEffect(() => {
-    if (surface === "lineage") setOpen(false);
-  }, [surface, setOpen]);
+  // (Removed the lineage force-close: the dock used to snap shut the moment you
+  // entered /lineage, so the AI was unreachable exactly where its lineage
+  // grounding — "what feeds/depends on this table?" — is most useful. The dock
+  // floats/drags over the canvas and does not fight lineage's own side panels.)
 
   useEffect(() => {
     if (!open) return undefined;

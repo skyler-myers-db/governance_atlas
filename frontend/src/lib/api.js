@@ -912,10 +912,14 @@ export function fetchAtlasAiRecommendations(question = "", options = {}) {
   const context = options.context || {};
   const surface = String(context.surface || "").trim();
   const assetFqn = String(context.assetFqn || "").trim();
-  if (surface || assetFqn) {
+  // `scope` carries the active facet filters so the AI can resolve "here"/"this
+  // page" to the actual domain/criticality the user is filtered to.
+  const scope = context.scope && typeof context.scope === "object" ? context.scope : null;
+  if (surface || assetFqn || scope) {
     body.context = {};
     if (surface) body.context.surface = surface;
     if (assetFqn) body.context.assetFqn = assetFqn;
+    if (scope) body.context.scope = scope;
   }
   return requestJson(path, "POST", body, {
     signal: options.signal,

@@ -257,6 +257,91 @@ def owner_count_for_row(row: Mapping[str, Any]) -> int:
     return len(owners)
 
 
+def _split_principals(raw: Any) -> List[str]:
+    """Comma-split a raw owner field into distinct trimmed principals."""
+    text = _text(raw)
+    if not text:
+        return []
+    seen: List[str] = []
+    for part in text.split(","):
+        item = part.strip()
+        if item and item not in seen:
+            seen.append(item)
+    return seen
+
+
+def known_domains(visible_assets: pd.DataFrame) -> List[str]:
+    """Distinct non-empty domain labels present in the visible estate.
+
+    Used to detect a domain qualifier in a free-text question so estate-count
+    grounding can decline questions it cannot scope, and ownership grounding
+    can answer domain-scoped ones.
+    """
+    df = _safe_df(visible_assets)
+    domains: List[str] = []
+    seen: set[str] = set()
+    for _, row in df.iterrows():
+        domain = _row_text(_row_dict(row), "domain")
+        key = domain.lower()
+        if domain and key not in seen and key != "unassigned":
+            seen.add(key)
+            domains.append(domain)
+    return domains
+
+
+def asset_ownership(*, visible_assets: pd.DataFrame, fqn: str) -> Dict[str, Any]:
+    """Full ownership picture for one asset, matching what the asset page shows.
+
+    Reports BOTH the Unity Catalog owner (the `uc_owner`/`table_owner` catalog
+    principal) and the governance owners (business owner / steward / technical
+    owner). The two are distinct: an asset can have a UC owner and still have no
+    business owner or steward — which is exactly why the Command Center counts it
+    as "needs stewardship" while the asset page shows a UC owner. Answering with
+    only one of them is what made the AI contradict the rest of the app.
+    """
+    df = _safe_df(visible_assets)
+    target = _text(fqn).lower()
+    if not target:
+        return {"found": False, "fqn": _text(fqn)}
+    for _, row in df.iterrows():
+        row_map = _row_dict(row)
+        row_fqn = _row_text(row_map, "fqn", "full_name", "fullName")
+        if row_fqn.lower() != target:
+            continue
+        return {
+            "found": True,
+            "fqn": row_fqn or _text(fqn),
+            "domain": _row_text(row_map, "domain"),
+            "ucOwner": _row_text(row_map, "uc_owner", "ucOwner", "table_owner"),
+            "businessOwners": _split_principals(_row_value(row_map, "business_owner", "businessOwner")),
+            "stewards": _split_principals(_row_value(row_map, "steward")),
+            "technicalOwners": _split_principals(_row_value(row_map, "technical_owner", "technicalOwner")),
+        }
+    return {"found": False, "fqn": _text(fqn)}
+
+
+def ownership_gap_metrics(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
+    """Per-domain governance-ownership gaps, using the SAME predicate the
+    Command Center stewardship recommendations use (owner_count_for_row == 0,
+    i.e. no business owner / steward / technical owner). This is what makes the
+    AI agree with the dashboard ("Finance has 17 assets without an owner").
+    """
+    df = _safe_df(visible_assets)
+    by_domain: Dict[str, Dict[str, int]] = {}
+    total_assets = 0
+    total_ownerless = 0
+    for _, row in df.iterrows():
+        row_map = _row_dict(row)
+        total_assets += 1
+        domain = _row_text(row_map, "domain") or "Unassigned"
+        bucket = by_domain.setdefault(domain, {"total": 0, "ownerless": 0})
+        bucket["total"] += 1
+        if owner_count_for_row(row_map) == 0:
+            total_ownerless += 1
+            bucket["ownerless"] += 1
+    return {"byDomain": by_domain, "totalAssets": total_assets, "totalOwnerless": total_ownerless}
+
+
 def metadata_coverage_for_row(row: Mapping[str, Any] | pd.Series) -> float:
     row_map = _row_dict(row)
     total = 7

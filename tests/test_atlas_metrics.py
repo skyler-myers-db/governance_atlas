@@ -151,6 +151,42 @@ class DetailStore(FakeStore):
         )
 
 
+class OwnershipGroundingHelpersTests(unittest.TestCase):
+    @staticmethod
+    def _frame() -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {"fqn": "finance_prod.bronze.charges_raw", "domain": "Finance", "uc_owner": "skyler@entrada.ai"},
+                {"fqn": "finance_prod.bronze.orders_raw", "domain": "Finance"},
+                {"fqn": "finance_prod.gold.revenue", "domain": "Finance", "business_owner": "cfo@entrada.ai"},
+                {"fqn": "main.customer.customer_dim", "domain": "Customer", "steward": "dm@entrada.ai"},
+            ]
+        )
+
+    def test_known_domains_distinct_nonempty(self) -> None:
+        domains = atlas_metrics.known_domains(self._frame())
+        self.assertIn("Finance", domains)
+        self.assertIn("Customer", domains)
+
+    def test_ownership_gap_metrics_match_dashboard_predicate(self) -> None:
+        metrics = atlas_metrics.ownership_gap_metrics(visible_assets=self._frame())
+        self.assertEqual(metrics["totalAssets"], 4)
+        self.assertEqual(metrics["totalOwnerless"], 2)
+        self.assertEqual(metrics["byDomain"]["Finance"], {"total": 3, "ownerless": 2})
+        self.assertEqual(metrics["byDomain"]["Customer"], {"total": 1, "ownerless": 0})
+
+    def test_asset_ownership_reports_uc_owner_and_governance_gap(self) -> None:
+        own = atlas_metrics.asset_ownership(visible_assets=self._frame(), fqn="finance_prod.bronze.charges_raw")
+        self.assertTrue(own["found"])
+        self.assertEqual(own["ucOwner"], "skyler@entrada.ai")
+        self.assertEqual(own["businessOwners"], [])
+        self.assertEqual(own["stewards"], [])
+
+    def test_asset_ownership_missing_asset(self) -> None:
+        own = atlas_metrics.asset_ownership(visible_assets=self._frame(), fqn="nope.nope.nope")
+        self.assertFalse(own["found"])
+
+
 class AtlasMetricsTests(unittest.TestCase):
     def test_command_center_payload_counts_visible_assets_without_fake_deltas(self) -> None:
         payload = atlas_metrics.command_center_payload(

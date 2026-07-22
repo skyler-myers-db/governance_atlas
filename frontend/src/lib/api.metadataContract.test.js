@@ -193,6 +193,20 @@ describe("governance API normalization", () => {
     });
   });
 
+  it("forwards page context (surface, assetFqn, active-filter scope) into the request body", async () => {
+    stubJsonResponse({ answer: "ok", authoritative: true, evidence: [] });
+    await fetchAtlasAiRecommendations("how many assets here lack an owner?", {
+      context: { surface: "discovery", assetFqn: "", scope: { domain: ["Finance"], owner: "__unassigned__" } },
+    });
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.context.surface).toBe("discovery");
+    expect(body.context.scope).toEqual({ domain: ["Finance"], owner: "__unassigned__" });
+    // An unfiltered call sends no context object at all.
+    stubJsonResponse({ answer: "ok", authoritative: true, evidence: [] });
+    await fetchAtlasAiRecommendations("hello");
+    expect(JSON.parse(fetch.mock.calls[0][1].body).context).toBeUndefined();
+  });
+
   it("returns an unavailable Atlas AI recommendation response for non-authoritative providers", async () => {
     stubJsonResponse({
       provider: "local-prototype-mock",
