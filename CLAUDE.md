@@ -41,11 +41,17 @@ For each item the user surfaces (whether one bug or a list of ten):
 
 5. **Independent subagent verification.** Spawn a fresh general-purpose subagent that:
    - Knows nothing about the fix's reasoning.
-   - Walks the user's exact flow in the live browser via `mcp__Claude_in_Chrome__*` tools (the user's logged-in tab is `tabId 1080050021`).
+   - Walks the user's exact flow in the live browser via the **Playwright MCP**
+     tools (`mcp__playwright__browser_*`), which attach to the user's logged-in
+     Chrome over CDP at `http://localhost:9223`. Enumerate tabs with
+     `browser_tabs`; there is no fixed tabId. Setup + gotchas are in the
+     `browser-signoff-uses-playwright-mcp` auto-memory (server registration,
+     the Chrome `--remote-debugging-port=9223` launch, and the `browser_click`
+     stability-timeout workaround → prefer `browser_evaluate`/`browser_navigate`).
    - Returns `SIGNOFF: PASS` or `SIGNOFF: BLOCK` with screenshot evidence.
    - For multi-defect batches, spawn one subagent per defect, in parallel.
 
-6. **My own browser sweep.** Personally walk the same flow in the live browser (Claude-in-Chrome MCP). Look for:
+6. **My own browser sweep.** Personally walk the same flow in the live browser (Playwright MCP over CDP :9223). Look for:
    - The fix actually working in the user's exact path.
    - Any other issue I notice while walking — palette drift, broken layout, console errors, dead clicks, weird empty states, timing flickers.
    - Other surfaces touched by the change.
@@ -124,4 +130,4 @@ When spawning subagents that may conflict with parallel work, explicitly list:
 - Never wire a button that does nothing on click. If the workflow isn't built yet, surface a toast staging the intent so the click is visibly responsive.
 - Never put a `useState` or `useEffect` after an early `return`.
 - Never hard-code a palette color where a `--ga-*` design token exists.
-- Never click a link in an email or message via computer-use; use Claude-in-Chrome MCP and verify the URL first.
+- Never click a link in an email or message via computer-use; use the Playwright MCP (over CDP :9223) and verify the URL first.
