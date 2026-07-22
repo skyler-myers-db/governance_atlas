@@ -1694,8 +1694,21 @@ def _canonical_estate_grounding(
     return {"answer": answer, "evidence": canonical_evidence, "warnings": warnings}
 
 
-_LINEAGE_Q_UP = ("feed", "feeds", "upstream", "source of", "sources for", "come from", "comes from", "derived from", "depends on", "built from", "populate")
-_LINEAGE_Q_DOWN = ("downstream", "consume", "consumer", "depend on this", "uses this", "feeds into", "affected by", "who uses", "impact")
+# Direction detection is phrase-based, not bare-token: "what feeds X" is
+# upstream but "what does X feed" / "X feeds into" is DOWNSTREAM. The bare
+# "feed" token used to classify both as upstream, so "what does this feed?"
+# returned the sources instead of the consumers (verifier BLOCK).
+_LINEAGE_Q_DOWN = (
+    "downstream", "feeds into", "feed into", "does this feed", "does it feed",
+    "what does this feed", "what does it feed", "consume", "consumer", "consumed by",
+    "uses this", "used by", "depend on this", "depends on this", "affected by",
+    "who uses", "what uses", "impact of", "impacted",
+)
+_LINEAGE_Q_UP = (
+    "what feeds", "feeds this", "feeding this", "upstream", "source of", "sources for",
+    "sources of", "come from", "comes from", "derived from", "depends on", "depend on",
+    "built from", "populate", "fed by", "feed this",
+)
 
 
 def _lineage_grounding(question: str, context_fqn: str, uc: Any) -> dict | None:
@@ -1709,10 +1722,18 @@ def _lineage_grounding(question: str, context_fqn: str, uc: Any) -> dict | None:
     fqn = _normalize_str(context_fqn)
     if not fqn or fqn.count(".") < 2:
         return None
-    wants_up = any(tok in text for tok in _LINEAGE_Q_UP)
+    # Downstream wins ties: "what does this feed into and depend on" reads as
+    # a downstream-impact question. Bare "feed"/"feeds" with no directional
+    # phrase defaults to upstream ("what feeds X" is the common ask).
     wants_down = any(tok in text for tok in _LINEAGE_Q_DOWN)
+    wants_up = any(tok in text for tok in _LINEAGE_Q_UP)
+    if not wants_up and not wants_down and ("feed" in text or "feeds" in text):
+        wants_up = True  # bare mention → upstream default
     if not (wants_up or wants_down):
         return None
+    # A pure downstream question must NOT also fetch upstream.
+    if wants_down and not any(tok in text for tok in _LINEAGE_Q_UP):
+        wants_up = False
     catalog, schema, table = fqn.split(".", 2)
     # Try each client (OBO carries the actor's system.access grant; the app SP
     # is the fallback). Track whether the read SUCCEEDED so we never assert
