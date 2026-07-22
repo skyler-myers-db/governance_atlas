@@ -939,6 +939,7 @@
 }
 
 .ga-home-matrix-row strong,
+.ga-home-matrix-row .ga-home-matrix-rowlink,
 .ga-home-matrix-row.is-header span {
   color: var(--ga-text-muted);
   font-size: 10.5px;
@@ -946,6 +947,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ga-home-matrix-row .ga-home-matrix-rowlink {
+  text-decoration: none;
+}
+
+.ga-home-matrix-row .ga-home-matrix-rowlink:hover,
+.ga-home-matrix-row .ga-home-matrix-rowlink:focus-visible {
+  color: var(--ga-bright-blue);
+  text-decoration: underline;
 }
 
 .ga-home-matrix-row.is-header span {
@@ -1048,6 +1059,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* min-width:0 lets the card shrink inside the grid so a long unbreakable FQN
+     wraps instead of escaping the card box. */
+  min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--ga-border);
   border-radius: var(--ga-radius-md);
@@ -1065,11 +1079,19 @@
 .ga-home-rec strong {
   color: var(--ga-text-strong);
   font-size: 13.5px;
+  overflow-wrap: anywhere;
 }
 
 .ga-home-rec small {
   color: var(--ga-text-muted);
   font-size: 12.5px;
+  /* Long asset FQNs (datapact.enterprise_metadata_ops.…) must break inside the
+     card, never overflow into the neighbour card. */
+  overflow-wrap: anywhere;
+}
+
+.ga-home-rec-list > li {
+  min-width: 0;
 }
 
 /* ------------------------------------------------------------ responsive */

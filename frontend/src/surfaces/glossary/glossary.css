@@ -177,9 +177,32 @@
 
 .ga-glos-detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  /* Exactly 3 columns for the 3 mid cards (Linked assets / Hierarchy / Pending
+     review); full-width cards span 1/-1. auto-fit made 4 columns on wide
+     screens, leaving an empty 4th column of dead space. stretch equalizes the
+     card heights (they were ragged under align-items:start). */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--ga-space-3, 12px);
-  align-items: start;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .ga-glos-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Each detail card fills its stretched grid cell so the three mid cards are
+   equal height instead of ragged. */
+.ga-glos-detail-card {
+  height: 100%;
+}
+
+/* Scroll landing: the term-detail panel is scrolled into view on select/deep
+   link. Without this margin its top lands behind the sticky shell header +
+   glossary tab bar and reads as "blocked" text. Offset by that stacked chrome. */
+.ga-glos-detail-anchor {
+  scroll-margin-top: calc(var(--ga-shell-header-height, 80px) + 60px);
 }
 
 .ga-glos-detail-card.is-definition,
@@ -194,9 +217,12 @@
 }
 
 .ga-glos-kv-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px 16px;
+  /* A metadata strip (Owner/Steward/Domain/Review/Version): pack the pairs
+     left with an even rhythm. The auto-fit grid made a variable number of
+     columns and left a ragged empty column that read as uneven spacing. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 36px;
 }
 
 .ga-glos-owner-line {

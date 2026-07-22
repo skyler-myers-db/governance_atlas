@@ -62,7 +62,6 @@ from atlas.api.response import (
     _now_iso,
     _request_scope_warning,
     _response_meta,
-    _utc_iso,
     _with_meta,
 )
 from atlas.config import AppConfig
@@ -2540,7 +2539,11 @@ def _start_background_drainer() -> None:
                 results = drain_queued_batch(
                     store=store, handler=_handle_export_work, max_items=5
                 )
-                _DRAINER_STATE["lastDrainAt"] = _utc_iso()
+                # _utc_iso(value) needs a timestamp — the drainer was calling it
+                # with no args, raising TypeError every tick and flipping the
+                # background-work envelope to Degraded. _now_iso() is the no-arg
+                # helper meant for exactly this.
+                _DRAINER_STATE["lastDrainAt"] = _now_iso()
                 _DRAINER_STATE["processedTotal"] = int(
                     _DRAINER_STATE.get("processedTotal") or 0
                 ) + len(results or [])

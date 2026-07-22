@@ -122,7 +122,23 @@ export function CoverageMatrixCard({ cells }) {
           </div>
           {rows.map((row) => (
             <div className="ga-home-matrix-row" key={row.domain} role="row">
-              <strong role="rowheader">{row.domain}</strong>
+              {/* The domain row header links to Discovery filtered to that
+                  domain — the one Risk & quality tile whose payload carries a
+                  value that maps to a real filter. (Risk-heatmap cells and
+                  cert tiers stay static: there's no impact×likelihood or tier
+                  filter grammar, so a link would land on an empty page.) */}
+              {hrefForRef({ kind: "domain", name: row.domain }) ? (
+                <Link
+                  role="rowheader"
+                  className="ga-home-matrix-rowlink"
+                  to={hrefForRef({ kind: "domain", name: row.domain })}
+                  title={`Open ${row.domain} assets in Discovery`}
+                >
+                  {row.domain}
+                </Link>
+              ) : (
+                <strong role="rowheader">{row.domain}</strong>
+              )}
               {columns.map((column) => {
                 const value = numericValue(row.values[column]) ?? 0;
                 return (
@@ -192,6 +208,17 @@ export function CertificationTierCard({ rows }) {
  * recommendation, ZERO cards render nothing at all (kill list §7.1: the
  * "No additional evidence-backed recommendation" filler slots die).
  */
+// Send each recommendation to its cited evidence: an asset rec opens the asset,
+// a domain rec opens Discovery filtered to that domain, everything else falls
+// back to the stewardship queue. Makes the card lead somewhere useful instead
+// of the same generic destination.
+function recTarget(item) {
+  const evidence = Array.isArray(item?.evidence) ? item.evidence[0] : null;
+  if (evidence?.type === "asset" && evidence.id) return { kind: "asset", fqn: String(evidence.id) };
+  if (evidence?.type === "domain" && evidence.id) return { kind: "domain", name: String(evidence.id) };
+  return { surface: "stewardship" };
+}
+
 export function RecommendationsCard({ recommendations }) {
   const rows = (Array.isArray(recommendations) ? recommendations : []).filter(
     (item) => item && (item.title || item.detail),
@@ -207,7 +234,10 @@ export function RecommendationsCard({ recommendations }) {
       <ul className="ga-home-rec-list">
         {rows.map((item) => (
           <li key={item.key || item.title}>
-            <Link className="ga-home-rec" to={hrefForRef({ surface: "stewardship" })}>
+            <Link
+              className="ga-home-rec"
+              to={hrefForRef(recTarget(item)) || hrefForRef({ surface: "stewardship" })}
+            >
               <strong>{item.title || "Evidence-backed recommendation"}</strong>
               <small>{item.detail || ""}</small>
             </Link>

@@ -447,6 +447,19 @@
   background: var(--ga-surface);
   box-shadow: var(--ga-glass-highlight), var(--ga-shadow-sm);
   padding: var(--ga-space-4);
+  /* Cards must never let their content spill past their border. */
+  min-width: 0;
+}
+
+/* Defensive containment (high-leverage): any raw long token — an asset FQN, an
+   email, an id — printed directly in a card body (not via EntityChip, which
+   clips) breaks inside the card instead of overflowing into a neighbour.
+   overflow-wrap:anywhere only breaks when a token would otherwise overflow. */
+.ga-sys-section-card p,
+.ga-sys-section-card small,
+.ga-sys-section-card dd,
+.ga-sys-section-card li {
+  overflow-wrap: anywhere;
 }
 
 .ga-sys-section-card.is-hydrating {
