@@ -191,6 +191,9 @@
   display: grid;
   gap: var(--ga-space-4, 16px);
   min-width: 0;
+  /* Reserve height so a transient empty/loading state doesn't collapse the
+     grid and jump the page (belt-and-suspenders with the SWR results). */
+  min-height: 60vh;
 }
 
 /* ---------------- facet rail ---------------- */

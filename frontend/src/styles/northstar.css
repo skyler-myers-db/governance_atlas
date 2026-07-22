@@ -948,6 +948,11 @@ body {
 .gh-main,
 .ga-shell-main {
   overflow: auto !important;
+  /* Always reserve the scrollbar gutter so the content width never changes when
+     the vertical scrollbar appears/disappears (e.g. results collapse to a
+     loading state then re-expand). That toggling was the whole-page
+     "shrink then expand" flicker on filter changes. */
+  scrollbar-gutter: stable;
 }
 
 @keyframes gh-discovery-globe-drift {

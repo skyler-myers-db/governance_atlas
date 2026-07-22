@@ -267,6 +267,47 @@
   font-size: 13px;
 }
 
+/* Inline assign affordance replacing a dead "Unassigned" label. */
+.ga-asset-owner-assign-btn {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px dashed var(--ga-border-strong);
+  border-radius: var(--ga-radius-sm, 6px);
+  background: transparent;
+  color: var(--ga-bright-blue);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.ga-asset-owner-assign-btn:hover,
+.ga-asset-owner-assign-btn:focus-visible {
+  border-color: var(--ga-bright-blue);
+  background: color-mix(in srgb, var(--ga-bright-blue) 10%, transparent);
+  outline: none;
+}
+
+.ga-asset-owner-assign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ga-asset-owner-assign-input {
+  padding: 6px 8px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm, 6px);
+  background: var(--ga-surface);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.ga-asset-owner-assign-actions {
+  display: flex;
+  gap: 6px;
+}
+
 /* -------------------------------------------------------------- tab body */
 
 .ga-asset-tab-grid {
@@ -346,6 +387,17 @@
 .ga-asset-minimap-none {
   color: var(--ga-text-faint);
   font-size: 12px;
+}
+
+/* Make the lineage node rows clearly read as clickable links (they are
+   EntityChip anchors to the asset). */
+.ga-asset-minimap-col .ga-sys-entity-chip.is-row .ga-sys-entity-chip-label {
+  color: var(--ga-bright-blue);
+}
+
+.ga-asset-minimap-col .ga-sys-entity-chip.is-row:hover .ga-sys-entity-chip-label,
+.ga-asset-minimap-col .ga-sys-entity-chip.is-row:focus-visible .ga-sys-entity-chip-label {
+  text-decoration: underline;
 }
 
 /* ------------------------------------------------------ quality & usage */

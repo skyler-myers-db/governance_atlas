@@ -38,7 +38,16 @@ function MiniMapColumn({ title, nodes }) {
           <EntityChip
             key={node.id}
             appearance="row"
-            entity={{ kind: "asset", fqn: node.fqn, label: node.label, meta: node.apiKind || "" }}
+            // withHover surfaces the FULL asset name/fqn on hover — the row label
+            // truncates to the last segment (e.g. "p.. View"), which read as
+            // broken. The chip is a real link to the asset where a fqn exists.
+            withHover
+            entity={{
+              kind: "asset",
+              fqn: node.fqn,
+              label: node.label,
+              meta: node.apiKind || "",
+            }}
           />
         ))
       ) : (
@@ -128,31 +137,45 @@ function QualitySummary({ fqn, quality }) {
   );
 }
 
-function UsageSources({ usage }) {
+function UsageSources({ usage, fqn }) {
   const sources = usage?.sources || {};
   const entries = ["downstreamAssets", "consumers", "queries"]
-    .map((key) => sources[key])
+    .map((key) => (sources[key] ? { key, ...sources[key] } : null))
     .filter(Boolean);
   if (!entries.length) {
     return <UnavailableState title="Usage unavailable" reason="No usage sources were returned." />;
   }
   return (
     <ul className="ga-asset-usage-list">
-      {entries.map((source) => (
-        <li key={source.source || source.label} className="ga-asset-usage-row">
-          <span className="ga-asset-usage-label">
-            {source.label}
-            <span className="ga-asset-usage-source">({source.source})</span>
-          </span>
-          {String(source.state).toLowerCase() === "available" ? (
-            <strong>{source.count}</strong>
-          ) : (
-            <span className="ga-asset-usage-reason" title={source.reason || undefined}>
-              — {String(source.state).toLowerCase() === "loading" ? "loading" : "unavailable"}
+      {entries.map((source) => {
+        const available = String(source.state).toLowerCase() === "available";
+        // The downstream-assets count is the observed lineage graph — link it to
+        // the Lineage tab. Consumers/queries have no per-asset drill destination,
+        // so they stay as honest static counts.
+        const linkToLineage = source.key === "downstreamAssets" && fqn && available && source.count > 0;
+        return (
+          <li key={source.source || source.label} className="ga-asset-usage-row">
+            <span className="ga-asset-usage-label">
+              {linkToLineage ? (
+                <EntityChip
+                  appearance="inline"
+                  entity={{ kind: "asset", fqn, params: { tab: "lineage" }, label: source.label }}
+                />
+              ) : (
+                source.label
+              )}
+              <span className="ga-asset-usage-source">({source.source})</span>
             </span>
-          )}
-        </li>
-      ))}
+            {available ? (
+              <strong>{source.count}</strong>
+            ) : (
+              <span className="ga-asset-usage-reason" title={source.reason || undefined}>
+                — {String(source.state).toLowerCase() === "loading" ? "loading" : "unavailable"}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -224,7 +247,7 @@ export function OverviewTab({ fqn, asset, a360, graph, detailLoading }) {
         title="Usage"
         subtitle="Lifetime totals per source — no time window exists for these counts."
       >
-        {a360Ready ? <UsageSources usage={a360.usage} /> : <LoadingState variant="card" lines={3} />}
+        {a360Ready ? <UsageSources usage={a360.usage} fqn={fqn} /> : <LoadingState variant="card" lines={3} />}
       </SectionCard>
 
       <SectionCard title="Related assets">

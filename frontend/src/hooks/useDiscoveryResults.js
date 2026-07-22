@@ -125,9 +125,15 @@ export function useDiscoveryResults(filters, options = {}) {
     scopeKey: "",
     data: seededFallback,
   });
+  // Stale-while-revalidate ACROSS scope changes: keep the last authoritative
+  // results on screen while a filter change refetches, instead of collapsing to
+  // an empty skeleton (which made the whole grid shrink then re-expand — the
+  // reported filter-click flicker). The "Refreshing" indicator on DiscoveryPage
+  // signals the in-flight update; results swap in when the new scope resolves.
+  const lastData = lastAuthoritativeResultRef.current.data;
   const placeholderData =
-    lastAuthoritativeResultRef.current.scopeKey === currentScopeKey
-      ? lastAuthoritativeResultRef.current.data
+    lastData && Array.isArray(lastData.assets) && lastData.assets.length
+      ? lastData
       : seededFallback;
   // Round 19 OBO hardening: one-shot cache-bypass flag. When the user
   // clicks "Retry with actor scope" on the fallback banner, we send
@@ -191,7 +197,14 @@ export function useDiscoveryResults(filters, options = {}) {
   }, [currentPayloadAuthoritative, currentScopeKey, query.data, query.isSuccess, seededFallback, usingPlaceholder]);
 
   return {
-    loading: query.isPending || (query.isFetching && usingPlaceholder) || inventoryHydrating,
+    // Show the skeleton ONLY when there's nothing to display. While refetching a
+    // new scope we keep the previous results on screen (usingPlaceholder with
+    // non-empty assets) and expose `fetching` for the quiet "Refreshing"
+    // indicator — no collapse-to-skeleton flicker.
+    loading:
+      query.isPending ||
+      (query.isFetching && usingPlaceholder && !assets.length) ||
+      inventoryHydrating,
     error:
       query.isError && !invalidQuery
         ? query.error?.message || "Failed to search metadata assets."

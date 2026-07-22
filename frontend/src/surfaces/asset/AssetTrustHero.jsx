@@ -1,6 +1,73 @@
 import "./asset.css";
-import { Badge, EntityChip } from "../../components/system";
+import { useState } from "react";
+import { Badge, Button, EntityChip, SuggestInput, toast } from "../../components/system";
+import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
+import { useAtlasMutation } from "../../hooks/useAtlasQuery";
+import { upsertGovernanceOwner } from "../../lib/api";
 import { formatUtcInstant, ownerRef } from "./format";
+
+// Which governance roles can be assigned in-place, and their API ownerType.
+// The Unity Catalog owner is the catalog-native owner (not writable here), so
+// it stays read-only.
+const ASSIGNABLE_OWNER_TYPES = { "Business owner": "business", Steward: "steward" };
+
+function AssignOwnerControl({ assetFqn, ownerType, role, onAssigned }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const roster = useWorkspaceRoster({ enabled: open });
+  const assign = useAtlasMutation({
+    mutate: (ownerEmail) => upsertGovernanceOwner({ assetFqn, ownerEmail, ownerType }),
+  });
+
+  const submit = (event) => {
+    event.preventDefault();
+    const value = email.trim();
+    if (!value || assign.submitting) return;
+    assign
+      .mutate(value)
+      .then(() => {
+        toast(`${role} assigned to ${value}.`, { tone: "success" });
+        setOpen(false);
+        setEmail("");
+        if (typeof onAssigned === "function") onAssigned();
+      })
+      .catch((error) => {
+        // Surface the roster-gate / validation message honestly.
+        toast(error?.message || `Could not assign ${role.toLowerCase()}.`, { tone: "warning" });
+      });
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="ga-asset-owner-assign-btn" onClick={() => setOpen(true)}>
+        Unassigned · Assign
+      </button>
+    );
+  }
+  return (
+    <form className="ga-asset-owner-assign-form" onSubmit={submit}>
+      <SuggestInput
+        aria-label={`${role} email`}
+        className="ga-asset-owner-assign-input"
+        disabled={assign.submitting}
+        onChange={(event) => setEmail(event.target.value)}
+        options={roster.emails}
+        placeholder="name@company.com"
+        type="email"
+        value={email}
+        autoFocus
+      />
+      <div className="ga-asset-owner-assign-actions">
+        <Button size="sm" type="submit" variant="primary" loading={assign.submitting} disabled={!email.trim()}>
+          Assign
+        </Button>
+        <Button size="sm" type="button" variant="tertiary" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 /*
  * AssetTrustHero — the trust verdict block (PRODUCT_BLUEPRINT §3a, priority
@@ -43,8 +110,12 @@ function FreshnessValue({ label, value, hydrating, fallbackReason }) {
   );
 }
 
-function OwnerRole({ role, entry, hydrating = false }) {
+function OwnerRole({ role, entry, hydrating = false, assetFqn = "", canMutate = false, onAssigned }) {
   const ref = ownerRef(entry);
+  const ownerType = ASSIGNABLE_OWNER_TYPES[role];
+  // Offer an inline assign affordance when the role is unassigned AND writable —
+  // instead of a dead "Unassigned" label the user can't act on.
+  const canAssign = Boolean(canMutate && ownerType && assetFqn);
   return (
     <div className="ga-asset-owner-role">
       <span className="ga-asset-owner-role-label">{role}</span>
@@ -54,6 +125,13 @@ function OwnerRole({ role, entry, hydrating = false }) {
         // Unknown yet — "Unassigned" is a governance claim, not a loading
         // state (Wave-B verifier BLOCK).
         <span className="ga-asset-owner-unassigned" aria-busy="true">…</span>
+      ) : canAssign ? (
+        <AssignOwnerControl
+          assetFqn={assetFqn}
+          ownerType={ownerType}
+          role={role}
+          onAssigned={onAssigned}
+        />
       ) : (
         <span className="ga-asset-owner-unassigned">Unassigned</span>
       )}
@@ -71,7 +149,8 @@ function OwnerRole({ role, entry, hydrating = false }) {
  *   compact?: boolean,
  * }} props
  */
-export function AssetTrustHero({ asset, freshness, ownership, ownershipPending = false, hydrating = false, compact = false }) {
+export function AssetTrustHero({ asset, freshness, ownership, ownershipPending = false, hydrating = false, compact = false, canMutate = false, onAssigned }) {
+  const assetFqn = String(asset?.fqn || asset?.assetFqn || "").trim();
   const coverage = Number(asset?.coverageScore);
   const hasCoverage = Number.isFinite(coverage) && asset?.coverageScore !== null && asset?.coverageScore !== "";
   const sensitivity = String(asset?.sensitivity || "").trim();
@@ -123,8 +202,22 @@ export function AssetTrustHero({ asset, freshness, ownership, ownershipPending =
 
       <div className="ga-asset-owners" aria-label="Ownership">
         <OwnerRole hydrating={hydrating || (ownershipPending && !ownership?.ucOwner)} role="Owner (Unity Catalog)" entry={ownership?.ucOwner} />
-        <OwnerRole hydrating={hydrating || (ownershipPending && !ownership?.businessOwner)} role="Business owner" entry={ownership?.businessOwner} />
-        <OwnerRole hydrating={hydrating || (ownershipPending && !ownership?.steward)} role="Steward" entry={ownership?.steward} />
+        <OwnerRole
+          hydrating={hydrating || (ownershipPending && !ownership?.businessOwner)}
+          role="Business owner"
+          entry={ownership?.businessOwner}
+          assetFqn={assetFqn}
+          canMutate={canMutate}
+          onAssigned={onAssigned}
+        />
+        <OwnerRole
+          hydrating={hydrating || (ownershipPending && !ownership?.steward)}
+          role="Steward"
+          entry={ownership?.steward}
+          assetFqn={assetFqn}
+          canMutate={canMutate}
+          onAssigned={onAssigned}
+        />
       </div>
     </section>
   );
