@@ -205,7 +205,7 @@ describe("LineagePage — bare /lineage picker", () => {
   it("renders the search-first picker and never auto-redirects to a recommendation", () => {
     useLineageRecommendations.mockReturnValue(richRecommendations());
     renderLineage("/lineage");
-    expect(screen.getByPlaceholderText("Search for an asset")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Search tables, views, catalogs…")).toBeTruthy();
     expect(screen.getByText("High-lineage assets")).toBeTruthy();
     // Ranked candidate is a REAL link to the canonical /lineage/<fqn> path.
     const row = screen.getByText("rich").closest("a");
@@ -224,7 +224,7 @@ describe("LineagePage — bare /lineage picker", () => {
       resolvedQuery: query,
     }));
     renderLineage("/lineage?q=c");
-    expect(screen.getByPlaceholderText("Search for an asset").value).toBe("c");
+    expect(screen.getByPlaceholderText("Search tables, views, catalogs…").value).toBe("c");
     const row = screen.getByText("c").closest("a");
     expect(row?.getAttribute("href")).toBe("/lineage/a.b.c");
     fireEvent.click(screen.getByText("c"));
@@ -233,7 +233,7 @@ describe("LineagePage — bare /lineage picker", () => {
 
   it("writes the picker query to the URL", () => {
     renderLineage("/lineage");
-    fireEvent.change(screen.getByPlaceholderText("Search for an asset"), {
+    fireEvent.change(screen.getByPlaceholderText("Search tables, views, catalogs…"), {
       target: { value: "loan" },
     });
     expect(probe()).toBe("/lineage?q=loan");

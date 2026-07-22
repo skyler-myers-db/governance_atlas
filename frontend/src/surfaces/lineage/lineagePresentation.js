@@ -28,6 +28,40 @@ export function isUcAssetFqn(value) {
   return parts.length === 3 && parts.every((part) => part.trim());
 }
 
+/**
+ * Build an absolute Catalog Explorer deep link for a UC asset.
+ *
+ * Truth order (honesty contract — never invent a link we can't stand behind):
+ *   1. A backend-supplied deepLink path (from the /access-explain payload's
+ *      deepLinks.catalogExplorer) is authoritative — absolutize it against
+ *      the workspace host if it is relative, or pass it through if absolute.
+ *   2. Otherwise construct `/explore/data/<catalog>/<schema>/<table>` — the
+ *      exact shape the backend itself emits (atlas/services/capabilities.py) —
+ *      but ONLY when we have BOTH a real workspace host AND a 3-part FQN.
+ *   3. No host or no FQN → "" (the caller renders nothing rather than a dead
+ *      or wrong link).
+ */
+export function catalogExplorerUrl(fqn, workspaceHost, deepLinkPath = "") {
+  let host = String(workspaceHost || "").trim().replace(/\/+$/, "");
+  if (host && !/^https?:\/\//i.test(host)) host = `https://${host}`;
+  const rel = String(deepLinkPath || "").trim();
+  if (/^https?:\/\//i.test(rel)) return rel;
+  if (host && rel.startsWith("/")) return `${host}${rel}`;
+  const parts = String(fqn || "").split(".").filter((part) => part.trim());
+  if (parts.length < 3 || !host) return "";
+  return `${host}/explore/data/${parts[0]}/${parts[1]}/${parts.slice(2).join("/")}`;
+}
+
+/** Resolve the workspace host from a bootstrap payload (shell block). */
+export function workspaceHostFromBootstrap(bootstrap) {
+  return String(
+    bootstrap?.shell?.workspaceHost ||
+      bootstrap?.shell?.environment?.workspaceHost ||
+      bootstrap?.workspaceHost ||
+      "",
+  ).trim();
+}
+
 export function ownerLabel(asset, fallbackNode) {
   const owners = Array.isArray(asset?.owners) && asset.owners.length
     ? asset.owners

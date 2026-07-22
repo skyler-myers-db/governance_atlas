@@ -63,7 +63,7 @@ export function useAtlasAiConversation({ request = fetchAtlasAiRecommendations }
     abortRef.current?.abort?.();
   }, []);
 
-  const ask = useCallback(async (question) => {
+  const ask = useCallback(async (question, context) => {
     const resolvedQuestion = String(question || draft || "").trim();
     if (!resolvedQuestion || loading) return null;
 
@@ -90,10 +90,10 @@ export function useAtlasAiConversation({ request = fetchAtlasAiRecommendations }
     ]);
 
     try {
-      const response = await request(
-        resolvedQuestion,
-        controller ? { signal: controller.signal } : {},
-      );
+      const response = await request(resolvedQuestion, {
+        ...(controller ? { signal: controller.signal } : {}),
+        ...(context ? { context } : {}),
+      });
       if (requestSeqRef.current !== requestSeq) return response;
       setMessages((current) =>
         current.map((message) =>

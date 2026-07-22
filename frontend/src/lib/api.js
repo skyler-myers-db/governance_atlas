@@ -876,7 +876,19 @@ export function fetchCommandCenter(options = {}) {
 
 export function fetchAtlasAiRecommendations(question = "", options = {}) {
   const path = contractPath("atlasAiRecommendations") || "/atlas-ai/recommendations";
-  return requestJson(path, "POST", { question: String(question || "").trim() }, {
+  const body = { question: String(question || "").trim() };
+  // Page-awareness: forward the surface + asset the user is viewing so the AI
+  // resolves "this asset"/"this page" to a concrete entity (backend injects it
+  // into the Genie prompt). Only send fields that are actually present.
+  const context = options.context || {};
+  const surface = String(context.surface || "").trim();
+  const assetFqn = String(context.assetFqn || "").trim();
+  if (surface || assetFqn) {
+    body.context = {};
+    if (surface) body.context.surface = surface;
+    if (assetFqn) body.context.assetFqn = assetFqn;
+  }
+  return requestJson(path, "POST", body, {
     signal: options.signal,
   }).then((payload) => {
     const response = unwrapEnvelope(payload);

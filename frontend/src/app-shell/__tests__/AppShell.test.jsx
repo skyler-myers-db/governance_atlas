@@ -334,10 +334,17 @@ describe("AppShell rail", () => {
     expect(entry.textContent).toContain("Asset 360");
   });
 
-  it("omits the Asset 360 entry with no asset in context", async () => {
+  it("keeps a PERMANENT Asset 360 entry with no asset in context, targeting the picker", async () => {
+    // Owner directive 1: Asset 360 is no longer hidden by default. With no
+    // route/peek context and nothing remembered, the entry targets bare
+    // /assets (the search-first picker) so it is never a dead end.
     renderApp("/home");
     await screen.findByTestId("home-page");
-    expect(screen.getByLabelText("Primary modules").textContent).not.toContain("Asset 360");
+    const nav = screen.getByLabelText("Primary modules");
+    expect(nav.textContent).toContain("Asset 360");
+    const entry = [...nav.querySelectorAll("a")].find((a) => a.textContent.includes("Asset 360"));
+    expect(entry).toBeTruthy();
+    expect(entry.getAttribute("href")).toBe("/assets");
   });
 
   it("renders rail items as real anchors resolved from the route table", async () => {

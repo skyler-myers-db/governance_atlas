@@ -578,7 +578,125 @@
 
 .ga-asset-peek-footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
   width: 100%;
+}
+
+/* ------------------------------------------- open in databricks (external) */
+
+/* The "Open in Databricks" anchor styled as a secondary system button — it is
+   an <a> (new tab, rel=noopener), not a <button>, so it needs the flex/gap the
+   Button component gets from its own element selector. */
+a.ga-asset-open-databricks {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+/* ------------------------------------------------------------ /assets picker */
+
+.ga-asset-picker {
+  display: grid;
+  gap: 28px;
+  max-width: 760px;
+}
+
+.ga-asset-picker-search {
+  display: grid;
+  gap: 8px;
+}
+
+.ga-asset-picker-label {
+  color: var(--ga-text-strong);
+  font-size: 0.82rem;
+  font-weight: 640;
+}
+
+.ga-asset-picker-results {
+  display: grid;
+  gap: 4px;
+}
+
+.ga-asset-picker-status {
+  padding: 10px 2px;
+  color: var(--ga-text-muted);
+  font-size: 0.86rem;
+}
+
+.ga-asset-picker-section {
+  display: grid;
+  gap: 12px;
+}
+
+.ga-asset-picker-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--ga-border);
+  padding-bottom: 8px;
+}
+.ga-asset-picker-section-title span {
+  color: var(--ga-text-strong);
+  font-size: 0.92rem;
+  font-weight: 660;
+}
+.ga-asset-picker-section-title small {
+  color: var(--ga-text-muted);
+  font-size: 0.76rem;
+}
+
+.ga-asset-picker-list {
+  display: grid;
+  gap: 4px;
+}
+
+.ga-asset-picker-row.ga-sys-entity-chip.is-row {
+  width: 100%;
+}
+
+.ga-asset-picker-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.ga-asset-picker-card.ga-sys-entity-chip.is-row {
+  width: 100%;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--ga-border);
+  border-radius: 12px;
+  background: var(--ga-surface-muted);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.ga-asset-picker-card.ga-sys-entity-chip.is-row:hover,
+.ga-asset-picker-card.ga-sys-entity-chip.is-row:focus-visible {
+  border-color: var(--ga-bright-blue);
+  background: var(--ga-surface-strong);
+}
+
+.ga-asset-picker-card-body {
+  display: grid;
+  gap: 6px;
+}
+.ga-asset-picker-card-name {
+  color: var(--ga-text-strong);
+  font-size: 0.9rem;
+  font-weight: 640;
+  overflow-wrap: anywhere;
+}
+.ga-asset-picker-card-path {
+  color: var(--ga-text-muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+.ga-asset-picker-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
 }

@@ -146,19 +146,6 @@ export function deriveCardStats(node, header) {
   };
 }
 
-const KIND_ACCENT = {
-  table: { color: "#66c5ff", bg: "rgba(102, 197, 255, 0.10)" },
-  pipeline: { color: "#5ce1e6", bg: "rgba(92, 225, 230, 0.10)" },
-  job: { color: "#5ce1e6", bg: "rgba(92, 225, 230, 0.10)" },
-  notebook: { color: "#f4b740", bg: "rgba(244, 183, 64, 0.10)" },
-  "saved-query": { color: "#a8d3e8", bg: "rgba(168, 211, 232, 0.10)" },
-  dashboard: { color: "#cfefff", bg: "rgba(207, 239, 255, 0.10)" },
-  model: { color: "#a8d3e8", bg: "rgba(168, 211, 232, 0.10)" },
-  udf: { color: "#b2bdc2", bg: "rgba(178, 189, 194, 0.10)" },
-  volume: { color: "#66c5ff", bg: "rgba(102, 197, 255, 0.10)" },
-  restricted: { color: "#f4b740", bg: "rgba(244, 183, 64, 0.10)" },
-};
-
 function KindGlyph({ kind, size = 14 }) {
   // Inline SVG glyphs so we don't pull lucide into the canvas bundle.
   const stroke = /** @type {const} */ ({
@@ -263,8 +250,9 @@ export function LineageNodeCard({
   selectedColumnName = "",
   onClick,
   onColumnSelect,
+  onOpenAsset = null,
+  databricksHref = "",
 }) {
-  const accent = KIND_ACCENT[node?.kind] || KIND_ACCENT.table;
   const visibleColumns = Array.isArray(node?.columns) ? node.columns.slice(0, 5) : [];
   const totalColumns = Number(node?.totalColumns) || visibleColumns.length;
   const hiddenColumns = Math.max(0, totalColumns - visibleColumns.length);
@@ -290,8 +278,22 @@ export function LineageNodeCard({
 
   const handleClick = (event) => {
     if (!onClick) return;
+    // Columns and the action strip own their own clicks — a click there must
+    // not bubble to the card's select/re-anchor behavior.
     if (event.target.closest?.(".ga-lineage-v2-card-col")) return;
+    if (event.target.closest?.(".ga-lineage-v2-card-actions")) return;
     onClick(node);
+  };
+
+  // Node-level affordances (owner direction #2c). Both are permission-honest:
+  // Asset 360 opens the in-app record (destination surfaces the truth), and
+  // the Databricks link is only rendered when we can build a real Catalog
+  // Explorer URL. Only navigable (openable, real-FQN) nodes get them.
+  const showActions = navigable && Boolean(node?.fqn);
+  const handleOpenAsset = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (node?.fqn) onOpenAsset?.(node.fqn);
   };
 
   const handleColumnClick = (event, column) => {
@@ -320,11 +322,7 @@ export function LineageNodeCard({
       }}
     >
       <header className="ga-lineage-v2-card-head">
-        <span
-          aria-hidden="true"
-          className="ga-lineage-v2-card-glyph"
-          style={{ color: accent.color, background: accent.bg }}
-        >
+        <span aria-hidden="true" className="ga-lineage-v2-card-glyph">
           <KindGlyph kind={node?.kind || "table"} />
         </span>
         <span className="ga-lineage-v2-card-title-wrap">
@@ -499,6 +497,40 @@ export function LineageNodeCard({
           )
         ) : null}
       </footer>
+
+      {showActions ? (
+        <div className="ga-lineage-v2-card-actions">
+          {onOpenAsset ? (
+            <button
+              className="ga-lineage-v2-card-action"
+              onClick={handleOpenAsset}
+              title={`Open ${node?.label || node?.fqn || "asset"} in Asset 360`}
+              type="button"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="11" height="11">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <span>Asset 360</span>
+            </button>
+          ) : null}
+          {databricksHref ? (
+            <a
+              className="ga-lineage-v2-card-action"
+              href={databricksHref}
+              onClick={(event) => event.stopPropagation()}
+              rel="noreferrer noopener"
+              target="_blank"
+              title={`Open ${node?.label || node?.fqn || "asset"} in Databricks Catalog Explorer`}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="11" height="11">
+                <path d="M14 4h6v6M20 4l-9 9M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Databricks</span>
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

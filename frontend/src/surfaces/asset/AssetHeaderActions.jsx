@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { createGovernanceRequest } from "../../lib/api";
 import { Button, Drawer, toast } from "../../components/system";
 import { useAtlasNavigate } from "../../nav/useAtlasNavigate";
-import { catalogExplorerGate, certifyGate, lineageGate, requestChangeGate } from "./gates";
+import { ExternalLink, catalogExplorerUrl } from "./ExternalLink";
+import { certifyGate, lineageGate, requestChangeGate } from "./gates";
 
 /*
  * AssetHeaderActions — the four header controls, all honest (teardown P1-5
@@ -76,8 +77,12 @@ export function AssetHeaderActions({
 
   const certify = certifyGate(editor);
   const lineage = lineageGate(graph);
-  const explorer = catalogExplorerGate(access);
   const requestGate = requestChangeGate(fqn);
+  // Owner directive 2: "Open in Databricks" is FIRST-CLASS — a visible header
+  // button that always renders for a real FQN. Prefer the live access deepLink;
+  // fall back to the constructed Catalog Explorer URL. The workspace host is
+  // prepended so the anchor opens Databricks, not the app origin.
+  const explorerHref = catalogExplorerUrl(fqn, access?.deepLinks?.catalogExplorer);
 
   const handleCertify = async (option) => {
     certifyMenu.setOpen(false);
@@ -173,6 +178,8 @@ export function AssetHeaderActions({
         Request change
       </Button>
 
+      <ExternalLink href={explorerHref} />
+
       <Button
         variant="secondary"
         title={lineage.reason || undefined}
@@ -229,28 +236,16 @@ export function AssetHeaderActions({
             <button type="button" role="menuitem" className="ga-asset-menu-item" onClick={handleCopyLink}>
               Copy link
             </button>
-            {explorer.enabled ? (
-              <a
-                role="menuitem"
-                className="ga-asset-menu-item"
-                href={explorer.href}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => kebabMenu.setOpen(false)}
-              >
-                Open in Catalog Explorer
-              </a>
-            ) : (
-              <button
-                type="button"
-                role="menuitem"
-                className="ga-asset-menu-item"
-                disabled
-                title={explorer.reason}
-              >
-                Open in Catalog Explorer
-              </button>
-            )}
+            {/* "Open in Catalog Explorer" was promoted OUT of this menu into
+                the first-class header button (owner directive 2). Kept here as
+                a redundant menu-row too so the affordance is discoverable from
+                either place — same absolute Databricks URL. */}
+            <ExternalLink
+              href={explorerHref}
+              label="Open in Catalog Explorer"
+              variant="menu"
+              onClick={() => kebabMenu.setOpen(false)}
+            />
           </div>
         ) : null}
       </div>

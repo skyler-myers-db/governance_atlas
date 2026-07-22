@@ -12,6 +12,7 @@ import { useAssetMetadataEditor } from "../../hooks/useAssetMetadataEditor";
 import { useLineageGraphV2 } from "../../components/lineage-v2/useLineageGraphV2";
 import { useAtlasNavigate } from "../../nav/useAtlasNavigate";
 import { useSurfaceParams } from "../../nav/useSurfaceParams";
+import { pushRecentAsset, writeLastAsset } from "../../lib/prefs";
 import { AssetHeaderActions } from "./AssetHeaderActions";
 import { AssetTrustHero } from "./AssetTrustHero";
 import { AccessTab } from "./tabs/AccessTab";
@@ -150,6 +151,17 @@ export function AssetHubPage() {
   const [certOverride, setCertOverride] = useState(null);
   useEffect(() => {
     setCertOverride(null);
+  }, [fqn]);
+
+  // Remember the last opened record so the permanent "Asset 360" rail entry has
+  // a no-context target (owner directive 1), and keep the picker's recents list
+  // fresh. Guarded to real three-part FQNs so a dead-end URL never poisons the
+  // remembered target.
+  useEffect(() => {
+    if (fqn && fqn.split(".").filter(Boolean).length >= 3) {
+      writeLastAsset(fqn);
+      pushRecentAsset(fqn);
+    }
   }, [fqn]);
 
   // A hydrating-envelope stub (inventory rebuilding: headerSource

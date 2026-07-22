@@ -37,6 +37,14 @@ const PREFS = {
         ? value.filter((item) => typeof item === "string" && item).slice(0, 20)
         : [],
   },
+  // Last Asset 360 record the user opened. Powers the permanent rail entry's
+  // no-context target (owner directive: Asset 360 is always visible — with no
+  // route/peek context the entry returns you to where you last were).
+  lastAssetFqn: {
+    legacyKey: null,
+    fallback: "",
+    normalize: (value) => (typeof value === "string" ? value : ""),
+  },
   savedSearches: {
     legacyKey: "gh-saved-searches",
     fallback: [],
@@ -58,6 +66,36 @@ const PREFS = {
     legacyKey: null,
     fallback: "list",
     normalize: (value) => (value === "grid" ? "grid" : "list"),
+  },
+  // Lineage wave: FQNs of lineage graphs the user actually opened, most
+  // recent first. Powers the picker's "Recent lineage journeys" strip —
+  // preference-state only (the canonical journey state is the URL).
+  recentLineage: {
+    legacyKey: null,
+    fallback: [],
+    normalize: (value) =>
+      Array.isArray(value)
+        ? value.filter((item) => typeof item === "string" && item).slice(0, 12)
+        : [],
+  },
+  // Atlas AI dock layout: user-chosen size + maximize state, restored on
+  // reopen/refresh. Bounds are enforced by the dock (min 320x360); the
+  // normalizer only guards types so a corrupt value never breaks the dock.
+  aiDockLayout: {
+    legacyKey: null,
+    fallback: { width: 0, height: 0, maximized: false },
+    normalize: (value) => {
+      const source = value && typeof value === "object" ? value : {};
+      const num = (input) => {
+        const parsed = Number(input);
+        return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 0;
+      };
+      return {
+        width: num(source.width),
+        height: num(source.height),
+        maximized: Boolean(source.maximized),
+      };
+    },
   },
 };
 
@@ -159,6 +197,27 @@ export function pushRecentAsset(fqn) {
   if (!fqn) return readRecentAssets();
   const current = readRecentAssets();
   return writePref("recentAssets", [fqn, ...current.filter((item) => item !== fqn)]);
+}
+
+export function readRecentLineage() {
+  return readPref("recentLineage");
+}
+
+/** Most-recent-first, deduped, capped by the pref normalizer. */
+export function pushRecentLineage(fqn) {
+  if (!fqn) return readRecentLineage();
+  const current = readRecentLineage();
+  return writePref("recentLineage", [fqn, ...current.filter((item) => item !== fqn)]);
+}
+
+/** The FQN of the most recently opened Asset 360 record ("" when none). */
+export function readLastAsset() {
+  return readPref("lastAssetFqn");
+}
+
+/** Remember the last opened Asset 360 record; returns the normalized value. */
+export function writeLastAsset(fqn) {
+  return writePref("lastAssetFqn", String(fqn || ""));
 }
 
 export function readSavedSearches() {

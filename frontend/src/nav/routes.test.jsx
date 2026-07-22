@@ -192,7 +192,16 @@ describe("route table: legacy alias resolution", () => {
 
   it("unknown paths resolve to null (caller decides the not-found behavior)", () => {
     expect(resolveUrl("/nonsense")).toBeNull();
-    expect(resolveUrl("/assets")).toBeNull();
+  });
+
+  it("bare /assets resolves to the search-first Asset 360 picker (owner directive 1)", () => {
+    const result = resolveUrl("/assets");
+    expect(result).toBeTruthy();
+    expect(result.surface).toBe("assets");
+    expect(result.pathname).toBe("/assets");
+    expect(result.pathParams.fqn).toBeUndefined();
+    // The greedy detail route still wins for any path carrying an FQN segment.
+    expect(resolveUrl("/assets/main.sales.orders").pathParams.fqn).toBe("main.sales.orders");
   });
 });
 
@@ -205,6 +214,7 @@ describe("route table: shape", () => {
     expect(ROUTES.map((route) => route.path).sort()).toEqual(
       [
         "/admin",
+        "/assets",
         "/assets/:fqn",
         "/discovery",
         "/evidence",
@@ -366,8 +376,9 @@ describe("refs: every entity kind produces its contract route", () => {
       path: `/assets/${FQN}`,
       params: { tab: "quality" },
     });
-    // The hub has no bare route — a missing fqn is a programming error.
-    expect(() => resolveRef({ surface: "assets" })).toThrow(/path param/);
+    // Owner directive 1: the hub NOW has a bare route — a missing fqn resolves
+    // to the search-first picker (/assets) instead of throwing.
+    expect(resolveRef({ surface: "assets" })).toEqual({ path: "/assets", params: {} });
     expect(() => resolveRef({ surface: "not-a-surface" })).toThrow(/unknown surface/);
   });
 

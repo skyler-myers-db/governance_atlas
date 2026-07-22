@@ -28,6 +28,26 @@ describe("useAtlasAiConversation", () => {
     expect(assistant.evidenceCount).toBe(1);
   });
 
+  it("forwards page-awareness context to the request", async () => {
+    const request = vi.fn().mockResolvedValue({ answer: "ok", evidence: [] });
+    const { result } = renderHook(() => useAtlasAiConversation({ request }));
+
+    await act(async () => {
+      await result.current.ask("Who owns this asset?", {
+        surface: "assets",
+        assetFqn: "finance_prod.curated.revenue_daily",
+      });
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(request).toHaveBeenCalledWith(
+      "Who owns this asset?",
+      expect.objectContaining({
+        context: { surface: "assets", assetFqn: "finance_prod.curated.revenue_daily" },
+      }),
+    );
+  });
+
   it("keeps an explicit error message in the transcript", async () => {
     const request = vi.fn().mockRejectedValue(new Error("Genie endpoint timed out."));
     const { result } = renderHook(() => useAtlasAiConversation({ request }));

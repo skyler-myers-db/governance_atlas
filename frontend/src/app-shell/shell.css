@@ -408,9 +408,50 @@ a.ga-icon-button {
   color: var(--ga-text);
   box-shadow: 0 24px 72px rgba(0, 5, 14, 0.46), var(--ga-glass-highlight);
   min-width: 320px;
-  min-height: 382px;
+  min-height: 360px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 72px);
+  /* Distinct entry so the killer feature announces itself when opened. */
+  animation: ga-ai-dock-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* AI-accent hairline: a soft cyan aura marks the dock as the AI surface. */
+.ga-ai-dock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, rgba(102, 197, 255, 0.55), rgba(102, 197, 255, 0) 42%);
+  /* Gradient-border mask idiom: the fill is a functional mask, not a palette
+     color — the `black` keyword keeps it token-clean (no raw hex). */
+  -webkit-mask: linear-gradient(black 0 0) content-box, linear-gradient(black 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+@keyframes ga-ai-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ga-ai-dock {
+    animation: none;
+  }
+}
+
+.ga-ai-dock.is-maximized {
+  box-shadow: 0 32px 96px rgba(0, 5, 14, 0.58), var(--ga-glass-highlight);
 }
 
 .ga-shell-app[data-ai-open="true"] .ga-ai-dock {
@@ -502,6 +543,50 @@ a.ga-icon-button {
   cursor: pointer;
   font: inherit;
   font-size: 0.86rem;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ga-ai-dock-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.ga-ai-dock-icon-btn:hover,
+.ga-ai-dock-icon-btn:focus-visible {
+  background: rgba(102, 197, 255, 0.18);
+  border-color: rgba(102, 197, 255, 0.55);
+  color: var(--ga-text-strong);
+  outline: none;
+}
+
+.ga-ai-dock-icon-btn[aria-pressed="true"] {
+  background: rgba(102, 197, 255, 0.22);
+  border-color: rgba(102, 197, 255, 0.6);
+  color: var(--ga-text-strong);
+}
+
+/* Bottom-right resize grip. Absolutely positioned so it never disturbs the
+   grid layout; the pointer handler in AtlasAiDock.jsx does the actual resize. */
+.ga-ai-dock-resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2px;
+  color: rgba(158, 205, 236, 0.7);
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 3;
+}
+
+.ga-ai-dock-resize:hover {
+  color: var(--ga-bright-blue);
 }
 
 .ga-ai-dock-body {

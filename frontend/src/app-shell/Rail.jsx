@@ -72,9 +72,42 @@ function badgeLabel(value) {
   return value > 999 ? "999+" : String(value);
 }
 
+// Build the PERMANENT "Asset 360" rail entry (owner directive 1: no longer
+// hidden by default). Target precedence: the asset in context (route focus or
+// ?peek=) → the last record you opened (prefs) → the search-first /assets
+// picker. The tooltip names the behavior so the entry is never a mystery door.
+function asset360Item({ contextAssetFqn, lastAssetFqn }) {
+  const base = {
+    key: "asset360",
+    surface: "assets",
+    label: "Asset 360",
+    icon: "asset360",
+  };
+  if (contextAssetFqn) {
+    return {
+      ...base,
+      entityRef: { kind: "asset", fqn: contextAssetFqn },
+      title: `Asset 360 — ${contextAssetFqn}`,
+    };
+  }
+  if (lastAssetFqn) {
+    return {
+      ...base,
+      entityRef: { kind: "asset", fqn: lastAssetFqn },
+      title: `Asset 360 — reopen last viewed: ${lastAssetFqn}`,
+    };
+  }
+  // No context and nothing remembered: the picker (a surfaceRef, resolved to
+  // bare /assets by nav/refs.js).
+  return { ...base, params: {}, title: "Asset 360 — pick an asset to open its full record" };
+}
+
 export function Rail({
   activeSurface = "",
   contextAssetFqn = "",
+  // Last opened Asset 360 record (prefs.lastAssetFqn) — the rail entry's
+  // no-context target so the permanent entry is never a dead end.
+  lastAssetFqn = "",
   // My-work badge (nav.badgeKey "myWork"): null while its sources load —
   // a definitive 0 during hydration is the bug class the cohesion laws ban.
   myWorkBadgeCount = null,
@@ -108,7 +141,7 @@ export function Rail({
           if (shellDisabled) return;
           navigate(target);
         }}
-        title={shellDisabled && shellDisabledReason ? shellDisabledReason : item.label}
+        title={shellDisabled && shellDisabledReason ? shellDisabledReason : item.title || item.label}
       >
         <span className="ga-side-nav-icon">{RAIL_ICONS[item.icon] || RAIL_ICONS.gauge}</span>
         <span>{item.label}</span>
@@ -145,16 +178,13 @@ export function Rail({
               <div aria-hidden="true" className="ga-side-nav-section-title ga-shell-nav-divider" />
             )}
             {section.items.map((item) => renderItem(item))}
-            {/* Contextual hub entry: routes.js declares assets with nav:null
-                (not an estate destination); the rail adds it inside GOVERN
-                whenever an asset is in context. */}
-            {section.id === "govern" && contextAssetFqn
+            {/* PERMANENT Asset 360 entry (owner directive 1): routes.js
+                declares both /assets routes with nav:null, so the rail owns
+                this GOVERN entry. It is ALWAYS shown; its target adapts to the
+                asset in context, the last opened record, or the picker. */}
+            {section.id === "govern"
               ? renderItem({
-                  key: "asset360",
-                  surface: "assets",
-                  label: "Asset 360",
-                  icon: "asset360",
-                  entityRef: { kind: "asset", fqn: contextAssetFqn },
+                  ...asset360Item({ contextAssetFqn, lastAssetFqn }),
                   activeOverride: activeSurface === "assets",
                 })
               : null}

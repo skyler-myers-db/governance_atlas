@@ -57,6 +57,7 @@ beforeEach(() => {
   });
   api.fetchAsset360.mockResolvedValue({
     asset: { fqn: FQN, name: "orders" },
+    access: { deepLinks: { catalogExplorer: "/explore/data/main/sales/orders" } },
     ownership: {
       ucOwner: { name: "skyler@entrada.ai" },
       businessOwner: { name: "product-steward@entrada.ai" },
@@ -110,6 +111,18 @@ describe("AssetPeekPanel", () => {
     await waitFor(() =>
       expect(screen.getByTestId("location").textContent).toBe(`/assets/${encodeURIComponent(FQN)}`),
     );
+  });
+
+  it("offers a first-class 'Open in Databricks' link built from the live deepLink", async () => {
+    renderPanel();
+    const dialog = await screen.findByRole("dialog");
+    const link = await within(dialog).findByRole("link", { name: "Open in Databricks" });
+    expect(link.getAttribute("href")).toBe(
+      "https://dbc-3aa503a9-4fa8.cloud.databricks.com/explore/data/main/sales/orders",
+    );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("title")).toBe("Open in Databricks Catalog Explorer");
   });
 
   it("renders nothing when closed", () => {
