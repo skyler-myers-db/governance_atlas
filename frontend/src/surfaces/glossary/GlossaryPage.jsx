@@ -467,7 +467,7 @@ export default function GlossaryPage() {
             </div>
           )}
           {selectedTerm ? (
-            <div ref={termDetailRef}>
+            <div ref={termDetailRef} className="ga-glos-detail-anchor">
               <TermDetail
                 childTerms={childTerms}
                 onClose={closeTermDetail}
