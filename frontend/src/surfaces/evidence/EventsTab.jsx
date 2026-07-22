@@ -13,6 +13,8 @@ import {
   toast,
 } from "../../components/system";
 import { auditRangeSinceIso, useAuditEvents, useAuditEvidence } from "../../hooks/useAuditEvents";
+import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
+import { useAssetSuggestions } from "../../hooks/useAssetSuggestions";
 import { envelopeData, envelopeMeta } from "../../lib/envelope";
 import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
 import {
@@ -79,6 +81,9 @@ function carriedParams(params) {
 }
 
 export function EventsTab({ shell = null, params, setParams }) {
+  // Autofill sources for the actor (real principals) + asset filters.
+  const roster = useWorkspaceRoster();
+  const assetSuggestions = useAssetSuggestions();
   /* ------------------------------------------------------------ URL state */
   const range = RANGES.includes(params.range) ? params.range : "24h";
   const kind = ["users", "services", "violations"].includes(params.kind) ? params.kind : "all";
@@ -628,9 +633,9 @@ export function EventsTab({ shell = null, params, setParams }) {
       <div className="ga-evid-filter-row">
         <FilterBar
           facets={[
-            { key: "actor", label: "Actor email", type: "search", placeholder: "e.g. steward@company.com" },
+            { key: "actor", label: "Actor email", type: "search", placeholder: "e.g. steward@company.com", suggestions: roster.emails },
             { key: "action", label: "Action", type: "search", placeholder: "e.g. task-status-updated" },
-            { key: "asset", label: "Target asset", type: "search", placeholder: "catalog.schema.table" },
+            { key: "asset", label: "Target asset", type: "search", placeholder: "catalog.schema.table", suggestions: assetSuggestions.fqns },
             { key: "q", label: "Search events", type: "search", placeholder: "Free text across visible rows" },
           ]}
           label="Audit evidence filters"

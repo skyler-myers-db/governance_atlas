@@ -369,10 +369,18 @@ body {
 .ga-side-nav-user .ga-user-chip-menu {
   position: absolute;
   left: 0;
+  /* Open UPWARD: the profile chip sits at the very bottom of the sidebar, so
+     the base shell-rail rule's `top: calc(100% + 6px)` pushed the menu below
+     the viewport (Sign out was off-screen). Anchor to `bottom` and explicitly
+     reset `top`/`right` so only the upward anchor applies. Cap the height and
+     scroll so it can never exceed the viewport on a short window. */
+  top: auto;
+  right: auto;
   bottom: calc(100% + 8px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   z-index: 1300;
   width: min(250px, calc(100vw - 28px));
-  overflow: hidden;
   border: 1px solid var(--ga-border);
   border-radius: var(--ga-radius-lg);
   background: var(--ga-surface-strong);

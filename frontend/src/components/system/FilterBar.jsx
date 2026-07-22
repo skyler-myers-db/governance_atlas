@@ -1,6 +1,7 @@
 import "./system.css";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "./Button";
+import { SuggestInput } from "./SuggestInput";
 
 /*
  * The one filter bar (FRONTEND_BLUEPRINT §6): a declarative facet model so
@@ -110,6 +111,22 @@ export function FilterBar({
       {facets.map((facet) => {
         const type = facet.type ?? "select";
         if (type === "search") {
+          // A search facet with `suggestions` autocompletes from that list
+          // (roster emails for an actor facet, asset FQNs for an asset facet)
+          // while still accepting free text.
+          if (Array.isArray(facet.suggestions) && facet.suggestions.length) {
+            return (
+              <SuggestInput
+                key={facet.key}
+                className="ga-sys-filter-search"
+                aria-label={facet.label}
+                placeholder={facet.placeholder ?? facet.label}
+                options={facet.suggestions}
+                value={value[facet.key] ?? ""}
+                onChange={(event) => setFacet(facet.key, event.target.value)}
+              />
+            );
+          }
           return (
             <input
               key={facet.key}

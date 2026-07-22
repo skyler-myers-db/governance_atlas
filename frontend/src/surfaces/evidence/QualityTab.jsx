@@ -11,6 +11,7 @@ import {
   UnavailableState,
 } from "../../components/system";
 import { auditRangeSinceIso } from "../../hooks/useAuditEvents";
+import { useAssetSuggestions } from "../../hooks/useAssetSuggestions";
 import { useQualityFindings } from "../../hooks/useQualityFindings";
 import {
   compactDateTime,
@@ -81,6 +82,7 @@ function metricText(value) {
 }
 
 export function QualityTab({ params, setParams }) {
+  const assetSuggestions = useAssetSuggestions();
   /* ------------------------------------------------------------ URL state */
   // Quality evidence accumulates slowly (runs since May); default to a 30-day
   // window so severity drill deep links land on real findings, and say so.
@@ -280,7 +282,7 @@ export function QualityTab({ params, setParams }) {
           facets={[
             { key: "severity", label: "Severity", type: "select", options: SEVERITY_OPTIONS },
             { key: "outcome", label: "Outcome", type: "select", options: OUTCOME_OPTIONS },
-            { key: "asset", label: "Asset", type: "search", placeholder: "catalog.schema.table" },
+            { key: "asset", label: "Asset", type: "search", placeholder: "catalog.schema.table", suggestions: assetSuggestions.fqns },
           ]}
           label="Quality finding filters"
           onChange={(next) => {

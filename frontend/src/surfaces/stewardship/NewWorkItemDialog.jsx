@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Drawer, StatusBanner } from "../../components/system";
+import { Button, Drawer, StatusBanner, SuggestInput } from "../../components/system";
+import { useAssetSuggestions } from "../../hooks/useAssetSuggestions";
 
 /*
  * surfaces/stewardship/NewWorkItemDialog.jsx — files a REAL governance
@@ -19,6 +20,9 @@ export function NewWorkItemDialog({
   initialAssetFqn = "",
 }) {
   const [draft, setDraft] = useState({ assetFqn: initialAssetFqn, title: "", note: "" });
+  // Autofill the asset FQN from the visible-asset inventory (fetched only while
+  // the dialog is open) so the user picks a real asset instead of typing blind.
+  const assetSuggestions = useAssetSuggestions({ enabled: open });
 
   const missingFields = !draft.assetFqn.trim() || !draft.title.trim();
   const disabledReason = !canFile
@@ -66,9 +70,10 @@ export function NewWorkItemDialog({
       <div className="ga-stew-new-item-form">
         <label>
           <span>Asset FQN</span>
-          <input
+          <SuggestInput
             aria-label="New work item asset FQN"
             onChange={(event) => setDraft((current) => ({ ...current, assetFqn: event.target.value }))}
+            options={assetSuggestions.fqns}
             placeholder="catalog.schema.table"
             type="text"
             value={draft.assetFqn}
