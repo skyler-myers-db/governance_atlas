@@ -815,7 +815,10 @@
 }
 
 .ga-sys-table tbody tr.is-rowlink:hover {
-  background: color-mix(in srgb, var(--ga-bright-blue) 6%, transparent);
+  /* 6% read as "no highlight" on the dark surface (owner: "does it poorly").
+     12% is a clearly visible row wash while staying subtle enough for dense
+     result tables; cell text tokens keep AA on the tinted row. */
+  background: color-mix(in srgb, var(--ga-bright-blue) 12%, transparent);
 }
 
 .ga-sys-table-rowlink {
@@ -1197,6 +1200,14 @@
   color: var(--ga-text-faint);
 }
 
+/* Hover feedback: --ga-surface-raised is alpha-identical to --ga-surface, so
+   a hover using it reads as "no highlight". --ga-surface-soft (blue tint) is
+   the visible hover surface; border lifts to the strong border token. */
+.ga-sys-filter-search:hover {
+  border-color: var(--ga-border-strong);
+  background: var(--ga-surface);
+}
+
 .ga-sys-filter-facet {
   position: relative;
   display: inline-flex;
@@ -1218,6 +1229,13 @@
   color: var(--ga-text);
   font: inherit;
   font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ga-sys-filter-select:hover {
+  border-color: var(--ga-border-strong);
+  background: var(--ga-surface-soft);
+  color: var(--ga-text);
 }
 
 .ga-sys-filter-trigger {
@@ -1237,6 +1255,16 @@
 
 .ga-sys-filter-trigger.has-value {
   border-color: color-mix(in srgb, var(--ga-bright-blue) 45%, var(--ga-border));
+  color: var(--ga-text);
+}
+
+/* The owner flagged filter triggers as the worst hover offender: the old
+   sheet gave the trigger no :hover at all. Soft blue tint + a blue-lifted
+   border make hover unmistakable while keeping AA text (--ga-text on the
+   tinted surface stays >7:1). Applies to plain AND has-value triggers. */
+.ga-sys-filter-trigger:hover {
+  border-color: color-mix(in srgb, var(--ga-bright-blue) 45%, var(--ga-border));
+  background: var(--ga-surface-soft);
   color: var(--ga-text);
 }
 
@@ -1284,7 +1312,8 @@
 }
 
 .ga-sys-filter-option:hover {
-  background: color-mix(in srgb, var(--ga-bright-blue) 8%, transparent);
+  background: color-mix(in srgb, var(--ga-bright-blue) 12%, transparent);
+  color: var(--ga-text);
 }
 
 .ga-sys-filter-option input {
