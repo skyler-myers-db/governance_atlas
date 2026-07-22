@@ -136,19 +136,90 @@ def _warehouse_key(uc: Any) -> str:
     return str(getattr(uc, "warehouse_id", "") or "default")
 
 
+_SQL_ROSTER_CATALOGS_ENV = "GOVAT_DISCOVERY_CATALOGS"
+
+
+def _sql_derived_principals(uc: Any) -> Set[str]:
+    """Real principals the app SP CAN read via SQL — a fallback roster source.
+
+    The app's OBO/SP scopes do NOT include workspace users:read (SCIM), and
+    that scope can't be added via bundle deploy, so ``w.users.list()`` returns
+    empty and roster validation would fail open (a fabricated ghost owner
+    slipped through — verifier BLOCK). Unity Catalog only lets REAL principals
+    own or be granted objects, so their emails in ``information_schema`` and
+    ``SHOW GRANTS`` are a guaranteed-real (if partial) roster the app can
+    always read. This catches fabricated ghosts even when SCIM is unreachable.
+    """
+    import os
+
+    emails: Set[str] = set()
+    catalogs: list[str] = []
+    raw = os.getenv(_SQL_ROSTER_CATALOGS_ENV, "") or ""
+    for name in raw.replace(";", ",").split(","):
+        c = name.strip()
+        if c and c.lower() not in {"system", "hive_metastore"}:
+            catalogs.append(c)
+    gov_catalog = os.getenv("GOVAT_CATALOG", "").strip()
+    if gov_catalog and gov_catalog not in catalogs:
+        catalogs.append(gov_catalog)
+    # Bound the fan-out; each query is cheap but we never want a stampede.
+    for catalog in catalogs[:12]:
+        try:
+            df = uc.query_df(
+                f"SELECT DISTINCT table_owner AS p FROM {catalog}.information_schema.tables "
+                f"WHERE table_owner LIKE '%@%'"
+            )
+            if df is not None and not df.empty:
+                for value in df["p"].tolist():
+                    e = _normalize_principal(value)
+                    if e and "@" in e:
+                        emails.add(e)
+        except Exception:
+            continue
+    if gov_catalog:
+        for scope in (f"CATALOG {gov_catalog}", f"SCHEMA {gov_catalog}.{os.getenv('GOVAT_SCHEMA','').strip()}"):
+            try:
+                df = uc.query_df(f"SHOW GRANTS ON {scope}")
+                if df is not None and not df.empty:
+                    col = df.columns[0]
+                    for value in df[col].tolist():
+                        e = _normalize_principal(value)
+                        if e and "@" in e:
+                            emails.add(e)
+            except Exception:
+                continue
+    return emails
+
+
 def _fetch_snapshot(uc: Any) -> RosterSnapshot:
+    scim_users: Set[str] = set()
+    scim_sps: Set[str] = set()
     try:
         df = uc.list_workspace_principals()
+        scim = _snapshot_from_frame(df, source="databricks-scim")
+        scim_users = scim.user_emails
+        scim_sps = scim.service_principal_ids
     except Exception:
-        # Roster API unavailable in this runtime — degrade gracefully.
+        pass
+    # Always union the SQL-derived real principals so the roster is available
+    # (and validation enforced) even when SCIM is unreachable.
+    try:
+        sql_users = _sql_derived_principals(uc)
+    except Exception:
+        sql_users = set()
+    users = scim_users | sql_users
+    if not users and not scim_sps:
         return RosterSnapshot(
-            user_emails=set(),
-            service_principal_ids=set(),
-            available=False,
-            source="unavailable",
-            fetched_at=time.time(),
+            user_emails=set(), service_principal_ids=set(),
+            available=False, source="unavailable", fetched_at=time.time(),
         )
-    return _snapshot_from_frame(df, source="databricks-scim")
+    source = "databricks-scim" if scim_users else "unity-catalog-principals"
+    if scim_users and sql_users:
+        source = "databricks-scim+unity-catalog"
+    return RosterSnapshot(
+        user_emails=users, service_principal_ids=scim_sps,
+        available=True, source=source, fetched_at=time.time(),
+    )
 
 
 def get_roster(uc: Any, *, force_refresh: bool = False) -> RosterSnapshot:
@@ -213,7 +284,7 @@ def get_best_roster(*uc_clients: Any, force_refresh: bool = False) -> RosterSnap
     )
 
 
-def validate_principal(uc: Any, principal: Any, *, field: str = "principal", fallback_uc: Any = None) -> str:
+def validate_principal(uc: Any, principal: Any, *, field: str = "principal", fallback_uc: Any = None, actor_email: Any = None) -> str:
     """Validate ``principal`` against the roster.
 
     Returns the normalized principal on success. Raises
@@ -225,6 +296,11 @@ def validate_principal(uc: Any, principal: Any, *, field: str = "principal", fal
     """
     normalized = _normalize_principal(principal)
     if not normalized:
+        return normalized
+    # The authenticated actor is a confirmed real principal (iam.current-user),
+    # so self-assignment is always allowed even if they have no UC footprint in
+    # the SQL-derived roster.
+    if actor_email and normalized == _normalize_principal(actor_email):
         return normalized
     roster = get_best_roster(uc, fallback_uc)
     if not roster.available:

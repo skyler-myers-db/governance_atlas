@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 
 import pandas as pd
@@ -188,3 +189,58 @@ class AnnotateAndPayloadTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SqlDerivedRosterTests(unittest.TestCase):
+    """When SCIM is unreachable (app SP lacks users:read), the roster falls back
+    to real UC principals the app CAN read via SQL, so validation still rejects
+    fabricated ghosts instead of failing open."""
+
+    class _SqlOnlyUC:
+        # SCIM empty (raises), but query_df returns real UC table owners.
+        warehouse_id = "wh-sql"
+
+        def list_workspace_principals(self):
+            raise RuntimeError("users:list not permitted")
+
+        def query_df(self, sql):
+            import pandas as pd
+            if "information_schema.tables" in sql:
+                return pd.DataFrame({"p": ["skyler@entrada.ai", "real.user@entrada.ai"]})
+            if "SHOW GRANTS" in sql:
+                return pd.DataFrame({"Principal": ["krzysztof@entrada.ai"]})
+            return pd.DataFrame()
+
+    def setUp(self):
+        identity_roster.clear_roster_cache()
+        os.environ["GOVAT_DISCOVERY_CATALOGS"] = "finance_prod,datapact"
+        os.environ["GOVAT_CATALOG"] = "datapact"
+        os.environ["GOVAT_SCHEMA"] = "atlas"
+
+    def test_sql_roster_available_without_scim(self):
+        r = identity_roster.get_roster(self._SqlOnlyUC(), force_refresh=True)
+        self.assertTrue(r.available)
+        self.assertIn("skyler@entrada.ai", r.user_emails)
+        self.assertIn("krzysztof@entrada.ai", r.user_emails)
+
+    def test_ghost_rejected_via_sql_roster(self):
+        with self.assertRaises(identity_roster.PrincipalNotInWorkspaceError):
+            identity_roster.validate_principal(
+                self._SqlOnlyUC(), "ghost.nonmember@entrada.ai", field="ownerEmail"
+            )
+
+    def test_real_uc_owner_accepted_via_sql_roster(self):
+        self.assertEqual(
+            identity_roster.validate_principal(self._SqlOnlyUC(), "real.user@entrada.ai"),
+            "real.user@entrada.ai",
+        )
+
+    def test_actor_always_allowed_even_if_absent(self):
+        # A real authenticated actor with no UC footprint is never rejected.
+        self.assertEqual(
+            identity_roster.validate_principal(
+                self._SqlOnlyUC(), "brand.new@entrada.ai",
+                actor_email="brand.new@entrada.ai",
+            ),
+            "brand.new@entrada.ai",
+        )

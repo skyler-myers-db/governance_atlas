@@ -515,7 +515,7 @@ def api_governance_patch_request(
         try:
             identity_roster.validate_principal(
                 _uc_for_request(request), assignee_value, field="assignee",
-                fallback_uc=_uc(),
+                fallback_uc=_uc(), actor_email=actor_email,
             )
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -700,7 +700,7 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     # Identity integrity: only real workspace members can be linked as owners /
     # stewards. Fail-open when the roster API is degraded.
     try:
-        identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc())
+        identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc(), actor_email=actor_email)
     except identity_roster.PrincipalNotInWorkspaceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not _asset_is_openable(asset_fqn, request):
@@ -754,7 +754,7 @@ def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
     owner_email = _normalize_str(payload.ownerEmail).lower()
     if owner_email:
         try:
-            identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc())
+            identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc(), actor_email=actor_email)
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     for entry in payload.reviewers or []:
@@ -766,7 +766,7 @@ def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
         try:
             identity_roster.validate_principal(
                 _uc_for_request(request), reviewer_email, field="reviewer",
-                fallback_uc=_uc(),
+                fallback_uc=_uc(), actor_email=_user_email(request),
             )
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
