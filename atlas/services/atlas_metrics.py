@@ -2604,25 +2604,20 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
     # Reuse the signal computed above — one ledger read, one evidence stamp.
     quality_evidence_at = quality_signal.get("evidenceAt") or ""
     domains = _domain_summary(assets_df)
-    recommendations = []
-    if domains:
-        weakest = sorted(domains, key=lambda item: float(item["score"]))[0]
-        if weakest["score"] < 80:
-            recommendations.append(
-                {
-                    "key": "metadataCoverage",
-                    "title": f"Improve {weakest['domain']} metadata coverage",
-                    "detail": f"{weakest['domain']} has {weakest['score']}% average metadata coverage across {weakest['assetCount']} assets.",
-                    "evidence": [
-                        {
-                            "type": "domain",
-                            "id": weakest["domain"],
-                            "metric": "metadataCoverage",
-                            "value": weakest["score"],
-                        }
-                    ],
-                }
-            )
+    # Multiple evidence-backed recommendations, not just the single weakest
+    # domain: reuse the same builders build_ai_recommendations() uses so every
+    # card cites live governance evidence (uncertified critical assets, assets
+    # missing owners, low-coverage domains, recent metadata changes). Deduped
+    # and capped by _merge_recommendation_sets.
+    recommendations = _merge_recommendation_sets(
+        [
+            _critical_certification_recommendations(assets_df)[0],
+            _stewardship_recommendations(assets_df),
+            _coverage_recommendations({"posture": {"byDomain": domains}}) if domains else [],
+            _recent_change_recommendations(store),
+        ],
+        limit=6,
+    )
 
     return {
         "kpis": [

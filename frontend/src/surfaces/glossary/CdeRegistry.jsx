@@ -8,9 +8,11 @@ import {
   FilterBar,
   SectionCard,
   StatTile,
+  SuggestInput,
   toast,
 } from "../../components/system";
 import { useCdeDetail } from "../../hooks/useCdeDashboard";
+import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
 import { useAtlasMutation } from "../../hooks/useAtlasQuery";
 import { createGovernanceRequest, upsertGovernanceOwner } from "../../lib/api";
 import {
@@ -70,6 +72,8 @@ function CdeDetailPanel({ cde, onClose }) {
 
   const [ownerFormOpen, setOwnerFormOpen] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState("");
+  // Autofill owner from real account principals while the form is open.
+  const roster = useWorkspaceRoster({ enabled: ownerFormOpen });
 
   // Recertification routes through governance-request creation — the same
   // path Lineage uses (POST /governance/requests).
@@ -170,9 +174,10 @@ function CdeDetailPanel({ cde, onClose }) {
         >
           <label className="ga-glos-field">
             <span>Owner email</span>
-            <input
+            <SuggestInput
               disabled={assignOwner.submitting}
               onChange={(event) => setOwnerEmail(event.target.value)}
+              options={roster.emails}
               placeholder="steward@your-company.ai"
               required
               type="email"

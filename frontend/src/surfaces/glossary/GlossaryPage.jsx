@@ -474,6 +474,7 @@ export default function GlossaryPage() {
                 onEdit={openEditTerm}
                 term={selectedTerm}
                 termLookup={termLookup}
+                terms={terms}
               />
             </div>
           ) : null}

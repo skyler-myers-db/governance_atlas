@@ -704,6 +704,51 @@
   white-space: nowrap;
 }
 
+/* SuggestInput — visible autocomplete combobox. The wrapper is a block so the
+   input fills its label the way a bare <input> did, and anchors the popup. */
+.ga-sys-suggest {
+  position: relative;
+  display: block;
+}
+
+.ga-sys-suggest > input {
+  width: 100%;
+}
+
+.ga-sys-suggest-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--ga-surface-strong);
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  box-shadow: var(--ga-shadow-md);
+}
+
+.ga-sys-suggest-option {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  color: var(--ga-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ga-sys-suggest-option.is-active,
+.ga-sys-suggest-option:hover {
+  background: var(--ga-bright-blue);
+  color: var(--ga-navy-950);
+}
+
 .ga-sys-entity-chip-meta {
   margin-left: auto;
   color: var(--ga-text-faint);

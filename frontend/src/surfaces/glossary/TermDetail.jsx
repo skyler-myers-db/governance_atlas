@@ -13,6 +13,7 @@ import { upsertGovernanceGlossaryTerm } from "../../lib/api";
 import {
   compactDate,
   humanizeTaxonomyRef,
+  matchTermByIdOrName,
   statusLabelFor,
   statusToneFor,
   termAssociationSummary,
@@ -41,7 +42,7 @@ function OwnerLine({ label, email }) {
   );
 }
 
-export function TermDetail({ term, termLookup, childTerms = [], onEdit, onClose }) {
+export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEdit, onClose }) {
   // Reviewer assignment goes through the same governed glossary upsert the
   // legacy registry used (POST /governance/glossary, replaying term fields
   // alongside the extended roster).
@@ -96,7 +97,13 @@ export function TermDetail({ term, termLookup, childTerms = [], onEdit, onClose 
     }
   };
 
-  const parentResolved = term.parentTermId ? termLookup.get(term.parentTermId) : null;
+  // Resolve the parent by id first, then by NAME (the payload sometimes stores
+  // the parent as a display name or dashed slug rather than the exact termId,
+  // which left "Revenue" rendering as dead plain text). Only a genuine taxonomy
+  // node outside the glossary stays unresolved.
+  const parentResolved = term.parentTermId
+    ? termLookup.get(term.parentTermId) || matchTermByIdOrName(terms, term.parentTermId)
+    : null;
   const hasHierarchy = Boolean(term.parentTermId || childTerms.length);
   const pendingRequests = term.recentRequests.filter((request) => request.status === "pending");
   const awaitingReview = termAwaitingReview(term);
@@ -183,7 +190,21 @@ export function TermDetail({ term, termLookup, childTerms = [], onEdit, onClose 
               ))}
             </div>
           ) : (
-            <p className="ga-glos-muted">No linked assets are recorded for this term.</p>
+            // No glossary API attaches an asset to a term (associations arrive
+            // asset-side via tagging), so route the user to Discovery scoped to
+            // this term to find + tag assets — an honest action, not a dead
+            // "Link assets" button.
+            <p className="ga-glos-muted">
+              No linked assets are recorded for this term.{" "}
+              <EntityChip
+                appearance="inline"
+                entity={{
+                  surface: "discovery",
+                  params: { q: term.term },
+                  label: "Find assets to link",
+                }}
+              />
+            </p>
           )}
         </SectionCard>
 
@@ -199,10 +220,17 @@ export function TermDetail({ term, termLookup, childTerms = [], onEdit, onClose 
                     entity={{ kind: "term", id: parentResolved.termId, label: parentResolved.term }}
                   />
                 ) : term.parentTermId ? (
-                  // Parent references a taxonomy node outside the glossary:
-                  // humanize the slug; the raw id survives only in the title
-                  // attribute for operators.
-                  <span title={term.parentTermId}>{humanizeTaxonomyRef(term.parentTermId)}</span>
+                  // Parent is a taxonomy grouping node (not a standalone term):
+                  // link to the glossary filtered to that grouping so the user
+                  // can explore sibling terms, instead of dead plain text.
+                  <EntityChip
+                    appearance="inline"
+                    entity={{
+                      surface: "glossary",
+                      params: { q: humanizeTaxonomyRef(term.parentTermId) },
+                      label: humanizeTaxonomyRef(term.parentTermId),
+                    }}
+                  />
                 ) : (
                   <span>Root term</span>
                 )}
