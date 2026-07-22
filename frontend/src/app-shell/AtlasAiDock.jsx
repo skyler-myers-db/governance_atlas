@@ -27,15 +27,22 @@ const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
 const AI_CHAT_MIN = { width: 320, height: 360 };
 const AI_CHAT_MAX = { width: 720, height: 960 };
 
-// Active facet scope from the URL (the URL is the source of truth for Discover
-// state). Only present filters are included, so an unfiltered page sends no
-// scope. Kept small + string-only for the backend's sanitizer.
+// Active facet scope from the Discover URL (the URL is the source of truth for
+// Discover state). Only present filters are included, so an unfiltered page
+// sends no scope. Kept small + string-only for the backend's sanitizer.
+//
+// CALLER MUST gate this to the Discover surface: `q`/`domain` are Discover's
+// facet grammar, but Glossary/Evidence/Lineage reuse the same param NAMES for
+// their own search boxes. Reading them elsewhere would forward another
+// surface's search text as an authoritative asset filter the user never set.
 function scopeFromSearch(search) {
   const params = new URLSearchParams(search || "");
   const list = (key) => params.getAll(key).map((value) => value.trim()).filter(Boolean);
   const single = (key) => String(params.get(key) || "").trim();
   const scope = {};
-  for (const key of ["domain", "criticality", "tier", "certification", "sensitivity", "view"]) {
+  // Real Discover array facets (discoveryParams.js): type/catalog were missing
+  // before, so a user filtered by those got an incomplete "here".
+  for (const key of ["domain", "criticality", "tier", "certification", "sensitivity", "type", "catalog"]) {
     const values = list(key);
     if (values.length) scope[key] = values;
   }
@@ -459,7 +466,12 @@ export function AtlasAiDock({
   // the state) so "how many assets here lack an owner?" can see the domain the
   // user is filtered to — not just the surface name.
   const location = useLocation();
-  const scope = useMemo(() => scopeFromSearch(location.search), [location.search]);
+  // Gate to Discover: only that surface's URL uses the facet grammar
+  // scopeFromSearch reads. Elsewhere, `q`/`domain` mean something else entirely.
+  const scope = useMemo(
+    () => (surface === "discovery" ? scopeFromSearch(location.search) : null),
+    [surface, location.search],
+  );
   const aiContext = useMemo(
     () => ({
       surface,

@@ -221,21 +221,30 @@ class AtlasAiContext(BaseModel):
     def _sanitize_scope(cls, value):
         if not isinstance(value, Mapping):
             return None
+
+        def _clean(raw, limit):
+            # Pre-truncate BEFORE sanitizing: sanitize_plain_text RAISES on
+            # overflow, so a long search box (scope.query) would 422 the whole
+            # AI request. Truncating first turns that into a safe, dropped value.
+            try:
+                text = str(raw) if raw is not None else ""
+                return input_safety.sanitize_plain_text(
+                    text[:limit], field="scope", max_length=limit, allow_empty=True
+                )
+            except Exception:
+                return ""
+
         cleaned: dict[str, Any] = {}
         for raw_key, raw_val in list(value.items())[:12]:  # cap keys
-            key = input_safety.sanitize_plain_text(raw_key, field="scope", max_length=32, allow_empty=True)
+            key = _clean(raw_key, 32)
             if not key:
                 continue
             if isinstance(raw_val, (list, tuple)):
-                items = [
-                    input_safety.sanitize_plain_text(item, field="scope", max_length=128, allow_empty=True)
-                    for item in list(raw_val)[:24]
-                ]
-                items = [item for item in items if item]
+                items = [item for item in (_clean(item, 128) for item in list(raw_val)[:24]) if item]
                 if items:
                     cleaned[key] = items
             else:
-                item = input_safety.sanitize_plain_text(raw_val, field="scope", max_length=128, allow_empty=True)
+                item = _clean(raw_val, 128)
                 if item:
                     cleaned[key] = item
         return cleaned or None
@@ -1729,8 +1738,14 @@ def _canonical_estate_grounding(
     qlower = _normalize_str(question).lower()
     if _mentions_owner_gap(qlower):
         return None
+    if any(noun in qlower for noun in _FACET_SCOPE_NOUNS):
+        return None
     try:
-        if _find_domain_in_text(qlower, atlas_metrics.known_domains(visible_assets)):
+        # A named domain/tier/sensitivity VALUE also scopes the question (e.g.
+        # "how many Finance assets", "how many Confidential assets"). Criticality
+        # and certification values are excluded — those ARE the concepts the
+        # criticalAssets / certifiedAssets metrics represent.
+        if _find_domain_in_text(qlower, atlas_metrics.known_scope_values(visible_assets)):
             return None
     except Exception:
         pass
@@ -1792,17 +1807,20 @@ def _canonical_estate_grounding(
 # UC owner is shown on screen). These ground on the SAME inventory + predicate
 # the dashboard uses, so the AI agrees with the rest of the app.
 
-# Phrases that mean "has no governance owner" (business owner / steward).
-_OWNER_GAP_TOKENS = (
-    "without an owner", "without owner", "without an assigned owner", "without any owner",
-    "no owner", "no assigned owner", "missing owner", "missing an owner",
-    "lack an owner", "lacks an owner", "lacking an owner", "lack owners", "lacking owners",
-    "unowned", "ownerless", "have no owner", "has no owner", "with no owner",
-    "don't have an owner", "do not have an owner", "does not have an owner",
-    "without a steward", "without stewardship", "need an owner", "needs an owner",
-    "needs owners", "need owners", "unassigned owner", "no steward",
+# Owner/steward terms and gap indicators. A question is an "owner-gap" question
+# when it names an owner/steward AND a gap indicator — this is broader and more
+# robust than an explicit phrase list (which missed "missing a steward", "need a
+# steward", "don't have a business owner", … and let those fall through to the
+# WRONG global estate count).
+_OWNER_TERMS = ("owner", "owns", "owned", "ownership", "steward", "stewardship", "stewarded")
+_GAP_INDICATORS = (
+    "without", "missing", "lack", "lacking", "unowned", "ownerless", "unassigned",
+    "no owner", "no assigned owner", "no steward", "no business owner", "no governance owner",
+    "have no", "has no", "with no", "need an", "needs an", "need a", "needs a",
+    "need owner", "needs owner", "need owners", "don't have", "do not have", "does not have",
+    "assign an owner", "assign owners",
 )
-_OWNER_INTENT_TOKENS = ("owner", "owns", "ownership", "steward", "stewardship", "owned by")
+_OWNER_INTENT_TOKENS = ("owner", "owns", "owned", "ownership", "steward", "stewardship")
 _PER_ASSET_OWNER_PHRASES = (
     "who owns", "who is the owner", "who are the owners", "who's the owner",
     "owner of", "owned by", "does this asset have an owner", "is this owned",
@@ -1811,11 +1829,26 @@ _PER_ASSET_OWNER_PHRASES = (
 _SUPERLATIVE_MOST = ("most", "highest", "greatest", "largest", "top", "worst")
 _SUPERLATIVE_LEAST = ("fewest", "least", "lowest", "smallest", "best")
 _AGGREGATE_TOKENS = ("how many", "how much", "number of", "count", "total", "are there", "do we have")
+# Facet nouns that scope a question to a subset no estate metric can compute.
+# Their presence makes estate-count grounding decline (so it never answers a
+# subset question with the estate-wide number).
+_FACET_SCOPE_NOUNS = (
+    "domain", "tier", "catalog", "schema", "sensitivity", "classification",
+    "data product", "dataproduct", "sensitive",
+)
+# Collection/plural signals that mean a question is NOT about one focused asset
+# (so per-asset ownership grounding must not hijack it to the current page).
+_COLLECTION_TOKENS = (
+    "which ", "most ", "least ", "fewest", "all ", "every ", "list ", "each ",
+    "tables", "assets", "datasets", "domains", "these", "them", "top ",
+)
 _FQN_RE = re.compile(r"\b([A-Za-z0-9_]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\b")
 
 
 def _mentions_owner_gap(text: str) -> bool:
-    return any(token in text for token in _OWNER_GAP_TOKENS)
+    if not any(term in text for term in _OWNER_TERMS):
+        return False
+    return any(indicator in text for indicator in _GAP_INDICATORS)
 
 
 def _find_domain_in_text(text: str, domains) -> str:
@@ -1851,6 +1884,7 @@ def _asset_ownership_answer(own: dict) -> dict:
     uc = _normalize_str(own.get("ucOwner"))
     business = [p for p in (own.get("businessOwners") or []) if _normalize_str(p)]
     stewards = [p for p in (own.get("stewards") or []) if _normalize_str(p)]
+    technical = [p for p in (own.get("technicalOwners") or []) if _normalize_str(p)]
     sentences: list[str] = []
     if uc:
         sentences.append(f"In Unity Catalog, `{fqn}` is owned by **{uc}**.")
@@ -1860,16 +1894,23 @@ def _asset_ownership_answer(own: dict) -> dict:
     if stewards:
         label = "steward" if len(stewards) == 1 else "stewards"
         sentences.append(f"Its {label} {'is' if len(stewards) == 1 else 'are'} {', '.join(stewards)}.")
-    if not business and not stewards:
+    if technical:
+        label = "technical owner" if len(technical) == 1 else "technical owners"
+        sentences.append(f"Its {label} {'is' if len(technical) == 1 else 'are'} {', '.join(technical)}.")
+    # "Governance owner" is business owner OR steward OR technical owner — the
+    # SAME predicate the Command Center's ownerless count uses. Only claim "no
+    # owner" when ALL of them are absent, or the AI contradicts the dashboard
+    # (which counts a technical-owner-only asset as owned).
+    if not business and not stewards and not technical:
         if uc:
             sentences.append(
-                "It has no assigned business owner or steward, so it still needs governance "
-                "ownership even though it has a Unity Catalog owner."
+                "It has no assigned governance owner (business owner, steward, or technical owner), "
+                "so it still needs one even though it has a Unity Catalog owner."
             )
         else:
             sentences.append(
-                f"No owner is recorded for `{fqn}` — neither a Unity Catalog owner nor a business "
-                "owner or steward. It needs an owner assigned."
+                f"No owner is recorded for `{fqn}` — neither a Unity Catalog owner nor a governance "
+                "owner (business owner, steward, or technical owner). It needs an owner assigned."
             )
     return {
         "answer": " ".join(sentences),
@@ -1918,26 +1959,34 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
     #     without an owner?"
     if mentions_domain_word and superlative and (gap or "owner" in text or "steward" in text):
         metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
-        ranked = sorted(
-            ((name, vals["ownerless"], vals["total"]) for name, vals in metrics["byDomain"].items() if vals["ownerless"] > 0),
-            key=lambda item: (item[1], item[0].lower()),
-        )
-        if not ranked:
+        candidates = [
+            (name, vals["ownerless"], vals["total"])
+            for name, vals in metrics["byDomain"].items()
+            if vals["ownerless"] > 0
+        ]
+        if not candidates:
             return {
                 "answer": "Every domain in the visible estate has assigned owners — no domain has assets without an owner.",
                 "evidence": _ownership_gap_evidence(0), "warnings": [],
             }
-        ranked_desc = list(reversed(ranked))
-        pick = ranked[0] if superlative_least else ranked_desc[0]
-        rest = (ranked if superlative_least else ranked_desc)[1:3]
-        lead_word = "fewest (but non-zero)" if superlative_least else "most"
+        # Tie-break MUST match the Command Center's stewardship ranking
+        # (-count, then name ascending), or the AI names a different top domain
+        # than the dashboard's top stewardship card on a tie.
+        if superlative_least:
+            ordered = sorted(candidates, key=lambda item: (item[1], item[0].lower()))
+            lead_word = "fewest (but non-zero)"
+        else:
+            ordered = sorted(candidates, key=lambda item: (-item[1], item[0].lower()))
+            lead_word = "most"
+        pick = ordered[0]
+        rest = ordered[1:3]
         answer = (
             f"The **{pick[0]}** domain has the {lead_word} assets without an assigned owner — "
             f"**{pick[1]}** of its {pick[2]} visible assets."
         )
         if rest:
             answer += " Next: " + ", ".join(f"{name} ({owner_gap})" for name, owner_gap, _total in rest) + "."
-        answer += " Owner here means a business owner or steward, matching the Command Center."
+        answer += " Owner here means a business owner, steward, or technical owner, matching the Command Center."
         return {"answer": answer, "evidence": _ownership_gap_evidence(pick[1]), "warnings": []}
 
     # (C) Domain-scoped ownerless count: "how many Finance assets have no owner?"
@@ -1951,8 +2000,8 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
         else:
             answer = (
                 f"**{bucket['ownerless']}** of the **{bucket['total']}** visible assets in the "
-                f"**{named_domain}** domain have no assigned owner (business owner or steward). "
-                "This matches the Command Center stewardship recommendation."
+                f"**{named_domain}** domain have no assigned owner (business owner, steward, or technical "
+                "owner). This matches the Command Center stewardship recommendation."
             )
         return {"answer": answer, "evidence": _ownership_gap_evidence(bucket["ownerless"]), "warnings": []}
 
@@ -1962,18 +2011,30 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
         total_gap = metrics["totalOwnerless"]
         answer = (
             f"**{total_gap}** of the **{metrics['totalAssets']}** visible assets have no assigned owner "
-            "(business owner or steward). Assets can still have a Unity Catalog owner while needing a "
-            "governance owner assigned."
+            "(business owner, steward, or technical owner). Assets can still have a Unity Catalog owner "
+            "while needing a governance owner assigned."
         )
         return {"answer": answer, "evidence": _ownership_gap_evidence(total_gap), "warnings": []}
 
     # (A) Per-asset ownership: "who owns this asset / who owns <fqn>?"
+    # A collection/superlative/plural question ("who owns our most critical
+    # tables?", "which assets have no owner?") is NOT about the current page,
+    # even when an asset FQN is in context — don't answer it about that one asset.
     asset_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
-    target_fqn = asset_fqn or _extract_question_fqn(question)
+    question_fqn = _extract_question_fqn(question)
+    is_collection = superlative or mentions_domain_word or any(tok in text for tok in _COLLECTION_TOKENS)
+    # A specific FQN written in the question always wins (it names one asset);
+    # otherwise the context asset only answers a clearly-singular question.
+    if question_fqn:
+        target_fqn = question_fqn
+    elif is_collection:
+        target_fqn = ""
+    else:
+        target_fqn = asset_fqn
     per_asset = any(p in text for p in _PER_ASSET_OWNER_PHRASES) or (
-        target_fqn and ("this asset" in text or "this table" in text or "it " in text)
+        target_fqn and ("this asset" in text or "this table" in text or "this dataset" in text)
     )
-    if target_fqn and per_asset and not (mentions_domain_word and superlative):
+    if target_fqn and per_asset:
         own = atlas_metrics.asset_ownership(visible_assets=visible, fqn=target_fqn)
         return _asset_ownership_answer(own)
     return None

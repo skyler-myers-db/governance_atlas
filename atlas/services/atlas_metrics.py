@@ -270,6 +270,18 @@ def _split_principals(raw: Any) -> List[str]:
     return seen
 
 
+def _distinct_values(df: pd.DataFrame, *keys: str) -> List[str]:
+    values: List[str] = []
+    seen: set[str] = set()
+    for _, row in df.iterrows():
+        value = _row_text(_row_dict(row), *keys)
+        key = value.lower()
+        if value and key not in seen and key != "unassigned":
+            seen.add(key)
+            values.append(value)
+    return values
+
+
 def known_domains(visible_assets: pd.DataFrame) -> List[str]:
     """Distinct non-empty domain labels present in the visible estate.
 
@@ -277,16 +289,31 @@ def known_domains(visible_assets: pd.DataFrame) -> List[str]:
     grounding can decline questions it cannot scope, and ownership grounding
     can answer domain-scoped ones.
     """
+    return _distinct_values(_safe_df(visible_assets), "domain")
+
+
+def known_scope_values(visible_assets: pd.DataFrame) -> List[str]:
+    """Distinct domain / tier / sensitivity values in the estate.
+
+    Estate-count grounding declines a question that names any of these, because
+    none of the estate metrics can scope to a domain/tier/sensitivity subset —
+    answering with the global number would be confidently wrong. (Criticality
+    and certification values are deliberately excluded: those ARE the concepts
+    the criticalAssets / certifiedAssets metrics represent.)
+    """
     df = _safe_df(visible_assets)
-    domains: List[str] = []
+    values: List[str] = []
     seen: set[str] = set()
-    for _, row in df.iterrows():
-        domain = _row_text(_row_dict(row), "domain")
-        key = domain.lower()
-        if domain and key not in seen and key != "unassigned":
+    for value in (
+        *_distinct_values(df, "domain"),
+        *_distinct_values(df, "tier"),
+        *_distinct_values(df, "sensitivity"),
+    ):
+        key = value.lower()
+        if key not in seen:
             seen.add(key)
-            domains.append(domain)
-    return domains
+            values.append(value)
+    return values
 
 
 def asset_ownership(*, visible_assets: pd.DataFrame, fqn: str) -> Dict[str, Any]:

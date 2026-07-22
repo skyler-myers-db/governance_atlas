@@ -361,11 +361,6 @@ a.ga-icon-button {
   height: 24px;
 }
 
-/* Lineage brings its own panels: no FAB there (legacy :has() rule). */
-.ga-shell-app:has(.ga-lineage-explorer) .ga-ai-fab {
-  display: none;
-}
-
 @media (max-width: 1600px) {
   .ga-ai-fab {
     right: 14px;
