@@ -622,10 +622,10 @@ def api_quality_findings(
     ).lower()
     since_filter = input_safety.sanitize_plain_text(since, field="since", max_length=64)
     until_filter = input_safety.sanitize_plain_text(until, field="until", max_length=64)
-    if outcome_filter and outcome_filter not in quality_service.FINDING_OUTCOMES:
+    if outcome_filter and outcome_filter not in quality_service.FINDING_OUTCOME_FILTERS:
         raise HTTPException(
             status_code=400,
-            detail="outcome must be one of: passed, failed, errored, skipped.",
+            detail="outcome must be one of: passed, failed, errored, skipped, failing.",
         )
     limit_value = max(1, min(_as_int(limit) or 200, 500))
 

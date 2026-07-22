@@ -30,6 +30,7 @@ export { TabStrip } from "./TabStrip";
 export { FilterBar } from "./FilterBar";
 export { Badge } from "./Badge";
 export { Button } from "./Button";
+export { SuggestInput } from "./SuggestInput";
 
 // Shared contracts — Waves B/C compose against these, never re-derive them.
 export { hrefForRef, defaultRefLabel } from "./refs";

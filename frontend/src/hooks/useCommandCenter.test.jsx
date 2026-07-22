@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAtlasQueryClient } from "../lib/queryClient";
+import { resetPollAttempts } from "./useAtlasQuery";
 import { useCommandCenter } from "./useCommandCenter";
 
 const fetchCommandCenterMock = vi.fn();
@@ -20,6 +21,10 @@ function createWrapper() {
 describe("useCommandCenter", () => {
   beforeEach(() => {
     fetchCommandCenterMock.mockReset();
+    // Retention is bounded by the poll budget; clear the module-scoped ledger
+    // so one test's poll attempts don't flip another test's retention state.
+    resetPollAttempts(["atlas", "command-center", "cache"]);
+    resetPollAttempts(["atlas", "command-center", "force"]);
   });
 
   it("returns normalized command center data when fetch resolves", async () => {
@@ -47,6 +52,37 @@ describe("useCommandCenter", () => {
     expect(fetchCommandCenterMock.mock.calls[0][0].signal).toBeInstanceOf(AbortSignal);
     expect(result.current.data.estate.visibleAssetCount).toBe(12);
     expect(result.current.degraded).toBe(false);
+  });
+
+  it("retains last-good backed values when a refetch returns a warming payload", async () => {
+    // First load: backed. Second (refresh): warming envelope with everything
+    // null — the cold-warehouse case that used to blank a populated page.
+    fetchCommandCenterMock
+      .mockResolvedValueOnce({
+        estate: { visibleAssetCount: 50, catalogCount: 6, coverageScore: 84.5 },
+        kpis: [{ key: "governedAssets", value: 50 }],
+        meta: { state: "available", warnings: [] },
+      })
+      .mockResolvedValueOnce({
+        estate: { visibleAssetCount: null, catalogCount: null, coverageScore: null },
+        kpis: [],
+        meta: { state: "loading", warnings: ["Warming the Databricks SQL warehouse"] },
+      });
+
+    const { result } = renderHook(() => useCommandCenter(true), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.data.estate.visibleAssetCount).toBe(50));
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    // The warming refetch must NOT wipe the rendered dashboard to nulls.
+    expect(result.current.data.estate.visibleAssetCount).toBe(50);
+    expect(result.current.data.estate.coverageScore).toBe(84.5);
+    expect(result.current.hasLiveData).toBe(true);
   });
 
   it("stays idle when disabled", () => {

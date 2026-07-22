@@ -743,18 +743,28 @@ def api_identity_workspace_roster(request: Request) -> JSONResponse:
     return JSONResponse(identity_roster.roster_payload(_uc_for_request(request), fallback_uc=_uc()))
 
 
-def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
+def _validate_glossary_principals(
+    payload: GlossaryTermUpsert, request: Request, actor_email: str
+) -> None:
     """Reject a glossary owner / reviewer roster that references fabricated
     principals. Fail-open on a degraded roster. Called by both the create and
     patch glossary paths so the identity-integrity rule holds on every write.
+
+    ``request`` (for the on-behalf-of UC client) and ``actor_email`` (the
+    authenticated writer, always allowed) MUST be threaded from the caller —
+    referencing request-scoped globals here was a NameError that 500'd every
+    glossary write that carried an owner or reviewer.
     """
-    from runtime_app import _uc
+    from runtime_app import _uc, _uc_for_request
     from atlas.services import identity_roster
 
     owner_email = _normalize_str(payload.ownerEmail).lower()
     if owner_email:
         try:
-            identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc(), actor_email=actor_email)
+            identity_roster.validate_principal(
+                _uc_for_request(request), owner_email, field="ownerEmail",
+                fallback_uc=_uc(), actor_email=actor_email,
+            )
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     for entry in payload.reviewers or []:
@@ -766,7 +776,7 @@ def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
         try:
             identity_roster.validate_principal(
                 _uc_for_request(request), reviewer_email, field="reviewer",
-                fallback_uc=_uc(), actor_email=_user_email(request),
+                fallback_uc=_uc(), actor_email=actor_email,
             )
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -798,7 +808,7 @@ def api_governance_upsert_glossary(
     status = governance_service.normalize_glossary_term_status(payload.status)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
-    _validate_glossary_principals(payload)
+    _validate_glossary_principals(payload, request, actor_email)
     version = governance_service.upsert_glossary_term(
         term_id=term_id,
         name=name,
@@ -851,7 +861,7 @@ def api_governance_patch_glossary(
     name = _normalize_str(payload.name)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
-    _validate_glossary_principals(payload)
+    _validate_glossary_principals(payload, request, actor_email)
     version = governance_service.upsert_glossary_term(
         term_id=normalized_term_id,
         name=name,

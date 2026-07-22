@@ -203,6 +203,29 @@ class QualityFindingsServiceTests(unittest.TestCase):
             raw["findings"][0]["findingId"], bucket["findings"][0]["findingId"]
         )
 
+    def test_failing_outcome_filter_matches_failed_and_errored(self) -> None:
+        # The risk-drill deep link uses outcome=failing so the Evidence total
+        # reconciles with the Command Center severity tiles, which count
+        # failed+errored. A local ledger with one of each outcome proves the
+        # filter keeps failed AND errored while dropping passed/skipped.
+        rows = [
+            {**_RESULT_ROWS[0], "result_id": "aa" * 16, "outcome": "failed"},
+            {**_RESULT_ROWS[0], "result_id": "bb" * 16, "outcome": "errored"},
+            {**_RESULT_ROWS[0], "result_id": "cc" * 16, "outcome": "passed"},
+            {**_RESULT_ROWS[0], "result_id": "dd" * 16, "outcome": "skipped"},
+        ]
+
+        class MixedStore(FindingsStore):
+            def list_quality_run_results(self, **_: object) -> pd.DataFrame:
+                return pd.DataFrame(rows)
+
+        failing = quality_service.quality_findings(
+            MixedStore(), outcome="failing", visible_asset_fqns=None
+        )
+        outcomes = sorted(f["outcome"] for f in failing["findings"])
+        self.assertEqual(outcomes, ["errored", "failed"])
+        self.assertEqual(failing["summary"]["total"], 2)
+
     def test_since_until_window_filters_on_executed_at(self) -> None:
         payload = quality_service.quality_findings(
             FindingsStore(),
@@ -308,6 +331,16 @@ class QualityFindingsEndpointTests(unittest.TestCase):
             with self.assertRaises(catalog_api.HTTPException) as ctx:
                 catalog_api.api_quality_findings(_request(), outcome="exploded")
         self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_failing_outcome_is_accepted_at_the_api_boundary(self) -> None:
+        # Regression: the API allow-list rejected "failing" with 400 before the
+        # service filter ran, so the risk-drill deep link (?outcome=failing)
+        # 400'd instead of landing on the failed/errored findings.
+        with self._mocks(lambda request: _visible_assets(), lambda: FindingsStore()):
+            response = catalog_api.api_quality_findings(_request(), outcome="failing")
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertTrue(all(f["outcome"] in {"failed", "errored"} for f in payload["findings"]))
 
     def test_asset_and_outcome_filters_apply(self) -> None:
         with self._mocks(lambda request: _visible_assets(), lambda: FindingsStore()):

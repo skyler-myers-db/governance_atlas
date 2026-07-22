@@ -874,6 +874,35 @@ export function fetchCommandCenter(options = {}) {
   }).then((payload) => normalizeCommandCenterPayload(payload));
 }
 
+// Ground-truth roster of real account principals for owner/steward pickers.
+// Steward/admin-gated server-side; a 401/403/degraded response resolves to an
+// unavailable roster so callers fall back to free text rather than pretending
+// the list is complete (identity-integrity: never fabricate a member).
+export function fetchWorkspaceRoster(options = {}) {
+  const path = contractPath("identityWorkspaceRoster") || "/api/identity/workspace-roster";
+  return request(path, { signal: options.signal })
+    .then((payload) => {
+      const data = unwrapEnvelope(payload) || payload || {};
+      const members = Array.isArray(data.members) ? data.members : [];
+      return {
+        available: data.available === true,
+        source: String(data.source || ""),
+        members: members
+          .map((m) => ({
+            principal: String(m?.principal || "").trim(),
+            principalType: String(m?.principalType || "user"),
+            accountMember: m?.accountMember !== false,
+          }))
+          .filter((m) => m.principal),
+      };
+    })
+    .catch((error) => {
+      // Not authorized / not reachable → unavailable, not an error surface.
+      if (error?.name === "AbortError") throw error;
+      return { available: false, source: "", members: [] };
+    });
+}
+
 export function fetchAtlasAiRecommendations(question = "", options = {}) {
   const path = contractPath("atlasAiRecommendations") || "/atlas-ai/recommendations";
   const body = { question: String(question || "").trim() };

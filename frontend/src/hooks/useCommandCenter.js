@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchCommandCenter } from "../lib/api";
-import { useAtlasQuery } from "./useAtlasQuery";
+import { pollBudgetExhausted, useAtlasQuery } from "./useAtlasQuery";
 
 export const EMPTY_COMMAND_CENTER = {
   estate: {
@@ -26,6 +26,30 @@ function normalizeOptions(options) {
   if (typeof options === "boolean") return { enabled: options };
   return options && typeof options === "object" ? options : {};
 }
+
+function num(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+// Does a payload actually carry backed governance values (vs. a still-warming
+// envelope that answered 200 with everything null)? Mirrors home/format.js's
+// hasBackedSignal, kept local so the hook has no surface dependency.
+function commandCenterHasBackedSignal(data) {
+  if (!data || typeof data !== "object") return false;
+  const estate = data.estate || {};
+  if (
+    num(estate.visibleAssetCount) !== null ||
+    num(estate.catalogCount) !== null ||
+    num(estate.coverageScore) !== null
+  ) {
+    return true;
+  }
+  if (Array.isArray(data.kpis) && data.kpis.some((kpi) => num(kpi?.value) !== null)) return true;
+  return Array.isArray(data.recentAssets) && data.recentAssets.length > 0;
+}
+
 
 function mergeCommandCenter(seedData, queryData) {
   const base = seedData || EMPTY_COMMAND_CENTER;
@@ -106,8 +130,32 @@ export function useCommandCenter(options = {}) {
     setPendingRefresh(true);
   }, []);
 
-  const usableData = query.data || seedData || null;
-  const data = mergeCommandCenter(seedData, query.data);
+  // Retention (per-instance, pure): a serverless SQL warehouse goes cold
+  // between visits, so a refetch on back-nav can settle on a warming payload
+  // with NO backed values and blank a populated dashboard to "—". We keep the
+  // last payload that carried real signal in a ref (committed in an effect, not
+  // mutated during render) and serve it over a warming payload — but only while
+  // a refresh could still replace it: fetch in flight OR the bounded poll still
+  // has budget. Once the poll settles on warming, we STOP masking so the honest
+  // degraded/warning state surfaces. That bound makes it self-healing: a
+  // genuinely-empty/degraded estate can't show phantom old values forever, and
+  // an all-zero (backed) estate is treated as real data, never as "warming".
+  const freshBacked = commandCenterHasBackedSignal(query.data);
+  const lastBackedRef = useRef(null);
+  useEffect(() => {
+    if (freshBacked) lastBackedRef.current = query.data;
+  }, [freshBacked, query.data]);
+  const pollExhausted = pollBudgetExhausted(
+    ["atlas", "command-center", pendingRefresh ? "force" : "cache"],
+    COMMAND_CENTER_POLL.maxAttempts,
+  );
+  const canRetain =
+    !freshBacked && Boolean(lastBackedRef.current) && (query.isFetching || !pollExhausted);
+  const retainedData = freshBacked ? query.data : canRetain ? lastBackedRef.current : query.data;
+  const servedFromRetention = canRetain && Boolean(query.data);
+
+  const usableData = retainedData || seedData || null;
+  const data = mergeCommandCenter(seedData, retainedData);
   const message = query.error?.message || "Command center is unavailable.";
   const warnings = Array.isArray(data?.meta?.warnings) ? data.meta.warnings : [];
   const refreshError = usableData && query.isError ? message : "";
@@ -116,8 +164,11 @@ export function useCommandCenter(options = {}) {
     data,
     loading: enabled && query.isPending && !query.data && !seedData,
     hydrating: enabled && query.isPending && !query.data && Boolean(seedData),
-    hasLiveData: Boolean(query.data),
-    refreshing: query.isFetching,
+    hasLiveData: Boolean(query.data) || servedFromRetention,
+    // Serving retained values while a warming refetch is in flight is a refresh
+    // in progress, not a settled state — surface it so the "Live" chip reads
+    // honestly instead of the page looking frozen.
+    refreshing: query.isFetching || servedFromRetention,
     error: usableData ? "" : query.isError ? message : "",
     refreshError,
     degraded:

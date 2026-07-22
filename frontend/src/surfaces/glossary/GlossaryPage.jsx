@@ -11,10 +11,12 @@ import {
   LoadingState,
   PageShell,
   StatusBanner,
+  SuggestInput,
   TabStrip,
   toast,
 } from "../../components/system";
 import { useCdeDashboard } from "../../hooks/useCdeDashboard";
+import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
 import { useAtlasMutation } from "../../hooks/useAtlasQuery";
 import { useTaxonomyOverview } from "../../hooks/useTaxonomyOverview";
 import { updateAssetMetadata, upsertGovernanceGlossaryTerm } from "../../lib/api";
@@ -105,6 +107,16 @@ export default function GlossaryPage() {
     [overviewNonAuthoritative, overviewQuery.data],
   );
   const termLookup = useMemo(() => new Map(terms.map((term) => [term.termId, term])), [terms]);
+  // Domains already in use across the glossary, so a new term reuses an
+  // existing domain instead of a near-duplicate free-text spelling.
+  const domainSuggestions = useMemo(() => {
+    const set = new Set();
+    for (const term of terms) {
+      const domain = text(term.domain);
+      if (domain && domain !== "Unassigned") set.add(domain);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [terms]);
   const cdeRows = useMemo(
     () =>
       cdeNonAuthoritative
@@ -208,6 +220,9 @@ export default function GlossaryPage() {
   const [termForm, setTermForm] = useState(null); // {mode:"create"|"edit", termId?, draft}
   const [termFormError, setTermFormError] = useState("");
   const [cdeForm, setCdeForm] = useState(null); // {assetFqn, rationale}
+  // Real account principals for the owner autofill — fetched only while a term
+  // form is open (the endpoint is steward-gated and rarely changes).
+  const roster = useWorkspaceRoster({ enabled: Boolean(termForm) });
   const [cdeFormError, setCdeFormError] = useState("");
 
   const termUpsert = useAtlasMutation({
@@ -527,7 +542,7 @@ export default function GlossaryPage() {
             <div className="ga-glos-field-row">
               <label className="ga-glos-field">
                 <span>Domain</span>
-                <input
+                <SuggestInput
                   disabled={termUpsert.submitting}
                   onChange={(event) =>
                     setTermForm((current) => ({
@@ -535,6 +550,7 @@ export default function GlossaryPage() {
                       draft: { ...current.draft, domain: event.target.value },
                     }))
                   }
+                  options={domainSuggestions}
                   placeholder="e.g. Finance"
                   type="text"
                   value={termForm.draft.domain}
@@ -542,7 +558,7 @@ export default function GlossaryPage() {
               </label>
               <label className="ga-glos-field">
                 <span>Owner email</span>
-                <input
+                <SuggestInput
                   disabled={termUpsert.submitting}
                   onChange={(event) =>
                     setTermForm((current) => ({
@@ -550,10 +566,19 @@ export default function GlossaryPage() {
                       draft: { ...current.draft, ownerEmail: event.target.value },
                     }))
                   }
+                  options={roster.emails}
                   placeholder="steward@your-company.ai"
                   type="email"
                   value={termForm.draft.ownerEmail}
                 />
+                {/* Honest hint: only real account principals validate on save;
+                    say so when the roster is actually available. */}
+                {roster.available ? (
+                  <small className="ga-glos-field-hint">
+                    Autofills from {roster.emails.length} account member
+                    {roster.emails.length === 1 ? "" : "s"}
+                  </small>
+                ) : null}
               </label>
             </div>
             {termForm.mode === "edit" ? (
