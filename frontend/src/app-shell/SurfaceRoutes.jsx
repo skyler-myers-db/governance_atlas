@@ -11,8 +11,8 @@
 import { Suspense, lazy, useMemo } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import { WorkspaceStateCard } from "../components/ShellStatePrimitives";
 import { normalizeLegacyDiscoverySearch } from "../surfaces/discovery/discoveryParams.js";
+import { ShellStateCard } from "./ShellStateCard.jsx";
 import { useShellContext } from "./ShellContext.jsx";
 import { useLegacyNavAdapters } from "./legacyAdapters.js";
 
@@ -24,12 +24,12 @@ const EvidencePage = lazy(() => import("../surfaces/evidence/EvidencePage.jsx"))
 const GlossaryPage = lazy(() => import("../surfaces/glossary/GlossaryPage.jsx"));
 const HomePage = lazy(() => import("../surfaces/home/HomePage.jsx"));
 const AdminPage = lazy(() => import("../surfaces/admin/AdminPage.jsx"));
-const HelpPage = lazy(() => import("../components/HelpPage"));
+const HelpPage = lazy(() => import("../surfaces/help/HelpPage.jsx"));
 
 function RouteFallback({ eyebrow, message }) {
   return (
     <section className="ga-shell-route-state">
-      <WorkspaceStateCard eyebrow={eyebrow} loading message={message} title="Preparing the workspace surface." />
+      <ShellStateCard eyebrow={eyebrow} loading message={message} title="Preparing the workspace surface." />
     </section>
   );
 }
@@ -298,16 +298,14 @@ function AdminRoute() {
 }
 
 function HelpRoute() {
-  const shellCtx = useShellContext();
   const adapters = useLegacyNavAdapters();
+  // Follow-up 3: HelpPage lives at surfaces/help on the system kit. The
+  // legacy bootState prop was dead (never read) and is no longer threaded.
   return (
     <Suspense
       fallback={<RouteFallback eyebrow="Loading help" message="Preparing the in-app help and documentation page." />}
     >
-      <HelpPage
-        bootState={shellCtx.effectiveBootState}
-        onBack={() => adapters.openDiscovery({}, { fresh: false })}
-      />
+      <HelpPage onBack={() => adapters.openDiscovery({}, { fresh: false })} />
     </Suspense>
   );
 }

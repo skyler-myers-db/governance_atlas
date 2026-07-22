@@ -73,13 +73,17 @@ vi.mock("../../surfaces/glossary/GlossaryPage.jsx", () => ({ default: (props) =>
 // Wave C6: Control Center lives at surfaces/admin (components/AdminWorkspace
 // and CapabilityDashboard were deleted; /capabilities is its Diagnostics tab).
 vi.mock("../../surfaces/admin/AdminPage.jsx", () => ({ default: (props) => adminMock(props) }));
-vi.mock("../../components/HelpPage", () => ({ default: (props) => helpMock(props) }));
+// Follow-up 3: Help lives at surfaces/help on the system kit (components/
+// HelpPage was deleted with the last legacy-shell consumers).
+vi.mock("../../surfaces/help/HelpPage.jsx", () => ({ default: (props) => helpMock(props) }));
 vi.mock("../../surfaces/asset/AssetPeekPanel.jsx", () => ({
   AssetPeekPanel: (props) => asset360DrawerMock(props),
   default: (props) => asset360DrawerMock(props),
 }));
-vi.mock("../../components/WorkspaceSetupWizard", () => ({ default: () => <div data-testid="setup-wizard" /> }));
-vi.mock("../../components/WorkspaceDiagnosticsSurface", () => ({
+// Follow-up 3: the readiness surfaces moved into app-shell/ with the
+// system-kit rebuild (they render pre-boot, so they never lived in surfaces/).
+vi.mock("../WorkspaceSetupWizard.jsx", () => ({ default: () => <div data-testid="setup-wizard" /> }));
+vi.mock("../WorkspaceDiagnosticsSurface.jsx", () => ({
   default: () => <div data-testid="diagnostics-surface" />,
 }));
 

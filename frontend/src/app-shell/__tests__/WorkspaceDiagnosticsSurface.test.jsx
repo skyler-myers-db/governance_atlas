@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import WorkspaceDiagnosticsSurface from "./WorkspaceDiagnosticsSurface";
+import WorkspaceDiagnosticsSurface from "../WorkspaceDiagnosticsSurface.jsx";
 
-vi.mock("../lib/api", () => ({
+vi.mock("../../lib/api", () => ({
   getRuntimeDiagnostics: () => ({
     initialNavigation: {
       durationMs: 210,
@@ -14,14 +14,16 @@ vi.mock("../lib/api", () => ({
   }),
 }));
 
-describe("WorkspaceDiagnosticsSurface", () => {
+describe("WorkspaceDiagnosticsSurface (app-shell, system kit)", () => {
   it("renders a shared loading card when no status payload is available yet", () => {
     const { container } = render(<WorkspaceDiagnosticsSurface loading />);
 
     expect(screen.getByText("Workspace diagnostics")).not.toBeNull();
     expect(screen.getByText("Loading workspace setup diagnostics...")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
+    // System-kit state card + skeleton — no legacy gh- shell.
+    expect(container.querySelector(".ga-shell-state-card")).not.toBeNull();
+    expect(container.querySelector(".ga-sys-loading")).not.toBeNull();
+    expect(container.querySelector('[class*="gh-"]')).toBeNull();
   });
 
   it("renders a shared error card when diagnostics fail before any status payload is available", () => {
@@ -30,8 +32,7 @@ describe("WorkspaceDiagnosticsSurface", () => {
     expect(screen.getByText("Workspace diagnostics")).not.toBeNull();
     expect(screen.getByText("Workspace setup diagnostics could not be loaded.")).not.toBeNull();
     expect(screen.getByText("Diagnostics request failed.")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-state-card.tone-bad")).not.toBeNull();
   });
 
   it("preserves stale diagnostics content while refresh is in progress", () => {
@@ -68,9 +69,9 @@ describe("WorkspaceDiagnosticsSurface", () => {
     expect(screen.getByText("Refreshing")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Refreshing readiness..." }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByText("Workspace access")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
-    expect(container.querySelector(".gh-surface-workbench-side")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-readiness-layout")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-readiness-main")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-readiness-side")).not.toBeNull();
   });
 
   it("renders readiness sequence, evidence, and rollout metadata", () => {
@@ -229,7 +230,7 @@ describe("WorkspaceDiagnosticsSurface", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh readiness" }));
 
     expect(onRefresh).toHaveBeenCalledTimes(1);
-    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
+    expect(container.querySelector(".ga-shell-readiness-layout")).not.toBeNull();
     expect(screen.getByText("Workspace access")).not.toBeNull();
     expect(screen.getByText("Feature inventory")).not.toBeNull();
     expect(screen.getAllByText("Governance writes").length).toBeGreaterThan(0);
@@ -249,6 +250,8 @@ describe("WorkspaceDiagnosticsSurface", () => {
     ).not.toBeNull();
     expect(screen.getAllByText("phase-5-admin-diagnostics-route").length).toBeGreaterThan(0);
     expect(screen.getByText("req-321")).not.toBeNull();
+    // Zero legacy gh- classes anywhere in the rebuilt surface.
+    expect(container.querySelector('[class*="gh-"]')).toBeNull();
   });
 
   it("keeps rollout controls unknown when the named diagnostics flag is missing", () => {

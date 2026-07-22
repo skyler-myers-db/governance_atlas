@@ -15,11 +15,10 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import { InlineStatusBanner, WorkspaceStateCard } from "../components/ShellStatePrimitives";
-import { SurfaceHeader } from "../components/ShellLayoutPrimitives";
-import WorkspaceDiagnosticsSurface from "../components/WorkspaceDiagnosticsSurface";
-import WorkspaceSetupWizard from "../components/WorkspaceSetupWizard";
-import { ToastHost } from "../components/system";
+import { StatusBanner, ToastHost } from "../components/system";
+import { ShellStateCard } from "./ShellStateCard.jsx";
+import WorkspaceDiagnosticsSurface from "./WorkspaceDiagnosticsSurface.jsx";
+import WorkspaceSetupWizard from "./WorkspaceSetupWizard.jsx";
 import { useCommandCenter } from "../hooks/useCommandCenter";
 import { useGovernanceSummary } from "../hooks/useGovernanceSummary";
 import { useInboxWork } from "../hooks/useInboxWork";
@@ -69,7 +68,7 @@ function shellHealthStateFor(bootState, shell, shellDisabled) {
 function BootStateCard({ tone, eyebrow, title, message, loading = false, children }) {
   return (
     <section className="ga-shell-route-state">
-      <WorkspaceStateCard eyebrow={eyebrow} loading={loading} message={message} title={title} tone={tone} />
+      <ShellStateCard eyebrow={eyebrow} loading={loading} message={message} title={title} tone={tone} />
       {children}
     </section>
   );
@@ -328,24 +327,25 @@ export function AppShell({ children }) {
   } else if (diagnosticsOpen) {
     content = (
       <section className="ga-shell-route-state">
-        <SurfaceHeader
-          actions={
-            <button
-              className="ga-shell-inline-link"
-              onClick={() => setDiagnosticsOpen(false)}
-              type="button"
-            >
-              Close workspace setup
-            </button>
-          }
-          eyebrow="Workspace setup"
-          title="Workspace readiness guide"
-        >
+        {/* Follow-up 3: the legacy SurfaceHeader primitive is gone — this is
+            the one shell-owned header for the settings-entry readiness view. */}
+        <header className="ga-shell-route-state-head">
           <div>
-            Operator-only setup truth. Read-only runtime guidance kept in the shell instead of a
-            second readiness store.
+            <div className="ga-sys-eyebrow">Workspace setup</div>
+            <h1>Workspace readiness guide</h1>
+            <p>
+              Operator-only setup truth. Read-only runtime guidance kept in the shell instead of a
+              second readiness store.
+            </p>
           </div>
-        </SurfaceHeader>
+          <button
+            className="ga-shell-inline-link"
+            onClick={() => setDiagnosticsOpen(false)}
+            type="button"
+          >
+            Close workspace setup
+          </button>
+        </header>
         <WorkspaceSetupWizard
           error={runtime.runtimeStatus.error}
           loading={runtime.runtimeStatus.loading}
@@ -401,13 +401,19 @@ export function AppShell({ children }) {
 
         <main className={SHELL_CLASSNAMES.main}>
           {accessBanner ? (
-            <InlineStatusBanner
+            /* The wrapper carries the full message as a hover/AT detail —
+               the visible copy stays the condensed one-liner. */
+            <div
+              aria-label={accessBanner.message || undefined}
               className={SHELL_CLASSNAMES.accessBanner}
-              details={accessBanner.message}
-              message={accessBannerMessage}
-              title={accessBanner.title}
-              tone={accessBanner.tone}
-            />
+              title={accessBanner.message || undefined}
+            >
+              <StatusBanner
+                message={accessBannerMessage}
+                title={accessBanner.title}
+                tone={accessBanner.tone === "bad" ? "danger" : accessBanner.tone === "good" ? "success" : "warning"}
+              />
+            </div>
           ) : null}
           {content}
         </main>

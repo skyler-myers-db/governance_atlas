@@ -6,8 +6,8 @@
  * Changing any value here will move the shell.
  *
  * --ga-* is canonical (Wave C8). The two --gh-* aliases survive only because
- * the legacy sheets (app/northstar/shell-rail) still reference them; they die
- * with those sheets.
+ * the surviving legacy sheets (northstar/shell-rail) still reference them;
+ * they die with those sheets (cohesion follow-up 3 deleted app.css).
  *
  *   --ga-side-rail-w          expanded left navigation width (210px)
  *   --ga-left-panel-w         filter-rail column width (240px)

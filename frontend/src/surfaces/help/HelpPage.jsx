@@ -1,4 +1,13 @@
+import "./help.css";
 import { useEffect } from "react";
+import { Button, PageShell, SectionCard } from "../../components/system";
+
+/*
+ * surfaces/help/HelpPage.jsx — the routed /help surface (cohesion follow-up
+ * 3). Replaces components/HelpPage.jsx (the last routed legacy-shell
+ * consumer): one PageShell, one SectionCard per help section, ga-help-*
+ * classes only. Content is static, task-oriented copy — no data hooks.
+ */
 
 const SECTIONS = [
   {
@@ -116,9 +125,9 @@ const SECTIONS = [
   },
 ];
 
-export function HelpPage({ bootState = "live", onBack }) {
+export function HelpPage({ onBack = null }) {
   useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined") return undefined;
     const previous = document.title;
     document.title = "Help — Governance Atlas";
     return () => {
@@ -127,64 +136,44 @@ export function HelpPage({ bootState = "live", onBack }) {
   }, []);
 
   return (
-    <section className="gh-help-page" aria-label="Help and documentation">
-      <header className="gh-help-page-head">
-        <div>
-          <div className="gh-eyebrow">Help &amp; docs</div>
-          <h1 className="gh-help-page-title">How Governance Atlas works</h1>
-          <p className="gh-help-page-lede">
-            A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README.
-          </p>
-        </div>
-        {onBack ? (
-          <button
-            className="gh-tertiary-button gh-help-page-back"
-            onClick={onBack}
-            type="button"
-          >
+    <PageShell
+      actions={
+        onBack ? (
+          <Button onClick={onBack} size="sm" variant="tertiary">
             ← Back to Discovery
-          </button>
-        ) : null}
-      </header>
-
-      <nav className="gh-help-page-toc" aria-label="Help sections">
+          </Button>
+        ) : null
+      }
+      className="ga-help-page"
+      eyebrow="Help & docs"
+      subtitle="A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README."
+      title="How Governance Atlas works"
+    >
+      <nav aria-label="Help sections" className="ga-help-toc">
         {SECTIONS.map((section) => (
-          <a
-            className="gh-help-page-toc-link"
-            href={`#${section.id}`}
-            key={section.id}
-          >
+          <a className="ga-help-toc-link" href={`#${section.id}`} key={section.id}>
             {section.title}
           </a>
         ))}
       </nav>
 
-      <div className="gh-help-page-body">
+      <div className="ga-help-sections">
         {SECTIONS.map((section) => (
-          <section
-            aria-labelledby={`gh-help-${section.id}`}
-            className="gh-help-page-section"
-            id={section.id}
-            key={section.id}
-          >
-            <h2 className="gh-help-page-section-title" id={`gh-help-${section.id}`}>
-              {section.title}
-            </h2>
-            <div className="gh-help-page-entries">
-              {section.entries.map((entry, index) => (
-                <article
-                  className="gh-help-page-entry"
-                  key={`${section.id}-${index}`}
-                >
-                  <h3 className="gh-help-page-entry-heading">{entry.heading}</h3>
-                  <p className="gh-help-page-entry-body">{entry.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+          <div className="ga-help-anchor" id={section.id} key={section.id}>
+            <SectionCard className="ga-help-section" title={section.title}>
+              <div className="ga-help-entries">
+                {section.entries.map((entry, index) => (
+                  <article className="ga-help-entry" key={`${section.id}-${index}`}>
+                    <h3 className="ga-help-entry-heading">{entry.heading}</h3>
+                    <p className="ga-help-entry-body">{entry.body}</p>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
         ))}
       </div>
-    </section>
+    </PageShell>
   );
 }
 

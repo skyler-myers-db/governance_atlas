@@ -1,5 +1,6 @@
 import { Component } from "react";
-import { WorkspaceStateCard } from "./ShellStatePrimitives";
+import { ShellStateCard } from "../app-shell/ShellStateCard.jsx";
+import { Button } from "./system";
 
 function formatErrorMessage(error) {
   if (!error) return "Unknown frontend error.";
@@ -112,20 +113,10 @@ export default class AppErrorBoundary extends Component {
     // app itself broke.
     if (isStaleChunkError(activeError)) {
       return (
-        <section className="gh-workspace gh-unavailable-workspace">
-          <WorkspaceStateCard
-            eyebrow="New version available"
-            message="Governance Atlas has been redeployed since you opened this tab. Reload to load the newest workspace bundle."
-            title="Reload to pick up the latest build"
-            tone="neutral"
-          >
-            <div className="gh-support-copy">
-              Your session will be preserved — the reload only refreshes the
-              client-side bundle.
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <button
-                className="gh-primary-button"
+        <section className="ga-shell-route-state">
+          <ShellStateCard
+            actions={
+              <Button
                 onClick={() => {
                   try {
                     window.location.reload();
@@ -133,30 +124,30 @@ export default class AppErrorBoundary extends Component {
                     /* ignore */
                   }
                 }}
-                type="button"
+                variant="primary"
               >
                 Reload now
-              </button>
-            </div>
-          </WorkspaceStateCard>
+              </Button>
+            }
+            eyebrow="New version available"
+            message="Governance Atlas has been redeployed since you opened this tab. Reload to load the newest workspace bundle."
+            title="Reload to pick up the latest build"
+            tone="neutral"
+          >
+            <p className="ga-shell-state-card-message">
+              Your session will be preserved — the reload only refreshes the
+              client-side bundle.
+            </p>
+          </ShellStateCard>
         </section>
       );
     }
 
     return (
-      <section className="gh-workspace gh-unavailable-workspace">
-        <WorkspaceStateCard
-          eyebrow="Frontend Error"
-          message={formatErrorMessage(activeError)}
-          title="The workspace hit an unexpected rendering failure."
-          tone="bad"
-        >
-          <div className="gh-support-copy">
-            The page stayed reachable, but a client-side error interrupted rendering. Reloading usually recovers the workspace.
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <button
-              className="gh-primary-button"
+      <section className="ga-shell-route-state">
+        <ShellStateCard
+          actions={
+            <Button
               onClick={() => {
                 try {
                   window.location.reload();
@@ -164,12 +155,20 @@ export default class AppErrorBoundary extends Component {
                   /* ignore */
                 }
               }}
-              type="button"
+              variant="primary"
             >
               Reload workspace
-            </button>
-          </div>
-        </WorkspaceStateCard>
+            </Button>
+          }
+          eyebrow="Frontend Error"
+          message={formatErrorMessage(activeError)}
+          title="The workspace hit an unexpected rendering failure."
+          tone="bad"
+        >
+          <p className="ga-shell-state-card-message">
+            The page stayed reachable, but a client-side error interrupted rendering. Reloading usually recovers the workspace.
+          </p>
+        </ShellStateCard>
       </section>
     );
   }
