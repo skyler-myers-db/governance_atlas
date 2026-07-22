@@ -1534,7 +1534,13 @@ def command_center_payload(
         # ALL catalogs, worst-first (see _catalog_health_summary). No slice:
         # dropping catalogs here is how `datapact` vanished from the panel.
         "catalogHealth": catalog_health,
-        "recentEvents": _recent_events(audit),
+        # One visibility policy on every door to the audit log: the feed only
+        # renders events about assets in the visible estate — out-of-scope
+        # events minted anchors to "Audit event not found" on Evidence
+        # (follow-up re-verify BLOCK).
+        "recentEvents": _recent_events(
+            _filter_audit_rows_by_visible_assets(audit, _extract_asset_fqns(assets_df) or None)
+        ),
         "recentAssets": recent_assets,
         "governance": {
             "openRequests": open_requests,

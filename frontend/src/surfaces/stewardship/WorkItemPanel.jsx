@@ -48,7 +48,7 @@ function CopyIdButton({ item }) {
   );
 }
 
-function EvidenceComments({ comments }) {
+function EvidenceComments({ comments, evidenceResolvable = true }) {
   if (!comments.length) {
     return (
       <p className="ga-stew-panel-muted">
@@ -76,8 +76,18 @@ function EvidenceComments({ comments }) {
                 <span>{author}</span>
               )}
               {textValue(comment.at) ? <span>{formatShortDate(comment.at) || comment.at}</span> : null}
-              {commentAuditId ? (
+              {/* Same withheld gating as AuditTrail: out-of-scope assets'
+                  evidence is unresolvable on the Evidence page (follow-up
+                  re-verify BLOCK — comments still minted dead chips). */}
+              {commentAuditId && evidenceResolvable ? (
                 <EntityChip appearance="inline" entity={{ kind: "event", id: commentAuditId }} />
+              ) : commentAuditId ? (
+                <span
+                  className="ga-stew-panel-muted"
+                  title="Evidence for this asset is withheld outside your visible estate"
+                >
+                  {commentAuditId}
+                </span>
               ) : null}
             </div>
             <p>{textValue(comment.text)}</p>
@@ -359,7 +369,7 @@ export function WorkItemPanel({
         {detailStatus === "loading" ? (
           <p className="ga-stew-panel-muted">Loading the comment timeline…</p>
         ) : (
-          <EvidenceComments comments={comments} />
+          <EvidenceComments evidenceResolvable={item?.assetInVisibleScope !== false} comments={comments} />
         )}
       </div>
     </section>
