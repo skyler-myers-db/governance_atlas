@@ -481,7 +481,11 @@ export function LineageDetailRail({
             <ul className="ga-lineage-impact-list">
               <li>Owners: <OwnerLink owner={detailOwner || subjectStats.ownerLabel} /></li>
               <li>Sensitivity: {focusedAsset?.sensitivity || subject?.classification || "No sensitivity label"}</li>
-              <li>Access scope: {accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "Not returned"}</li>
+              <li>Access scope: {(() => {
+                const scope = accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "";
+                const map = { "actor-scoped": "Your access", "workspace-scoped": "Workspace", "full-lineage": "Full lineage", "full": "Full" };
+                return map[scope] || (scope ? scope.replace(/-/g, " ").replace(/scoped/g, "").trim() || "Permission-aware" : "Not returned");
+              })()}</li>
               <li>Access grants: {accessGrants.length ? `${accessGrants.length} grant row(s) returned` : "No access-grant rows returned"}</li>
               <li>Policies: {linkedPolicies.length ? linkedPolicies.map((policy) => firstMeaningful(policy?.name, policy?.title, policy?.id, policy)).slice(0, 3).join(", ") : "No policies linked"}</li>
               <li>Controls affected: {linkedControls.length ? `${linkedControls.length} linked control(s)` : "No controls linked"}</li>
@@ -510,7 +514,7 @@ export function LineageDetailRail({
                 )}
               </li>
               <li>Truncation: {truncationSummary}</li>
-              <li>Hydration: {Object.values(progressive).some(Boolean) ? "Progressive lineage state is active" : "Full profile currently displayed"}</li>
+              <li>Graph state: {Object.values(progressive).some(Boolean) ? "Still loading the full graph" : "Full graph loaded"}</li>
             </ul>
           </div>
           <div className="ga-lineage-v2-rail-section">

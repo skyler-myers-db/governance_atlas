@@ -16,6 +16,7 @@ import {
   workItemDisplayId,
   workItemFullId,
   workItemKind,
+  humanizeCommentText,
 } from "./format.js";
 
 /*
@@ -90,7 +91,7 @@ function EvidenceComments({ comments, evidenceResolvable = true }) {
                 </span>
               ) : null}
             </div>
-            <p>{textValue(comment.text)}</p>
+            <p>{humanizeCommentText(comment.text)}</p>
           </div>
         );
       })}

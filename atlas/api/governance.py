@@ -477,6 +477,7 @@ def api_governance_patch_request(
         _record_metadata_audit,
         _store,
         _uc,
+        _uc_for_request,
         _user_role_slug,
     )
     from atlas.api.assets import AssetMetadataPatch
@@ -513,7 +514,8 @@ def api_governance_patch_request(
     if assignee_value:
         try:
             identity_roster.validate_principal(
-                _uc(), assignee_value, field="assignee"
+                _uc_for_request(request), assignee_value, field="assignee",
+                fallback_uc=_uc(),
             )
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -666,6 +668,7 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
         _http_request_id,
         _store,
         _uc,
+        _uc_for_request,
         _user_role_slug,
     )
     from atlas.services import identity_roster
@@ -697,7 +700,7 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     # Identity integrity: only real workspace members can be linked as owners /
     # stewards. Fail-open when the roster API is degraded.
     try:
-        identity_roster.validate_principal(_uc(), owner_email, field="ownerEmail")
+        identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc())
     except identity_roster.PrincipalNotInWorkspaceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not _asset_is_openable(asset_fqn, request):
@@ -731,12 +734,13 @@ def api_identity_workspace_roster(request: Request) -> JSONResponse:
         _ensure_can_approve,
         _ensure_live_runtime,
         _uc,
+        _uc_for_request,
     )
     from atlas.services import identity_roster
 
     _ensure_live_runtime()
     _ensure_can_approve(request)
-    return JSONResponse(identity_roster.roster_payload(_uc()))
+    return JSONResponse(identity_roster.roster_payload(_uc_for_request(request), fallback_uc=_uc()))
 
 
 def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
@@ -750,7 +754,7 @@ def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
     owner_email = _normalize_str(payload.ownerEmail).lower()
     if owner_email:
         try:
-            identity_roster.validate_principal(_uc(), owner_email, field="ownerEmail")
+            identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc())
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     for entry in payload.reviewers or []:
@@ -761,7 +765,8 @@ def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
             continue
         try:
             identity_roster.validate_principal(
-                _uc(), reviewer_email, field="reviewer"
+                _uc_for_request(request), reviewer_email, field="reviewer",
+                fallback_uc=_uc(),
             )
         except identity_roster.PrincipalNotInWorkspaceError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

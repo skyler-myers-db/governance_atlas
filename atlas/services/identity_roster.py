@@ -187,18 +187,46 @@ def clear_roster_cache() -> None:
         _ROSTER_CACHE.clear()
 
 
-def validate_principal(uc: Any, principal: Any, *, field: str = "principal") -> str:
+def get_best_roster(*uc_clients: Any, force_refresh: bool = False) -> RosterSnapshot:
+    """Return the first AVAILABLE roster across the given clients.
+
+    The Databricks App service principal often lacks the workspace
+    users:list entitlement, so ``_uc()`` returns an empty (unavailable)
+    roster and validation would fail open — a ghost owner slipped through
+    (verifier BLOCK). The requesting user's OBO client (an admin) CAN read
+    SCIM, so callers pass the OBO client first and the SP client as a
+    fallback. The first client to yield a populated roster wins; its result
+    is cached (shared, keyed by warehouse) so once ANY admin warms it, every
+    later validation and accountMember flag benefits for the TTL.
+    """
+    last: RosterSnapshot | None = None
+    for uc in uc_clients:
+        if uc is None:
+            continue
+        snapshot = get_roster(uc, force_refresh=force_refresh)
+        last = snapshot
+        if snapshot.available:
+            return snapshot
+    return last or RosterSnapshot(
+        user_emails=set(), service_principal_ids=set(),
+        available=False, source="unavailable", fetched_at=time.time(),
+    )
+
+
+def validate_principal(uc: Any, principal: Any, *, field: str = "principal", fallback_uc: Any = None) -> str:
     """Validate ``principal`` against the roster.
 
     Returns the normalized principal on success. Raises
     ``PrincipalNotInWorkspaceError`` when the roster is available and the
     principal is absent. When the roster is unavailable (degraded) the check is
-    skipped (fail-open) and the principal passes through unchanged.
+    skipped (fail-open) and the principal passes through unchanged. Pass
+    ``fallback_uc`` (typically the app SP client) when ``uc`` is the OBO
+    client so the roster resolves whichever client can read SCIM.
     """
     normalized = _normalize_principal(principal)
     if not normalized:
         return normalized
-    roster = get_roster(uc)
+    roster = get_best_roster(uc, fallback_uc)
     if not roster.available:
         # Graceful degradation: cannot verify, so don't block the write.
         return normalized
@@ -294,9 +322,9 @@ def cleanup_non_workspace_owners(
     return result
 
 
-def roster_payload(uc: Any, *, limit: int = 0) -> Dict[str, Any]:
+def roster_payload(uc: Any, *, limit: int = 0, fallback_uc: Any = None) -> Dict[str, Any]:
     """Serializable roster for the workspace-roster endpoint / frontend picker."""
-    roster = get_roster(uc)
+    roster = get_best_roster(uc, fallback_uc)
     members = [
         {"principal": email, "principalType": "user", "accountMember": True}
         for email in sorted(roster.user_emails)

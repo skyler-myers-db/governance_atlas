@@ -1694,6 +1694,56 @@ def _canonical_estate_grounding(
     return {"answer": answer, "evidence": canonical_evidence, "warnings": warnings}
 
 
+_LINEAGE_Q_UP = ("feed", "feeds", "upstream", "source of", "sources for", "come from", "comes from", "derived from", "depends on", "built from", "populate")
+_LINEAGE_Q_DOWN = ("downstream", "consume", "consumer", "depend on this", "uses this", "feeds into", "affected by", "who uses", "impact")
+
+
+def _lineage_grounding(question: str, context_fqn: str, uc: Any) -> dict | None:
+    """Answer 'what feeds / what depends on <asset>' from REAL Unity Catalog
+    lineage, not the Genie snapshot (which has no lineage and answered
+    "nothing feeds it" while the lineage UI rendered upstream sources —
+    verifier BLOCK). Only fires with an asset context and a lineage-shaped
+    question; returns None otherwise so estate/other questions are untouched.
+    """
+    text = _normalize_str(question).lower()
+    fqn = _normalize_str(context_fqn)
+    if not fqn or fqn.count(".") < 2:
+        return None
+    wants_up = any(tok in text for tok in _LINEAGE_Q_UP)
+    wants_down = any(tok in text for tok in _LINEAGE_Q_DOWN)
+    if not (wants_up or wants_down):
+        return None
+    catalog, schema, table = fqn.split(".", 2)
+    try:
+        up = uc.get_table_lineage_upstream(catalog, schema, table, limit=50) if wants_up or not wants_down else None
+        down = uc.get_table_lineage_downstream(catalog, schema, table, limit=50) if wants_down else None
+    except Exception:
+        return None
+    up_names = sorted({str(v) for v in (up["source_table_full_name"].tolist() if up is not None and not up.empty else [])})
+    down_names = sorted({str(v) for v in (down["target_table_full_name"].tolist() if down is not None and not down.empty else [])})
+
+    def _sentence(direction, names):
+        short = table
+        if not names:
+            return (f"Unity Catalog shows no {direction} lineage for **{short}** — no observed "
+                    f"table-lineage edges in that direction.")
+        head = ", ".join(f"`{n}`" for n in names[:8])
+        more = f" and {len(names) - 8} more" if len(names) > 8 else ""
+        verb = "feed into" if direction == "upstream" else "are fed by"
+        return f"**{len(names)}** {direction} asset{'s' if len(names)!=1 else ''} {verb} **{short}**: {head}{more}."
+
+    parts = []
+    evidence = []
+    if wants_up or not wants_down:
+        parts.append(_sentence("upstream", up_names))
+        evidence += [{"id": n, "label": n, "assetFqn": n, "source": "system.access.table_lineage"} for n in up_names[:8]]
+    if wants_down:
+        parts.append(_sentence("downstream", down_names))
+        evidence += [{"id": n, "label": n, "assetFqn": n, "source": "system.access.table_lineage"} for n in down_names[:8]]
+    answer = " ".join(parts) + " Open the asset in Lineage Atlas to explore the full graph."
+    return {"answer": answer, "evidence": evidence, "warnings": []}
+
+
 def _first_evidence_number(evidence: Any) -> int | None:
     if not isinstance(evidence, list):
         return None
@@ -1718,7 +1768,7 @@ def api_atlas_ai_recommendations(
     request: Request,
     body: AtlasAiQuestion | None = Body(default=None),
 ) -> JSONResponse:
-    from runtime_app import _config, _ensure_live_runtime, _request_obo_token, _store_for_read, _visible_assets
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token, _store, _store_for_read, _uc, _uc_for_request, _visible_assets
 
     _ensure_live_runtime()
     question = _normalize_str(body.question if body else "")
@@ -1789,12 +1839,27 @@ def api_atlas_ai_recommendations(
                 # Canonical estate grounding: for aggregate count questions, ground
                 # the answer on the same numbers the Command Center shows so Atlas AI
                 # never contradicts the UI even when the Genie snapshot has drifted.
-                grounding = _canonical_estate_grounding(
+                # Lineage grounding first: "what feeds/depends on this asset"
+                # is answered from real UC lineage, not the lineage-less Genie
+                # snapshot (which said "nothing feeds it" while the graph
+                # rendered upstream sources — verifier BLOCK).
+                lineage_ground = None
+                _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+                if _ctx_fqn:
+                    try:
+                        lineage_ground = _lineage_grounding(question, _ctx_fqn, _uc_for_request(request) or _uc())
+                    except Exception:
+                        lineage_ground = None
+                grounding = lineage_ground or _canonical_estate_grounding(
                     question,
                     request,
                     payload,
                     visible_assets_fn=_visible_assets,
-                    store_fn=_store_for_read,
+                    # The app store (same one the Command Center reads) — the
+                    # OBO _store_for_read returned change-requests unavailable,
+                    # so openRequests fell back to Genie (1) and contradicted
+                    # the UI's 2 (verifier BLOCK).
+                    store_fn=lambda _req=None: _store(),
                 )
                 if grounding:
                     payload["answer"] = grounding["answer"]
