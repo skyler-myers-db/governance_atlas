@@ -222,12 +222,14 @@ export function EventsTab({ shell = null, params, setParams }) {
   const widenedForRef = useRef("");
   useEffect(() => {
     if (!eventParamUnresolved || loading) return;
-    if (widenedForRef.current === `${eventParam}:${range}`) return;
     const nextRange = RANGES[RANGES.indexOf(range) + 1];
-    if (nextRange) {
-      widenedForRef.current = `${eventParam}:${nextRange}`;
-      setParams({ range: nextRange });
-    }
+    if (!nextRange) return;
+    // Guard against the STEP about to be taken, not the range already
+    // reached — storing the destination made the guard match on arrival and
+    // permanently stall the ladder at 7d (verifier catch).
+    if (widenedForRef.current === `${eventParam}:${nextRange}`) return;
+    widenedForRef.current = `${eventParam}:${nextRange}`;
+    setParams({ range: nextRange });
   }, [eventParam, eventParamUnresolved, loading, range, setParams]);
   const forbidden = !canReadAudit || responseStatus(evidence.error) === 403;
   const queryError = canReadAudit ? evidence.errorMessage : "";
