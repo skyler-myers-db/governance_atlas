@@ -84,7 +84,7 @@ describe("useDiscoveryResults", () => {
     expect(fetchDiscoverySearchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("does not reuse stale prior results as placeholder data when filters change", async () => {
+  it("keeps prior results visible (stale-while-revalidate) when filters change instead of collapsing", async () => {
     fetchDiscoverySearchMock
       .mockResolvedValueOnce({
         assets: [{ fqn: "main.sales.authoritative" }],
@@ -130,8 +130,13 @@ describe("useDiscoveryResults", () => {
 
     rerender({ query: "finance" });
 
+    // SWR: the previous authoritative rows stay on screen while the new scope
+    // fetches (no collapse-to-skeleton flicker); `fetching` flags the refresh
+    // and `loading` (skeleton) stays false because results are visible.
     expect(result.current.authoritative).toBe(false);
-    expect(result.current.assets).toEqual([]);
+    expect(result.current.assets).toEqual([{ fqn: "main.sales.authoritative" }]);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.fetching).toBe(true);
   });
 
   it("keeps the last authoritative rows visible while the same discovery scope fetches a larger limit", async () => {
@@ -178,7 +183,10 @@ describe("useDiscoveryResults", () => {
 
     rerender({ limit: 120 });
 
-    expect(result.current.loading).toBe(true);
+    // Results stay visible during the refetch, so it reads as refreshing
+    // (fetching) rather than a skeleton (loading).
+    expect(result.current.loading).toBe(false);
+    expect(result.current.fetching).toBe(true);
     expect(result.current.authoritative).toBe(false);
     expect(result.current.assets).toEqual([{ fqn: "main.sales.authoritative" }]);
     expect(result.current.count).toBe(150);

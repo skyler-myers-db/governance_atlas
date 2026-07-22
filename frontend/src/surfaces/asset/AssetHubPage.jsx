@@ -269,8 +269,21 @@ export function AssetHubPage() {
         asset={asset}
         freshness={freshness}
         ownership={ownership}
-        ownershipPending={a360.loading || a360IsStub}
+        // Ownership resolves from the asset payload itself; don't keep it in the
+        // "…" hydrating state until the WHOLE a360 envelope (slow OBO
+        // lineage/usage) settles — that left owner/steward perpetually "…" for
+        // assets whose lineage keeps warming, hiding both the "Unassigned" claim
+        // and the inline assign affordance. Pending only until a real asset
+        // payload exists.
+        ownershipPending={!asset && (a360.loading || a360IsStub)}
         hydrating={heroHydrating}
+        // The hub is the authoring surface (it renders Request change / Certify
+        // here too). Offer the inline assign affordance; the backend enforces
+        // the actual mutate/roster permission and surfaces an honest message on
+        // reject. The read-only peek drawer does not pass this, so it stays
+        // read-only. onAssigned re-fetches the /360 payload to show the new owner.
+        canMutate
+        onAssigned={afterWrite}
       />
 
       {tab === "overview" ? (

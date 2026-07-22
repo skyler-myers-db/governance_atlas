@@ -739,7 +739,8 @@
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
-  background: var(--ga-surface-strong);
+  /* Opaque (see .ga-sys-filter-pop) so input content never shows through. */
+  background: var(--ga-navy-900);
   border: 1px solid var(--ga-border);
   border-radius: var(--ga-radius-md);
   box-shadow: var(--ga-shadow-md);
@@ -1361,7 +1362,10 @@
   padding: var(--ga-space-2);
   border: 1px solid var(--ga-border-strong);
   border-radius: var(--ga-radius-md);
-  background: var(--ga-surface-strong);
+  /* Fully OPAQUE: --ga-surface-strong is rgba(...,.98), so bright results text
+     behind the floating dropdown bled through (looked transposed). A floating
+     popover over content must be solid. */
+  background: var(--ga-navy-900);
   box-shadow: var(--ga-shadow-md);
 }
 
