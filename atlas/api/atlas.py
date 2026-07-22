@@ -1714,11 +1714,30 @@ def _lineage_grounding(question: str, context_fqn: str, uc: Any) -> dict | None:
     if not (wants_up or wants_down):
         return None
     catalog, schema, table = fqn.split(".", 2)
-    try:
-        up = uc.get_table_lineage_upstream(catalog, schema, table, limit=50) if wants_up or not wants_down else None
-        down = uc.get_table_lineage_downstream(catalog, schema, table, limit=50) if wants_down else None
-    except Exception:
-        return None
+    # Try each client (OBO carries the actor's system.access grant; the app SP
+    # is the fallback). Track whether the read SUCCEEDED so we never assert
+    # "no lineage" off a permission failure — that would contradict the graph.
+    read_ok = False
+    up = down = None
+    for client in [c for c in uc if c is not None] if isinstance(uc, (list, tuple)) else [uc]:
+        try:
+            if wants_up or not wants_down:
+                up = client.get_table_lineage_upstream(catalog, schema, table, limit=50)
+            if wants_down:
+                down = client.get_table_lineage_downstream(catalog, schema, table, limit=50)
+            read_ok = True
+            if (up is not None and not up.empty) or (down is not None and not down.empty):
+                break  # got real neighbors; stop
+        except Exception:
+            continue
+    if not read_ok:
+        # Couldn't read lineage — deflect honestly instead of letting Genie
+        # claim "nothing feeds it" (verifier BLOCK). Never a false negative.
+        return {
+            "answer": (f"I couldn't read the governed lineage for **{table}** just now. "
+                       f"Open it in **Lineage Atlas** to see its upstream sources and downstream consumers."),
+            "evidence": [], "warnings": [],
+        }
     up_names = sorted({str(v) for v in (up["source_table_full_name"].tolist() if up is not None and not up.empty else [])})
     down_names = sorted({str(v) for v in (down["target_table_full_name"].tolist() if down is not None and not down.empty else [])})
 
@@ -1847,10 +1866,12 @@ def api_atlas_ai_recommendations(
                 _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
                 if _ctx_fqn:
                     try:
-                        # system.access.table_lineage is read by the app SP (as
-                        # every lineage feature does) — the OBO client can't see
-                        # the system schema, so use _uc() with OBO fallback.
-                        lineage_ground = _lineage_grounding(question, _ctx_fqn, _uc() or _uc_for_request(request))
+                        # OBO carries the actor's system.access.table_lineage
+                        # grant (how the lineage feature reads it); the app SP
+                        # is the fallback. Pass both — the grounding tries each.
+                        lineage_ground = _lineage_grounding(
+                            question, _ctx_fqn, [_uc_for_request(request), _uc()]
+                        )
                     except Exception:
                         lineage_ground = None
                 grounding = lineage_ground or _canonical_estate_grounding(
