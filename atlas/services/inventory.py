@@ -108,8 +108,55 @@ def visible_assets(
     else:
         with _CACHE_LOCK:
             _TTL_CACHE[cache_key] = (time.time(), result)
+        # Post-hydration estate pre-warm: once we have the visible-assets frame
+        # for this actor scope, proactively warm the per-asset header/freshness
+        # caches for the visible estate so the FIRST click on any asset finds
+        # DESCRIBE DETAIL / DESCRIBE HISTORY / information_schema already
+        # populated (cold first-click was 5-7s; this collapses it). Runs under
+        # the SAME uc_client so the warmed cache keys match the actor-scoped
+        # detail requests. warm_estate_headers is self-guarded against a
+        # thundering herd and skips already-fresh entries, so re-triggering on
+        # a later hydration is cheap.
+        _trigger_estate_prewarm(uc_client, result)
 
     return result
+
+
+def _trigger_estate_prewarm(uc_client: Any, inventory_df: pd.DataFrame) -> None:
+    """Fire-and-forget estate header pre-warm for the visible assets."""
+    try:
+        if (
+            inventory_df is None
+            or getattr(inventory_df, "empty", True)
+            or "fqn" not in inventory_df.columns
+        ):
+            return
+        fqns = [
+            _normalize_str(value)
+            for value in inventory_df["fqn"].dropna().astype(str).tolist()
+            if _normalize_str(value)
+        ]
+    except Exception:
+        return
+    if not fqns:
+        return
+
+    def _run() -> None:
+        try:
+            asset_service.warm_estate_headers(
+                uc_client,
+                fqns,
+                scope_key=asset_service._warehouse_key(uc_client),
+                max_assets=50,
+            )
+        except Exception:
+            pass
+
+    threading.Thread(
+        target=_run,
+        name="atlas-estate-prewarm",
+        daemon=True,
+    ).start()
 
 
 def cached_visible_assets(

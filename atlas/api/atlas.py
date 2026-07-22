@@ -190,8 +190,32 @@ def _databricks_job_inventory(
     return rows
 
 
+class AtlasAiContext(BaseModel):
+    """Page-awareness context the dock sends with each question.
+
+    ``surface`` is the current left-nav surface id; ``assetFqn`` is the asset
+    the user is looking at (route asset or peek drawer). Both feed the Genie
+    prompt preamble so "this asset" / "on this page" questions resolve to the
+    concrete surface the user is on.
+    """
+
+    surface: str = Field(default="", max_length=64)
+    assetFqn: str = Field(default="", max_length=512)
+
+    @field_validator("surface", "assetFqn", mode="before")
+    @classmethod
+    def _sanitize_context(cls, value):
+        return input_safety.sanitize_plain_text(
+            value,
+            field="context",
+            max_length=512,
+            allow_empty=True,
+        )
+
+
 class AtlasAiQuestion(BaseModel):
     question: str = Field(default="", max_length=2000)
+    context: AtlasAiContext | None = None
 
     @field_validator("question", mode="before")
     @classmethod
@@ -1518,6 +1542,178 @@ def api_admin_control_center(
     )
 
 
+# Surface ids (nav/routes.js) -> human phrase used in the Genie prompt preamble.
+_AI_SURFACE_LABELS = {
+    "home": "the executive Command Center",
+    "discovery": "the Discovery search surface",
+    "stewardship": "the Stewardship queue",
+    "glossary": "the Glossary / CDE registry",
+    "lineage": "the Lineage workspace",
+    "evidence": "the Audit Evidence surface",
+    "admin": "the Admin control center",
+    "assets": "an asset detail page",
+}
+
+
+def _ai_context_preamble(context: "AtlasAiContext | None") -> str:
+    """Build a grounding preamble so Genie resolves 'this asset'/'this page'.
+
+    The preamble names the concrete surface and asset FQN the user is viewing so
+    deictic questions ("who owns this asset?", "what feeds this table?") bind to
+    a real entity instead of being answered blind. Empty context yields "".
+    """
+
+    if context is None:
+        return ""
+    surface = _normalize_str(getattr(context, "surface", ""))
+    asset_fqn = _normalize_str(getattr(context, "assetFqn", ""))
+    parts: list[str] = []
+    if asset_fqn:
+        parts.append(
+            f"The user is currently viewing the asset `{asset_fqn}`. Interpret "
+            f"'this asset', 'this table', 'this dataset', 'it', and 'here' as `{asset_fqn}`."
+        )
+    if surface:
+        label = _AI_SURFACE_LABELS.get(surface.lower(), f"the {surface} surface")
+        parts.append(f"The user is on {label}.")
+    if not parts:
+        return ""
+    return "Context: " + " ".join(parts) + "\n\n"
+
+
+# Canonical estate-metric grounding. The Genie curated view is a single-catalog
+# snapshot that drifts from the UI (48/31/35 vs canonical 50/44/49). For these
+# estate-level aggregate questions we ground the answer on the SAME numbers the
+# Command Center tiles show, so Atlas AI can never contradict the UI.
+_ESTATE_METRIC_RULES = (
+    # (metric_key, singular_noun, plural_noun, [required_all], [any_of], [none_of])
+    ("cdeCount", "critical data element", "critical data elements",
+     [], ["cde", "critical data element"], []),
+    ("openRequests", "open governance request", "open governance requests",
+     ["open"], ["request", "governance request", "change request"], []),
+    ("certifiedAssets", "certified asset", "certified assets",
+     ["certif"], ["asset", "table", "dataset", "have", "many"], []),
+    ("criticalAssets", "business-critical asset", "business-critical assets",
+     ["critical"], ["asset", "table", "dataset"], ["cde", "data element"]),
+    ("metadataCoverage", "metadata coverage", "metadata coverage",
+     [], ["coverage", "documented", "metadata complete"], []),
+    ("totalAssets", "asset", "assets",
+     [], ["how many asset", "total asset", "data estate", "assets do we", "number of asset", "assets in our"], ["certif", "critical", "cde"]),
+)
+
+
+def _detect_estate_metric(question: str) -> tuple[str, str, str] | None:
+    text = _normalize_str(question).lower()
+    if not text:
+        return None
+    # Aggregate intent only — never override per-asset or list questions.
+    if not any(token in text for token in ("how many", "how much", "number of", "count", "total", "percentage", "do we have", "are there", "what are our")):
+        return None
+    for metric_key, singular, plural, required_all, any_of, none_of in _ESTATE_METRIC_RULES:
+        if none_of and any(token in text for token in none_of):
+            continue
+        if required_all and not all(token in text for token in required_all):
+            continue
+        if any_of and not any(token in text for token in any_of):
+            continue
+        return metric_key, singular, plural
+    return None
+
+
+def _canonical_estate_grounding(
+    question: str,
+    request: Request,
+    payload: dict,
+    *,
+    visible_assets_fn,
+    store_fn,
+) -> dict | None:
+    """Return a canonical-grounded answer dict when the question is an estate count.
+
+    Computes the metric from the same visible-asset frame + governance store the
+    Command Center uses, replaces the answer's number with the canonical one, and
+    warns when the Genie snapshot diverged. Returns None when not applicable.
+    """
+
+    detected = _detect_estate_metric(question)
+    if not detected:
+        return None
+    metric_key, singular, plural = detected
+    try:
+        visible_assets = visible_assets_fn(request)
+    except Exception:
+        return None
+    if visible_assets is None or getattr(visible_assets, "empty", True):
+        return None
+    try:
+        store = store_fn(request)
+    except Exception:
+        store = None
+    try:
+        metrics = atlas_metrics.canonical_estate_metrics(visible_assets=visible_assets, store=store)
+    except Exception:
+        return None
+    canonical_value = metrics.get(metric_key)
+    if canonical_value is None:
+        return None
+    if metric_key == "metadataCoverage":
+        answer = (
+            f"Metadata coverage across the estate is **{canonical_value}%** — the same "
+            "canonical figure shown on the Command Center. Coverage weights owners, "
+            "certification, domain, description, and classification, so it is not a "
+            "simple has-a-comment check."
+        )
+    elif metric_key == "openRequests":
+        noun = singular if canonical_value == 1 else plural
+        answer = (
+            f"You have **{canonical_value} {noun}** open across the estate. "
+            "This is the same count shown on the Command Center and Stewardship queue."
+        )
+    else:
+        noun = singular if canonical_value == 1 else plural
+        answer = (
+            f"There are **{canonical_value:,} {noun}** in the current estate — the same "
+            "canonical figure shown on the Command Center tiles."
+        )
+    canonical_evidence = {
+        "type": "metric",
+        "id": metric_key,
+        "label": f"{canonical_value} {plural}",
+        "metric": metric_key,
+        "value": canonical_value,
+        "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+    }
+    warnings: list[str] = []
+    # Detect divergence from the Genie snapshot to surface honestly.
+    genie_number = _first_evidence_number(payload.get("evidence"))
+    if genie_number is not None and genie_number != canonical_value:
+        warnings.append(
+            f"The Genie metadata snapshot reported {genie_number}; Atlas AI grounded the answer on the "
+            f"canonical estate figure ({canonical_value}) so it matches the UI."
+        )
+    return {"answer": answer, "evidence": canonical_evidence, "warnings": warnings}
+
+
+def _first_evidence_number(evidence: Any) -> int | None:
+    if not isinstance(evidence, list):
+        return None
+    for item in evidence:
+        rows = item.get("resultRows") if isinstance(item, Mapping) else None
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            for value in row.values():
+                try:
+                    text = str(value).strip().replace(",", "")
+                    if text and text.replace(".", "", 1).isdigit():
+                        return int(float(text))
+                except Exception:
+                    continue
+    return None
+
+
 def api_atlas_ai_recommendations(
     request: Request,
     body: AtlasAiQuestion | None = Body(default=None),
@@ -1526,6 +1722,7 @@ def api_atlas_ai_recommendations(
 
     _ensure_live_runtime()
     question = _normalize_str(body.question if body else "")
+    ai_context = getattr(body, "context", None) if body else None
     genie_warning = ""
     genie_status: dict = {"state": "degraded", "provider": "local"}
     try:
@@ -1567,24 +1764,44 @@ def api_atlas_ai_recommendations(
                         warnings=metadata_payload.get("warnings") or None,
                     )
             else:
+                context_preamble = _ai_context_preamble(ai_context)
+                genie_question = f"{context_preamble}{question}" if context_preamble else question
                 token_fragment = hashlib.sha256(forwarded_token.encode("utf-8")).hexdigest()[:12]
                 genie_cache_key = _route_cache_key(
                     "atlas_ai_recommendations",
                     genie_status.get("spaceId", ""),
                     token_fragment,
-                    question or "__default__",
+                    genie_question or "__default__",
                 )
                 cached_payload = _ttl_value(
                     genie_cache_key,
                     120,
                     lambda: genie_service.ask_genie(
                         config=cfg,
-                        question=question,
+                        question=genie_question,
                         user_access_token=forwarded_token,
                     ),
                 )
                 payload = dict(cached_payload or {})
+                # Keep the user-visible question, not the context-augmented prompt.
+                payload["question"] = question
                 payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+                # Canonical estate grounding: for aggregate count questions, ground
+                # the answer on the same numbers the Command Center shows so Atlas AI
+                # never contradicts the UI even when the Genie snapshot has drifted.
+                grounding = _canonical_estate_grounding(
+                    question,
+                    request,
+                    payload,
+                    visible_assets_fn=_visible_assets,
+                    store_fn=_store_for_read,
+                )
+                if grounding:
+                    payload["answer"] = grounding["answer"]
+                    existing_evidence = payload.get("evidence") if isinstance(payload.get("evidence"), list) else []
+                    payload["evidence"] = [grounding["evidence"], *existing_evidence]
+                    payload["confidence"] = "canonical-grounded"
+                    payload_warnings = [*payload_warnings, *grounding["warnings"]]
                 has_evidence = bool(payload.get("evidence"))
                 if not payload.get("recommendations") and has_evidence:
                     recommendations = _recommendations_from_genie_evidence(payload.get("evidence") or [])

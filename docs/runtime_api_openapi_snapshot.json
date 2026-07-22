@@ -188,8 +188,37 @@
         "title": "AssetTagsPatch",
         "type": "object"
       },
+      "AtlasAiContext": {
+        "description": "Page-awareness context the dock sends with each question.\n\n``surface`` is the current left-nav surface id; ``assetFqn`` is the asset\nthe user is looking at (route asset or peek drawer). Both feed the Genie\nprompt preamble so \"this asset\" / \"on this page\" questions resolve to the\nconcrete surface the user is on.",
+        "properties": {
+          "assetFqn": {
+            "default": "",
+            "maxLength": 512,
+            "title": "Assetfqn",
+            "type": "string"
+          },
+          "surface": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Surface",
+            "type": "string"
+          }
+        },
+        "title": "AtlasAiContext",
+        "type": "object"
+      },
       "AtlasAiQuestion": {
         "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AtlasAiContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "question": {
             "default": "",
             "maxLength": 2000,

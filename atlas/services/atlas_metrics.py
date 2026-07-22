@@ -1305,6 +1305,62 @@ def empty_command_center_payload() -> Dict[str, Any]:
     }
 
 
+def canonical_estate_metrics(
+    *,
+    visible_assets: pd.DataFrame,
+    store: Any = None,
+) -> Dict[str, Any]:
+    """Canonical estate aggregates — the SAME numbers the Command Center tiles show.
+
+    Atlas AI grounds estate-level count answers on these so the assistant can
+    never contradict the UI (the Genie curated view is a single-catalog snapshot
+    that historically drifted: 48/31/35 vs the canonical 50/44/49). Every count
+    uses the shared semantics predicates, so there is one definition per concept.
+    """
+    assets_df = _safe_df(visible_assets)
+    total_assets = _safe_count(assets_df)
+    certified_assets = 0
+    critical_assets = 0
+    cde_assets = 0
+    coverage_values: List[float] = []
+    for _, row in assets_df.iterrows():
+        row_map = _row_dict(row)
+        coverage_values.append(metadata_coverage_for_row(row_map))
+        if _is_certified(row_map):
+            certified_assets += 1
+        if _is_critical(row_map):
+            critical_assets += 1
+        if _is_cde_asset(row_map):
+            cde_assets += 1
+    metadata_coverage = (
+        round(sum(coverage_values) / len(coverage_values), 1) if coverage_values else None
+    )
+    open_requests: int | None = None
+    if store is not None:
+        try:
+            rows, available, _reason = _change_requests_with_state(store, status="pending", limit=200)
+            if available and not rows:
+                rows, available, _reason = _change_requests_with_state(store, limit=200)
+            if available:
+                open_requests = len(
+                    [
+                        row
+                        for row in rows
+                        if _lower(row.get("status")) in {"", "pending", "open", "in_review", "new"}
+                    ]
+                )
+        except Exception:
+            open_requests = None
+    return {
+        "totalAssets": total_assets,
+        "certifiedAssets": certified_assets,
+        "criticalAssets": critical_assets,
+        "cdeCount": cde_assets,
+        "openRequests": open_requests,
+        "metadataCoverage": metadata_coverage,
+    }
+
+
 def command_center_payload(
     *,
     visible_assets: pd.DataFrame,
