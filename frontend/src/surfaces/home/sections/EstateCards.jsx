@@ -170,8 +170,17 @@ export function RiskFindingsCard({ risk, policyKpi }) {
               <Link
                 className={`ga-home-risk-row tone-${severity.tone}`}
                 to={hrefForRef({
+                  // The severity counts are lifetime failed/errored totals, so
+                  // the drill must land on the all-time window filtered to the
+                  // failing population — a 30-day, all-outcome default showed 0
+                  // (or an over-count) under a non-zero risk count.
                   surface: "evidence",
-                  params: { tab: "quality", severity: severity.key },
+                  params: {
+                    tab: "quality",
+                    severity: severity.key,
+                    outcome: "failing",
+                    range: "all",
+                  },
                 })}
                 title={`Open quality findings filtered to ${severity.label.toLowerCase()}`}
               >

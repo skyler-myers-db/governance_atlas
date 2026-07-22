@@ -4,9 +4,11 @@ import {
   Button,
   EntityChip,
   SectionCard,
+  SuggestInput,
   toast,
 } from "../../components/system";
 import { useAtlasMutation } from "../../hooks/useAtlasQuery";
+import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
 import { upsertGovernanceGlossaryTerm } from "../../lib/api";
 import {
   compactDate,
@@ -45,6 +47,9 @@ export function TermDetail({ term, termLookup, childTerms = [], onEdit, onClose 
   // alongside the extended roster).
   const [reviewerFormOpen, setReviewerFormOpen] = useState(false);
   const [reviewerEmail, setReviewerEmail] = useState("");
+  // Autofill reviewer picks from real account principals (fetched only while
+  // the assign form is open); the server validates against the same roster.
+  const roster = useWorkspaceRoster({ enabled: reviewerFormOpen });
 
   const assignReviewer = useAtlasMutation({
     mutate: (email) =>
@@ -297,9 +302,10 @@ export function TermDetail({ term, termLookup, childTerms = [], onEdit, onClose 
             >
               <label className="ga-glos-field">
                 <span>Reviewer email</span>
-                <input
+                <SuggestInput
                   disabled={assignReviewer.submitting}
                   onChange={(event) => setReviewerEmail(event.target.value)}
+                  options={roster.emails}
                   placeholder="reviewer@your-company.ai"
                   required
                   type="email"

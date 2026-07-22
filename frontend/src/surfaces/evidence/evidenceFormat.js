@@ -117,7 +117,13 @@ export function tableTimestamp(value) {
 }
 
 export function rangeNoun(range) {
-  const nouns = { "24h": "24 hours", "7d": "7 days", "30d": "30 days", "90d": "90 days" };
+  const nouns = {
+    "24h": "24 hours",
+    "7d": "7 days",
+    "30d": "30 days",
+    "90d": "90 days",
+    all: "all recorded runs",
+  };
   return nouns[range] || range;
 }
 

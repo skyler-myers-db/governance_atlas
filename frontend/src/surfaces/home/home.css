@@ -89,8 +89,41 @@
   justify-content: center;
 }
 
+.ga-home-ring-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
 .ga-home-ring {
   position: relative;
+}
+
+.ga-home-ring-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 200px;
+}
+
+.ga-home-ring-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ga-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ga-home-ring-sub {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 11.5px;
+  line-height: 1.35;
 }
 
 .ga-home-ring-track {
@@ -111,43 +144,30 @@
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
   text-align: center;
-}
-
-.ga-home-ring-center > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ga-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .ga-home-ring-center strong {
   color: var(--ga-text-strong);
   font-family: var(--ga-font-heading);
-  font-size: 34px;
+  font-size: 42px;
   font-weight: var(--ga-heading-weight);
   line-height: 1;
 }
 
 .ga-home-ring-center strong small {
-  font-size: 18px;
+  font-size: 20px;
   color: var(--ga-text-muted);
 }
 
-.ga-home-ring-center em,
+.ga-home-ring-label em,
 .ga-home-ring-unavailable em {
-  color: var(--ga-text-muted);
-  font-size: 11.5px;
+  color: var(--ga-text-faint);
+  font-size: 11px;
   font-style: normal;
-  max-width: 140px;
+  max-width: 190px;
 }
 
 .ga-home-ring-unavailable {

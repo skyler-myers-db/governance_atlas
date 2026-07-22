@@ -19,31 +19,42 @@ import {
  * toggle ships here.
  */
 
-function PostureRing({ value, label, caption, formula }) {
+function PostureRing({ value, label, caption, formula, sublabel }) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
-  const size = 190;
+  const size = 168;
   const stroke = 13;
-  const radius = (size - stroke - 18) / 2;
+  const radius = (size - stroke - 12) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
   const center = size / 2;
   const display = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
   return (
-    <div className="ga-home-ring" style={{ width: size, height: size }}>
-      <svg aria-hidden="true" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle className="ga-home-ring-track" cx={center} cy={center} r={radius} />
-        <circle
-          className="ga-home-ring-value"
-          cx={center}
-          cy={center}
-          r={radius}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform={`rotate(-90 ${center} ${center})`}
-        />
-      </svg>
-      <div className="ga-home-ring-center">
-        <span>
+    <div className="ga-home-ring-block">
+      {/* Only the value lives inside the arc now — the descriptive label used
+          to overlap the ring stroke ("interposed on the visual"); it renders
+          as a proper caption beneath the gauge. */}
+      <div className="ga-home-ring" style={{ width: size, height: size }}>
+        <svg aria-hidden="true" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle className="ga-home-ring-track" cx={center} cy={center} r={radius} />
+          <circle
+            className="ga-home-ring-value"
+            cx={center}
+            cy={center}
+            r={radius}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            transform={`rotate(-90 ${center} ${center})`}
+          />
+        </svg>
+        <div className="ga-home-ring-center">
+          <strong>
+            {display}
+            <small>%</small>
+          </strong>
+        </div>
+      </div>
+      <div className="ga-home-ring-label">
+        <span className="ga-home-ring-title">
           {label}
           {formula ? (
             /* Formula popover survives the rebuild: payload formula string,
@@ -53,11 +64,10 @@ function PostureRing({ value, label, caption, formula }) {
             </span>
           ) : null}
         </span>
-        <strong>
-          {display}
-          <small>%</small>
-        </strong>
-        <em>{caption}</em>
+        {/* One-line disambiguation: posture is a composite score, coverage is
+            one metadata metric — the two numbers looked interchangeable. */}
+        {sublabel ? <p className="ga-home-ring-sub">{sublabel}</p> : null}
+        {caption ? <em>{caption}</em> : null}
       </div>
     </div>
   );
@@ -148,6 +158,13 @@ export function PostureHero({ data, kpis, loading = false }) {
   const coverageValue = numericValue(coverageKpi?.value);
   const postureValue = postureOverall ?? coverageValue;
   const postureTitle = postureOverall !== null ? "Governance posture" : "Metadata coverage";
+  // The ring and the "metadata coverage" figure in the headline are different
+  // measures; spell out which is which so the two percentages don't read as
+  // the same number reported twice.
+  const postureSublabel =
+    postureOverall !== null
+      ? "Composite health score — blends coverage, certification & stewardship"
+      : "Share of visible assets with complete metadata";
   const ringCaption =
     data.posture?.trendState === "collecting"
       ? `History since ${trendTickLabel(data.posture?.collectingSince) || "today"}`
@@ -219,6 +236,7 @@ export function PostureHero({ data, kpis, loading = false }) {
           <PostureRing
             value={postureValue}
             label={postureTitle}
+            sublabel={postureSublabel}
             caption={ringCaption}
             formula={postureOverall !== null ? data.posture?.formula || "" : coverageKpi?.formula || ""}
           />

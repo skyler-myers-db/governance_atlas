@@ -36,13 +36,20 @@ import {
  * counted visibility exclusions, UTC-Z evidence stamps.
  */
 
-const RANGES = ["24h", "7d", "30d", "90d"];
+// "all" carries no `since` (auditRangeSinceIso returns "" → unbounded), so the
+// lifetime severity counts on the Command Center risk card reconcile with what
+// this tab shows when the risk drill lands here (the counts are all-time; a
+// 30-day default window showed 0 findings under a "2 high" drill).
+const RANGES = ["24h", "7d", "30d", "90d", "all"];
 const SEVERITY_OPTIONS = [
   { value: "high", label: "High" },
   { value: "medium", label: "Medium" },
   { value: "informational", label: "Informational" },
 ];
 const OUTCOME_OPTIONS = [
+  // "failing" = failed OR errored — the population the Command Center risk tiles
+  // count, so a severity drill (?outcome=failing) reconciles with the tile.
+  { value: "failing", label: "Failed or errored" },
   { value: "failed", label: "Failed" },
   { value: "passed", label: "Passed" },
   { value: "errored", label: "Errored" },
@@ -215,7 +222,7 @@ export function QualityTab({ params, setParams }) {
     rows.length
       ? runFilter
         ? `Showing ${rows.length} finding${rows.length === 1 ? "" : "s"} from run ${runFilter}`
-        : `Showing ${rows.length}${Number.isFinite(totalFiltered) && totalFiltered > rows.length ? ` of ${totalFiltered.toLocaleString()}` : ""} finding${rows.length === 1 ? "" : "s"} in the last ${rangeNoun(range)}`
+        : `Showing ${rows.length}${Number.isFinite(totalFiltered) && totalFiltered > rows.length ? ` of ${totalFiltered.toLocaleString()}` : ""} finding${rows.length === 1 ? "" : "s"} ${range === "all" ? "across all recorded runs" : `in the last ${rangeNoun(range)}`}`
       : "",
     visibilityScopedRowsExcluded
       ? `${visibilityScopedRowsExcluded} finding${visibilityScopedRowsExcluded === 1 ? "" : "s"} about assets outside your visibility scope withheld`
@@ -259,7 +266,7 @@ export function QualityTab({ params, setParams }) {
           ariaLabel="Evidence window"
           className="ga-evid-range"
           param={{ value: range, set: (key) => setParams({ range: key === "30d" ? "" : key }) }}
-          tabs={RANGES.map((key) => ({ key, label: `Last ${key}` }))}
+          tabs={RANGES.map((key) => ({ key, label: key === "all" ? "All time" : `Last ${key}` }))}
         />
         <div className="ga-evid-outcome-tally" role="status">
           {loading
@@ -321,14 +328,19 @@ export function QualityTab({ params, setParams }) {
               body={
                 runFilterEmpty
                   ? `Run ${runFilter} recorded no findings inside the current filters. Clear the run filter to see the full window.`
-                  : `${payloadReason} Window: last ${rangeNoun(range)}${filtersActive ? ", with filters applied" : ""}.`
+                  : `${payloadReason} Window: ${range === "all" ? "all recorded runs" : `last ${rangeNoun(range)}`}${filtersActive ? ", with filters applied" : ""}.`
               }
               action={
-                range !== "90d" ? (
-                  <Button onClick={() => setParams({ range: "90d" })} variant="secondary">
-                    Widen to 90 days
+                // Ladder out to the widest window so a drill that promised
+                // findings can always reach them: 30d/24h/7d → 90d → All time.
+                range === "all" ? null : (
+                  <Button
+                    onClick={() => setParams({ range: range === "90d" ? "all" : "90d" })}
+                    variant="secondary"
+                  >
+                    {range === "90d" ? "Widen to all time" : "Widen to 90 days"}
                   </Button>
-                ) : null
+                )
               }
             />
           ) : noRunsYet ? (

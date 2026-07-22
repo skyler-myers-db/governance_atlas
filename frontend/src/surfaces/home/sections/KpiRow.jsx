@@ -71,8 +71,14 @@ export function KpiRow({ kpis }) {
           trend: [],
           hint: `High-severity findings from the most recent quality runs (${risk.source || "quality run results"}).`,
           // Risk drills land on Evidence's quality tab (the C5 route contract),
-          // never on another dashboard tile.
-          target: { surface: "evidence", params: { tab: "quality", severity: "high" } },
+          // never on another dashboard tile. range=all because the severity
+          // count is a lifetime total (a 30-day default window landed the drill
+          // on an empty page under a non-zero "high" count); outcome=failing so
+          // the tab's total counts the same failed/errored rows as this tile.
+          target: {
+            surface: "evidence",
+            params: { tab: "quality", severity: "high", outcome: "failing", range: "all" },
+          },
         }
       : {
           key: "risk",

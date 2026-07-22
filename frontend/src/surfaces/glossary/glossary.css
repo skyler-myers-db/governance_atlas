@@ -339,6 +339,11 @@
   box-shadow: var(--ga-shadow-focus);
 }
 
+.ga-glos-field-hint {
+  color: var(--ga-text-faint);
+  font-size: 0.7rem;
+}
+
 .ga-glos-field-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

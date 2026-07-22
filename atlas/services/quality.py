@@ -195,6 +195,11 @@ _SEVERITY_INFORMATIONAL = frozenset({"info", "informational", "low"})
 # evidence too (they explain why a check produced no verdict).
 FINDING_OUTCOMES = frozenset({"passed", "failed", "errored", "skipped"})
 
+# Accepted values for the `outcome` FILTER (not raw outcomes): the real
+# outcomes plus "failing", a pseudo-value that expands to {failed, errored} so
+# risk-severity drills reconcile with the Command Center tiles.
+FINDING_OUTCOME_FILTERS = FINDING_OUTCOMES | frozenset({"failing"})
+
 # The ledger fetch window: mirrors _quality_sla_signal's 2000-row read so the
 # findings feed and the SLA tile are computed over the same evidence.
 _FINDINGS_FETCH_WINDOW = 2000
@@ -436,8 +441,16 @@ def quality_findings(
             visibility_excluded += 1
             continue
         row_outcome = str(row.get("outcome") or "").strip().lower()
-        if outcome_filter and row_outcome != outcome_filter:
-            continue
+        # "failing" is the risk-drill population: failed OR errored, matching how
+        # the Command Center severity counts (failedBySeverity) bucket outcomes.
+        # A drill deep-linked from a "2 high-risk findings" tile must land on
+        # exactly those 2 rows, not on all high-severity rows (passed included).
+        if outcome_filter:
+            if outcome_filter == "failing":
+                if row_outcome not in {"failed", "errored"}:
+                    continue
+            elif row_outcome != outcome_filter:
+                continue
         row_severity = str(row.get("severity") or "").strip().lower()
         row_level = normalize_severity_level(row_severity)
         # The filter accepts either the raw stored severity ("critical") or

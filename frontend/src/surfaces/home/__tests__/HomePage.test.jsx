@@ -216,7 +216,7 @@ describe("Command Center (surfaces/home)", () => {
     // Risk drills land on the Evidence quality tab (C5 route contract),
     // never on another dashboard tile.
     expect(within(kpiRow).getByText("High-risk quality findings").closest("a").getAttribute("href")).toBe(
-      "/evidence?tab=quality&severity=high",
+      "/evidence?tab=quality&severity=high&outcome=failing&range=all",
     );
     // Formula tips come from the payload.
     expect(
@@ -291,10 +291,14 @@ describe("Command Center (surfaces/home)", () => {
     // Panel is titled from the payload label.
     expect(screen.getByText("Quality risk findings")).toBeTruthy();
     expect(screen.getByText(/Quality-run findings by severity · evidence from May 3/i)).toBeTruthy();
-    expect(linkByText("High severity").getAttribute("href")).toBe("/evidence?tab=quality&severity=high");
-    expect(linkByText("Medium severity").getAttribute("href")).toBe("/evidence?tab=quality&severity=medium");
+    expect(linkByText("High severity").getAttribute("href")).toBe(
+      "/evidence?tab=quality&severity=high&outcome=failing&range=all",
+    );
+    expect(linkByText("Medium severity").getAttribute("href")).toBe(
+      "/evidence?tab=quality&severity=medium&outcome=failing&range=all",
+    );
     expect(linkByText("Informational").getAttribute("href")).toBe(
-      "/evidence?tab=quality&severity=informational",
+      "/evidence?tab=quality&severity=informational&outcome=failing&range=all",
     );
   });
 

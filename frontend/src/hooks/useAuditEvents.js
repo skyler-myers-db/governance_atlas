@@ -8,7 +8,10 @@ import { useAtlasQuery } from "./useAtlasQuery";
 // Must match the backend default/max (AUDIT_EVIDENCE_DEFAULT_LIMIT = 500).
 export const AUDIT_EVIDENCE_DEFAULT_LIMIT = 500;
 
-/** "24h" | "7d" | "30d" | "90d" → ISO floor for the server-side filter. */
+/**
+ * "24h" | "7d" | "30d" | "90d" → ISO floor for the server-side filter.
+ * Any other value (including "all") returns "" → no floor → unbounded window.
+ */
 export function auditRangeSinceIso(range, now = Date.now()) {
   const hours = { "24h": 24, "7d": 24 * 7, "30d": 24 * 30, "90d": 24 * 90 }[range];
   if (!hours) return "";
