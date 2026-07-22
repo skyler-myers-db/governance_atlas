@@ -143,7 +143,7 @@ function LineageHeroChips({ asset, focus, hydrating, edgeCount, loading = false,
           {edgeCount} {edgeCount === 1 ? "edge" : "edges"}
         </FocusChip>
       ) : null}
-      {hydrating ? <FocusChip tone="info">Hydrating…</FocusChip> : null}
+      {hydrating ? <FocusChip tone="info">Loading…</FocusChip> : null}
     </div>
   );
 }
@@ -449,7 +449,7 @@ function LineageFocusPage({
       }
       className="ga-lin-page"
       eyebrow="Lineage Atlas"
-      subtitle="Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers."
+      subtitle="Permission-aware lineage from the upstream assets you can see through to permitted downstream consumers."
       title={fqn}
     >
       <LineageHeroChips

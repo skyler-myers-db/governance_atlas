@@ -176,8 +176,22 @@ export function EventsTab({ shell = null, params, setParams }) {
   /* ------------------------------------------------------------ selection */
   // ?event=AUD-<hex8> is the address; a missing param falls back to the first
   // row that has openable evidence (legacy behavior).
+  // Accept every id form the rest of the app emits: the AUD-<hex8> display
+  // id, the full backing UUID, or a raw-hex prefix (Home's activity feed sent
+  // raw ids and the display-only match rendered "not found" for events
+  // sitting in row 1 — final verifier BLOCK-2).
+  const normalizedParam = String(eventParam || "").trim().toLowerCase();
+  const paramHex = normalizedParam.replace(/^aud-/, "");
   const selectedFromParam = eventParam
-    ? kindEvents.find((event) => event.displayAuditId === eventParam) || null
+    ? kindEvents.find((event) => {
+        const display = String(event.displayAuditId || "").toLowerCase();
+        const backing = String(event.auditEventId || event.auditId || "").toLowerCase();
+        return (
+          display === normalizedParam ||
+          display.replace(/^aud-/, "") === paramHex ||
+          (backing && (backing === normalizedParam || backing.startsWith(paramHex)))
+        );
+      }) || null
     : null;
   const selected =
     selectedFromParam ||

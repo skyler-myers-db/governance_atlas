@@ -446,7 +446,7 @@ function CanvasInner({
     return (
       <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-hydrating">
         <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />
-        <strong>Hydrating lineage from Unity Catalog</strong>
+        <strong>Loading lineage from Unity Catalog</strong>
         <span>Walking system.access.table_lineage outward from the focus asset…</span>
       </div>
     );
@@ -468,7 +468,7 @@ function CanvasInner({
       {hydrating || useSticky ? (
         <div className="ga-lineage-v2-canvas-banner" role="status">
           <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />
-          {useSticky ? "Switching focus…" : "Hydrating from Unity Catalog…"}
+          {useSticky ? "Switching focus…" : "Loading from Unity Catalog…"}
         </div>
       ) : null}
       <ReactFlow

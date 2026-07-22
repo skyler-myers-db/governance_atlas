@@ -97,7 +97,7 @@ describe("LineageCanvasV2", () => {
         onFocusChange={() => {}}
       />,
     );
-    expect(screen.getByText("Hydrating lineage from Unity Catalog")).toBeTruthy();
+    expect(screen.getByText("Loading lineage from Unity Catalog")).toBeTruthy();
   });
 
   // Stub-only pending shapes (adversarial verify P0): the cold-cache
@@ -120,7 +120,7 @@ describe("LineageCanvasV2", () => {
         onFocusChange={() => {}}
       />,
     );
-    expect(screen.getByText("Hydrating lineage from Unity Catalog")).toBeTruthy();
+    expect(screen.getByText("Loading lineage from Unity Catalog")).toBeTruthy();
   });
 
   it("renders the warming retry state for the one-stub-node graph after poll exhaustion", () => {

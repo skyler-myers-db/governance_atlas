@@ -184,8 +184,16 @@ export function eventRows(data, limit = 6) {
   const raw = Array.isArray(data?.recentEvents) ? data.recentEvents : [];
   return raw.slice(0, limit).map((event, index) => {
     const priority = String(event.priority || event.severity || "").toLowerCase();
+    // Prefer the AUD-<hex8> display id: Evidence addresses events by it, and
+    // raw backing ids made the activity links land on "not found" (final
+    // verifier BLOCK-2). The resolver now also accepts raw ids, but emitting
+    // the canonical form keeps URLs consistent app-wide.
     return {
-      id: event.id || `${event.title || "event"}-${index}`,
+      id:
+        event.displayAuditId ||
+        event.auditDisplayId ||
+        event.id ||
+        `${event.title || "event"}-${index}`,
       title: event.title || "Governance event",
       detail: event.detail || "",
       actor: event.actorEmail || event.actor || "",

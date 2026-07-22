@@ -98,7 +98,7 @@ export function LineagePicker() {
             <small>
               {recommendationsDegraded
                 ? "Ranked from degraded Databricks lineage evidence"
-                : "Ranked from actor-visible Unity Catalog lineage"}
+                : "Ranked from the Unity Catalog lineage you can see"}
             </small>
           </div>
           <LineageRecommendations

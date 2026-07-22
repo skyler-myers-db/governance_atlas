@@ -189,11 +189,11 @@ export function DiscoveryQueryBuilder({
         <div className="ga-disc-query-builder-head">
           <span className="ga-disc-query-builder-title">Deleted and inaccessible assets</span>
           <span className="ga-disc-query-builder-context">
-            {visibleCountLabel} actor-visible result{visibleCountLabel === "1" ? "" : "s"}
+            {visibleCountLabel} visible result{visibleCountLabel === "1" ? "" : "s"}
           </span>
         </div>
         <p className="ga-disc-query-builder-note">
-          Discovery counts include only assets returned by the current actor-visible discovery
+          Discovery counts include only assets returned by the current permission-aware discovery
           payload. Deleted or inaccessible assets are not inferred into the result count.
         </p>
         <p className="ga-disc-query-builder-note">
@@ -201,7 +201,7 @@ export function DiscoveryQueryBuilder({
           connected.
         </p>
         <p className="ga-disc-query-builder-note">
-          Inaccessible assets stay hidden until Databricks returns actor-visible metadata for them.
+          Inaccessible assets stay hidden until Databricks returns metadata you can access for them.
         </p>
       </section>
     </div>
