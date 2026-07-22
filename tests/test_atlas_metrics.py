@@ -1029,6 +1029,19 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertTrue(
             any(row["label"] == "Tier 1 - Business Critical" for row in payload["certificationCoverageByTier"])
         )
+        # Every risk cell and tier row carries the exact criticality-facet
+        # values that reproduce it, so the UI can link the number to the assets
+        # behind it (Discovery's criticality facet matches over criticality/tier).
+        for cell in payload["riskHeatmap"]:
+            self.assertIn("filterValues", cell)
+            self.assertTrue(all(isinstance(value, str) and value for value in cell["filterValues"]))
+        for row in payload["certificationCoverageByTier"]:
+            self.assertIn("filterValues", row)
+            self.assertTrue(all(isinstance(value, str) and value for value in row["filterValues"]))
+        tier1 = next(
+            row for row in payload["certificationCoverageByTier"] if row["label"] == "Tier 1 - Business Critical"
+        )
+        self.assertTrue(tier1["filterValues"], "Tier 1 row must expose facet values to drill into")
 
     def test_insights_quality_availability_tracks_score_not_raw_rows(self) -> None:
         # Intended behavior changed: insights_dashboard_payload now derives

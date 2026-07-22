@@ -32,12 +32,28 @@ function riskTone(row, column, value) {
   return "low";
 }
 
+// Legend entries: the four occupied tones plus the empty cell, so the colour
+// scale is never a mystery (the user had "no key" to read the map).
+const RISK_LEGEND = [
+  { tone: "empty", label: "None" },
+  { tone: "low", label: "Lower" },
+  { tone: "medium", label: "Moderate" },
+  { tone: "high", label: "Elevated" },
+  { tone: "critical", label: "Severe" },
+];
+
 export function RiskHeatmapCard({ cells, evidenceAt }) {
   const values = new Map();
+  // impact bucket -> the exact Discovery criticality-facet values that
+  // reproduce that row (backend-emitted; see _risk_heatmap). Lets a cell link
+  // to the assets behind the count instead of being a dead number.
+  const filtersByImpact = new Map();
   (Array.isArray(cells) ? cells : []).forEach((cell) => {
     const row = cell.row || cell.impact || "Medium";
     const column = cell.column || cell.likelihood || "Medium";
     values.set(`${row}::${column}`, numericValue(cell.value ?? cell.count) ?? 0);
+    const filterValues = Array.isArray(cell.filterValues) ? cell.filterValues.filter(Boolean) : [];
+    if (filterValues.length && !filtersByImpact.has(row)) filtersByImpact.set(row, filterValues);
   });
   const hasData = values.size > 0;
   const stamp = evidenceStampLabel(evidenceAt);
@@ -45,38 +61,83 @@ export function RiskHeatmapCard({ cells, evidenceAt }) {
     <SectionCard
       className="ga-home-riskmap-card"
       title="Risk heatmap"
-      subtitle="Risk counts from live criticality and metadata-gap evidence"
-      tooltip="Counts come from recorded criticality and metadata-gap evidence; empty cells mean no recorded findings."
+      subtitle="Impact (criticality) × likelihood (metadata gap) — cell = asset count"
+      tooltip="Rows are business impact from criticality/tier; columns are likelihood from the metadata-completeness gap. Each cell counts assets; colour shows severity. Click a populated cell to open that impact level in Discovery."
     >
       {/* Date-stamp quality-derived evidence so stale runs never masquerade
           as today's signal. */}
       {stamp ? <p className="ga-home-evidence-stamp">{`Evidence from ${stamp} (UTC)`}</p> : null}
       {hasData ? (
-        <div className="ga-home-riskmap" role="table" aria-label="Governance risk heatmap">
-          {RISK_ROWS.map((row) => (
-            <div className="ga-home-riskmap-row" role="row" key={row}>
-              <strong role="rowheader">{row}</strong>
-              {RISK_COLUMNS.map((column) => {
-                const value = values.get(`${row}::${column}`) || 0;
+        <>
+          {/* Axis labels + colour key: the map read as an unlabelled grid
+              before — "Impact" runs down the rows, "Likelihood" across the
+              columns, and the legend decodes the colour ramp. */}
+          <div className="ga-home-riskmap-frame">
+            <span className="ga-home-riskmap-yaxis" aria-hidden="true">
+              Impact
+            </span>
+            <div className="ga-home-riskmap" role="table" aria-label="Governance risk heatmap: impact by likelihood">
+              {RISK_ROWS.map((row) => {
+                const impactFilter = filtersByImpact.get(row);
                 return (
-                  <span
-                    className={`tone-${riskTone(row, column, value)}`}
-                    key={column}
-                    role="cell"
-                    title={`${row} impact, ${column} likelihood: ${value}`}
-                  >
-                    {value || ""}
-                  </span>
+                  <div className="ga-home-riskmap-row" role="row" key={row}>
+                    <strong role="rowheader">{row}</strong>
+                    {RISK_COLUMNS.map((column) => {
+                      const value = values.get(`${row}::${column}`) || 0;
+                      const tone = `tone-${riskTone(row, column, value)}`;
+                      // Only a populated cell whose impact row carries real
+                      // criticality facet values is clickable — the link opens
+                      // that impact level (all likelihoods) in Discovery, which
+                      // is the honest scope (likelihood has no facet).
+                      if (value && impactFilter) {
+                        const href = hrefForRef({ surface: "discovery", params: { criticality: impactFilter } });
+                        const label = `Open ${row}-impact assets in Discovery (${column} likelihood cell: ${value})`;
+                        return (
+                          <Link
+                            aria-label={label}
+                            className={`${tone} is-link`}
+                            key={column}
+                            role="cell"
+                            to={href}
+                            title={label}
+                          >
+                            {value}
+                          </Link>
+                        );
+                      }
+                      return (
+                        <span
+                          className={tone}
+                          key={column}
+                          role="cell"
+                          title={`${row} impact, ${column} likelihood: ${value}`}
+                        >
+                          {value || ""}
+                        </span>
+                      );
+                    })}
+                  </div>
                 );
               })}
+              <div className="ga-home-riskmap-axis" aria-hidden="true">
+                {RISK_COLUMNS.map((column) => (
+                  <span key={column}>{column}</span>
+                ))}
+              </div>
+              <p className="ga-home-riskmap-xaxis" aria-hidden="true">
+                Likelihood (metadata gap) →
+              </p>
             </div>
-          ))}
-          <div className="ga-home-riskmap-axis" aria-hidden="true">
-            {RISK_COLUMNS.map((column) => (
-              <span key={column}>{column}</span>
-            ))}
           </div>
-        </div>
+          <ul className="ga-home-riskmap-legend" aria-label="Severity colour key">
+            {RISK_LEGEND.map((entry) => (
+              <li key={entry.tone}>
+                <i className={`tone-${entry.tone}`} aria-hidden="true" />
+                <span>{entry.label}</span>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : (
         <UnavailableState title="Risk evidence unavailable" reason="No recorded risk findings for the current scope." />
       )}
@@ -173,25 +234,50 @@ export function CertificationTierCard({ rows }) {
   const items = (Array.isArray(rows) ? rows : []).map((item) => ({
     label: item.label || item.tier || "Unassigned tier",
     value: Math.max(0, Math.min(100, numericValue(item.value ?? item.coverage ?? item.percent) ?? 0)),
+    certified: numericValue(item.certified),
+    total: numericValue(item.total),
+    // Exact criticality-facet values that reproduce this tier's assets
+    // (backend-emitted) — makes the tier row a real drill instead of a label.
+    filterValues: Array.isArray(item.filterValues) ? item.filterValues.filter(Boolean) : [],
   }));
   return (
     <SectionCard
       className="ga-home-tier-card"
       title="Certification coverage by tier"
       subtitle="Certified asset share by live tier metadata"
-      tooltip='Share of each tier whose assets are strictly certified (certification == "Certified").'
+      tooltip='Share of each tier whose assets are strictly certified (certification == "Certified"). Click a tier to open its assets in Discovery.'
     >
       {items.length ? (
         <div className="ga-home-tier-rows">
-          {items.map((item) => (
-            <div className="ga-home-tier-row" key={item.label}>
-              <span>{item.label}</span>
-              <i>
-                <b style={{ width: `${item.value}%` }} />
-              </i>
-              <strong>{Math.round(item.value)}%</strong>
-            </div>
-          ))}
+          {items.map((item) => {
+            const href = item.filterValues.length
+              ? hrefForRef({ surface: "discovery", params: { criticality: item.filterValues } })
+              : null;
+            const countHint =
+              Number.isFinite(item.certified) && Number.isFinite(item.total)
+                ? ` — ${item.certified} of ${item.total} certified`
+                : "";
+            return (
+              <div className="ga-home-tier-row" key={item.label}>
+                {href ? (
+                  <Link
+                    aria-label={`Open ${item.label} assets in Discovery${countHint}`}
+                    className="ga-home-tier-rowlink"
+                    to={href}
+                    title={`Open ${item.label} assets in Discovery${countHint}`}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span title={countHint ? `${item.label}${countHint}` : undefined}>{item.label}</span>
+                )}
+                <i>
+                  <b style={{ width: `${item.value}%` }} />
+                </i>
+                <strong>{Math.round(item.value)}%</strong>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <UnavailableState
@@ -208,15 +294,37 @@ export function CertificationTierCard({ rows }) {
  * recommendation, ZERO cards render nothing at all (kill list §7.1: the
  * "No additional evidence-backed recommendation" filler slots die).
  */
-// Send each recommendation to its cited evidence: an asset rec opens the asset,
-// a domain rec opens Discovery filtered to that domain, everything else falls
-// back to the stewardship queue. Makes the card lead somewhere useful instead
-// of the same generic destination.
+// Send each recommendation to where the recommended ACTION is actually
+// performed, keyed on the evidence metric — not just the generic surface:
+//   • assetsWithoutOwner  → Discovery scoped to that domain's OWNERLESS assets
+//     (owner=__unassigned__), where each asset's inline Assign owner/steward
+//     control does the write. "Assign stewardship for Finance" landing on the
+//     bare Discovery list (or the work-item queue, which has no ownerless-asset
+//     concept) was the dead end the user hit.
+//   • criticalCertification → the asset page, where certification is set.
+//   • metadataCoverage    → Discovery filtered to the domain to triage gaps.
+//   • metadataChange      → the audit event in Evidence.
 function recTarget(item) {
   const evidence = Array.isArray(item?.evidence) ? item.evidence[0] : null;
-  if (evidence?.type === "asset" && evidence.id) return { kind: "asset", fqn: String(evidence.id) };
-  if (evidence?.type === "domain" && evidence.id) return { kind: "domain", name: String(evidence.id) };
+  const metric = String(evidence?.metric || "");
+  const id = evidence?.id != null ? String(evidence.id) : "";
+  if (evidence?.type === "asset" && id) return { kind: "asset", fqn: id };
+  if (metric === "assetsWithoutOwner" && id)
+    return { surface: "discovery", params: { domain: [id], owner: "__unassigned__" } };
+  if (evidence?.type === "domain" && id) return { kind: "domain", name: id };
+  if (evidence?.type === "audit" && id) return { kind: "event", id };
   return { surface: "stewardship" };
+}
+
+// A short verb for the card so the click target is legible before you follow
+// it (the title alone didn't say the link now leads to an action surface).
+function recActionLabel(item) {
+  const metric = String(item?.evidence?.[0]?.metric || "");
+  if (metric === "assetsWithoutOwner") return "Assign owners";
+  if (metric === "criticalCertification") return "Review & certify";
+  if (metric === "metadataCoverage") return "Improve coverage";
+  if (metric === "metadataChange") return "View audit event";
+  return "Open";
 }
 
 export function RecommendationsCard({ recommendations }) {
@@ -240,6 +348,7 @@ export function RecommendationsCard({ recommendations }) {
             >
               <strong>{item.title || "Evidence-backed recommendation"}</strong>
               <small>{item.detail || ""}</small>
+              <span className="ga-home-rec-action">{recActionLabel(item)} →</span>
             </Link>
           </li>
         ))}

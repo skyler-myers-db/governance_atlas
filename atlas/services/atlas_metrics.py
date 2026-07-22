@@ -817,6 +817,11 @@ def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, A
     if assets_df.empty:
         return []
     buckets: Dict[str, Dict[str, int]] = {}
+    # Raw criticality/tier strings per tier bucket → the exact Discovery
+    # criticality-facet values that reproduce this tier's assets (the facet
+    # matches over tier + criticality, so the display label "Tier 1 - Business
+    # Critical" never has to match a raw field verbatim).
+    bucket_values: Dict[str, set] = {}
     has_tier_signal = False
     for _, row in assets_df.iterrows():
         row_map = row.to_dict()
@@ -827,6 +832,7 @@ def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, A
         label = _tier_label(tier_value)
         bucket = buckets.setdefault(label, {"certified": 0, "total": 0})
         bucket["total"] += 1
+        bucket_values.setdefault(label, set()).add(_text(tier_value))
         if _is_certified(row_map):
             bucket["certified"] += 1
     if not has_tier_signal:
@@ -842,6 +848,7 @@ def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, A
                 "value": value,
                 "certified": counts["certified"],
                 "total": total,
+                "filterValues": sorted(v for v in bucket_values.get(label, set()) if v),
             }
         )
     rows.sort(key=lambda item: _tier_order(_text(item.get("label"))))
@@ -878,14 +885,22 @@ def _risk_heatmap(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
         return []
     has_criticality_signal = False
     counts: Dict[tuple[str, str], int] = {}
+    # Per impact bucket, the RAW criticality/tier strings that mapped into it.
+    # Emitted so the UI can link a cell to Discovery's criticality facet and
+    # land on exactly the assets behind the number (the facet matches over
+    # businessCriticality/criticality/tier, the same fields _risk_impact_label
+    # reads) — no bucket-label guessing, no empty-page link.
+    impact_values: Dict[str, set] = {}
     for _, row in assets_df.iterrows():
         row_map = row.to_dict()
-        if not _has_value(_row_value(row_map, "criticality", "business_criticality", "businessCriticality", "tier")):
+        raw_criticality = _row_value(row_map, "criticality", "business_criticality", "businessCriticality", "tier")
+        if not _has_value(raw_criticality):
             continue
         has_criticality_signal = True
         impact = _risk_impact_label(row_map)
         likelihood = _risk_likelihood_label(100.0 - metadata_coverage_for_row(row_map))
         counts[(impact, likelihood)] = counts.get((impact, likelihood), 0) + 1
+        impact_values.setdefault(impact, set()).add(_text(raw_criticality))
     if not has_criticality_signal:
         return []
     return [
@@ -896,6 +911,9 @@ def _risk_heatmap(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
             "likelihood": likelihood,
             "value": count,
             "count": count,
+            # Same for every cell in the impact row (likelihood has no facet);
+            # the link is honestly scoped to the impact level, not the cell.
+            "filterValues": sorted(v for v in impact_values.get(impact, set()) if v),
         }
         for (impact, likelihood), count in sorted(counts.items())
     ]
@@ -3914,7 +3932,7 @@ def _critical_certification_recommendations(assets_df: pd.DataFrame) -> tuple[Li
         recommendations.append(
             {
                 "title": f"Certify critical asset {_asset_name(fqn) or fqn}",
-                "detail": f"{fqn or 'An actor-visible asset'} is marked critical but is not certified.",
+                "detail": f"{fqn or 'An asset'} is marked critical but is not certified.",
                 "evidence": [
                     {
                         "type": "asset",
@@ -3933,7 +3951,7 @@ def _critical_certification_recommendations(assets_df: pd.DataFrame) -> tuple[Li
     if recommendations:
         return recommendations[:3], "", True
     if critical_signal_available and certification_signal_available:
-        return [], "No actor-visible critical assets without certification were found.", True
+        return [], "No visible critical assets without certification were found.", True
     return [], "Criticality and certification signals are not available for the current visible metadata.", False
 
 
@@ -3950,7 +3968,7 @@ def _stewardship_recommendations(assets_df: pd.DataFrame) -> List[Dict[str, Any]
         recommendations.append(
             {
                 "title": f"Assign stewardship for {domain}",
-                "detail": f"{domain} has {count} actor-visible asset{'s' if count != 1 else ''} without an owner.",
+                "detail": f"{domain} has {count} asset{'s' if count != 1 else ''} without an owner.",
                 "evidence": [
                     {
                         "type": "domain",
@@ -4068,9 +4086,9 @@ def build_ai_recommendations(*, visible_assets: pd.DataFrame, store: Any, questi
             question=question,
             intent=intent,
             recommendations=recommendations,
-            answer="" if recommendations else "No actor-visible stewardship ownership gaps were found.",
+            answer="" if recommendations else "No visible stewardship ownership gaps were found.",
             confidence="evidence-backed" if recommendations else "low",
-            warnings=[] if recommendations else ["No actor-visible stewardship ownership gaps were found."],
+            warnings=[] if recommendations else ["No visible stewardship ownership gaps were found."],
         )
 
     if intent == "priority":
