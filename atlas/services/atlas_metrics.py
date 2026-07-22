@@ -2280,47 +2280,111 @@ def governance_workbench_payload(
     return _json_safe(_customer_safe_payload(payload))
 
 
+def _request_audit_rows(
+    store: Any,
+    raw_request_id: str,
+    asset_fqn: str = "",
+) -> List[Dict[str, Any]]:
+    """Audit-log rows recorded for one request, oldest first.
+
+    Primary reverse index is exact equality: every task mutation writes its
+    metadata_audit_log row with request_id set to the workflow task_id — the
+    same id the workbench exposes as requestId — so the join is
+    request_id == requestId, never a timestamp guess. Entity-scoped rows that
+    reference the request id only in their text (legacy writers left
+    request_id NULL) are unioned in and deduped by audit_id.
+    """
+    if store is None or not raw_request_id:
+        return []
+    rows_by_key: Dict[str, Dict[str, Any]] = {}
+
+    def _collect(candidates: Iterable[Mapping[str, Any]]) -> None:
+        for audit_row in candidates:
+            if _is_non_authoritative_evidence_row(audit_row):
+                continue
+            key = _text(audit_row.get("audit_id")) or audit_display_id(
+                "", row=audit_row
+            )
+            if not key or key in rows_by_key:
+                continue
+            rows_by_key[key] = dict(audit_row)
+
+    if hasattr(store, "list_metadata_audit_for_requests"):
+        _collect(
+            _records(
+                _call_store(store, "list_metadata_audit_for_requests", [raw_request_id]),
+                limit=200,
+            )
+        )
+    if asset_fqn:
+        # Legacy reverse index kept alongside the exact one: some writers
+        # recorded the request id only inside detail/payload text (request_id
+        # column NULL), so entity-scoped rows mentioning the id are still this
+        # request's evidence. Exact-equality rows always win the dedupe.
+        _collect(
+            audit_row
+            for audit_row in _audit_rows(store, limit=200, entity_fqn=asset_fqn)
+            if _text(audit_row.get("request_id")) == raw_request_id
+            or raw_request_id in json.dumps(audit_row, default=str)
+        )
+    rows = list(rows_by_key.values())
+    rows.sort(key=lambda item: (_text(item.get("created_at")), _text(item.get("audit_id"))))
+    return rows
+
+
 def _request_comment_records(
     row: Mapping[str, Any],
     record: Mapping[str, Any],
-    store: Any = None,
+    audit_rows: Sequence[Mapping[str, Any]] = (),
 ) -> List[Dict[str, Any]]:
     """Comment timeline for a request from data the store already holds.
 
     - review_note (written by the workbench Comment/Resolve buttons)
-    - audit events that reference this request (metadata_audit_log rows for
-      the affected asset whose payload mentions the request id)
+    - audit events recorded for this request (metadata_audit_log rows whose
+      request_id equals this request's id — see _request_audit_rows)
     No synthetic entries: if neither source has anything, this is empty.
+    Rows that map to an audit event carry displayAuditId/auditEventId so the
+    request mini-hub can render AUD evidence chips; rows with no backing
+    event carry empty strings.
     """
     comments: List[Dict[str, Any]] = []
     review_note = _text(row.get("review_note"))
     if review_note:
+        # The review note itself is recorded as the `detail` of the audit row
+        # written by the same update_workflow_task_status call — an exact
+        # content match, so the chip is only attached when that row exists.
+        note_audit = next(
+            (
+                audit_row
+                for audit_row in reversed(list(audit_rows))
+                if _text(audit_row.get("detail")) == review_note
+            ),
+            None,
+        )
+        note_audit_id = _text(note_audit.get("audit_id")) if note_audit else ""
         comments.append({
             "id": f"review-note-{_text(record.get('requestId'))}",
             "author": _text(row.get("reviewed_by")),
             "at": _text(row.get("reviewed_at")),
             "text": review_note,
             "kind": "review-note",
+            "displayAuditId": audit_display_id(note_audit_id) if note_audit_id else "",
+            "auditEventId": note_audit_id,
         })
-    raw_request_id = _text(row.get("request_id")) or _text(row.get("requestId"))
-    asset_fqn = _text(record.get("assetFqn"))
-    if store is not None and raw_request_id and asset_fqn:
-        for audit_row in _audit_rows(store, limit=100, entity_fqn=asset_fqn):
-            if _is_non_authoritative_evidence_row(audit_row):
-                continue
-            serialized = json.dumps(audit_row, default=str)
-            if raw_request_id not in serialized:
-                continue
-            text = _text(audit_row.get("detail")) or _text(audit_row.get("action"))
-            if not text:
-                continue
-            comments.append({
-                "id": _text(audit_row.get("audit_id")) or f"audit-{len(comments)}",
-                "author": _text(audit_row.get("actor_email")),
-                "at": _text(audit_row.get("created_at")),
-                "text": text,
-                "kind": "audit",
-            })
+    for audit_row in audit_rows:
+        text = _text(audit_row.get("detail")) or _text(audit_row.get("action"))
+        if not text:
+            continue
+        audit_id = _text(audit_row.get("audit_id"))
+        comments.append({
+            "id": audit_id or f"audit-{len(comments)}",
+            "author": _text(audit_row.get("actor_email")),
+            "at": _text(audit_row.get("created_at")),
+            "text": text,
+            "kind": "audit",
+            "displayAuditId": audit_display_id(audit_id, row=audit_row),
+            "auditEventId": audit_id,
+        })
     comments.sort(key=lambda item: _text(item.get("at")))
     return comments
 
@@ -2346,7 +2410,25 @@ def _governance_request_detail_from_row(
         for key, value in sorted(after.items())
         if _has_value(value)
     ]
-    comments = _request_comment_records(row, record, store=store)
+    raw_request_id = _text(row.get("request_id")) or _text(row.get("requestId"))
+    audit_rows = _request_audit_rows(store, raw_request_id, _text(record.get("assetFqn")))
+    comments = _request_comment_records(row, record, audit_rows=audit_rows)
+    # Chronological audit trail for the request mini-hub: the audit events
+    # whose request_id matches this request, each with the same
+    # AUD-XXXXXXXX display id the Evidence page derives (audit_display_id),
+    # so trail entries deep-link to their Evidence rows.
+    audit_trail = [
+        {
+            "displayAuditId": audit_display_id(
+                _text(audit_row.get("audit_id")), row=audit_row
+            ),
+            "auditEventId": _text(audit_row.get("audit_id")),
+            "action": _text(audit_row.get("action")),
+            "createdAt": _utc_z_timestamp(audit_row.get("created_at"))
+            or _text(audit_row.get("created_at")),
+        }
+        for audit_row in audit_rows
+    ]
     return _json_safe(_customer_safe_payload({
         **record,
         "diff": {"before": {}, "after": after, "rows": diff_rows},
@@ -2371,6 +2453,7 @@ def _governance_request_detail_from_row(
         # request-linked audit event exists.
         "comments": comments,
         "commentsState": "available" if comments else "unavailable",
+        "auditTrail": audit_trail,
         "evidence": [],
         "evidenceState": "unavailable",
     }))

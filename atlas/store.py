@@ -457,6 +457,41 @@ LIMIT {int(limit)}"""
             detail=detail,
         )
 
+    def list_metadata_audit_for_requests(
+        self,
+        request_ids: Sequence[str],
+        *,
+        limit: int = 500,
+    ) -> pd.DataFrame:
+        """Audit-log rows keyed by request/task id, oldest first.
+
+        Task mutations write metadata_audit_log rows with request_id set to
+        the workflow task_id (see create_change_request /
+        update_workflow_task_status), which is the same id activity_events
+        carries as task_id and the workbench exposes as requestId. This is
+        the reverse index the governance summary and workbench use to attach
+        AUD evidence ids to activity/comment rows — an exact equality join,
+        never a timestamp guess.
+        """
+        ids = sorted(
+            {str(value or "").strip() for value in request_ids if str(value or "").strip()}
+        )
+        if not ids:
+            return pd.DataFrame()
+        # Bound the IN-list so a pathological caller cannot build an
+        # unbounded statement; 200 matches the activity-event fetch ceiling.
+        ids = ids[:200]
+        in_list = ", ".join(sql_literal(value) for value in ids)
+        return self.uc.query_df(
+            f"""SELECT audit_id, entity_type, entity_id, entity_fqn, column_name,
+    action, source, status, before_json, after_json, request_id,
+    actor_email, actor_role, detail, created_at
+FROM {self._fq('metadata_audit_log')}
+WHERE request_id IN ({in_list})
+ORDER BY created_at ASC, audit_id ASC
+LIMIT {int(limit)}"""
+        )
+
     # ── Bootstrap DDL ───────────────────────────────────────
 
     def ensure_tables(self) -> None:

@@ -12,6 +12,9 @@ import pandas as pd
 from atlas.uc import UCSQLClient
 
 from atlas.services import assets as asset_service
+# Same AUD-XXXXXXXX derivation the Evidence page uses; importing it (rather
+# than re-implementing) keeps activity-row chips joinable to Evidence rows.
+from atlas.services.atlas_metrics import audit_display_id
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
@@ -171,7 +174,119 @@ def _request_records(requests_df: pd.DataFrame) -> List[Dict[str, Any]]:
     return records
 
 
-def _activity_records(events_df: pd.DataFrame) -> List[Dict[str, Any]]:
+# Activity-event type → audit-log actions the SAME store mutation can write.
+# create_change_request emits comment_created + task_created events and ONE
+# audit row (action task-created); update_workflow_task_status emits an
+# optional comment_created + task_state_changed event and ONE audit row
+# (task-status-updated | task-triage-updated | task-comment-added). The sets
+# below mirror those writers exactly (atlas/store.py) so an activity row can
+# only ever bind to an audit row its own mutation path could have produced.
+_ACTIVITY_AUDIT_ACTIONS: Dict[str, Tuple[str, ...]] = {
+    "task_created": ("task-created",),
+    "task_state_changed": (
+        "task-status-updated",
+        "task-triage-updated",
+        "task-comment-added",
+    ),
+    "comment_created": (
+        "task-created",
+        "task-status-updated",
+        "task-triage-updated",
+        "task-comment-added",
+    ),
+}
+
+
+def _activity_audit_frame(store: Any, events_df: pd.DataFrame) -> pd.DataFrame:
+    """Fetch the audit-log rows backing a batch of activity events.
+
+    Join key: activity_events.task_id == metadata_audit_log.request_id.
+    Every task mutation writes its audit row with request_id set to the
+    workflow task_id (see create_change_request / update_workflow_task_status
+    in atlas/store.py), and every activity event from those same mutations
+    carries that task_id — a deterministic equality join, verified against
+    the live warehouse (task 59635759… ↔ audit rows fe36d39c…, 45b263d7…).
+    """
+    if events_df is None or events_df.empty or "task_id" not in events_df.columns:
+        return pd.DataFrame()
+    if not hasattr(store, "list_metadata_audit_for_requests"):
+        return pd.DataFrame()
+    task_ids = [
+        asset_service.normalize_str(value)
+        for value in events_df["task_id"].tolist()
+        if asset_service.normalize_str(value)
+    ]
+    if not task_ids:
+        return pd.DataFrame()
+    try:
+        return store.list_metadata_audit_for_requests(task_ids)
+    except Exception:
+        # Audit linkage is an enrichment; a failed fetch must never take the
+        # whole governance summary down. Rows simply render without AUD ids.
+        return pd.DataFrame()
+
+
+def _audit_rows_by_request(audit_df: pd.DataFrame) -> Dict[str, List[Dict[str, Any]]]:
+    index: Dict[str, List[Dict[str, Any]]] = {}
+    if audit_df is None or audit_df.empty:
+        return index
+    for _, row in audit_df.iterrows():
+        request_id = asset_service.normalize_str(row.get("request_id"))
+        audit_id = asset_service.normalize_str(row.get("audit_id"))
+        if not request_id or not audit_id:
+            continue
+        index.setdefault(request_id, []).append(
+            {
+                "auditId": audit_id,
+                "action": asset_service.normalize_str(row.get("action")).lower(),
+                "createdAt": _parse_utc_timestamp(row.get("created_at")),
+            }
+        )
+    for rows in index.values():
+        rows.sort(key=lambda item: (item["createdAt"] or datetime.min.replace(tzinfo=timezone.utc), item["auditId"]))
+    return index
+
+
+def _backing_audit_id(
+    event_type: str,
+    task_id: str,
+    created_at: Any,
+    audit_index: Dict[str, List[Dict[str, Any]]],
+) -> str:
+    """Resolve the audit-log row recorded by the same mutation as an activity event.
+
+    Selection rule — deterministic ordering, NOT a fuzzy timestamp window:
+    within one mutation the activity event is inserted BEFORE its single
+    audit row (same synchronous Python call, timestamps generated at insert
+    time), and any later mutation's audit row is later still. So among the
+    audit rows sharing this task_id whose action the event's mutation path
+    could have written (_ACTIVITY_AUDIT_ACTIONS), the FIRST row at-or-after
+    the event's timestamp is the same mutation's record. Verified live:
+    task_state_changed@14:59:35 → task-triage-updated@14:59:37, never the
+    later 00:02:29 row. No candidate → "" (never fabricate).
+    """
+    if not task_id:
+        return ""
+    actions = _ACTIVITY_AUDIT_ACTIONS.get(asset_service.normalize_str(event_type).lower())
+    if not actions:
+        return ""
+    event_ts = _parse_utc_timestamp(created_at)
+    if event_ts is None:
+        return ""
+    for candidate in audit_index.get(task_id, []):
+        if candidate["action"] not in actions:
+            continue
+        candidate_ts = candidate["createdAt"]
+        if candidate_ts is None or candidate_ts < event_ts:
+            continue
+        return candidate["auditId"]
+    return ""
+
+
+def _activity_records(
+    events_df: pd.DataFrame,
+    audit_index: Dict[str, List[Dict[str, Any]]] | None = None,
+) -> List[Dict[str, Any]]:
     if events_df is None or events_df.empty:
         return []
     title_map = {
@@ -206,6 +321,20 @@ def _activity_records(events_df: pd.DataFrame) -> List[Dict[str, Any]]:
             or title_map.get(event_type)
             or "Governance activity"
         )
+        # Evidence linkage: activity event_ids live in a different id space
+        # from metadata_audit_log audit_ids, so the summary joins each row to
+        # its backing audit event (task_id == request_id, see
+        # _backing_audit_id) and emits the same AUD-XXXXXXXX display id the
+        # Evidence page uses. Empty strings when no backing event exists.
+        audit_event_id = _backing_audit_id(
+            event_type,
+            asset_service.normalize_str(row.get("task_id")),
+            row.get("created_at"),
+            audit_index or {},
+        )
+        # "AUD-" + first 8 hex chars of the audit event id — identical to the
+        # Evidence page derivation so the chip deep-links to the same row.
+        display_audit_id = audit_display_id(audit_event_id) if audit_event_id else ""
         records.append(
             {
                 "eventId": asset_service.normalize_str(row.get("event_id")),
@@ -217,6 +346,8 @@ def _activity_records(events_df: pd.DataFrame) -> List[Dict[str, Any]]:
                 "createdAt": asset_service.normalize_str(row.get("created_at")),
                 "createdBy": asset_service.normalize_str(row.get("actor_email"))
                 or asset_service.normalize_str(row.get("actor_display_name")),
+                "displayAuditId": display_audit_id,
+                "auditEventId": audit_event_id,
             }
         )
     records.sort(
@@ -1054,8 +1185,11 @@ def governance_summary(
             activity_events = store.list_activity_events(limit=200)
         except Exception:
             activity_events = pd.DataFrame()
+        activity_audit_index = _audit_rows_by_request(
+            _activity_audit_frame(store, activity_events)
+        )
         activity_records = _filter_records_to_visible_assets(
-            _activity_records(activity_events),
+            _activity_records(activity_events, activity_audit_index),
             visible_asset_keys,
             asset_key="assetFqn",
         )
