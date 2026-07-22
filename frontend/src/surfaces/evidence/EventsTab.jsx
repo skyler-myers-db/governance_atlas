@@ -214,6 +214,21 @@ export function EventsTab({ shell = null, params, setParams }) {
   /* ------------------------------------------------------------ summary */
   const hydrating = evidence.status === "loading" || evidence.status === "hydrating";
   const loading = canReadAudit && hydrating;
+  // ?event= deep links must find their event: chips arrive from anywhere in
+  // history, but the default window is 24h, so anything older dead-ended on
+  // "Audit event not found" until the user guessed the range fix (follow-up
+  // verifier). Auto-widen once per addressed event, stepping through the
+  // windows; only a miss at 90d is a genuine not-found.
+  const widenedForRef = useRef("");
+  useEffect(() => {
+    if (!eventParamUnresolved || loading) return;
+    if (widenedForRef.current === `${eventParam}:${range}`) return;
+    const nextRange = RANGES[RANGES.indexOf(range) + 1];
+    if (nextRange) {
+      widenedForRef.current = `${eventParam}:${nextRange}`;
+      setParams({ range: nextRange });
+    }
+  }, [eventParam, eventParamUnresolved, loading, range, setParams]);
   const forbidden = !canReadAudit || responseStatus(evidence.error) === 403;
   const queryError = canReadAudit ? evidence.errorMessage : "";
   const summary = payload.summary || {};
