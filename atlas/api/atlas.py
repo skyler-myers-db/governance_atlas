@@ -1847,7 +1847,10 @@ def api_atlas_ai_recommendations(
                 _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
                 if _ctx_fqn:
                     try:
-                        lineage_ground = _lineage_grounding(question, _ctx_fqn, _uc_for_request(request) or _uc())
+                        # system.access.table_lineage is read by the app SP (as
+                        # every lineage feature does) — the OBO client can't see
+                        # the system schema, so use _uc() with OBO fallback.
+                        lineage_ground = _lineage_grounding(question, _ctx_fqn, _uc() or _uc_for_request(request))
                     except Exception:
                         lineage_ground = None
                 grounding = lineage_ground or _canonical_estate_grounding(
