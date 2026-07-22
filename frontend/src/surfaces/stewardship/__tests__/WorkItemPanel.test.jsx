@@ -1,0 +1,121 @@
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { WorkItemPanel } from "../WorkItemPanel.jsx";
+
+/*
+ * surfaces/stewardship/__tests__/WorkItemPanel.test.jsx — the request
+ * mini-hub's Evidence trail (cohesion follow-up 1). The workbench detail
+ * payload now carries `auditTrail` rows joined to the Evidence ledger by
+ * AUD display ids; the panel renders each mapped row as an EntityChip
+ * event anchor, keeps unmapped rows as text, shows an honest empty state,
+ * and never claims "no audit events" while the detail query is loading.
+ *
+ * Rendered WITHOUT a Router on purpose: EntityChip degrades to plain
+ * anchors outside a Router, which keeps href assertions direct.
+ */
+
+const baseItem = {
+  requestId: "9f8e7d6c-5b4a-3921-8076-54efab321098",
+  title: "Owner missing",
+  kind: "Owner missing",
+  status: "Pending",
+  priority: "P1",
+  requester: "sky@entrada.ai",
+  createdAt: "2026-07-01T09:00:00Z",
+  assetFqn: "finance_prod.curated.revenue_daily",
+};
+
+describe("WorkItemPanel evidence trail", () => {
+  it("renders auditTrail rows as Evidence event anchors with humanized actions and UTC times", () => {
+    render(
+      <WorkItemPanel
+        detailStatus="available"
+        item={{
+          ...baseItem,
+          auditTrail: [
+            {
+              displayAuditId: "AUD-00FF00AA",
+              auditEventId: "41",
+              action: "request_created",
+              createdAt: "2026-07-01T09:00:00Z",
+            },
+            // Unmapped row: backend could not join it to the ledger.
+            { displayAuditId: "", auditEventId: "42", action: "priority_changed", createdAt: "2026-07-02T10:30:00Z" },
+          ],
+        }}
+      />,
+    );
+
+    const chip = screen.getByRole("link", { name: "AUD-00FF00AA" });
+    expect(chip.getAttribute("href")).toBe("/evidence?event=AUD-00FF00AA");
+    expect(screen.getByText("Request created")).toBeTruthy();
+    // UTC-labeled timestamp, matching the Evidence surface convention
+    // (scoped: the header's Created date shares the same timestamp).
+    const trailRegion = screen.getByLabelText("Audit events");
+    expect(within(trailRegion).getByText(/Jul 1, 2026.*UTC/)).toBeTruthy();
+    // The unmapped row renders as text — humanized, but never a dead link.
+    const unmapped = screen.getByText("Priority changed");
+    expect(unmapped.closest("a")).toBeNull();
+    expect(screen.getAllByRole("link").filter((a) => /\/evidence\?event=/.test(a.getAttribute("href") || ""))).toHaveLength(1);
+  });
+
+  it("format-checks trail ids: malformed displayAuditId rows never link", () => {
+    render(
+      <WorkItemPanel
+        detailStatus="available"
+        item={{
+          ...baseItem,
+          auditTrail: [{ displayAuditId: "AUD-NOPE", auditEventId: "43", action: "status_changed" }],
+        }}
+      />,
+    );
+    expect(screen.getByText("Status changed")).toBeTruthy();
+    expect(
+      screen.queryAllByRole("link").filter((a) => /\/evidence\?event=/.test(a.getAttribute("href") || "")),
+    ).toHaveLength(0);
+  });
+
+  it("shows the honest empty state when auditTrail is absent or empty", () => {
+    const { rerender } = render(<WorkItemPanel detailStatus="available" item={baseItem} />);
+    expect(screen.getByText("No audit events recorded for this item yet.")).toBeTruthy();
+
+    rerender(<WorkItemPanel detailStatus="available" item={{ ...baseItem, auditTrail: [] }} />);
+    expect(screen.getByText("No audit events recorded for this item yet.")).toBeTruthy();
+  });
+
+  it("never shows a definitive empty trail while the detail query is loading", () => {
+    render(<WorkItemPanel detailStatus="loading" item={baseItem} />);
+    expect(screen.getByText("Loading the audit trail…")).toBeTruthy();
+    expect(screen.queryByText("No audit events recorded for this item yet.")).toBeNull();
+    // Comments keep their own hydration-honest placeholder too.
+    expect(screen.getByText("Loading the comment timeline…")).toBeTruthy();
+  });
+
+  it("renders a per-comment AUD chip from the backend-mapped displayAuditId", () => {
+    render(
+      <WorkItemPanel
+        detailStatus="available"
+        item={{
+          ...baseItem,
+          comments: [
+            {
+              id: "c-1",
+              author: "ana@entrada.ai",
+              at: "2026-07-03T12:00:00Z",
+              text: "Reviewed the ownership evidence.",
+              displayAuditId: "AUD-12ab34cd",
+            },
+            // No mapping: plain comment, no event anchor for this row.
+            { id: "c-2", author: "bo@entrada.ai", at: "2026-07-04T12:00:00Z", text: "Second note." },
+          ],
+        }}
+      />,
+    );
+    // auditChipId uppercases into the canonical AUD-XXXXXXXX form.
+    const chip = screen.getByRole("link", { name: "AUD-12AB34CD" });
+    expect(chip.getAttribute("href")).toBe("/evidence?event=AUD-12AB34CD");
+    expect(
+      screen.getAllByRole("link").filter((a) => /\/evidence\?event=/.test(a.getAttribute("href") || "")),
+    ).toHaveLength(1);
+  });
+});

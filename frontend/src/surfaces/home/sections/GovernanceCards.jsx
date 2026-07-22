@@ -145,10 +145,15 @@ export function ActivityCard({ events, liveEvidence }) {
                     governance-summary feed's store eventIds live in a
                     different id space than the audit stream, and a link to
                     "Audit event not found" is worse than plain text (final
-                    verifier BLOCK-B). Backend join of displayAuditId onto
-                    summary activity rows is the follow-up. */}
-                {/^AUD-[0-9A-Fa-f]{8}$/.test(String(event.id || "")) ? (
-                  <EntityChip appearance="inline" entity={{ kind: "event", id: event.id, label: event.title }} />
+                    verifier BLOCK-B). The backend join of displayAuditId
+                    onto summary activity rows has landed: format.js
+                    eventRows emits the (format-checked) field, and rows
+                    without one stay plain text. */}
+                {event.displayAuditId ? (
+                  <EntityChip
+                    appearance="inline"
+                    entity={{ kind: "event", id: event.displayAuditId, label: event.title }}
+                  />
                 ) : (
                   event.title
                 )}

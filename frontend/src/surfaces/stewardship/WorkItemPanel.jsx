@@ -1,5 +1,6 @@
 import { Badge, Button, EmptyState, EntityChip, StatusBanner, toast } from "../../components/system";
 import {
+  auditChipId,
   formatShortDate,
   looksLikeEmail,
   openingEvidenceFacts,
@@ -10,6 +11,7 @@ import {
   slaLabel,
   slaPolicyNote,
   textValue,
+  workItemAuditTrail,
   workItemComments,
   workItemDisplayId,
   workItemFullId,
@@ -59,6 +61,12 @@ function EvidenceComments({ comments }) {
       {comments.map((comment, index) => {
         const commentId = textValue(comment.id);
         const author = textValue(comment.author, "Unknown actor");
+        // Audit events this item generated join the Evidence ledger by
+        // their stable AUD id — the id text is the anchor. The backend now
+        // maps comments to `displayAuditId` where possible; AUD-shaped
+        // comment ids remain the fallback for older payloads. auditChipId
+        // format-checks both so a malformed id never links.
+        const commentAuditId = auditChipId(comment.displayAuditId) || auditChipId(commentId);
         return (
           <div className="ga-stew-comment" key={commentId || `comment-${index}`}>
             <div className="ga-stew-comment-head">
@@ -68,16 +76,44 @@ function EvidenceComments({ comments }) {
                 <span>{author}</span>
               )}
               {textValue(comment.at) ? <span>{formatShortDate(comment.at) || comment.at}</span> : null}
-              {/* Audit events this item generated join the Evidence ledger by
-                  their stable AUD id — the id text is the anchor. */}
-              {/^AUD-/i.test(commentId) ? (
-                <EntityChip appearance="inline" entity={{ kind: "event", id: commentId }} />
+              {commentAuditId ? (
+                <EntityChip appearance="inline" entity={{ kind: "event", id: commentAuditId }} />
               ) : null}
             </div>
             <p>{textValue(comment.text)}</p>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/*
+ * The item's audit events, each anchored to its Evidence ledger row by the
+ * backend-joined AUD display id (cross-linking LAW). Rows the backend could
+ * not map to the ledger render as text — never a dead link.
+ */
+function AuditTrail({ trail }) {
+  if (!trail.length) {
+    // Honest empty state — an absent `auditTrail` field (older backend) and
+    // a genuinely empty trail both mean "nothing to show", not zero-padding.
+    return (
+      <p className="ga-stew-panel-muted">No audit events recorded for this item yet.</p>
+    );
+  }
+  return (
+    <div aria-label="Audit events" className="ga-stew-comments">
+      {trail.map((row) => (
+        <div className="ga-stew-comment" key={row.key}>
+          <div className="ga-stew-comment-head">
+            <span>{row.action}</span>
+            {row.at ? <span>{formatShortDate(row.at) || row.at}</span> : null}
+            {row.displayAuditId ? (
+              <EntityChip appearance="inline" entity={{ kind: "event", id: row.displayAuditId }} />
+            ) : null}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -298,6 +334,15 @@ export function WorkItemPanel({
             </div>
           </>
         ) : null}
+
+        <h3>Evidence trail</h3>
+        {detailStatus === "loading" ? (
+          // Hydration honesty: the trail rides the workbench detail query —
+          // never show a definitive "no audit events" while it is in flight.
+          <p className="ga-stew-panel-muted">Loading the audit trail…</p>
+        ) : (
+          <AuditTrail trail={workItemAuditTrail(item)} />
+        )}
 
         <h3>Comments</h3>
         {detailStatus === "loading" ? (
