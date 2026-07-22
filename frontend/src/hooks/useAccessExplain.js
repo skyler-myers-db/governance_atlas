@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchAccessExplain } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
  * Phase 14 — "Why can't I access this?" explainer.
@@ -9,10 +9,10 @@ import { fetchAccessExplain } from "../lib/api";
 export function useAccessExplain(assetFqn = "", options = {}) {
   const trimmed = String(assetFqn || "").trim();
   const enabled = options.enabled !== false;
-  const query = useQuery({
-    queryKey: ["accessExplain", trimmed || "__global__"],
+  const { query } = useAtlasQuery({
+    key: ["accessExplain", trimmed || "__global__"],
     enabled,
-    queryFn: ({ signal }) => fetchAccessExplain(trimmed, { signal }),
+    fetch: (signal) => fetchAccessExplain(trimmed, { signal }),
   });
   return {
     loading: enabled && query.isPending && !query.data,

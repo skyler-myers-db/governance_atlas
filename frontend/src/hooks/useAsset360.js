@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchAsset360 } from "../lib/api";
+import { envelopeHydrating } from "../lib/envelope";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 export const EMPTY_ASSET_360 = {
   asset: null,
@@ -71,35 +72,42 @@ function normalizeAsset360Payload(payload, assetFqn = "") {
   };
 }
 
-function asset360RefetchInterval(query) {
-  const payload = query?.state?.data;
-  const meta = payload?.meta && typeof payload.meta === "object" ? payload.meta : {};
-  const state = String(meta.state || "").trim().toLowerCase();
-  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
-    ? meta.capabilities
-    : {};
-  const loadedSections = Array.isArray(capabilities.loadedSections)
-    ? capabilities.loadedSections
-    : Array.isArray(payload?.loadedSections)
-      ? payload.loadedSections
-      : [];
-  if (state === "loading" || capabilities.hydrating === true) return 3_000;
-  if (loadedSections.length && !loadedSections.includes("schema")) return 3_000;
-  return false;
-}
+// Poll while the composite is hydrating OR while it has started streaming
+// sections but the schema section (the one every consumer needs) hasn't
+// landed. `until` returns true to STOP; the loadedSections check is
+// deliberately identical to the deleted local refetchInterval — only the
+// hydration half moved to the shared lib/envelope.js predicate. Same 3s
+// cadence as before, now bounded (~1min).
+const ASSET_360_POLL = {
+  interval: 3_000,
+  maxAttempts: 20,
+  until: (payload) => {
+    if (envelopeHydrating(payload)) return false;
+    const capabilities = payload?.meta?.capabilities;
+    const loadedSections = Array.isArray(capabilities?.loadedSections)
+      ? capabilities.loadedSections
+      : Array.isArray(payload?.loadedSections)
+        ? payload.loadedSections
+        : [];
+    if (loadedSections.length && !loadedSections.includes("schema")) return false;
+    return true;
+  },
+};
 
 export function useAsset360(assetFqn, options = {}) {
   /** @type {{ enabled?: boolean, staleTime?: number, gcTime?: number }} */
   const resolvedOptions = options && typeof options === "object" ? options : {};
   const normalizedFqn = String(assetFqn || "").trim();
   const enabled = resolvedOptions.enabled !== false && Boolean(normalizedFqn);
-  const query = useQuery({
-    queryKey: ["atlas", "asset360", normalizedFqn],
-    queryFn: ({ signal }) => fetchAsset360(normalizedFqn, { signal }),
+  const { query } = useAtlasQuery({
+    key: ["atlas", "asset360", normalizedFqn],
+    fetch: (signal) => fetchAsset360(normalizedFqn, { signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
     gcTime: resolvedOptions.gcTime ?? 5 * 60_000,
-    refetchInterval: resolvedOptions.refetchInterval ?? asset360RefetchInterval,
+    poll: ASSET_360_POLL,
+    // Legacy escape hatch for callers passing an explicit refetchInterval.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval,
   });
   const data = useMemo(
     () => (query.data ? normalizeAsset360Payload(query.data, normalizedFqn) : null),

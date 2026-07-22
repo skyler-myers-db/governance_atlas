@@ -121,6 +121,14 @@ CLIENT_ROUTE_PREFIXES = {
     "lineage-atlas",
     "stewardship",
     "taxonomy",
+    # Cohesion-rebuild canonical routes (Wave B): the SPA shell must serve
+    # these with HTTP 200 — /assets/<fqn> 404'd at the document level while
+    # the client still rendered, breaking crawlability/deep-link semantics.
+    "asset",
+    "assets",
+    "evidence",
+    "exec",
+    "sk",
 }
 MUTATION_ROLES = {"writer", "steward", "admin"}
 APPROVAL_ROLES = {"steward", "admin"}
@@ -238,12 +246,36 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 class _HashedAssetStaticFiles(StaticFiles):
     """Vite content-hashes every filename under /assets, so responses are
-    immutable — without this header every navigation revalidates each chunk."""
+    immutable — without this header every navigation revalidates each chunk.
+
+    The mount path also collides with the SPA's canonical asset-hub route
+    (/assets/<fqn>): StaticFiles matches before the catch-all, so hub deep
+    links 404'd at the document level. An extensionless miss is a page
+    navigation, never a chunk request — serve the SPA shell for those.
+    """
 
     def file_response(self, *args, **kwargs):  # type: ignore[override]
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        # Starlette RAISES HTTPException(404) on a miss (it does not return a
+        # 404 response), so the fall-through must catch, not status-check —
+        # and it raises STARLETTE's HTTPException, which fastapi.HTTPException
+        # (a subclass) does not catch.
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            # Asset FQNs are dotted (catalog.schema.table), so "has a dot"
+            # cannot distinguish a page from a chunk — only misses that end
+            # in a real static-file extension stay 404.
+            static_ext = (".js", ".css", ".map", ".png", ".svg", ".ico", ".woff", ".woff2", ".txt", ".json")
+            if exc.status_code == 404 and not path.lower().endswith(static_ext):
+                return HTMLResponse(_render_index())
+            raise
 
 
 app.mount(

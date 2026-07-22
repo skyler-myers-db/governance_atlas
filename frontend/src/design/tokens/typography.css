@@ -1,5 +1,8 @@
 /*
  * Entrada Governance Atlas typography tokens.
+ *
+ * --ga-* is canonical (Wave C8). The --gh-font alias survives only because
+ * the legacy sheets still reference it; it dies with those sheets.
  */
 
 :root {
@@ -11,12 +14,12 @@
   --ga-heading-weight: 600;
   --ga-body-weight: 400;
 
-  --gh-font-weight-bold: 600;
-  --gh-font-weight-heavy: 700;
-  --gh-font-weight-black: 800;
+  --ga-font-weight-bold: 600;
+  --ga-font-weight-heavy: 700;
+  --ga-font-weight-black: 800;
 
-  --gh-line-height-tight: 1.2;
-  --gh-line-height-snug: 1.35;
-  --gh-line-height-normal: 1.5;
-  --gh-line-height-loose: 1.65;
+  --ga-line-height-tight: 1.2;
+  --ga-line-height-snug: 1.35;
+  --ga-line-height-normal: 1.5;
+  --ga-line-height-loose: 1.65;
 }

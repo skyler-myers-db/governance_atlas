@@ -590,6 +590,121 @@ def api_list_quality_runs(
     return JSONResponse(status_code=200, content=_envelope(rows))
 
 
+def api_quality_findings(
+    request: Request,
+    asset: Optional[str] = None,
+    severity: Optional[str] = None,
+    outcome: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    limit: int = 200,
+) -> JSONResponse:
+    """Wave A4 — browseable quality findings for the Evidence quality tab.
+
+    Quality-run results joined with run metadata, filterable by asset /
+    severity / outcome / date window. Visibility-scoped like audit evidence:
+    rows about assets outside the actor's visible estate are withheld (and
+    counted), and the endpoint fails closed when the visibility scope cannot
+    be verified — never serving unscoped findings.
+    """
+    from runtime_app import _ensure_live_runtime, _store_for_read, _visible_assets
+    from atlas.api.response import _error_response, _with_meta
+
+    _ensure_live_runtime()
+    asset_filter = input_safety.sanitize_plain_text(
+        asset, field="asset", max_length=512
+    )
+    severity_filter = input_safety.sanitize_plain_text(
+        severity, field="severity", max_length=64
+    )
+    outcome_filter = input_safety.sanitize_plain_text(
+        outcome, field="outcome", max_length=32
+    ).lower()
+    since_filter = input_safety.sanitize_plain_text(since, field="since", max_length=64)
+    until_filter = input_safety.sanitize_plain_text(until, field="until", max_length=64)
+    if outcome_filter and outcome_filter not in quality_service.FINDING_OUTCOMES:
+        raise HTTPException(
+            status_code=400,
+            detail="outcome must be one of: passed, failed, errored, skipped.",
+        )
+    limit_value = max(1, min(_as_int(limit) or 200, 500))
+
+    # Fail-closed visibility scope, same contract as audit evidence: if the
+    # visible-asset inventory cannot be read we withhold everything rather
+    # than serve findings about assets the actor may not see.
+    try:
+        visible_frame = _visible_assets(request)
+        visible_fqns = [
+            _normalize_str(value)
+            for value in visible_frame["fqn"].dropna().astype(str).tolist()
+            if _normalize_str(value)
+        ] if visible_frame is not None and not visible_frame.empty and "fqn" in visible_frame.columns else []
+    except Exception:
+        return _error_response(
+            request,
+            status_code=503,
+            source="quality-runner+governance-store",
+            detail=(
+                "Asset visibility scope could not be verified; quality findings are "
+                "unavailable rather than exposing out-of-scope assets."
+            ),
+            state="unavailable",
+            capabilities={"rowLevelSecurity": "fail-closed-visible-assets"},
+        )
+    if asset_filter and asset_filter.lower() not in {
+        fqn.lower() for fqn in visible_fqns
+    }:
+        # Honest 200 (not 404): mirrors api_asset_quality's availability-probe
+        # contract for out-of-scope assets referenced from lineage/deep links.
+        payload = _with_meta(
+            {
+                "findings": [],
+                "summary": None,
+                "state": "unavailable",
+                "reason": "Asset is not visible in the current workspace scope.",
+                "windowTruncated": False,
+                "visibilityScopedRowsExcluded": 0,
+            },
+            request,
+            source="quality-runner+governance-store",
+            state="unavailable",
+            authoritative=False,
+            entity_fqn=asset_filter,
+            warnings=["Asset is not visible in the current workspace scope."],
+            capabilities={"rowLevelSecurity": "visible-assets-only"},
+        )
+        return JSONResponse(status_code=200, content=payload)
+
+    findings_payload = quality_service.quality_findings(
+        _store_for_read(),
+        asset_fqn=asset_filter or None,
+        severity=severity_filter or None,
+        outcome=outcome_filter or None,
+        since=since_filter or None,
+        until=until_filter or None,
+        limit=limit_value,
+        visible_asset_fqns=visible_fqns,
+    )
+    state = findings_payload.get("state") or "unavailable"
+    reason = _normalize_str(findings_payload.get("reason"))
+    envelope = _with_meta(
+        findings_payload,
+        request,
+        source="quality-runner+governance-store",
+        state=state,
+        authoritative=state == "available",
+        entity_fqn=asset_filter or None,
+        warnings=[reason] if reason else None,
+        capabilities={
+            "rowLevelSecurity": "visible-assets-only",
+            "visibleAssetCount": len(visible_fqns),
+            "maxLimit": 500,
+            "defaultLimit": 200,
+        },
+    )
+    return JSONResponse(status_code=200, content=envelope)
+
+
 def api_asset_quality(asset_fqn: str, request: Request) -> JSONResponse:
     asset_fqn = _normalize_str(asset_fqn)
     if not asset_fqn:
@@ -1231,55 +1346,14 @@ def api_access_explainer(asset_fqn: str, request: Request) -> JSONResponse:
     from runtime_app import _ensure_live_runtime
 
     _ensure_live_runtime()
-    auth_mode = _request_auth_mode(request)
-    actor_email = _user_email(request) or "unknown"
-    scope = capability_service.runtime_visibility_scope(auth_mode)
-    remediation: List[Dict[str, str]] = []
-    if auth_mode != capability_service.OBO_AVAILABLE_MODE:
-        remediation.append(
-            {
-                "label": "Enable per-user authorization (OBO)",
-                "detail": (
-                    "Open Governance Atlas from an authenticated Databricks browser "
-                    "session so Unity Catalog enforces your own permissions."
-                ),
-            }
-        )
-    if not actor_email or actor_email == "unknown":
-        remediation.append(
-            {
-                "label": "Sign in with your Databricks identity",
-                "detail": "Your actor identity headers are missing — reload the page from the workspace.",
-            }
-        )
-    catalog_explorer_url = None
-    jobs_url = None
-    query_history_url = None
-    fqn = _normalize_str(asset_fqn)
-    if fqn and fqn.count(".") >= 2:
-        parts = fqn.split(".")
-        catalog_explorer_url = (
-            f"/explore/data/{parts[0]}/{parts[1]}/{'/'.join(parts[2:])}"
-        )
-        jobs_url = "/jobs"
-        query_history_url = "/sql/history"
-    return JSONResponse(
-        status_code=200,
-        content=_envelope(
-            {
-                "assetFqn": fqn or None,
-                "authMode": auth_mode,
-                "visibilityScope": scope,
-                "actorEmail": actor_email,
-                "remediation": remediation,
-                "deepLinks": {
-                    "catalogExplorer": catalog_explorer_url,
-                    "jobs": jobs_url,
-                    "queryHistory": query_history_url,
-                },
-            }
-        ),
+    # Shared core (capabilities.access_explain_summary) so this endpoint and
+    # the /360 composite's access block always tell the same access story.
+    summary = capability_service.access_explain_summary(
+        _request_auth_mode(request),
+        _user_email(request) or "unknown",
+        _normalize_str(asset_fqn),
     )
+    return JSONResponse(status_code=200, content=_envelope(summary))
 
 
 # -----------------------------------------------------------------------------
@@ -1342,6 +1416,13 @@ def build_catalog_router() -> APIRouter:
         api_list_quality_runs,
         methods=["GET"],
         name="api_list_quality_runs",
+    )
+    # Wave A4 — Evidence quality tab browse endpoint.
+    router.add_api_route(
+        "/api/quality/findings",
+        api_quality_findings,
+        methods=["GET"],
+        name="api_quality_findings",
     )
     router.add_api_route(
         "/api/assets/{asset_fqn:path}/quality",

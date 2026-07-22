@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchLineageRecommendations } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
+import { pollBudgetExhausted, resetPollAttempts, useAtlasQuery } from "./useAtlasQuery";
 
 function normalizeRecommendation(item) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return null;
@@ -31,34 +31,30 @@ function lineageRecommendationHydrating(payload) {
 // warmer used to re-poll every 3s indefinitely while the backend reported a
 // loading envelope. Stop as soon as items exist or after a bounded number
 // of attempts, then surface an honest "still warming" state via `warming`.
+// The attempt ledger itself now lives in useAtlasQuery's shared bounded-poll
+// engine; this hook only supplies the terminality predicate (`until` returns
+// true to STOP: not hydrating anymore, or items already renderable).
 const RECOMMENDATION_POLL_ATTEMPT_LIMIT = 10;
-const recommendationPollAttempts = new Map();
-
-function recommendationRefetchInterval(query) {
-  const payload = query?.state?.data;
-  const key = String(query?.queryKey?.join?.("|") || "lineageRecommendations");
-  if (!lineageRecommendationHydrating(payload)) {
-    recommendationPollAttempts.delete(key);
-    return false;
-  }
-  if (Array.isArray(payload?.items) && payload.items.length) return false;
-  const attempts = recommendationPollAttempts.get(key) || 0;
-  if (attempts >= RECOMMENDATION_POLL_ATTEMPT_LIMIT) return false;
-  recommendationPollAttempts.set(key, attempts + 1);
-  return 3_000;
-}
+const RECOMMENDATION_POLL = {
+  interval: 3_000,
+  maxAttempts: RECOMMENDATION_POLL_ATTEMPT_LIMIT,
+  until: (payload) =>
+    !lineageRecommendationHydrating(payload) ||
+    (Array.isArray(payload?.items) && payload.items.length > 0),
+};
 
 export function useLineageRecommendations(options = {}) {
   const enabled = options.enabled !== false;
   const limit = Number.isFinite(Number(options.limit))
     ? Math.max(1, Math.min(25, Math.trunc(Number(options.limit))))
     : 8;
-  const query = useQuery({
-    queryKey: ["lineageRecommendations", limit],
+  const queryKey = ["lineageRecommendations", limit];
+  const { query } = useAtlasQuery({
+    key: queryKey,
     enabled,
     staleTime: 120_000,
-    refetchInterval: recommendationRefetchInterval,
-    queryFn: ({ signal }) => fetchLineageRecommendations({ signal, limit }),
+    poll: RECOMMENDATION_POLL,
+    fetch: (signal) => fetchLineageRecommendations({ signal, limit }),
   });
   const payload = query.data && !isNonAuthoritativeMockEvidence(query.data, query.data?.meta, query.data?.warnings)
     ? query.data
@@ -70,11 +66,10 @@ export function useLineageRecommendations(options = {}) {
   // Warming = the envelope is still hydrating with zero items and the poll
   // budget is spent. Consumers must show "still warming — retry", not an
   // eternal loading spinner.
-  const pollKey = `lineageRecommendations|${limit}`;
   const warming =
     hydrating &&
     !items.length &&
-    (recommendationPollAttempts.get(pollKey) || 0) >= RECOMMENDATION_POLL_ATTEMPT_LIMIT;
+    pollBudgetExhausted(queryKey, RECOMMENDATION_POLL_ATTEMPT_LIMIT);
   return {
     loading: enabled && ((query.isPending && !payload) || (hydrating && !warming)),
     warming,
@@ -97,7 +92,7 @@ export function useLineageRecommendations(options = {}) {
     warning: Array.isArray(payload?.meta?.warnings) ? payload.meta.warnings[0] || "" : "",
     refresh: () => {
       // Explicit retry restores the poll budget so the warmer can resume.
-      recommendationPollAttempts.delete(pollKey);
+      resetPollAttempts(queryKey);
       return query.refetch();
     },
   };

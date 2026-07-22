@@ -1,0 +1,938 @@
+/*
+ * app-shell/shell.css — Wave B1 shell chrome (FRONTEND_BLUEPRINT §9).
+ *
+ * Clean-file contract: ga-* selectors only, --ga-* tokens, no priority
+ * overrides, zero raw hex (check-css enforced). Frame GRID/layout rules intentionally
+ * stay in the legacy sheets for this wave — the shell root emits the legacy
+ * frame class names (see legacyShellContract.js) so those load-bearing rules
+ * keep applying; this file styles only the chrome that was REBUILT: the
+ * palette, the Atlas AI dock + FAB, the header search trigger, and shell
+ * state wrappers. The legacy blocks these replace (gh cmdk/floating-ai) are
+ * deleted from app.css / orphaned in northstar.css and die in Wave C8.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Frame helpers                                                        */
+/* ------------------------------------------------------------------ */
+
+/* Route-level state cards (boot gating, Suspense fallbacks, diagnostics). */
+.ga-shell-route-state {
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+}
+
+.ga-shell-inline-link {
+  border: 0;
+  background: transparent;
+  color: var(--ga-bright-blue);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ga-shell-inline-link:hover,
+.ga-shell-inline-link:focus-visible {
+  color: var(--ga-light-blue);
+  outline: none;
+}
+
+/* Rail items are real anchors now — neutralize anchor defaults so the
+   existing .ga-side-nav-item button styling carries over unchanged. */
+a.ga-shell-nav-item {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+a.ga-shell-nav-item[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ga-shell-nav-divider {
+  min-height: 4px;
+}
+
+/* Header icon actions are anchors too (bell/help). */
+a.ga-icon-button {
+  text-decoration: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header search trigger (unified search: opens the ⌘K palette)         */
+/* ------------------------------------------------------------------ */
+
+.ga-shell-search-trigger {
+  width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: 10px;
+  background: var(--ga-surface-muted);
+  color: var(--ga-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.ga-shell-search-trigger:hover:not(:disabled),
+.ga-shell-search-trigger:focus-visible:not(:disabled) {
+  border-color: rgba(102, 197, 255, 0.5);
+  background: var(--ga-surface);
+  color: var(--ga-text-soft);
+  outline: none;
+}
+
+.ga-shell-search-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ga-shell-search-trigger > span:nth-child(2) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-shell-search-kbd {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.ga-shell-search-kbd kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  padding: 1px 5px;
+  border: 1px solid var(--ga-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--ga-surface);
+  color: var(--ga-text-muted);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+/* ------------------------------------------------------------------ */
+/* Command palette (⌘K) — ported from the legacy gh cmdk block           */
+/* ------------------------------------------------------------------ */
+
+.ga-cmdk-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 23, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  animation: ga-cmdk-fade 120ms ease-out;
+}
+
+@keyframes ga-cmdk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ga-cmdk {
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  background: var(--ga-surface);
+  color: var(--ga-text);
+  border: 1px solid var(--ga-border);
+  border-radius: 10px;
+  box-shadow: 0 28px 62px rgba(10, 15, 23, 0.38), 0 1px 0 rgba(207, 239, 255, 0.08) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ga-cmdk-input-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--ga-border);
+  gap: 10px;
+}
+
+.ga-cmdk-prefix {
+  color: var(--ga-text-muted);
+  font-weight: 700;
+}
+
+.ga-cmdk-input {
+  flex: 1 1 auto;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 14px;
+  color: var(--ga-text);
+}
+
+.ga-cmdk-hint {
+  font-size: 11px;
+  color: var(--ga-text-muted);
+  background: var(--ga-surface-muted);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--ga-border);
+}
+
+.ga-cmdk-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.ga-cmdk-group {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ga-text-muted);
+  padding: 8px 14px 4px;
+}
+
+.ga-cmdk-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ga-cmdk-item.is-active {
+  background: var(--ga-surface-soft);
+}
+
+.ga-cmdk-item-glyph {
+  color: var(--ga-bright-blue);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ga-cmdk-generic-glyph {
+  font-size: 14px;
+}
+
+.ga-cmdk-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ga-cmdk-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-cmdk-item-subtitle {
+  font-size: 11px;
+  color: var(--ga-text-muted);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-cmdk-item-badge {
+  border: 1px solid var(--ga-border);
+  border-radius: 999px;
+  background: var(--ga-surface-muted);
+  color: var(--ga-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ga-cmdk-empty {
+  padding: 24px;
+  color: var(--ga-text-muted);
+  text-align: center;
+  font-size: 13px;
+}
+
+.ga-cmdk-empty.is-loading,
+.ga-cmdk-live-status {
+  color: var(--ga-text-soft);
+  font-size: 12px;
+  padding: 10px 14px;
+}
+
+.ga-cmdk-footer {
+  display: flex;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--ga-border);
+  font-size: 11px;
+  color: var(--ga-text-muted);
+  background: var(--ga-surface-muted);
+}
+
+.ga-cmdk-footer-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ga-cmdk kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--ga-border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--ga-surface);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ------------------------------------------------------------------ */
+/* Atlas AI FAB — ported from the legacy fab block                      */
+/* ------------------------------------------------------------------ */
+
+.ga-ai-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1120;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ga-highlight-blue);
+  color: var(--ga-navy-950);
+  box-shadow: 0 8px 20px rgba(2, 80, 128, 0.45), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+.ga-ai-fab:hover:not(:disabled),
+.ga-ai-fab:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgb(79, 153, 196);
+  box-shadow: 0 12px 28px rgba(2, 80, 128, 0.55), 0 1px 0 rgba(255, 255, 255, 0.22) inset;
+  outline: none;
+}
+
+.ga-ai-fab:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ga-ai-fab .ga-ai-mark {
+  width: 24px;
+  height: 24px;
+}
+
+/* Lineage brings its own panels: no FAB there (legacy :has() rule). */
+.ga-shell-app:has(.ga-lineage-explorer) .ga-ai-fab {
+  display: none;
+}
+
+@media (max-width: 1600px) {
+  .ga-ai-fab {
+    right: 14px;
+    bottom: 14px;
+    width: 44px;
+    height: 44px;
+    box-shadow: 0 6px 16px rgba(2, 80, 128, 0.4), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+  }
+
+  .ga-ai-fab .ga-ai-mark {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (max-width: 980px) {
+  .ga-ai-fab {
+    right: 10px;
+    bottom: 10px;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Atlas AI dock — ported from the legacy floating-ai block             */
+/* ------------------------------------------------------------------ */
+
+.ga-ai-dock {
+  position: fixed;
+  z-index: 1200;
+  width: min(360px, calc(100vw - 24px));
+  height: min(432px, calc(100vh - 110px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  border: 1px solid rgba(102, 197, 255, 0.34);
+  border-radius: var(--ga-radius-lg);
+  background: linear-gradient(180deg, rgba(8, 50, 78, 0.99), rgba(5, 25, 41, 0.99));
+  color: var(--ga-text);
+  box-shadow: 0 24px 72px rgba(0, 5, 14, 0.46), var(--ga-glass-highlight);
+  min-width: 320px;
+  min-height: 382px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 72px);
+}
+
+.ga-shell-app[data-ai-open="true"] .ga-ai-dock {
+  width: var(--ga-ai-dock-width);
+}
+
+@media (min-width: 2200px) {
+  .ga-ai-dock {
+    width: min(440px, calc(100vw - 24px));
+    height: min(640px, calc(100vh - 110px));
+  }
+}
+
+.ga-ai-dock-header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid rgba(102, 197, 255, 0.18);
+  background: rgba(5, 26, 43, 0.82);
+  cursor: grab;
+  user-select: none;
+}
+
+.ga-ai-dock-header:active {
+  cursor: grabbing;
+}
+
+.ga-ai-dock-header > div {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.ga-ai-dock-header .ga-ai-mark {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(102, 197, 255, 0.96), rgba(48, 153, 203, 0.96));
+  color: rgb(4, 36, 58);
+  box-shadow: 0 0 0 1px rgba(207, 239, 255, 0.28) inset, 0 10px 24px rgba(51, 189, 231, 0.2);
+  flex: 0 0 auto;
+}
+
+.ga-ai-dock-header span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ga-ai-dock-header strong {
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.ga-ai-dock-header em {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.ga-ai-dock-header em::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ga-success);
+  box-shadow: 0 0 0 2px rgba(68, 238, 171, 0.1);
+}
+
+.ga-ai-dock-header button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(207, 239, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(207, 239, 255, 0.06);
+  color: var(--ga-text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.ga-ai-dock-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding: 16px 18px 12px;
+}
+
+.ga-ai-dock-transcript {
+  min-height: auto;
+  flex: 0 0 auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.ga-ai-dock-message {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid rgba(102, 197, 255, 0.2);
+  border-radius: var(--ga-radius-md);
+  background: rgba(207, 239, 255, 0.07);
+}
+
+.ga-ai-dock-message.is-empty {
+  min-height: 110px;
+  align-content: start;
+  border-left: 3px solid var(--ga-bright-blue);
+  background: rgba(24, 68, 103, 0.56);
+}
+
+.ga-ai-dock-message.tone-user {
+  margin-left: 22px;
+  border-color: rgba(92, 225, 230, 0.3);
+  background: rgba(92, 225, 230, 0.1);
+}
+
+.ga-ai-dock-message.tone-assistant {
+  margin-right: 12px;
+}
+
+.ga-ai-dock-message.tone-warn {
+  border-color: rgba(255, 184, 77, 0.34);
+  background: rgba(255, 184, 77, 0.1);
+}
+
+@keyframes ga-ai-dock-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ga-ai-dock-message.is-pending strong::after {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 7px;
+  vertical-align: -2px;
+  border: 2px solid rgba(207, 239, 255, 0.2);
+  border-top-color: var(--ga-bright-blue);
+  border-radius: 50%;
+  animation: ga-ai-dock-spin 0.8s linear infinite;
+}
+
+.ga-ai-dock-message > span {
+  color: var(--ga-bright-blue);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ga-ai-dock-message.is-empty > span {
+  display: none;
+}
+
+.ga-ai-dock-message strong,
+.ga-ai-dock-message .ga-ai-dock-markdown {
+  color: var(--ga-text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ga-ai-dock-markdown p {
+  margin: 0 0 0.45em;
+}
+
+.ga-ai-dock-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.ga-ai-dock-markdown ul {
+  margin: 0.35em 0 0;
+  padding-left: 1.1em;
+}
+
+.ga-ai-dock-markdown strong {
+  font-weight: 700;
+}
+
+.ga-ai-dock-markdown code {
+  border: 1px solid rgba(207, 239, 255, 0.18);
+  border-radius: 5px;
+  background: rgba(2, 9, 20, 0.26);
+  color: var(--ga-light-blue);
+  padding: 0.05em 0.32em;
+}
+
+.ga-ai-dock-message em {
+  color: var(--ga-text-muted);
+  font-size: 0.68rem;
+  font-style: normal;
+}
+
+.ga-ai-dock-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.ga-ai-dock-evidence button,
+.ga-ai-dock-evidence-chip {
+  min-width: 0;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(102, 197, 255, 0.09);
+  color: var(--ga-text-soft);
+  font: inherit;
+  font-size: 0.66rem;
+  line-height: 1.1;
+  padding: 4px 7px;
+}
+
+.ga-ai-dock-evidence button {
+  cursor: pointer;
+}
+
+.ga-ai-dock-evidence button:hover,
+.ga-ai-dock-evidence button:focus-visible {
+  border-color: rgba(102, 197, 255, 0.5);
+  background: rgba(102, 197, 255, 0.16);
+  color: var(--ga-text);
+  outline: none;
+}
+
+.ga-ai-dock-evidence span {
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.ga-ai-dock-evidence em {
+  color: var(--ga-bright-blue);
+  font-size: 0.58rem;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.ga-ai-dock-evidence-detail {
+  border: 1px solid rgba(102, 197, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 17, 32, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--ga-text-soft);
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 9px;
+}
+
+.ga-ai-dock-evidence-detail header {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.ga-ai-dock-evidence-detail header div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ga-ai-dock-evidence-detail header span,
+.ga-ai-dock-evidence-statement {
+  color: var(--ga-text-muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.09em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.ga-ai-dock-evidence-detail header strong {
+  color: var(--ga-text);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+}
+
+.ga-ai-dock-evidence-detail header button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(226, 242, 255, 0.12);
+  border-radius: 6px;
+  color: var(--ga-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.ga-ai-dock-evidence-detail header button:hover,
+.ga-ai-dock-evidence-detail header button:focus-visible {
+  border-color: rgba(102, 197, 255, 0.5);
+  color: var(--ga-text);
+  outline: none;
+}
+
+.ga-ai-dock-evidence-sql {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(226, 242, 255, 0.1);
+  border-radius: 6px;
+  color: var(--ga-text);
+  font-size: 0.66rem;
+  line-height: 1.35;
+  margin: 0;
+  max-height: 116px;
+  overflow: auto;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.ga-ai-dock-evidence-empty {
+  color: var(--ga-text-muted);
+  font-size: 0.68rem;
+  margin: 0;
+}
+
+.ga-ai-dock-evidence-table {
+  border: 1px solid rgba(226, 242, 255, 0.08);
+  border-radius: 6px;
+  display: grid;
+  font-size: 0.62rem;
+  overflow: hidden;
+}
+
+.ga-ai-dock-evidence-table [role="row"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+}
+
+.ga-ai-dock-evidence-table [role="row"] + [role="row"] {
+  border-top: 1px solid rgba(226, 242, 255, 0.08);
+}
+
+.ga-ai-dock-evidence-table span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-ai-dock-evidence-table [role="columnheader"] {
+  color: var(--ga-text-muted);
+  font-weight: 700;
+}
+
+.ga-ai-dock-prompts {
+  display: grid;
+  gap: 6px;
+}
+
+.ga-ai-dock-prompt-group {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 7px;
+}
+
+.ga-ai-dock-prompt-label {
+  color: var(--ga-text-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ga-ai-dock-prompts button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid rgba(102, 197, 255, 0.2);
+  border-radius: var(--ga-radius-md);
+  background: rgba(207, 239, 255, 0.07);
+  color: var(--ga-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1.18;
+  text-align: left;
+}
+
+.ga-ai-dock-prompt-icon {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(102, 197, 255, 0.42);
+  border-radius: 999px;
+  color: var(--ga-bright-blue);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.ga-ai-dock-prompts button > span:nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ga-ai-dock-prompts button:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+}
+
+.ga-ai-dock-prompt-arrow {
+  color: var(--ga-bright-blue);
+  flex: 0 0 auto;
+}
+
+.ga-ai-dock-input {
+  position: relative;
+  padding: 0 18px 10px;
+}
+
+.ga-ai-dock-input input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(102, 197, 255, 0.24);
+  border-radius: var(--ga-radius-md);
+  background: rgba(207, 239, 255, 0.08);
+  color: var(--ga-text);
+  font: inherit;
+  padding: 0 44px 0 12px;
+}
+
+.ga-ai-dock-input button {
+  position: absolute;
+  right: 17px;
+  top: 5px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(102, 197, 255, 0.1);
+  color: var(--ga-bright-blue);
+  cursor: pointer;
+}
+
+.ga-ai-dock-input button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.ga-ai-dock-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(207, 239, 255, 0.2);
+  border-top-color: var(--ga-bright-blue);
+  border-radius: 50%;
+  animation: ga-ai-dock-spin 0.8s linear infinite;
+}
+
+.ga-ai-dock-disclaimer {
+  margin: 0;
+  padding: 0 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+}
+
+.ga-ai-dock-disclaimer button {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(207, 239, 255, 0.28);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ga-text-muted);
+  cursor: help;
+  font: inherit;
+  font-size: 0.62rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.ga-ai-dock-info {
+  margin: -8px 12px 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(102, 197, 255, 0.2);
+  border-radius: 7px;
+  background: rgba(5, 28, 45, 0.92);
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}

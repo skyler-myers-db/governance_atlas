@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchColumnLineageTrace } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 function tracePayload(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
@@ -26,28 +26,28 @@ export function useColumnLineageTrace(assetFqn, columnName, options = {}) {
   const depth = Number.isFinite(Number(options.depth))
     ? Math.max(1, Math.min(4, Math.trunc(Number(options.depth))))
     : 3;
-  const upstream = useQuery({
-    queryKey: ["columnLineageTrace", trimmedAsset, trimmedColumn, "upstream", depth],
+  const upstream = useAtlasQuery({
+    key: ["columnLineageTrace", trimmedAsset, trimmedColumn, "upstream", depth],
     enabled,
     retry: false,
-    queryFn: ({ signal }) =>
+    fetch: (signal) =>
       fetchColumnLineageTrace(trimmedAsset, trimmedColumn, {
         signal,
         direction: "upstream",
         depth,
       }),
-  });
-  const downstream = useQuery({
-    queryKey: ["columnLineageTrace", trimmedAsset, trimmedColumn, "downstream", depth],
+  }).query;
+  const downstream = useAtlasQuery({
+    key: ["columnLineageTrace", trimmedAsset, trimmedColumn, "downstream", depth],
     enabled,
     retry: false,
-    queryFn: ({ signal }) =>
+    fetch: (signal) =>
       fetchColumnLineageTrace(trimmedAsset, trimmedColumn, {
         signal,
         direction: "downstream",
         depth,
       }),
-  });
+  }).query;
   const upstreamTrace = normalizeTrace(upstream.data);
   const downstreamTrace = normalizeTrace(downstream.data);
   return {

@@ -1,0 +1,422 @@
+/*
+ * surfaces/admin/admin.css — Control Center surface styles (Wave C6).
+ * Convention mirrors surfaces/stewardship/stewardship.css: AdminPage.jsx
+ * imports this one file, all classes are `ga-admin-*`, all colors are
+ * `--ga-*` tokens or token-derived translucents, zero hex, zero
+ * importance overrides (check-css guardrails). Chrome (cards, tables,
+ * badges, tabs, state views) comes from the system kit — this file is
+ * layout + admin-specific detail only.
+ */
+
+/* ---------------------------------------------------------------- layout */
+
+.ga-admin-tab-body {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.ga-admin-page .ga-admin-card {
+  min-width: 0;
+}
+
+.ga-admin-access-card {
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------- summary tiles */
+
+.ga-admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.ga-admin-summary-tile {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+  min-width: 0;
+}
+
+.ga-admin-summary-tile small {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-summary-tile strong {
+  font-size: 16px;
+  color: var(--ga-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.ga-admin-summary-tile span {
+  font-size: 12px;
+  color: var(--ga-text-soft);
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- jobs */
+
+.ga-admin-job-name {
+  color: var(--ga-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.ga-admin-external-link {
+  color: var(--ga-bright-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ga-admin-external-link:hover,
+.ga-admin-external-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------ activity */
+
+.ga-admin-activity-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ga-admin-activity-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+}
+
+.ga-admin-activity-list b {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--ga-radius-pill);
+  background: var(--ga-surface-raised);
+  color: var(--ga-bright-blue);
+  font-size: 13px;
+}
+
+.ga-admin-activity-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ga-admin-activity-copy strong {
+  color: var(--ga-text-strong);
+  font-size: 13px;
+}
+
+.ga-admin-activity-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ga-text-soft);
+}
+
+.ga-admin-activity-list time {
+  font-size: 12px;
+  color: var(--ga-text-muted);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------- integrations */
+
+.ga-admin-integration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.ga-admin-integration-card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+  min-width: 0;
+}
+
+.ga-admin-integration-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ga-admin-integration-card strong {
+  color: var(--ga-text-strong);
+  font-size: 14px;
+}
+
+.ga-admin-integration-sub {
+  font-size: 12px;
+  color: var(--ga-text-soft);
+}
+
+.ga-admin-integration-reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+/* -------------------------------------------------------------- policy */
+
+.ga-admin-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ga-admin-policy-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+}
+
+.ga-admin-policy-card small {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-policy-card strong {
+  font-size: 20px;
+  color: var(--ga-text-strong);
+}
+
+.ga-admin-policy-card.is-unavailable strong {
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-policy-card span {
+  font-size: 12px;
+  color: var(--ga-text-soft);
+}
+
+.ga-admin-coverage-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ga-admin-coverage-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+}
+
+.ga-admin-coverage-list li strong {
+  color: var(--ga-text-strong);
+  font-size: 14px;
+}
+
+.ga-admin-coverage-list li.is-unavailable strong {
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-coverage-label {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ga-text);
+}
+
+.ga-admin-coverage-note {
+  grid-column: 1 / -1;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-coverage-bar {
+  grid-column: 1 / -1;
+  display: block;
+  height: 4px;
+  border-radius: var(--ga-radius-pill);
+  background: var(--ga-surface-raised);
+  overflow: hidden;
+}
+
+.ga-admin-coverage-bar b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ga-bright-blue);
+}
+
+/* --------------------------------------------------------- diagnostics */
+
+.ga-admin-diagnostics-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ga-admin-diagnostics-note {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 12px;
+  color: var(--ga-text-soft);
+}
+
+.ga-admin-diagnostics-note code {
+  color: var(--ga-text);
+}
+
+.ga-admin-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.ga-admin-kv {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+  min-width: 0;
+}
+
+.ga-admin-kv-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-kv-value {
+  overflow-wrap: anywhere;
+}
+
+.ga-admin-kv-hint {
+  font-size: 12px;
+  color: var(--ga-text-soft);
+}
+
+/* ---------------------------------------------------------- truth check */
+
+.ga-admin-truth-catalog {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-admin-truth-delta {
+  font-variant-numeric: tabular-nums;
+}
+
+.ga-admin-truth-delta.tone-muted {
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-truth-delta.tone-warn {
+  color: var(--ga-warning);
+}
+
+.ga-admin-truth-delta.tone-bad {
+  color: var(--ga-danger);
+}
+
+.ga-admin-truth-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-text-soft);
+}
+
+.ga-admin-truth-meta code {
+  margin-inline: 3px;
+  color: var(--ga-text);
+}
+
+.ga-admin-truth-queries summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ga-text);
+}
+
+.ga-admin-truth-queries ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.ga-admin-truth-queries li {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-muted);
+}
+
+.ga-admin-truth-queries li header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ga-admin-truth-queries li header span {
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-admin-truth-queries pre {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface-raised);
+  color: var(--ga-text-soft);
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.ga-admin-truth-query-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-danger);
+}
+
+.ga-admin-truth-state {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}

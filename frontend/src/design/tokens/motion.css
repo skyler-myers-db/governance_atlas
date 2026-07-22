@@ -1,27 +1,25 @@
 /*
  * Motion tokens.
- * Duration and easing. The catalogue showed only two transition declarations
- * in the entire app, both at 140ms ease — so these tokens both formalize
- * that choice and give Tranche C a vocabulary to reach for when adding
- * motion without it becoming a free-for-all.
+ * Duration and easing. --ga-* is canonical (Wave C8); the last --gh-*
+ * consumers (the system kit) were migrated, so no aliases remain.
  */
 
 :root {
-  --gh-duration-instant: 80ms;
-  --gh-duration-quick: 140ms;
-  --gh-duration-standard: 220ms;
-  --gh-duration-slow: 360ms;
+  --ga-duration-instant: 80ms;
+  --ga-duration-quick: 140ms;
+  --ga-duration-standard: 220ms;
+  --ga-duration-slow: 360ms;
 
-  --gh-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --gh-ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --gh-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ga-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ga-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ga-ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --gh-duration-instant: 0ms;
-    --gh-duration-quick: 0ms;
-    --gh-duration-standard: 0ms;
-    --gh-duration-slow: 0ms;
+    --ga-duration-instant: 0ms;
+    --ga-duration-quick: 0ms;
+    --ga-duration-standard: 0ms;
+    --ga-duration-slow: 0ms;
   }
 }

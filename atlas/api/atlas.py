@@ -593,7 +593,7 @@ def api_command_center(
         loading_payload = atlas_metrics.empty_command_center_payload()
         loading_payload["meta"] = {
             "warnings": [
-                "Command-center metrics are hydrating from live Databricks metadata."
+                "Command-center metrics are still loading from live Databricks metadata."
             ]
         }
         return _wrap(
@@ -655,7 +655,7 @@ def api_command_center(
             loading_payload = atlas_metrics.empty_command_center_payload()
             loading_payload["meta"] = {
                 "warnings": [
-                    "Command-center metrics are hydrating from live Databricks metadata."
+                    "Command-center metrics are still loading from live Databricks metadata."
                 ]
             }
             return _wrap(
@@ -720,13 +720,21 @@ def api_asset_360(asset_fqn: str, request: Request) -> JSONResponse:
     )
 
     _ensure_live_runtime()
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
     visibility = _asset_visibility_record(asset_fqn, request)
     if visibility.get("visibilityState") == "loading":
         detail = asset_service.asset_loading_payload(asset_fqn)
-        payload = atlas_metrics.asset_360_payload(detail=detail)
+        # hydrating=True: visibility is unverified, so no store/access joins
+        # run here and the composite blocks present as loading, not
+        # unavailable (cohesion law 3 — loading is never terminal absence).
+        payload = atlas_metrics.asset_360_payload(
+            detail=detail,
+            hydrating=True,
+            operational_included=actor_scoped,
+        )
         reason = (
             visibility.get("reason")
-            or "Asset 360 is hydrating from live Unity Catalog inventory."
+            or "The asset record is still loading from live Unity Catalog inventory."
         )
         return _wrap(
             payload,
@@ -753,7 +761,6 @@ def api_asset_360(asset_fqn: str, request: Request) -> JSONResponse:
             source="unity-catalog-detail+governance-store+quality-runner+lineage",
         )
 
-    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
     sections = ["header", "activity", "schema", "properties", "profiler"]
     if actor_scoped:
         sections.append("operational")
@@ -810,7 +817,18 @@ def api_asset_360(asset_fqn: str, request: Request) -> JSONResponse:
         detail = cached_header or asset_service.asset_loading_payload(asset_fqn)
     else:
         detail = full_detail
-    payload = atlas_metrics.asset_360_payload(detail=detail)
+    # Real composite joins (teardown P0-3): store-backed quality summary,
+    # access-explain core, and split freshness fields ride the same payload
+    # instead of hard-coded "unavailable" constants.
+    payload = atlas_metrics.asset_360_payload(
+        detail=detail,
+        store=store,
+        asset_fqn=asset_fqn,
+        auth_mode=_request_auth_mode(request),
+        actor_email=_user_email(request) or "",
+        operational_included=actor_scoped,
+        hydrating=hydrating,
+    )
     warnings = []
     if not actor_scoped:
         warnings.append(

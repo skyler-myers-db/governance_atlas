@@ -1267,6 +1267,15 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         # ISO-8601 last_altered from information_schema (see build_inventory
         # enrichment). Empty when the source didn't report it.
         "updatedAt": _iso_timestamp(row.get("last_altered")),
+        # Freshness split (cohesion law 4 — "Data updated" vs "Metadata
+        # changed", never conflated): at inventory scope the only known
+        # signal is information_schema.last_altered, which is a METADATA
+        # change time. It is emitted under its honest name; dataUpdatedAt (a
+        # real Delta data write) is unknown here and stays empty — the detail
+        # header path fills it from Delta history / DESCRIBE DETAIL caches.
+        # `updatedAt` above keeps its legacy value for existing consumers.
+        "lastAltered": _iso_timestamp(row.get("last_altered")),
+        "dataUpdatedAt": "",
         "domain": normalize_str(row.get("domain")) or "Unassigned",
         "tier": normalize_str(row.get("tier")) or "Unassigned",
         "certification": normalize_str(row.get("certification")) or "Unassigned",
@@ -1308,6 +1317,16 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         # discovery owner: search field so searching a UC owner email/name
         # matches even when no steward/business owner is assigned locally.
         "ucOwner": normalize_str(row.get("uc_owner")),
+        # Distinct owner roles (teardown P2-10): emitted separately so the
+        # frontend renders "Owner" / "Steward" from named fields instead of
+        # regex-matching the owners list (where the UC-owner entry's title
+        # also contains "owner" and shadowed business owners). Values may be
+        # comma-separated when multiple principals hold the role; empty means
+        # the role is honestly unassigned. `owners` stays authoritative for
+        # the full entry list.
+        "businessOwner": normalize_str(row.get("business_owner")),
+        "technicalOwner": normalize_str(row.get("technical_owner")),
+        "steward": normalize_str(row.get("steward")),
         "ownersSummary": normalize_str(row.get("owners_summary")),
         "tags": raw_tags,
         "tagLabels": tag_labels,
@@ -3550,13 +3569,30 @@ def activity_records(
                     "comment_created": "Comment added",
                     "task_created": "Task created",
                     "task_state_changed": "Task updated",
-                }.get(event_type, "Governance activity")
+                }.get(event_type)
+                if not title:
+                    # Humanize unknown event slugs server-side so the
+                    # timeline never mixes "Task updated" with raw
+                    # "task-triage-updated" strings (teardown P1-7).
+                    words = [
+                        word
+                        for word in event_type.replace("_", "-").split("-")
+                        if word.strip()
+                    ]
+                    title = (
+                        " ".join(word.capitalize() for word in words)
+                        if words
+                        else "Governance activity"
+                    )
                 detail = (
                     normalize_str(payload.get("body"))
                     or normalize_str(payload.get("title"))
                     or normalize_str(payload.get("reviewNote"))
                     or normalize_str(payload.get("status"))
                     or title
+                )
+                actor = normalize_str(row.get("actor_email")) or normalize_str(
+                    row.get("actor_display_name")
                 )
                 rows.append(
                     {
@@ -3565,8 +3601,21 @@ def activity_records(
                         "detail": detail,
                         "status": status,
                         "createdAt": normalize_str(row.get("created_at")),
-                        "createdBy": normalize_str(row.get("actor_email"))
-                        or normalize_str(row.get("actor_display_name")),
+                        # BOTH names on purpose (teardown P1-7): renderers
+                        # read actorEmail while this row historically only
+                        # carried createdBy, so the actor was fetched but
+                        # never shown. Emit both so no field-name mismatch
+                        # can drop the actor again.
+                        "createdBy": actor,
+                        "actorEmail": actor,
+                        # Deep-link ids from the store row: the task/thread
+                        # were persisted all along but dropped from the
+                        # payload, forcing generic Stewardship navigation.
+                        "taskId": normalize_str(row.get("task_id")),
+                        "threadId": normalize_str(row.get("thread_id")),
+                        # Priority from payload_json when the task carries
+                        # one ("p1"); empty means the row truly has none.
+                        "priority": normalize_str(payload.get("priority")),
                         "reviewNote": normalize_str(payload.get("reviewNote")),
                     }
                 )
@@ -3586,6 +3635,7 @@ def activity_records(
     for _, row in scoped.iterrows():
         note = normalize_str(row.get("review_note"))
         raw_title = normalize_str(row.get("new_comment")) or "Governance request"
+        actor = normalize_str(row.get("created_by"))
         rows.append(
             {
                 "id": normalize_str(row.get("request_id")),
@@ -3593,7 +3643,10 @@ def activity_records(
                 "detail": raw_title,
                 "status": normalize_str(row.get("status")).title() or "Pending",
                 "createdAt": normalize_str(row.get("created_at")),
-                "createdBy": normalize_str(row.get("created_by")),
+                # Both actor field names, same reason as the events branch
+                # above (teardown P1-7 field-name mismatch).
+                "createdBy": actor,
+                "actorEmail": actor,
                 "reviewNote": note,
                 "reviewedAt": normalize_str(row.get("reviewed_at")),
                 "reviewedBy": normalize_str(row.get("reviewed_by")),
@@ -3618,11 +3671,18 @@ def metadata_audit_records(
         return []
     if audit_df is None or audit_df.empty:
         return []
+    # Lazy import: atlas_metrics imports this module at load time, so the
+    # stable-AUD-id helper must be resolved at call time to avoid a cycle.
+    from atlas.services.atlas_metrics import audit_display_id
+
     rows: List[Dict[str, str]] = []
     for _, row in audit_df.iterrows():
         rows.append(
             {
                 "id": normalize_str(row.get("audit_id")),
+                # Stable customer-facing AUD id (same derivation as Audit
+                # Evidence) so asset-timeline rows join to /evidence events.
+                "displayAuditId": audit_display_id(row.get("audit_id"), row=row),
                 "action": normalize_str(row.get("action")) or "metadata change",
                 "entityType": normalize_str(row.get("entity_type")),
                 "entityId": normalize_str(row.get("entity_id")),
@@ -4163,8 +4223,27 @@ def asset_detail_payload(
                             base["updatedAt"] = (
                                 ts_series.max().isoformat().replace("+00:00", "Z")
                             )
+                            # Freshness split (cohesion law 4): a data-op
+                            # timestamp from Delta history IS a data write,
+                            # so it also populates the unambiguous field.
+                            base["dataUpdatedAt"] = base["updatedAt"]
                     except Exception:
                         pass
+            if not base.get("dataUpdatedAt"):
+                # DESCRIBE DETAIL's lastModified is the last write to the
+                # table files — a data signal, already warm in the detail
+                # cache. Used only for the split field; the legacy updatedAt
+                # fallback chain below is left untouched.
+                try:
+                    last_modified = pd.to_datetime(
+                        detail.get("lastmodified"), utc=True, errors="coerce"
+                    )
+                    if last_modified is not None and pd.notna(last_modified):
+                        base["dataUpdatedAt"] = (
+                            last_modified.isoformat().replace("+00:00", "Z")
+                        )
+                except Exception:
+                    pass
             # ----------------------------------------------------------
             # UC information_schema.tables — authoritative `created_by`,
             # `table_owner`, `last_altered`. Used as a fallback for owner
@@ -4179,20 +4258,26 @@ def asset_detail_payload(
                 ist_df = pd.DataFrame()
             if not ist_df.empty:
                 row0 = ist_df.iloc[0].to_dict()
-                # If Delta history didn't yield a timestamp, take last_altered
-                if not base["updatedAt"]:
-                    altered = row0.get("last_altered")
-                    if altered:
-                        try:
-                            altered_ts = pd.to_datetime(
-                                altered, utc=True, errors="coerce"
+                # Freshness split (cohesion law 4): last_altered is ALWAYS
+                # emitted under its honest name — it is a metadata-change
+                # time from information_schema, regardless of whether the
+                # legacy conflated updatedAt fell back to it below.
+                altered = row0.get("last_altered")
+                if altered:
+                    try:
+                        altered_ts = pd.to_datetime(
+                            altered, utc=True, errors="coerce"
+                        )
+                        if pd.notna(altered_ts):
+                            base["lastAltered"] = (
+                                altered_ts.isoformat().replace("+00:00", "Z")
                             )
-                            if pd.notna(altered_ts):
-                                base["updatedAt"] = (
-                                    altered_ts.isoformat().replace("+00:00", "Z")
-                                )
-                        except Exception:
-                            pass
+                            # Legacy conflated fallback, unchanged behavior:
+                            # only when Delta history yielded no data write.
+                            if not base["updatedAt"]:
+                                base["updatedAt"] = base["lastAltered"]
+                    except Exception:
+                        pass
                 # UC table_owner is the SOURCE OF TRUTH for who owns
                 # the asset — it's enforced by Databricks itself. Local
                 # governance-store owner assignments are SUPPLEMENTARY

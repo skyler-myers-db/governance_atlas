@@ -1,0 +1,117 @@
+/*
+ * surfaces/lineage/lineage.css — layout-only rules for the Lineage Atlas
+ * surface (Wave C7). ga-lin-* prefixed, --ga-* tokens only. The canvas /
+ * node-card / rail chrome stays in styles/lineage-v2.css (the lineage-v2
+ * kit's stylesheet, loaded globally from main.jsx because the kit is also
+ * mounted by the Asset 360 lineage tab). This file only carries what the
+ * deleted styles/lineage.css provided to the surface: the eyebrow, the
+ * hero chip row, rail row fallbacks, and the new search-first picker.
+ */
+
+/* Section eyebrow inside zero/degraded states and the rail head (replaces
+   the deleted .ga-lineage-eyebrow from styles/lineage.css). */
+.ga-lin-eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ga-bright-blue);
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Hero evidence chip row (sits under the PageShell hero band). */
+.ga-lin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* Honest non-control for restricted/unresolvable rail nodes (matches the
+   legacy disabled rail-row rendering). */
+.ga-lin-rail-row-static {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--ga-border-muted);
+  color: var(--ga-text-muted);
+  opacity: 0.72;
+}
+.ga-lin-rail-row-static strong {
+  color: var(--ga-text-strong);
+  font-size: 0.82rem;
+}
+.ga-lin-rail-row-static span {
+  font-size: 0.74rem;
+}
+
+/* ---------- Search-first picker (bare /lineage) ---------- */
+
+.ga-lin-picker {
+  display: grid;
+  gap: 22px;
+  max-width: 720px;
+}
+
+.ga-lin-picker-search {
+  display: grid;
+  gap: 8px;
+}
+
+.ga-lin-picker-label {
+  color: var(--ga-text-strong);
+  font-size: 0.82rem;
+  font-weight: 640;
+}
+
+.ga-lin-search-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--ga-navy-950);
+  border: 1px solid var(--ga-border);
+  border-radius: 8px;
+  color: var(--ga-white);
+  font: inherit;
+  font-size: 0.92rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.ga-lin-search-input:focus,
+.ga-lin-search-input:focus-visible {
+  outline: none;
+  border-color: var(--ga-bright-blue);
+  box-shadow: var(--ga-shadow-focus);
+}
+.ga-lin-search-input::placeholder {
+  color: var(--ga-text-muted);
+}
+
+.ga-lin-picker-results {
+  display: grid;
+  gap: 4px;
+}
+
+.ga-lin-picker-status {
+  padding: 10px 2px;
+  color: var(--ga-text-muted);
+  font-size: 0.86rem;
+}
+
+.ga-lin-picker-recommendations {
+  display: grid;
+  gap: 10px;
+}
+
+/* Ranked candidate / search-result rows — EntityChip rows stretched to a
+   full-width list row inside the picker and the zero-edge state. */
+.ga-lin-recommendations {
+  display: grid;
+  gap: 6px;
+}
+.ga-lineage-zero-state .ga-lin-recommendations {
+  margin-top: 12px;
+}
+.ga-lin-rec-row.ga-sys-entity-chip.is-row {
+  width: 100%;
+}

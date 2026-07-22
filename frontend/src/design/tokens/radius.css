@@ -11,11 +11,7 @@
   --ga-radius-xl: 12px;
   --ga-radius-pill: 999px;
 
-  --gh-radius-xs: var(--ga-radius-xs);
+  /* Wave C8: only the aliases the surviving legacy sheets still reference. */
   --gh-radius-sm: var(--ga-radius-sm);
-  --gh-radius-md: var(--ga-radius-md);
-  --gh-radius-lg: var(--ga-radius-lg);
   --gh-radius-xl: var(--ga-radius-xl);
-  --gh-radius-2xl: var(--ga-radius-xl);
-  --gh-radius-pill: var(--ga-radius-pill);
 }

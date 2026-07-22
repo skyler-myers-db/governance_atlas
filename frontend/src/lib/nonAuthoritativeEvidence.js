@@ -476,6 +476,14 @@ export function isNonAuthoritativeMockEvidence(...sources) {
   if (initialLineageShell(parsedMarkers)) return false;
   if (hydratingLiveLineageShell(parsedMarkers)) return false;
   if (trustedWorkspaceScopedLiveEnvelope(parsedMarkers)) return false;
+  // A trusted live source that is still WARMING (meta.state loading) is never
+  // mock evidence — classifying it as "sample data" told executives the
+  // metadata service returned fakes during every warehouse warm-up
+  // (C1/C2 verifier BLOCK). Loading envelopes render as loading, full stop.
+  const hasLoadingState = parsedMarkers.some(
+    ({ key, value }) => STATE_KEYS.has(key) && normalizedKey(value) === "loading",
+  );
+  if (hasLoadingState && hasTrustedDegradedLiveEnvelope) return false;
   if (hasAuthorityFalse && hasTrustedDegradedLiveEnvelope && hasPopulatedRowsWithoutAuthority) return true;
   return hasAuthorityFalse && !hasTrustedDegradedLiveEnvelope;
 }

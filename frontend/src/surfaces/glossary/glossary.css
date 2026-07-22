@@ -1,0 +1,375 @@
+/*
+ * surfaces/glossary/glossary.css — Glossary & CDEs surface layout (Wave C4).
+ * Layout-only per FRONTEND_BLUEPRINT §9: buttons/badges/tables/cards/empty
+ * states come from the system kit (ga-sys-*). All values are --ga-* tokens;
+ * no legacy prefixes, no raw hex, no priority overrides.
+ */
+
+/* ---------------- shared section scaffolding ---------------- */
+
+.ga-glos-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-3, 12px);
+}
+
+.ga-glos-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ga-space-2, 8px);
+}
+
+.ga-glos-caption {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ga-text-muted);
+}
+
+.ga-glos-footnote {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ga-text-subtle);
+}
+
+.ga-glos-muted {
+  color: var(--ga-text-muted);
+}
+
+.ga-glos-mono {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--ga-text);
+  overflow-wrap: anywhere;
+}
+
+.ga-glos-untagged {
+  font-style: italic;
+  color: var(--ga-text-muted);
+}
+
+.ga-glos-eyebrow {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ga-text-subtle);
+}
+
+/* ---------------- glossary card grid ---------------- */
+
+.ga-glos-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--ga-space-3, 12px);
+}
+
+.ga-glos-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-lg);
+  background: var(--ga-surface);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.ga-glos-card:hover {
+  border-color: var(--ga-border-strong);
+  background: var(--ga-surface-raised);
+}
+
+.ga-glos-card.is-selected {
+  border-color: var(--ga-bright-blue);
+}
+
+.ga-glos-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ga-glos-card-head h2 {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.3;
+}
+
+.ga-glos-card-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--ga-text-muted);
+}
+
+.ga-glos-card-definition {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ga-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ga-glos-card-proof {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--ga-border);
+}
+
+.ga-glos-card-proof dt {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ga-text-subtle);
+}
+
+.ga-glos-card-proof dd {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: var(--ga-text-muted);
+}
+
+/* ---------------- detail (term mini-hub + CDE detail) ---------------- */
+
+.ga-glos-term-detail,
+.ga-glos-cde-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-3, 12px);
+  margin-top: var(--ga-space-3, 12px);
+  padding: 16px;
+  border: 1px solid var(--ga-border-strong);
+  border-radius: var(--ga-radius-lg);
+  background: var(--ga-surface-raised);
+}
+
+.ga-glos-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ga-glos-detail-head h2 {
+  margin: 2px 0 0;
+  font-size: 1.15rem;
+}
+
+.ga-glos-detail-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ga-glos-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--ga-space-3, 12px);
+  align-items: start;
+}
+
+.ga-glos-detail-card.is-definition,
+.ga-glos-detail-card.is-stewardship {
+  grid-column: 1 / -1;
+}
+
+.ga-glos-definition {
+  margin: 0 0 10px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.ga-glos-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+}
+
+.ga-glos-owner-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.ga-glos-kv-label {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ga-text-subtle);
+}
+
+.ga-glos-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ga-glos-linked-assets,
+.ga-glos-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ga-glos-hierarchy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ga-glos-reviewer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ga-glos-reviewer-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.ga-glos-history ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ga-glos-history li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.78rem;
+}
+
+/* ---------------- CDE registry ---------------- */
+
+.ga-glos-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--ga-space-3, 12px);
+}
+
+.ga-glos-cde-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+/* ---------------- forms (modals + inline) ---------------- */
+
+.ga-glos-form,
+.ga-glos-inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-3, 12px);
+}
+
+.ga-glos-inline-form {
+  padding: 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+}
+
+.ga-glos-form-help {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ga-text-muted);
+}
+
+.ga-glos-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ga-glos-field > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-glos-field input,
+.ga-glos-field textarea,
+.ga-glos-field select {
+  padding: 8px 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.ga-glos-field input:focus-visible,
+.ga-glos-field textarea:focus-visible,
+.ga-glos-field select:focus-visible {
+  outline: none;
+  border-color: var(--ga-focus);
+  box-shadow: var(--ga-shadow-focus);
+}
+
+.ga-glos-field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--ga-space-3, 12px);
+}
+
+.ga-glos-form-error {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--ga-danger) 40%, transparent);
+  border-radius: var(--ga-radius-md);
+  background: color-mix(in srgb, var(--ga-danger) 9%, transparent);
+  color: var(--ga-danger);
+  font-size: 0.78rem;
+}
+
+.ga-glos-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------------- responsive ---------------- */
+
+@media (max-width: 760px) {
+  .ga-glos-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ga-glos-detail-head {
+    flex-direction: column;
+  }
+}

@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchInsightsDashboard } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 const EMPTY_INSIGHTS_DASHBOARD = {
   kpis: [],
@@ -75,21 +75,23 @@ export function useInsightsDashboard(options = {}) {
   const enabled = resolvedOptions.enabled !== false;
   const seedData = resolvedOptions.seedData || null;
 
-  const query = useQuery({
-    queryKey: ["atlas", "insights-dashboard"],
-    queryFn: ({ signal }) => fetchInsightsDashboard({ signal }),
+  const { query } = useAtlasQuery({
+    key: ["atlas", "insights-dashboard"],
+    fetch: (signal) => fetchInsightsDashboard({ signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
     // Poll while the server envelope is still hydrating (cold rebuild after a
     // deploy/TTL expiry returns 200 + meta.state "loading" with empty KPIs);
     // without this the page sits on the empty envelope for the full
-    // staleTime and renders as if the signals don't exist.
-    refetchInterval:
-      resolvedOptions.refetchInterval ??
-      ((query) =>
-        String(query?.state?.data?.meta?.state || "").toLowerCase() === "loading"
-          ? 4_000
-          : false),
+    // staleTime and renders as if the signals don't exist. Same 4s cadence as
+    // before, now bounded (~1min) instead of open-ended.
+    poll: {
+      interval: 4_000,
+      maxAttempts: 15,
+      until: (data) => String(data?.meta?.state || "").trim().toLowerCase() !== "loading",
+    },
+    // Legacy escape hatch for callers passing an explicit refetchInterval.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval,
   });
 
   const usableData = query.data || seedData || null;

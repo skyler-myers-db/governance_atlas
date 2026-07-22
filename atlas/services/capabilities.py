@@ -39,6 +39,71 @@ def runtime_visibility_scope(mode: str) -> str:
     return ANONYMOUS_APP_PRINCIPAL_VISIBILITY
 
 
+def access_explain_summary(
+    auth_mode: str,
+    actor_email: str,
+    asset_fqn: str,
+) -> Dict[str, Any]:
+    """Shared access-explainer payload core (auth mode + remediation + links).
+
+    Single source for BOTH `/api/assets/<fqn>/access-explain` and the /360
+    composite's access block, so the two can never tell different access
+    stories for the same asset (Wave A4 / teardown P0-3). Pure function —
+    no request objects, so payload builders can call it directly."""
+    mode = str(auth_mode or "").strip().lower()
+    actor = str(actor_email or "").strip() or "unknown"
+    fqn = str(asset_fqn or "").strip()
+    remediation = []
+    if mode != OBO_AVAILABLE_MODE:
+        remediation.append(
+            {
+                "label": "Enable per-user authorization (OBO)",
+                "detail": (
+                    "Open Governance Atlas from an authenticated Databricks browser "
+                    "session so Unity Catalog enforces your own permissions."
+                ),
+            }
+        )
+    if not actor or actor == "unknown":
+        remediation.append(
+            {
+                "label": "Sign in with your Databricks identity",
+                "detail": "Your actor identity headers are missing — reload the page from the workspace.",
+            }
+        )
+    catalog_explorer_url = None
+    jobs_url = None
+    query_history_url = None
+    if fqn and fqn.count(".") >= 2:
+        parts = fqn.split(".")
+        catalog_explorer_url = (
+            f"/explore/data/{parts[0]}/{parts[1]}/{'/'.join(parts[2:])}"
+        )
+        jobs_url = "/jobs"
+        query_history_url = "/sql/history"
+    return {
+        "assetFqn": fqn or None,
+        "authMode": mode,
+        "visibilityScope": runtime_visibility_scope(mode),
+        "actorEmail": actor,
+        "remediation": remediation,
+        "deepLinks": {
+            "catalogExplorer": catalog_explorer_url,
+            "jobs": jobs_url,
+            "queryHistory": query_history_url,
+        },
+        # Honest grant availability: the app never enumerates per-principal
+        # UC grants, so this block says so instead of rendering empty tables.
+        "grants": {
+            "state": "unavailable",
+            "reason": (
+                "Per-principal Unity Catalog grants are not collected by the app; "
+                "grant truth lives in Catalog Explorer (deep link provided)."
+            ),
+        },
+    }
+
+
 def _flag(
     *,
     available: bool,

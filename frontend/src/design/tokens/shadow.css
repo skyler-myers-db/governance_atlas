@@ -9,13 +9,5 @@
   --ga-shadow-glow: 0 0 32px rgba(102, 197, 255, 0.18);
   --ga-shadow-focus: 0 0 0 3px var(--ga-focus);
   --ga-glass-highlight: inset 0 1px 0 rgba(207, 239, 255, 0.12);
-
-  --gh-shadow: var(--ga-shadow-md);
-  --gh-shadow-soft: var(--ga-shadow-sm);
-  --gh-shadow-sm: var(--ga-shadow-sm);
-  --gh-shadow-md: var(--ga-shadow-md);
-  --gh-shadow-lg: var(--ga-shadow-lg);
-  --gh-shadow-focus: var(--ga-shadow-focus);
-  --gh-shadow-accent: var(--ga-shadow-glow);
-  --gh-glass-highlight: var(--ga-glass-highlight);
+  /* Wave C8: all --gh-shadow* aliases had zero remaining references. */
 }

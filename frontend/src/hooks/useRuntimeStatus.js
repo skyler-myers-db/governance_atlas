@@ -1,8 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchRuntimeStatus } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 /**
- * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false | ((query: any) => number | false)} | boolean} [options={}]
+ * Runtime status probe.
+ *
+ * Polling policy lives HERE (guardrail: refetchInterval never leaves the
+ * hooks layer). `pollWhileWarming` keeps refetching every 15s while the
+ * runtime probe reports `state: "loading"` — a cold serverless warehouse
+ * answers instantly with "loading", so we poll until the real probe
+ * resolves, then stop.
+ *
+ * @param {{enabled?: boolean, staleTime?: number, pollWhileWarming?: boolean} | boolean} [options={}]
  */
 export function useRuntimeStatus(options = {}) {
   const resolvedOptions =
@@ -12,12 +20,14 @@ export function useRuntimeStatus(options = {}) {
         ? options
         : {};
   const enabled = resolvedOptions.enabled !== false;
-  const query = useQuery({
-    queryKey: ["runtime-status"],
-    queryFn: ({ signal }) => fetchRuntimeStatus({ signal }),
+  const { query } = useAtlasQuery({
+    key: ["runtime-status"],
+    fetch: (signal) => fetchRuntimeStatus({ signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 15000,
-    refetchInterval: resolvedOptions.refetchInterval ?? false,
+    unsafeRefetchInterval: resolvedOptions.pollWhileWarming
+      ? (q) => (q?.state?.data?.runtime?.state === "loading" ? 15000 : false)
+      : false,
   });
   const message = query.error?.message || "Failed to load workspace diagnostics.";
 

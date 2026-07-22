@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchGovernanceSummary } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 const EMPTY_GOVERNANCE = {
   metrics: [],
@@ -24,18 +24,21 @@ export function useGovernanceSummary(options = {}) {
     : resolvedOptions.section
       ? [resolvedOptions.section]
       : [];
-  const query = useQuery({
-    queryKey: ["governance-summary", sections],
-    queryFn: ({ signal }) => fetchGovernanceSummary({ signal, sections }),
+  const { query } = useAtlasQuery({
+    key: ["governance-summary", sections],
+    fetch: (signal) => fetchGovernanceSummary({ signal, sections }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 15000,
-    refetchInterval:
-      resolvedOptions.refetchInterval ??
-      ((queryState) => {
-        const data = queryState?.state?.data;
-        const inboxState = String(data?.inbox?.state || "").trim().toLowerCase();
-        return inboxState === "loading" ? 2500 : false;
-      }),
+    // Same 2.5s inbox-warmup cadence as before, now bounded (~1min). The
+    // pending signal lives in the surface-specific `inbox.state`, not the
+    // canonical envelope, so a custom `until` (true = stop) carries it.
+    poll: {
+      interval: 2_500,
+      maxAttempts: 24,
+      until: (data) => String(data?.inbox?.state || "").trim().toLowerCase() !== "loading",
+    },
+    // Legacy escape hatch for callers passing an explicit refetchInterval.
+    unsafeRefetchInterval: resolvedOptions.refetchInterval,
   });
   const message = query.error?.message || "Failed to load governance summary.";
 

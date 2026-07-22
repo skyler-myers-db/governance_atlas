@@ -1,20 +1,27 @@
 /*
  * Spacing scale.
  * 4px-based modular scale: space-1 = 4, space-2 = 8, step=4 until space-6, then 8.
- * Intermediate values (2, 6, 10, 14) still appear hardcoded throughout app.css;
- * Tranche B step 3 will migrate those sites to the scale where the shift is
- * imperceptible, and leave true one-offs alone.
+ *
+ * --ga-space-* is canonical (Wave C8). The --gh-space-1..5 aliases survive
+ * only because the legacy sheets (app/entity/governance/northstar/shell-rail)
+ * still reference them; they die with those sheets.
  */
 
 :root {
-  --gh-space-0: 0;
-  --gh-space-1: 4px;
-  --gh-space-2: 8px;
-  --gh-space-3: 12px;
-  --gh-space-4: 16px;
-  --gh-space-5: 20px;
-  --gh-space-6: 24px;
-  --gh-space-7: 32px;
-  --gh-space-8: 40px;
-  --gh-space-9: 48px;
+  --ga-space-0: 0;
+  --ga-space-1: 4px;
+  --ga-space-2: 8px;
+  --ga-space-3: 12px;
+  --ga-space-4: 16px;
+  --ga-space-5: 20px;
+  --ga-space-6: 24px;
+  --ga-space-7: 32px;
+  --ga-space-8: 40px;
+  --ga-space-9: 48px;
+
+  --gh-space-1: var(--ga-space-1);
+  --gh-space-2: var(--ga-space-2);
+  --gh-space-3: var(--ga-space-3);
+  --gh-space-4: var(--ga-space-4);
+  --gh-space-5: var(--ga-space-5);
 }

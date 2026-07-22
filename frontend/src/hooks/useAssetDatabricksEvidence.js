@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchAssetDatabricksEvidence } from "../lib/api";
+import { useAtlasQuery } from "./useAtlasQuery";
 
 function objectValue(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -8,10 +8,10 @@ function objectValue(value) {
 export function useAssetDatabricksEvidence(assetFqn, options = {}) {
   const trimmed = String(assetFqn || "").trim();
   const enabled = options.enabled !== false && Boolean(trimmed);
-  const query = useQuery({
-    queryKey: ["assetDatabricksEvidence", trimmed],
+  const { query } = useAtlasQuery({
+    key: ["assetDatabricksEvidence", trimmed],
     enabled,
-    queryFn: ({ signal }) => fetchAssetDatabricksEvidence(trimmed, { signal }),
+    fetch: (signal) => fetchAssetDatabricksEvidence(trimmed, { signal }),
     staleTime: 60_000,
   });
   const data = objectValue(query.data);
