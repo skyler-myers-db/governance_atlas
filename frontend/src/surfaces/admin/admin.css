@@ -61,6 +61,32 @@
   overflow-wrap: anywhere;
 }
 
+/* Clickable summary value (warehouse → SQL warehouse, users → workspace admin).
+   Flex so the external icon centers against the value instead of riding the
+   text baseline. */
+.ga-admin-summary-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ga-admin-summary-link:hover strong,
+.ga-admin-summary-link:focus-visible strong {
+  color: var(--ga-bright-blue);
+}
+
+.ga-admin-summary-ext {
+  flex: none;
+  color: var(--ga-text-faint);
+}
+
+.ga-admin-summary-link:hover .ga-admin-summary-ext,
+.ga-admin-summary-link:focus-visible .ga-admin-summary-ext {
+  color: var(--ga-bright-blue);
+}
+
 /* ---------------------------------------------------------------- jobs */
 
 .ga-admin-job-name {

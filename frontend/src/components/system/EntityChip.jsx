@@ -52,6 +52,20 @@ export function EntityChip({
 
   const href = hrefForRef(entity);
   if (!entity || !href) {
+    // An owner value that isn't a real account principal (a system actor, a
+    // team/domain label) has no owner-search page — render the NAME as plain
+    // text so it still shows, but never as a link to a user who doesn't exist.
+    // (Identity integrity: only real account users are clickable owners.)
+    if (entity && entity.kind === "owner") {
+      const ownerText = String(children ?? entity.label ?? entity.email ?? entity.id ?? "").trim();
+      if (ownerText) {
+        return (
+          <span className={`ga-sys-owner-plain ${className}`.trim()} data-kind="owner">
+            {ownerText}
+          </span>
+        );
+      }
+    }
     // Unresolvable ref: render nothing rather than a dead link (the
     // "no dead controls" law). Callers keep their raw text fallback.
     return null;

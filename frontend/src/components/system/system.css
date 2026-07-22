@@ -697,6 +697,13 @@
   white-space: nowrap;
 }
 
+/* Non-principal owner (system actor / team label): shown as plain text, never
+   a link to a user who doesn't exist. Reads as muted body text inline. */
+.ga-sys-owner-plain {
+  color: var(--ga-text-muted);
+  white-space: nowrap;
+}
+
 .ga-sys-entity-chip-meta {
   margin-left: auto;
   color: var(--ga-text-faint);

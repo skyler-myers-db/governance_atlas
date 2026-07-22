@@ -21,11 +21,46 @@ import {
  *     ships; asset mentions and actors render as EntityChip anchors (LAW).
  */
 
-function SummaryTile({ heading, value, hint }) {
+// Workspace host as an absolute https URL (defense-in-depth: the backend now
+// normalizes it, but a schemeless value must never mint a relative deep link).
+function absoluteHost(raw) {
+  const host = text(raw).replace(/\/+$/, "");
+  if (!host) return "";
+  return /^https?:\/\//i.test(host) ? host : `https://${host}`;
+}
+
+function SummaryTile({ heading, value, hint, href, linkTitle }) {
+  const strong = <strong>{value}</strong>;
   return (
     <div className="ga-admin-summary-tile">
       <small>{heading}</small>
-      <strong>{value}</strong>
+      {href ? (
+        <a
+          className="ga-admin-summary-link"
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={linkTitle || "Open in Databricks"}
+        >
+          {strong}
+          <svg
+            className="ga-admin-summary-ext"
+            viewBox="0 0 24 24"
+            width="13"
+            height="13"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M7 17 17 7M17 7H8m9 0v9" />
+          </svg>
+        </a>
+      ) : (
+        strong
+      )}
       {hint ? <span>{hint}</span> : null}
     </div>
   );
@@ -47,6 +82,13 @@ function RuntimeSummary({ dashboard, hydrating }) {
   const namespace = [text(environment.catalog), text(environment.schema)].filter(Boolean).join(".");
   const users = numberOrNull(access.users?.value);
   const roles = numberOrNull(access.roles?.value);
+  // Deep links into the Databricks workspace for the warehouse + account users.
+  const workspaceHost = absoluteHost(environment.workspaceHost || runtime.host);
+  const warehouseId = text(runtime.warehouseId || environment.warehouseId);
+  const warehouseHref = workspaceHost && warehouseId ? `${workspaceHost}/sql/warehouses/${warehouseId}` : "";
+  const usersHref = workspaceHost
+    ? `${workspaceHost}/settings/workspace/identity-and-access/users`
+    : "";
 
   return (
     <SectionCard
@@ -71,6 +113,8 @@ function RuntimeSummary({ dashboard, hydrating }) {
           <SummaryTile
             heading="SQL warehouse"
             hint="bound warehouse"
+            href={warehouseHref}
+            linkTitle="Open this SQL warehouse in Databricks"
             value={label(runtime.warehouseId || environment.warehouseId)}
           />
           <SummaryTile
@@ -81,6 +125,8 @@ function RuntimeSummary({ dashboard, hydrating }) {
           <SummaryTile
             heading="Access"
             hint={roles == null ? "roles unavailable" : `${roles.toLocaleString()} roles`}
+            href={users == null ? "" : usersHref}
+            linkTitle="Manage workspace users in Databricks"
             value={users == null ? "Unavailable" : `${users.toLocaleString()} users`}
           />
           <SummaryTile
@@ -124,7 +170,9 @@ const JOB_COLUMNS = [
       job.url ? (
         <a
           className="ga-admin-external-link"
-          href={job.url}
+          // Defense-in-depth: a schemeless job.url resolves relative to the app
+          // origin and 404s (the reported dead run-link). Force an absolute URL.
+          href={absoluteHost(job.url)}
           rel="noopener noreferrer"
           target="_blank"
           title="Open the backed Databricks resource URL reported by diagnostics."

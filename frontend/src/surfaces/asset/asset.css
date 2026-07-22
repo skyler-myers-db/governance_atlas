@@ -64,7 +64,12 @@
 }
 
 .ga-asset-menu-item {
-  display: block;
+  /* Flex + center so a menu item's icon (e.g. Open in Catalog Explorer's
+     external-link SVG) aligns to the label's vertical center instead of riding
+     the text baseline. Harmless for text-only rows. */
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 8px 10px;
   border: 0;

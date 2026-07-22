@@ -197,7 +197,23 @@ export function AssetHeaderActions({
           aria-expanded={certifyMenu.open}
           onClick={() => certifyMenu.setOpen((value) => !value)}
         >
-          Certify <span aria-hidden="true">⌄</span>
+          Certify
+          {/* Real SVG chevron in the kit's icon slot — the old "⌄" glyph sat
+              off the text baseline (flex centers an SVG, not a glyph). */}
+          <span className="ga-sys-button-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
         </Button>
         {certifyMenu.open ? (
           <div className="ga-asset-menu" role="menu" aria-label="Certification actions">

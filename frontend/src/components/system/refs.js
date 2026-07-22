@@ -64,6 +64,16 @@ function filtersHref(facetKey, name) {
 }
 
 /**
+ * Is this owner value a real account principal (email-shaped)? Only these are
+ * linkable as owners — system actors, team/domain labels, and service slugs
+ * are not account users and must not become owner-search links (identity
+ * integrity). Kept minimal on purpose: the roster stores principals as emails.
+ */
+export function isPrincipalEmail(value) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value ?? "").trim());
+}
+
+/**
  * Resolve an entityRef (`{kind, id|fqn, …}`) or surfaceRef
  * (`{surface, params}`) to its canonical href. Returns null for
  * unresolvable refs — callers render plain text instead of a dead link.
@@ -105,6 +115,12 @@ export function hrefForRef(ref) {
       // (PRODUCT_BLUEPRINT §4): /discovery?q=owner:"<name-or-email>"
       const who = ref.email ?? id ?? ref.label ?? null;
       if (!who) return null;
+      // Identity integrity: ONLY real account principals (email-shaped) get a
+      // clickable owner-search link. System actors ("identity-integrity-cleanup"),
+      // team/domain labels ("Product"), and service slugs are not account users —
+      // returning null here makes EntityChip fall back to plain text instead of a
+      // link that searches for a user who doesn't exist.
+      if (!isPrincipalEmail(who)) return null;
       return `/discovery${searchFromParams({ q: `owner:"${who}"` })}`;
     }
     case "request":
