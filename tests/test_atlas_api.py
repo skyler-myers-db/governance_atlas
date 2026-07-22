@@ -820,7 +820,10 @@ class AtlasApiTests(unittest.TestCase):
         self.assertIn("1 certified asset", payload["answer"])
         self.assertNotIn("31 certified", payload["answer"])
         self.assertEqual(payload["confidence"], "canonical-grounded")
-        self.assertTrue(any("31" in w and "canonical" in w for w in payload["meta"]["warnings"]))
+        # Grounding now short-circuits BEFORE Genie (so estate answers are
+        # correct even when Genie is down), so there is no Genie number to
+        # diverge from — the canonical answer + confidence is the contract.
+        self.assertEqual(payload["intent"], "governed-grounding")
         self.assertEqual(payload["evidence"][0]["metric"], "certifiedAssets")
 
     def test_atlas_ai_injects_page_context_into_genie_prompt(self) -> None:

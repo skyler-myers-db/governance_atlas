@@ -1792,6 +1792,48 @@ def api_atlas_ai_recommendations(
     _ensure_live_runtime()
     question = _normalize_str(body.question if body else "")
     ai_context = getattr(body, "context", None) if body else None
+
+    # Authoritative local grounding runs BEFORE (and independent of) Genie:
+    # estate counts and lineage come from the same canonical data the UI
+    # renders, so the AI must answer them correctly even when Genie is
+    # degraded/unavailable (previously these were trapped inside the
+    # Genie-available branch and returned an empty answer — verifier BLOCK).
+    _early_ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+    _early_ground = None
+    if _early_ctx_fqn:
+        try:
+            _early_ground = _lineage_grounding(question, _early_ctx_fqn, [_uc_for_request(request), _uc()])
+        except Exception:
+            _early_ground = None
+    if _early_ground is None:
+        try:
+            _early_ground = _canonical_estate_grounding(
+                question, request, {}, visible_assets_fn=_visible_assets,
+                store_fn=lambda _req=None: _store(),
+            )
+        except Exception:
+            _early_ground = None
+    if _early_ground:
+        _ev = _early_ground.get("evidence")
+        _ev_list = _ev if isinstance(_ev, list) else ([_ev] if _ev else [])
+        return _wrap(
+            {
+                "question": question,
+                "intent": "governed-grounding",
+                "answer": _early_ground["answer"],
+                "evidence": _ev_list,
+                "recommendations": [],
+                "suggestedActions": [],
+                "confidence": "canonical-grounded",
+                "warnings": _early_ground.get("warnings", []),
+            },
+            request,
+            source="unity-catalog+governance-store (canonical)",
+            state="available",
+            authoritative=True,
+            capabilities={"provider": "canonical-grounding"},
+        )
+
     genie_warning = ""
     genie_status: dict = {"state": "degraded", "provider": "local"}
     try:
