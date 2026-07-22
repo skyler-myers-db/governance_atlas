@@ -652,6 +652,171 @@ def warm_table_stats(
     return stats
 
 
+def _safe_call(fn: Callable[[], Any]) -> Any:
+    try:
+        return fn()
+    except Exception:
+        # Each loader is a self-caching cached_* function; a transient failure
+        # here is re-surfaced when the caller re-invokes the same function in
+        # context and handles it there. The prefetch is best-effort warming.
+        return None
+
+
+def prefetch_parallel(
+    loaders: Sequence[Callable[[], Any]],
+    *,
+    max_workers: int = 4,
+) -> None:
+    """Fire independent cache-loader callables concurrently, block until done.
+
+    The per-asset detail header used to serialize its Unity Catalog round
+    trips — DESCRIBE DETAIL, then DESCRIBE HISTORY, then
+    information_schema.tables, then (when the comment was empty) the table
+    comment — at ~1-1.5s each, so a cold header cost 5-7s wall-clock even
+    though the four queries are mutually independent. Running them across a
+    tiny pool collapses that to roughly the slowest single query. Every
+    loader is expected to be a self-caching cached_* function whose return
+    value we discard; the point is only to populate the shared TTL cache so
+    the caller's subsequent sequential reads hit warm entries. Exceptions are
+    swallowed per-loader (see _safe_call) — error handling stays in the
+    caller's in-context re-invocation.
+    """
+    tasks = [fn for fn in loaders if fn is not None]
+    if not tasks:
+        return
+    if len(tasks) == 1:
+        _safe_call(tasks[0])
+        return
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(tasks)),
+        thread_name_prefix="atlas-meta-prefetch",
+    ) as pool:
+        # Drain the map so we block until every prefetch completes before the
+        # caller proceeds to read the (now-warm) caches.
+        list(pool.map(_safe_call, tasks))
+
+
+def gather_parallel(
+    loaders: Sequence[Callable[[], Any]],
+    *,
+    max_workers: int = 4,
+) -> List[Any]:
+    """Run loaders concurrently and return their results in order.
+
+    Like prefetch_parallel but hands back each loader's return value (None on
+    failure) so callers can use results directly — needed when a loader is NOT
+    cache-backed (e.g. a raw uc.get_* call), where a prefetch-then-reread would
+    issue the query twice.
+    """
+    tasks = [fn for fn in loaders if fn is not None]
+    if not tasks:
+        return []
+    if len(tasks) == 1:
+        return [_safe_call(tasks[0])]
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(tasks)),
+        thread_name_prefix="atlas-meta-gather",
+    ) as pool:
+        return list(pool.map(_safe_call, tasks))
+
+
+def prefetch_asset_header(uc: UCSQLClient, catalog: str, schema: str, table: str) -> None:
+    """Warm the four independent header caches for one table in parallel.
+
+    Used both by the detail header build (so its cold path is ~1 round trip
+    of latency instead of 4 serialized ones) and by the estate pre-warmer
+    (so a first click on a visible asset finds the freshness / DESCRIBE DETAIL
+    caches already populated). No-op cost when everything is already fresh:
+    each cached_* returns immediately from the TTL cache.
+    """
+    prefetch_parallel(
+        (
+            lambda: cached_table_detail(uc, catalog, schema, table),
+            lambda: cached_table_history(uc, catalog, schema, table),
+            lambda: cached_information_schema_table_metadata(uc, catalog, schema, table),
+            lambda: cached_comment(uc, catalog, schema, table),
+        ),
+        max_workers=4,
+    )
+
+
+def header_cache_is_fresh(uc: UCSQLClient, catalog: str, schema: str, table: str) -> bool:
+    """True when the DESCRIBE DETAIL cache for this table is still fresh.
+
+    The estate pre-warmer uses this to skip already-warm assets so a resumed
+    sweep is cheap and never re-issues a DESCRIBE DETAIL the current TTL still
+    covers.
+    """
+    scope = _warehouse_key(uc)
+    key = (
+        f"table_detail:{scope}:{normalize_str(catalog)}:"
+        f"{normalize_str(schema)}:{normalize_str(table)}"
+    )
+    return _peek_fresh_cache(key) is not None
+
+
+# Bounded pool for the post-hydration estate pre-warmer. A single shared
+# executor (not one-per-sweep) caps total concurrency against the serverless
+# warehouse regardless of how many scopes trigger a warm, and a guard set
+# prevents a second sweep for the same scope from stampeding while the first
+# is still running (thundering-herd guard).
+_ESTATE_WARMER_POOL = ThreadPoolExecutor(
+    max_workers=4, thread_name_prefix="atlas-estate-warm"
+)
+_ESTATE_WARMING_SCOPES: set[str] = set()
+_ESTATE_WARMING_GUARD = threading.Lock()
+
+
+def warm_estate_headers(
+    uc: UCSQLClient,
+    fqns: Sequence[str],
+    *,
+    scope_key: str = "",
+    max_assets: int = 50,
+) -> Dict[str, int]:
+    """Proactively warm header/freshness caches for the visible estate.
+
+    Called after inventory hydration completes. Skips assets whose DESCRIBE
+    DETAIL cache is already fresh (resumable + cheap), then warms the rest on
+    the bounded shared pool. A per-scope guard means a burst of callers
+    triggers ONE sweep, not N (thundering-herd guard). Returns a small
+    counters dict for observability. Best-effort: per-asset failures are
+    swallowed inside prefetch_asset_header/_safe_call.
+    """
+    scope = normalize_str(scope_key) or _warehouse_key(uc)
+    with _ESTATE_WARMING_GUARD:
+        if scope in _ESTATE_WARMING_SCOPES:
+            return {"queued": 0, "skippedFresh": 0, "alreadyWarming": 1}
+        _ESTATE_WARMING_SCOPES.add(scope)
+
+    counters = {"queued": 0, "skippedFresh": 0, "alreadyWarming": 0}
+    try:
+        targets: List[Tuple[str, str, str]] = []
+        for fqn in list(fqns)[: max(0, int(max_assets))]:
+            try:
+                catalog, schema, table = split_uc_name(fqn)
+            except ValueError:
+                continue
+            if header_cache_is_fresh(uc, catalog, schema, table):
+                counters["skippedFresh"] += 1
+                continue
+            targets.append((catalog, schema, table))
+
+        counters["queued"] = len(targets)
+        if not targets:
+            return counters
+
+        def _warm_one(parts: Tuple[str, str, str]) -> None:
+            prefetch_asset_header(uc, parts[0], parts[1], parts[2])
+
+        # Drain so the guard is only released once the sweep is complete.
+        list(_ESTATE_WARMER_POOL.map(_warm_one, targets))
+        return counters
+    finally:
+        with _ESTATE_WARMING_GUARD:
+            _ESTATE_WARMING_SCOPES.discard(scope)
+
+
 def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     catalogs = cached_catalogs(uc)
     inventory_frames: List[pd.DataFrame] = []

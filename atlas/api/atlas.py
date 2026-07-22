@@ -190,8 +190,32 @@ def _databricks_job_inventory(
     return rows
 
 
+class AtlasAiContext(BaseModel):
+    """Page-awareness context the dock sends with each question.
+
+    ``surface`` is the current left-nav surface id; ``assetFqn`` is the asset
+    the user is looking at (route asset or peek drawer). Both feed the Genie
+    prompt preamble so "this asset" / "on this page" questions resolve to the
+    concrete surface the user is on.
+    """
+
+    surface: str = Field(default="", max_length=64)
+    assetFqn: str = Field(default="", max_length=512)
+
+    @field_validator("surface", "assetFqn", mode="before")
+    @classmethod
+    def _sanitize_context(cls, value):
+        return input_safety.sanitize_plain_text(
+            value,
+            field="context",
+            max_length=512,
+            allow_empty=True,
+        )
+
+
 class AtlasAiQuestion(BaseModel):
     question: str = Field(default="", max_length=2000)
+    context: AtlasAiContext | None = None
 
     @field_validator("question", mode="before")
     @classmethod
@@ -1518,14 +1542,319 @@ def api_admin_control_center(
     )
 
 
+# Surface ids (nav/routes.js) -> human phrase used in the Genie prompt preamble.
+_AI_SURFACE_LABELS = {
+    "home": "the executive Command Center",
+    "discovery": "the Discovery search surface",
+    "stewardship": "the Stewardship queue",
+    "glossary": "the Glossary / CDE registry",
+    "lineage": "the Lineage workspace",
+    "evidence": "the Audit Evidence surface",
+    "admin": "the Admin control center",
+    "assets": "an asset detail page",
+}
+
+
+def _ai_context_preamble(context: "AtlasAiContext | None") -> str:
+    """Build a grounding preamble so Genie resolves 'this asset'/'this page'.
+
+    The preamble names the concrete surface and asset FQN the user is viewing so
+    deictic questions ("who owns this asset?", "what feeds this table?") bind to
+    a real entity instead of being answered blind. Empty context yields "".
+    """
+
+    if context is None:
+        return ""
+    surface = _normalize_str(getattr(context, "surface", ""))
+    asset_fqn = _normalize_str(getattr(context, "assetFqn", ""))
+    parts: list[str] = []
+    if asset_fqn:
+        parts.append(
+            f"The user is currently viewing the asset `{asset_fqn}`. Interpret "
+            f"'this asset', 'this table', 'this dataset', 'it', and 'here' as `{asset_fqn}`."
+        )
+    if surface:
+        label = _AI_SURFACE_LABELS.get(surface.lower(), f"the {surface} surface")
+        parts.append(f"The user is on {label}.")
+    if not parts:
+        return ""
+    return "Context: " + " ".join(parts) + "\n\n"
+
+
+# Canonical estate-metric grounding. The Genie curated view is a single-catalog
+# snapshot that drifts from the UI (48/31/35 vs canonical 50/44/49). For these
+# estate-level aggregate questions we ground the answer on the SAME numbers the
+# Command Center tiles show, so Atlas AI can never contradict the UI.
+_ESTATE_METRIC_RULES = (
+    # (metric_key, singular_noun, plural_noun, [required_all], [any_of], [none_of])
+    ("cdeCount", "critical data element", "critical data elements",
+     [], ["cde", "critical data element"], []),
+    ("openRequests", "open governance request", "open governance requests",
+     ["open"], ["request", "governance request", "change request"], []),
+    ("certifiedAssets", "certified asset", "certified assets",
+     ["certif"], ["asset", "table", "dataset", "have", "many"], []),
+    ("criticalAssets", "business-critical asset", "business-critical assets",
+     ["critical"], ["asset", "table", "dataset"], ["cde", "data element"]),
+    ("metadataCoverage", "metadata coverage", "metadata coverage",
+     [], ["coverage", "documented", "metadata complete"], []),
+    ("totalAssets", "asset", "assets",
+     [], ["how many asset", "total asset", "data estate", "assets do we", "number of asset", "assets in our"], ["certif", "critical", "cde"]),
+)
+
+
+def _detect_estate_metric(question: str) -> tuple[str, str, str] | None:
+    text = _normalize_str(question).lower()
+    if not text:
+        return None
+    # Aggregate intent only — never override per-asset or list questions.
+    if not any(token in text for token in ("how many", "how much", "number of", "count", "total", "percentage", "do we have", "are there", "what are our")):
+        return None
+    for metric_key, singular, plural, required_all, any_of, none_of in _ESTATE_METRIC_RULES:
+        if none_of and any(token in text for token in none_of):
+            continue
+        if required_all and not all(token in text for token in required_all):
+            continue
+        if any_of and not any(token in text for token in any_of):
+            continue
+        return metric_key, singular, plural
+    return None
+
+
+def _canonical_estate_grounding(
+    question: str,
+    request: Request,
+    payload: dict,
+    *,
+    visible_assets_fn,
+    store_fn,
+) -> dict | None:
+    """Return a canonical-grounded answer dict when the question is an estate count.
+
+    Computes the metric from the same visible-asset frame + governance store the
+    Command Center uses, replaces the answer's number with the canonical one, and
+    warns when the Genie snapshot diverged. Returns None when not applicable.
+    """
+
+    detected = _detect_estate_metric(question)
+    if not detected:
+        return None
+    metric_key, singular, plural = detected
+    try:
+        visible_assets = visible_assets_fn(request)
+    except Exception:
+        return None
+    if visible_assets is None or getattr(visible_assets, "empty", True):
+        return None
+    try:
+        store = store_fn(request)
+    except Exception:
+        store = None
+    try:
+        metrics = atlas_metrics.canonical_estate_metrics(visible_assets=visible_assets, store=store)
+    except Exception:
+        return None
+    canonical_value = metrics.get(metric_key)
+    if canonical_value is None:
+        return None
+    if metric_key == "metadataCoverage":
+        answer = (
+            f"Metadata coverage across the estate is **{canonical_value}%** — the same "
+            "canonical figure shown on the Command Center. Coverage weights owners, "
+            "certification, domain, description, and classification, so it is not a "
+            "simple has-a-comment check."
+        )
+    elif metric_key == "openRequests":
+        noun = singular if canonical_value == 1 else plural
+        answer = (
+            f"You have **{canonical_value} {noun}** open across the estate. "
+            "This is the same count shown on the Command Center and Stewardship queue."
+        )
+    else:
+        noun = singular if canonical_value == 1 else plural
+        answer = (
+            f"There are **{canonical_value:,} {noun}** in the current estate — the same "
+            "canonical figure shown on the Command Center tiles."
+        )
+    canonical_evidence = {
+        "type": "metric",
+        "id": metric_key,
+        "label": f"{canonical_value} {plural}",
+        "metric": metric_key,
+        "value": canonical_value,
+        "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+    }
+    warnings: list[str] = []
+    # Detect divergence from the Genie snapshot to surface honestly.
+    genie_number = _first_evidence_number(payload.get("evidence"))
+    if genie_number is not None and genie_number != canonical_value:
+        warnings.append(
+            f"The Genie metadata snapshot reported {genie_number}; Atlas AI grounded the answer on the "
+            f"canonical estate figure ({canonical_value}) so it matches the UI."
+        )
+    return {"answer": answer, "evidence": canonical_evidence, "warnings": warnings}
+
+
+# Direction detection is phrase-based, not bare-token: "what feeds X" is
+# upstream but "what does X feed" / "X feeds into" is DOWNSTREAM. The bare
+# "feed" token used to classify both as upstream, so "what does this feed?"
+# returned the sources instead of the consumers (verifier BLOCK).
+_LINEAGE_Q_DOWN = (
+    "downstream", "feeds into", "feed into", "does this feed", "does it feed",
+    "what does this feed", "what does it feed", "consume", "consumer", "consumed by",
+    "uses this", "used by", "depend on this", "depends on this", "affected by",
+    "who uses", "what uses", "impact of", "impacted",
+)
+_LINEAGE_Q_UP = (
+    "what feeds", "feeds this", "feeding this", "upstream", "source of", "sources for",
+    "sources of", "come from", "comes from", "derived from", "depends on", "depend on",
+    "built from", "populate", "fed by", "feed this",
+)
+
+
+def _lineage_grounding(question: str, context_fqn: str, uc: Any) -> dict | None:
+    """Answer 'what feeds / what depends on <asset>' from REAL Unity Catalog
+    lineage, not the Genie snapshot (which has no lineage and answered
+    "nothing feeds it" while the lineage UI rendered upstream sources —
+    verifier BLOCK). Only fires with an asset context and a lineage-shaped
+    question; returns None otherwise so estate/other questions are untouched.
+    """
+    text = _normalize_str(question).lower()
+    fqn = _normalize_str(context_fqn)
+    if not fqn or fqn.count(".") < 2:
+        return None
+    # Downstream wins ties: "what does this feed into and depend on" reads as
+    # a downstream-impact question. Bare "feed"/"feeds" with no directional
+    # phrase defaults to upstream ("what feeds X" is the common ask).
+    wants_down = any(tok in text for tok in _LINEAGE_Q_DOWN)
+    wants_up = any(tok in text for tok in _LINEAGE_Q_UP)
+    if not wants_up and not wants_down and ("feed" in text or "feeds" in text):
+        wants_up = True  # bare mention → upstream default
+    if not (wants_up or wants_down):
+        return None
+    # A pure downstream question must NOT also fetch upstream.
+    if wants_down and not any(tok in text for tok in _LINEAGE_Q_UP):
+        wants_up = False
+    catalog, schema, table = fqn.split(".", 2)
+    # Try each client (OBO carries the actor's system.access grant; the app SP
+    # is the fallback). Track whether the read SUCCEEDED so we never assert
+    # "no lineage" off a permission failure — that would contradict the graph.
+    read_ok = False
+    up = down = None
+    for client in [c for c in uc if c is not None] if isinstance(uc, (list, tuple)) else [uc]:
+        try:
+            if wants_up or not wants_down:
+                up = client.get_table_lineage_upstream(catalog, schema, table, limit=50)
+            if wants_down:
+                down = client.get_table_lineage_downstream(catalog, schema, table, limit=50)
+            read_ok = True
+            if (up is not None and not up.empty) or (down is not None and not down.empty):
+                break  # got real neighbors; stop
+        except Exception:
+            continue
+    if not read_ok:
+        # Couldn't read lineage — deflect honestly instead of letting Genie
+        # claim "nothing feeds it" (verifier BLOCK). Never a false negative.
+        return {
+            "answer": (f"I couldn't read the governed lineage for **{table}** just now. "
+                       f"Open it in **Lineage Atlas** to see its upstream sources and downstream consumers."),
+            "evidence": [], "warnings": [],
+        }
+    up_names = sorted({str(v) for v in (up["source_table_full_name"].tolist() if up is not None and not up.empty else [])})
+    down_names = sorted({str(v) for v in (down["target_table_full_name"].tolist() if down is not None and not down.empty else [])})
+
+    def _sentence(direction, names):
+        short = table
+        if not names:
+            return (f"Unity Catalog shows no {direction} lineage for **{short}** — no observed "
+                    f"table-lineage edges in that direction.")
+        head = ", ".join(f"`{n}`" for n in names[:8])
+        more = f" and {len(names) - 8} more" if len(names) > 8 else ""
+        verb = "feed into" if direction == "upstream" else "are fed by"
+        return f"**{len(names)}** {direction} asset{'s' if len(names)!=1 else ''} {verb} **{short}**: {head}{more}."
+
+    parts = []
+    evidence = []
+    if wants_up or not wants_down:
+        parts.append(_sentence("upstream", up_names))
+        evidence += [{"id": n, "label": n, "assetFqn": n, "source": "system.access.table_lineage"} for n in up_names[:8]]
+    if wants_down:
+        parts.append(_sentence("downstream", down_names))
+        evidence += [{"id": n, "label": n, "assetFqn": n, "source": "system.access.table_lineage"} for n in down_names[:8]]
+    answer = " ".join(parts) + " Open the asset in Lineage Atlas to explore the full graph."
+    return {"answer": answer, "evidence": evidence, "warnings": []}
+
+
+def _first_evidence_number(evidence: Any) -> int | None:
+    if not isinstance(evidence, list):
+        return None
+    for item in evidence:
+        rows = item.get("resultRows") if isinstance(item, Mapping) else None
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, Mapping):
+                continue
+            for value in row.values():
+                try:
+                    text = str(value).strip().replace(",", "")
+                    if text and text.replace(".", "", 1).isdigit():
+                        return int(float(text))
+                except Exception:
+                    continue
+    return None
+
+
 def api_atlas_ai_recommendations(
     request: Request,
     body: AtlasAiQuestion | None = Body(default=None),
 ) -> JSONResponse:
-    from runtime_app import _config, _ensure_live_runtime, _request_obo_token, _store_for_read, _visible_assets
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token, _store, _store_for_read, _uc, _uc_for_request, _visible_assets
 
     _ensure_live_runtime()
     question = _normalize_str(body.question if body else "")
+    ai_context = getattr(body, "context", None) if body else None
+
+    # Authoritative local grounding runs BEFORE (and independent of) Genie:
+    # estate counts and lineage come from the same canonical data the UI
+    # renders, so the AI must answer them correctly even when Genie is
+    # degraded/unavailable (previously these were trapped inside the
+    # Genie-available branch and returned an empty answer — verifier BLOCK).
+    _early_ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+    _early_ground = None
+    if _early_ctx_fqn:
+        try:
+            _early_ground = _lineage_grounding(question, _early_ctx_fqn, [_uc_for_request(request), _uc()])
+        except Exception:
+            _early_ground = None
+    if _early_ground is None:
+        try:
+            _early_ground = _canonical_estate_grounding(
+                question, request, {}, visible_assets_fn=_visible_assets,
+                store_fn=lambda _req=None: _store(),
+            )
+        except Exception:
+            _early_ground = None
+    if _early_ground:
+        _ev = _early_ground.get("evidence")
+        _ev_list = _ev if isinstance(_ev, list) else ([_ev] if _ev else [])
+        return _wrap(
+            {
+                "question": question,
+                "intent": "governed-grounding",
+                "answer": _early_ground["answer"],
+                "evidence": _ev_list,
+                "recommendations": [],
+                "suggestedActions": [],
+                "confidence": "canonical-grounded",
+                "warnings": _early_ground.get("warnings", []),
+            },
+            request,
+            source="unity-catalog+governance-store (canonical)",
+            state="available",
+            authoritative=True,
+            capabilities={"provider": "canonical-grounding"},
+        )
+
     genie_warning = ""
     genie_status: dict = {"state": "degraded", "provider": "local"}
     try:
@@ -1567,24 +1896,64 @@ def api_atlas_ai_recommendations(
                         warnings=metadata_payload.get("warnings") or None,
                     )
             else:
+                context_preamble = _ai_context_preamble(ai_context)
+                genie_question = f"{context_preamble}{question}" if context_preamble else question
                 token_fragment = hashlib.sha256(forwarded_token.encode("utf-8")).hexdigest()[:12]
                 genie_cache_key = _route_cache_key(
                     "atlas_ai_recommendations",
                     genie_status.get("spaceId", ""),
                     token_fragment,
-                    question or "__default__",
+                    genie_question or "__default__",
                 )
                 cached_payload = _ttl_value(
                     genie_cache_key,
                     120,
                     lambda: genie_service.ask_genie(
                         config=cfg,
-                        question=question,
+                        question=genie_question,
                         user_access_token=forwarded_token,
                     ),
                 )
                 payload = dict(cached_payload or {})
+                # Keep the user-visible question, not the context-augmented prompt.
+                payload["question"] = question
                 payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+                # Canonical estate grounding: for aggregate count questions, ground
+                # the answer on the same numbers the Command Center shows so Atlas AI
+                # never contradicts the UI even when the Genie snapshot has drifted.
+                # Lineage grounding first: "what feeds/depends on this asset"
+                # is answered from real UC lineage, not the lineage-less Genie
+                # snapshot (which said "nothing feeds it" while the graph
+                # rendered upstream sources — verifier BLOCK).
+                lineage_ground = None
+                _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+                if _ctx_fqn:
+                    try:
+                        # OBO carries the actor's system.access.table_lineage
+                        # grant (how the lineage feature reads it); the app SP
+                        # is the fallback. Pass both — the grounding tries each.
+                        lineage_ground = _lineage_grounding(
+                            question, _ctx_fqn, [_uc_for_request(request), _uc()]
+                        )
+                    except Exception:
+                        lineage_ground = None
+                grounding = lineage_ground or _canonical_estate_grounding(
+                    question,
+                    request,
+                    payload,
+                    visible_assets_fn=_visible_assets,
+                    # The app store (same one the Command Center reads) — the
+                    # OBO _store_for_read returned change-requests unavailable,
+                    # so openRequests fell back to Genie (1) and contradicted
+                    # the UI's 2 (verifier BLOCK).
+                    store_fn=lambda _req=None: _store(),
+                )
+                if grounding:
+                    payload["answer"] = grounding["answer"]
+                    existing_evidence = payload.get("evidence") if isinstance(payload.get("evidence"), list) else []
+                    payload["evidence"] = [grounding["evidence"], *existing_evidence]
+                    payload["confidence"] = "canonical-grounded"
+                    payload_warnings = [*payload_warnings, *grounding["warnings"]]
                 has_evidence = bool(payload.get("evidence"))
                 if not payload.get("recommendations") and has_evidence:
                     recommendations = _recommendations_from_genie_evidence(payload.get("evidence") or [])

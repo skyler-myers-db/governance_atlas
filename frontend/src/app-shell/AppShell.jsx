@@ -24,6 +24,7 @@ import { useGovernanceSummary } from "../hooks/useGovernanceSummary";
 import { useInboxWork } from "../hooks/useInboxWork";
 import { workspaceAccessBanner } from "../lib/capabilities";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
+import { readLastAsset } from "../lib/prefs";
 import { resolveUrl } from "../nav/routes.js";
 import { usePeek } from "../nav/useAtlasNavigate.js";
 import { AtlasAiDock } from "./AtlasAiDock.jsx";
@@ -261,6 +262,11 @@ export function AppShell({ children }) {
       : accessBanner?.message || "";
   // Contextual Asset 360 rail entry: route focus first, then the peek.
   const contextAssetFqn = routeAssetFqn || peekFqn || "";
+  // No-context target for the PERMANENT Asset 360 entry (owner directive 1):
+  // the last record opened. Re-read on every navigation so leaving an asset
+  // page immediately arms the entry to reopen it. Falls back to the picker
+  // (bare /assets) inside the Rail when this is empty too.
+  const lastAssetFqn = useMemo(() => readLastAsset(), [location.pathname]);
 
   const contextValue = useMemo(
     () => ({ ...runtime, surface, routeAssetFqn, governanceSummary, inboxWork }),
@@ -372,6 +378,7 @@ export function AppShell({ children }) {
         <Rail
           activeSurface={surface}
           contextAssetFqn={contextAssetFqn}
+          lastAssetFqn={lastAssetFqn}
           myWorkBadgeCount={myWorkBadgeCount}
           shell={shell}
           shellDisabled={shellDisabled}
@@ -419,6 +426,7 @@ export function AppShell({ children }) {
         </main>
 
         <AtlasAiDock
+          assetFqn={contextAssetFqn}
           available={runtime.atlasAiAvailable}
           onOpenChange={setAiDockOpen}
           open={aiDockOpen}

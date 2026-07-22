@@ -289,6 +289,47 @@ describe("LineageCanvasV2", () => {
     expect(screen.getByTestId("rf-node-target-new")).toBeTruthy();
   });
 
+  // Type filters (owner direction #2a): the legend chips toggle node kinds
+  // and re-layout live; the direction segment scopes upstream/downstream.
+  const mixedGraph = {
+    focus: { id: "focus-a", fqn: "datapact.x.focus", isFocus: true, label: "focus" },
+    nodes: [
+      { id: "focus-a", fqn: "datapact.x.focus", label: "focus", kind: "table", isFocus: true, isOpenable: true },
+      { id: "up1", fqn: "datapact.x.upstream", label: "upstream", kind: "table", isOpenable: true },
+      { id: "job1", fqn: "datapact.x.job", label: "job", kind: "job", isOpenable: true },
+    ],
+    edges: [
+      { id: "e-up", source: "up1", target: "focus-a", isRestricted: false },
+      { id: "e-job", source: "focus-a", target: "job1", isRestricted: false },
+    ],
+    columnEdges: [],
+  };
+
+  it("hides a node kind when its legend chip is toggled off, then restores on reset", () => {
+    render(
+      <LineageCanvasV2 error="" focusId="datapact.x.focus" graph={mixedGraph} hydrating={false} onFocusChange={() => {}} />,
+    );
+    expect(screen.getByTestId("rf-node-job1")).toBeTruthy();
+    fireEvent.click(screen.getByTitle(/Hide Job nodes/i));
+    expect(screen.queryByTestId("rf-node-job1")).toBeNull();
+    // Focus + the still-enabled upstream survive.
+    expect(screen.getByTestId("rf-node-focus-a")).toBeTruthy();
+    expect(screen.getByTestId("rf-node-up1")).toBeTruthy();
+    fireEvent.click(screen.getByText("Reset"));
+    expect(screen.getByTestId("rf-node-job1")).toBeTruthy();
+  });
+
+  it("scopes to upstream when the Upstream direction is selected", () => {
+    render(
+      <LineageCanvasV2 error="" focusId="datapact.x.focus" graph={mixedGraph} hydrating={false} onFocusChange={() => {}} />,
+    );
+    fireEvent.click(screen.getByTitle("Show upstream assets"));
+    // Downstream job drops; upstream + focus stay.
+    expect(screen.queryByTestId("rf-node-job1")).toBeNull();
+    expect(screen.getByTestId("rf-node-up1")).toBeTruthy();
+    expect(screen.getByTestId("rf-node-focus-a")).toBeTruthy();
+  });
+
   it("DOES call onFocusChange when clicking the focus node — selection state, not refetch", () => {
     // Click is now a client-side selection event. The handler can fire
     // even on the URL-focus node so the user can re-select it after

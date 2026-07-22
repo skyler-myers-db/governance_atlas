@@ -692,8 +692,10 @@ def api_patch_asset_owners(
         _governance_summary,
         _http_request_id,
         _store,
+        _uc,
         _user_role_slug,
     )
+    from atlas.services import identity_roster
 
     _ensure_live_runtime()
     actor_email = _ensure_can_mutate(request)
@@ -701,6 +703,16 @@ def api_patch_asset_owners(
     store = _store()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    # Identity integrity: every steward/owner must be a real workspace member.
+    # Reject fabricated principals before they reach the store (fail-open when
+    # the roster API is unavailable — see identity_roster.validate_principal).
+    for owner in payload.owners:
+        try:
+            identity_roster.validate_principal(
+                _uc(), owner.ownerEmail, field="ownerEmail"
+            )
+        except identity_roster.PrincipalNotInWorkspaceError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     governance_service.patch_asset_owners(
         store,
         asset_fqn=asset_fqn,

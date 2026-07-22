@@ -99,6 +99,36 @@
   filter: saturate(0.6);
 }
 
+/* ---------- Kind-colored accents (owner direction #3) ----------
+   Accent color is keyed off data-node-kind on the card and consumed by the
+   glyph tile, the kicker, and a left accent rail. Values are translucent
+   rgba() derivations of the --ga-* palette tokens (raw hex is not allowed
+   in this stylesheet); the solid token drives the glyph border + kicker. */
+.ga-lineage-v2-card { --ga-card-accent: var(--ga-bright-blue); --ga-card-accent-soft: rgba(102, 197, 255, 0.12); }
+.ga-lineage-v2-card[data-node-kind="table"]   { --ga-card-accent: var(--ga-bright-blue); --ga-card-accent-soft: rgba(102, 197, 255, 0.12); }
+.ga-lineage-v2-card[data-node-kind="volume"]  { --ga-card-accent: var(--ga-bright-blue); --ga-card-accent-soft: rgba(102, 197, 255, 0.12); }
+.ga-lineage-v2-card[data-node-kind="pipeline"]{ --ga-card-accent: var(--ga-teal); --ga-card-accent-soft: rgba(92, 225, 230, 0.12); }
+.ga-lineage-v2-card[data-node-kind="job"]     { --ga-card-accent: var(--ga-teal); --ga-card-accent-soft: rgba(92, 225, 230, 0.12); }
+.ga-lineage-v2-card[data-node-kind="notebook"]{ --ga-card-accent: var(--ga-warning); --ga-card-accent-soft: rgba(255, 181, 71, 0.12); }
+.ga-lineage-v2-card[data-node-kind="restricted"]{ --ga-card-accent: var(--ga-warning); --ga-card-accent-soft: rgba(255, 181, 71, 0.12); }
+.ga-lineage-v2-card[data-node-kind="dashboard"]{ --ga-card-accent: var(--ga-bright-blue); --ga-card-accent-soft: rgba(102, 197, 255, 0.12); }
+.ga-lineage-v2-card[data-node-kind="model"]   { --ga-card-accent: var(--ga-success); --ga-card-accent-soft: rgba(46, 230, 166, 0.12); }
+.ga-lineage-v2-card[data-node-kind="saved-query"]{ --ga-card-accent: var(--ga-teal); --ga-card-accent-soft: rgba(92, 225, 230, 0.12); }
+.ga-lineage-v2-card[data-node-kind="udf"]     { --ga-card-accent: var(--ga-gray); --ga-card-accent-soft: rgba(178, 189, 194, 0.12); }
+
+/* Left accent rail keyed to the node kind — the strongest kind cue. */
+.ga-lineage-v2-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ga-card-accent);
+  opacity: 0.85;
+}
+
 /* ---------- Card head ---------- */
 .ga-lineage-v2-card-head {
   display: grid;
@@ -113,8 +143,9 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  border: 1px solid currentColor;
-  background: rgba(102, 197, 255, 0.10);
+  border: 1px solid var(--ga-card-accent);
+  color: var(--ga-card-accent);
+  background: var(--ga-card-accent-soft);
 }
 .ga-lineage-v2-card-glyph svg {
   display: block;
@@ -131,7 +162,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ga-bright-blue);
+  color: var(--ga-card-accent);
   line-height: 1;
   margin-bottom: 1px;
 }
@@ -290,6 +321,61 @@
   padding-top: 2px;
 }
 
+/* ---------- Node action strip (Open in Asset 360 / Databricks) ----------
+   Owner direction #2c. Revealed on hover / keyboard focus-within so the card
+   stays calm at rest but exposes the affordances the moment the user engages.
+   Always in the DOM (focusable) — never a hidden-then-injected control. */
+.ga-lineage-v2-card-actions {
+  display: flex;
+  gap: 6px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  transition:
+    max-height 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ga-lineage-v2-card:hover .ga-lineage-v2-card-actions,
+.ga-lineage-v2-card:focus-within .ga-lineage-v2-card-actions,
+.ga-lineage-v2-card.is-focus .ga-lineage-v2-card-actions,
+.ga-lineage-v2-card.is-selected .ga-lineage-v2-card-actions {
+  max-height: 34px;
+  opacity: 1;
+  margin-top: 2px;
+}
+.ga-lineage-v2-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(102, 197, 255, 0.32);
+  background: rgba(102, 197, 255, 0.10);
+  color: var(--ga-bright-blue);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.ga-lineage-v2-card-action:hover {
+  background: rgba(102, 197, 255, 0.20);
+  border-color: rgba(102, 197, 255, 0.55);
+  color: var(--ga-white);
+}
+.ga-lineage-v2-card-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
+}
+.ga-lineage-v2-card-action svg { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .ga-lineage-v2-card-actions { transition: none; }
+}
+
 /* ==========================================================================
    LineageCanvasV2 chrome — host wrapper, hydrating banner, state cards,
    React Flow controls override.
@@ -435,6 +521,224 @@
 .ga-lineage-v2-canvas .react-flow__background {
   background: transparent !important;
 }
+
+/* ==========================================================================
+   Filter + legend bar (owner direction #2a + #3). Docked top-left inside the
+   canvas; the direction segment scopes upstream/downstream, the kind chips
+   double as the legend (color swatch + count) and toggle node visibility.
+   ========================================================================== */
+.ga-lineage-v2-legend {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 52px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(31, 63, 95, 0.9);
+  background: rgba(8, 23, 42, 0.86);
+  backdrop-filter: blur(6px);
+}
+.ga-lineage-v2-legend-directions {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(5, 14, 24, 0.6);
+  border: 1px solid rgba(31, 63, 95, 0.7);
+}
+.ga-lineage-v2-legend-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ga-text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.ga-lineage-v2-legend-dir:hover { background: rgba(102, 197, 255, 0.10); color: var(--ga-text); }
+.ga-lineage-v2-legend-dir:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ga-focus); }
+.ga-lineage-v2-legend-dir.is-active { background: rgba(102, 197, 255, 0.18); color: var(--ga-white); }
+.ga-lineage-v2-legend-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.ga-lineage-v2-legend-chip {
+  --ga-card-accent: var(--ga-bright-blue);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 63, 95, 0.9);
+  background: rgba(5, 14, 24, 0.5);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 640;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+.ga-lineage-v2-legend-chip[data-node-kind="pipeline"],
+.ga-lineage-v2-legend-chip[data-node-kind="job"],
+.ga-lineage-v2-legend-chip[data-node-kind="saved-query"] { --ga-card-accent: var(--ga-teal); }
+.ga-lineage-v2-legend-chip[data-node-kind="notebook"],
+.ga-lineage-v2-legend-chip[data-node-kind="restricted"] { --ga-card-accent: var(--ga-warning); }
+.ga-lineage-v2-legend-chip[data-node-kind="model"] { --ga-card-accent: var(--ga-success); }
+.ga-lineage-v2-legend-chip[data-node-kind="udf"] { --ga-card-accent: var(--ga-gray); }
+.ga-lineage-v2-legend-chip:hover { border-color: var(--ga-card-accent); background: rgba(102, 197, 255, 0.08); }
+.ga-lineage-v2-legend-chip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ga-focus); }
+.ga-lineage-v2-legend-chip.is-off { opacity: 0.42; }
+.ga-lineage-v2-legend-chip.is-off .ga-lineage-v2-legend-swatch { background: var(--ga-text-muted); }
+.ga-lineage-v2-legend-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--ga-card-accent);
+}
+.ga-lineage-v2-legend-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(102, 197, 255, 0.14);
+  color: var(--ga-bright-blue);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.ga-lineage-v2-legend-reset {
+  border: 0;
+  background: transparent;
+  color: var(--ga-text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ga-lineage-v2-legend-reset:hover { color: var(--ga-bright-blue); }
+.ga-lineage-v2-legend-reset:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ga-focus); border-radius: 4px; }
+
+/* Filtered-to-empty overlay (still an honest state, not a data-empty state). */
+.ga-lineage-v2-filter-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 32px;
+  color: var(--ga-text-muted);
+  background: rgba(5, 14, 24, 0.55);
+}
+.ga-lineage-v2-filter-empty strong { color: var(--ga-white); font-size: 15px; }
+.ga-lineage-v2-filter-empty span { font-size: 12.5px; }
+.ga-lineage-v2-secondary-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.12);
+  color: var(--ga-bright-blue);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.ga-lineage-v2-secondary-btn:hover {
+  background: rgba(102, 197, 255, 0.2);
+  border-color: rgba(102, 197, 255, 0.6);
+  color: var(--ga-white);
+}
+.ga-lineage-v2-secondary-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
+}
+
+/* ==========================================================================
+   Graph-shaped loading skeleton (owner direction #4).
+   ========================================================================== */
+.ga-lineage-v2-skeleton {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: 100%;
+}
+.ga-lineage-v2-skeleton-stage {
+  position: relative;
+  width: min(520px, 80%);
+  height: 200px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+}
+.ga-lineage-v2-skeleton-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.ga-lineage-v2-skeleton-edges path {
+  fill: none;
+  stroke: rgba(102, 197, 255, 0.3);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.ga-lineage-v2-skeleton-col {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+.ga-lineage-v2-skeleton-col.is-downstream { justify-items: end; }
+.ga-lineage-v2-skeleton-col.is-upstream { justify-items: start; }
+.ga-lineage-v2-skeleton-card {
+  width: 120px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(31, 63, 95, 0.9);
+  background:
+    linear-gradient(100deg, rgba(17, 44, 72, 0.5) 30%, rgba(102, 197, 255, 0.18) 50%, rgba(17, 44, 72, 0.5) 70%);
+  background-size: 200% 100%;
+  animation: ga-lineage-v2-shimmer 1.4s ease-in-out infinite;
+}
+.ga-lineage-v2-skeleton-card.is-focus {
+  width: 132px;
+  height: 52px;
+  border-color: rgba(102, 197, 255, 0.5);
+}
+.ga-lineage-v2-skeleton-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+}
+@keyframes ga-lineage-v2-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-lineage-v2-skeleton-card { animation: none; }
+}
+.ga-lineage-v2-canvas-state-skeleton { gap: 16px; }
 
 /* ==========================================================================
    LineageWorkspace v2 chrome — hero, workbench layout, details rail

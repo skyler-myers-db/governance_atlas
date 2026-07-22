@@ -18,6 +18,7 @@ import { useLegacyNavAdapters } from "./legacyAdapters.js";
 
 const DiscoveryPage = lazy(() => import("../surfaces/discovery/DiscoveryPage.jsx"));
 const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
+const AssetPickerPage = lazy(() => import("../surfaces/asset/AssetPickerPage.jsx"));
 const LineagePage = lazy(() => import("../surfaces/lineage/LineagePage.jsx"));
 const StewardshipPage = lazy(() => import("../surfaces/stewardship/StewardshipPage.jsx"));
 const EvidencePage = lazy(() => import("../surfaces/evidence/EvidencePage.jsx"));
@@ -119,6 +120,18 @@ const LEGACY_ASSET_TAB_KEYS = {
   access: "access",
   activity: "activity",
 };
+
+// Bare /assets — the search-first Asset 360 picker (owner directive 1). The
+// permanent rail entry lands here when no asset is in context or remembered.
+function AssetPickerRoute() {
+  return (
+    <Suspense
+      fallback={<RouteFallback eyebrow="Loading Asset 360" message="Preparing the asset picker." />}
+    >
+      <AssetPickerPage />
+    </Suspense>
+  );
+}
 
 function AssetHubRoute() {
   const location = useLocation();
@@ -323,6 +336,7 @@ export function SurfaceRoutes() {
     <Routes>
       <Route element={<HomeRoute />} path="/home" />
       <Route element={<DiscoveryRoute />} path="/discovery" />
+      <Route element={<AssetPickerRoute />} path="/assets" />
       <Route element={<AssetHubRoute />} path="/assets/*" />
       <Route element={<StewardshipRoute />} path="/stewardship" />
       <Route element={<GlossaryRoute />} path="/glossary/*" />

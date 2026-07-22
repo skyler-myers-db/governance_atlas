@@ -476,10 +476,13 @@ def api_governance_patch_request(
         _invalidate_asset_caches,
         _record_metadata_audit,
         _store,
+        _uc,
+        _uc_for_request,
         _user_role_slug,
     )
     from atlas.api.assets import AssetMetadataPatch
     from atlas.services import approvals as approval_service
+    from atlas.services import identity_roster
 
     _ensure_live_runtime()
     actor_email = _ensure_can_approve(request)
@@ -504,6 +507,18 @@ def api_governance_patch_request(
             status_code=400,
             detail="status must be pending, approved, rejected, resolved, or closed.",
         )
+    # Identity integrity: a triage assignee must be a real workspace member.
+    # "" means "leave unchanged" and is never validated. Fail-open on degraded
+    # roster (see identity_roster.validate_principal).
+    assignee_value = _normalize_str(payload.assignee).lower()
+    if assignee_value:
+        try:
+            identity_roster.validate_principal(
+                _uc_for_request(request), assignee_value, field="assignee",
+                fallback_uc=_uc(), actor_email=actor_email,
+            )
+        except identity_roster.PrincipalNotInWorkspaceError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     # Approve/reject is steward/admin-only. Pending-status updates stay
     # open to the proposer so a writer can withdraw their own request.
     if status in {"approved", "rejected"} and not approval_service.role_can_decide(
@@ -650,9 +665,13 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
         _ensure_can_mutate,
         _ensure_live_runtime,
         _governance_summary,
+        _http_request_id,
         _store,
+        _uc,
+        _uc_for_request,
         _user_role_slug,
     )
+    from atlas.services import identity_roster
 
     _ensure_live_runtime()
     actor_email = _ensure_can_mutate(request)
@@ -678,6 +697,12 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
         raise HTTPException(
             status_code=400, detail="assetFqn and ownerEmail are required."
         )
+    # Identity integrity: only real workspace members can be linked as owners /
+    # stewards. Fail-open when the roster API is degraded.
+    try:
+        identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc(), actor_email=actor_email)
+    except identity_roster.PrincipalNotInWorkspaceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     governance_service.add_owner(
@@ -696,6 +721,55 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
             "governance": _governance_summary(request),
         }
     )
+
+
+def api_identity_workspace_roster(request: Request) -> JSONResponse:
+    """Ground-truth roster of real workspace members for owner/steward pickers.
+
+    Steward/admin gated — it enumerates account principals. Returns the cached
+    roster snapshot (``available: false`` when the SCIM API is degraded so the
+    caller can fall back to free-text without pretending the list is complete).
+    """
+    from runtime_app import (
+        _ensure_can_approve,
+        _ensure_live_runtime,
+        _uc,
+        _uc_for_request,
+    )
+    from atlas.services import identity_roster
+
+    _ensure_live_runtime()
+    _ensure_can_approve(request)
+    return JSONResponse(identity_roster.roster_payload(_uc_for_request(request), fallback_uc=_uc()))
+
+
+def _validate_glossary_principals(payload: GlossaryTermUpsert) -> None:
+    """Reject a glossary owner / reviewer roster that references fabricated
+    principals. Fail-open on a degraded roster. Called by both the create and
+    patch glossary paths so the identity-integrity rule holds on every write.
+    """
+    from runtime_app import _uc
+    from atlas.services import identity_roster
+
+    owner_email = _normalize_str(payload.ownerEmail).lower()
+    if owner_email:
+        try:
+            identity_roster.validate_principal(_uc_for_request(request), owner_email, field="ownerEmail", fallback_uc=_uc(), actor_email=actor_email)
+        except identity_roster.PrincipalNotInWorkspaceError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    for entry in payload.reviewers or []:
+        reviewer_email = _normalize_str(
+            entry.get("reviewerEmail") if isinstance(entry, dict) else ""
+        ).lower()
+        if not reviewer_email:
+            continue
+        try:
+            identity_roster.validate_principal(
+                _uc_for_request(request), reviewer_email, field="reviewer",
+                fallback_uc=_uc(), actor_email=_user_email(request),
+            )
+        except identity_roster.PrincipalNotInWorkspaceError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def api_governance_upsert_glossary(
@@ -724,6 +798,7 @@ def api_governance_upsert_glossary(
     status = governance_service.normalize_glossary_term_status(payload.status)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
+    _validate_glossary_principals(payload)
     version = governance_service.upsert_glossary_term(
         term_id=term_id,
         name=name,
@@ -776,6 +851,7 @@ def api_governance_patch_glossary(
     name = _normalize_str(payload.name)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
+    _validate_glossary_principals(payload)
     version = governance_service.upsert_glossary_term(
         term_id=normalized_term_id,
         name=name,
@@ -876,5 +952,12 @@ def build_governance_router() -> APIRouter:
         methods=["PATCH"],
         response_class=JSONResponse,
         name="api_governance_patch_glossary",
+    )
+    router.add_api_route(
+        "/api/identity/workspace-roster",
+        api_identity_workspace_roster,
+        methods=["GET"],
+        response_class=JSONResponse,
+        name="api_identity_workspace_roster",
     )
     return router

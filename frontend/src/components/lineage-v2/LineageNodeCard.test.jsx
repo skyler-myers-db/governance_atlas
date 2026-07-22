@@ -143,4 +143,43 @@ describe("LineageNodeCard", () => {
     expect(card?.classList.contains("is-focus")).toBe(true);
     expect(card?.getAttribute("aria-current")).toBe("true");
   });
+
+  // Node-level affordances (owner direction #2c).
+  it("renders Asset 360 + Databricks affordances for a navigable node", () => {
+    const onOpenAsset = vi.fn();
+    render(
+      <LineageNodeCard
+        databricksHref="https://dbc-x.cloud.databricks.com/explore/data/datapact/curated/revenue_daily"
+        node={baseNode}
+        onClick={() => {}}
+        onOpenAsset={onOpenAsset}
+      />,
+    );
+    fireEvent.click(screen.getByText("Asset 360"));
+    expect(onOpenAsset).toHaveBeenCalledWith("datapact.curated.revenue_daily");
+    const dbx = screen.getByText("Databricks").closest("a");
+    expect(dbx?.getAttribute("href")).toContain("/explore/data/datapact/curated/revenue_daily");
+    expect(dbx?.getAttribute("target")).toBe("_blank");
+  });
+
+  it("clicking a node action does NOT trigger card selection", () => {
+    const onClick = vi.fn();
+    const onOpenAsset = vi.fn();
+    render(<LineageNodeCard node={baseNode} onClick={onClick} onOpenAsset={onOpenAsset} />);
+    fireEvent.click(screen.getByText("Asset 360"));
+    expect(onOpenAsset).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("omits the Databricks affordance when no deep link is available", () => {
+    render(<LineageNodeCard node={baseNode} onClick={() => {}} onOpenAsset={() => {}} />);
+    expect(screen.queryByText("Databricks")).toBeNull();
+    expect(screen.getByText("Asset 360")).toBeTruthy();
+  });
+
+  it("shows no action strip for a non-navigable (lineage-only) node", () => {
+    const lineageOnly = { ...baseNode, isOpenable: false };
+    render(<LineageNodeCard node={lineageOnly} onClick={() => {}} onOpenAsset={() => {}} />);
+    expect(screen.queryByText("Asset 360")).toBeNull();
+  });
 });

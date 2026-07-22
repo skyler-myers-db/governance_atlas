@@ -27,7 +27,13 @@ import { useSurfaceParams } from "../../nav/useSurfaceParams";
 import { LineageDetailRail } from "./LineageDetailRail.jsx";
 import { LineagePicker } from "./LineagePicker.jsx";
 import { LineageRecommendations } from "./LineageRecommendations.jsx";
-import { downloadImpactPacket, isUcAssetFqn, relativeFreshness } from "./lineagePresentation.js";
+import {
+  downloadImpactPacket,
+  isUcAssetFqn,
+  relativeFreshness,
+  workspaceHostFromBootstrap,
+} from "./lineagePresentation.js";
+import { pushRecentLineage } from "../../lib/prefs";
 
 /*
  * surfaces/lineage/LineagePage.jsx — the Lineage Atlas surface (Wave C7).
@@ -157,6 +163,7 @@ function LineageFocusPage({
 }) {
   const navigate = useAtlasNavigate();
   const [params, setParams] = useSurfaceParams(FOCUS_PARAMS_SCHEMA);
+  const workspaceHost = workspaceHostFromBootstrap(bootstrap);
   const [selectedColumn, setSelectedColumn] = useState(null);
   const [impactRequestState, setImpactRequestState] = useState({
     loading: false,
@@ -298,6 +305,15 @@ function LineageFocusPage({
     setSelectedColumn(null);
     setImpactRequestState({ loading: false, message: "", error: "" });
   }, [fqn]);
+
+  // Record the opened lineage journey once the graph resolves with real nodes
+  // (prefs-backed "recent journeys" strip on the picker). Gate on a populated
+  // graph so a dead/gated FQN never pollutes the recents list.
+  useEffect(() => {
+    if (fqn && isUcAssetFqn(fqn) && graph.nodes.length > 0) {
+      pushRecentLineage(fqn);
+    }
+  }, [fqn, graph.nodes.length]);
 
   // Track whether we've ever shown a populated canvas this session (see
   // canvasEverRendered above). CRITICAL: this hook MUST run on every render
@@ -517,11 +533,13 @@ function LineageFocusPage({
               nodeHeaders={canvasNodeHeaders}
               onColumnSelect={handleColumnSelect}
               onFocusChange={handleNodeSelect}
+              onOpenAsset={handleOpenAsset}
               onRenderedGraphChange={setRenderedGraphStats}
               onRetry={graph.refresh}
               selectedColumn={selectedColumn}
               selectedNodeFqn={selectedNodeFqn}
               warming={graph.warming}
+              workspaceHost={workspaceHost}
             />
           </div>
           <LineageDetailRail

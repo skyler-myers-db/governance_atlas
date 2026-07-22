@@ -11,15 +11,20 @@
  * old drawer behavior), surface chips navigate(surfaceRef).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AtlasAiMark } from "../components/northstar/AtlasAiPanel";
 import { MarkdownBlock } from "../components/primitives/MarkdownBlock";
 import { useAtlasAiConversation } from "../hooks/useAtlasAiConversation";
+import { readPref, writePref } from "../lib/prefs.js";
 import { useAtlasNavigate, usePeek } from "../nav/useAtlasNavigate.js";
 
 const AI_CHAT_SIZE = { width: 360, height: 432 };
 const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
+// Resize bounds. Min keeps the transcript + input usable; max is clamped again
+// to the viewport at drag time so the dock can never exceed the visible area.
+const AI_CHAT_MIN = { width: 320, height: 360 };
+const AI_CHAT_MAX = { width: 720, height: 960 };
 
 // Per-surface grounding copy + suggested prompts, keyed by the NEW surface
 // ids (nav/routes.js). Content is unchanged from AppFrame's AI_ROUTE_COPY —
@@ -112,6 +117,32 @@ const DEFAULT_AI_ROUTE_COPY = AI_ROUTE_COPY.home;
 
 function resolveAiRouteCopy(surface) {
   return AI_ROUTE_COPY[surface] || DEFAULT_AI_ROUTE_COPY;
+}
+
+function assetShortName(assetFqn) {
+  const text = String(assetFqn || "").trim();
+  if (!text) return "";
+  const parts = text.split(".");
+  return parts[parts.length - 1] || text;
+}
+
+// Per-ASSET prompts: when the user is on an asset page (or has one peeked),
+// the suggestions name that specific table so the click is unmistakably about
+// what they're looking at. The backend also receives the FQN as context, so
+// "this asset" resolves server-side even for a free-typed question.
+function assetPromptsFor(assetFqn) {
+  const name = assetShortName(assetFqn);
+  if (!name) return null;
+  return {
+    emptyLive: `Ask about ${name} — ownership, certification, upstream sources, quality, and governance evidence. I read Unity Catalog metadata only — no customer or PII row content.`,
+    placeholder: `Ask about ${name}...`,
+    prompts: [
+      `Who owns ${name} and is it certified?`,
+      `What feeds ${name} and what is downstream?`,
+      `What governance evidence and open work exist for ${name}?`,
+      `Which quality or schema signals on ${name} need review?`,
+    ],
+  };
 }
 
 function defaultAiChatPosition() {
@@ -376,6 +407,7 @@ function AtlasAiMessageList({ messages = [], onOpenEvidence, emptyMessage }) {
 // the header's Atlas AI chip opens the dock too.
 export function AtlasAiDock({
   surface = "home",
+  assetFqn = "",
   available = false,
   unavailableReason = "",
   open = false,
@@ -386,20 +418,56 @@ export function AtlasAiDock({
 
   const setOpen = onOpenChange;
   const [position, setPosition] = useState(() => defaultAiChatPosition());
+  // Persisted user size + maximize state (lib/prefs.js). width/height 0 means
+  // "use the default size"; the dock stores the chosen size after a resize.
+  const [size, setSize] = useState(() => {
+    const stored = readPref("aiDockLayout");
+    return { width: stored.width || 0, height: stored.height || 0 };
+  });
+  const [maximized, setMaximized] = useState(() => Boolean(readPref("aiDockLayout").maximized));
   const [infoOpen, setInfoOpen] = useState(false);
   const [evidenceDetail, setEvidenceDetail] = useState(null);
   const chatRef = useRef(null);
   const inputRef = useRef(null);
   const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+
+  // Page-awareness context sent with every question so the backend can resolve
+  // "this asset"/"this page" to a concrete entity. Recomputed as the user
+  // navigates; memoized so the ask callbacks get a stable reference per surface.
+  const aiContext = useMemo(
+    () => ({ surface, assetFqn: String(assetFqn || "").trim() }),
+    [surface, assetFqn],
+  );
   const aiChat = useAtlasAiConversation();
 
-  const routeCopy = resolveAiRouteCopy(surface);
+  // On an asset page (or with a peeked asset), suggestions name that specific
+  // table; otherwise fall back to the per-surface copy.
+  const assetCopy = surface === "assets" || assetFqn ? assetPromptsFor(assetFqn) : null;
+  const routeCopy = assetCopy || resolveAiRouteCopy(surface);
   const prompts = routeCopy.prompts || DEFAULT_AI_ROUTE_COPY.prompts;
   const groundingLine = available
     ? "Grounded in Unity Catalog metadata only - no customer or PII row content"
     : "Unavailable until an evidence-backed Atlas AI endpoint is configured";
   const emptyMessage = available ? routeCopy.emptyLive : unavailableReason;
   const placeholder = routeCopy.placeholder || DEFAULT_AI_ROUTE_COPY.placeholder;
+
+  const askWithContext = useCallback(
+    (prompt) => {
+      setEvidenceDetail(null);
+      void aiChat.ask(prompt, aiContext);
+    },
+    [aiChat, aiContext],
+  );
+
+  // Persist size + maximize whenever they change so the dock restores on reopen.
+  useEffect(() => {
+    writePref("aiDockLayout", { width: size.width, height: size.height, maximized });
+  }, [size.width, size.height, maximized]);
+
+  const toggleMaximize = useCallback(() => {
+    setMaximized((current) => !current);
+  }, []);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -505,6 +573,37 @@ export function AtlasAiDock({
     };
   }, []);
 
+  // Corner-handle resize. Clamps to [AI_CHAT_MIN, AI_CHAT_MAX] and to whatever
+  // the viewport allows from the dock's current top/left, so the dock can never
+  // grow off-screen. A resize implicitly exits the maximized state.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onPointerMove = (event) => {
+      const start = resizeRef.current;
+      if (!start) return;
+      const maxViewportW = Math.max(AI_CHAT_MIN.width, window.innerWidth - position.left - 12);
+      const maxViewportH = Math.max(AI_CHAT_MIN.height, window.innerHeight - position.top - 12);
+      const nextWidth = Math.min(
+        Math.min(AI_CHAT_MAX.width, maxViewportW),
+        Math.max(AI_CHAT_MIN.width, start.width + event.clientX - start.x),
+      );
+      const nextHeight = Math.min(
+        Math.min(AI_CHAT_MAX.height, maxViewportH),
+        Math.max(AI_CHAT_MIN.height, start.height + event.clientY - start.y),
+      );
+      setSize({ width: Math.round(nextWidth), height: Math.round(nextHeight) });
+    };
+    const onPointerUp = () => {
+      resizeRef.current = null;
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [position.left, position.top]);
+
   useEffect(() => {
     if (!open || typeof window === "undefined" || typeof ResizeObserver === "undefined") {
       return undefined;
@@ -525,6 +624,26 @@ export function AtlasAiDock({
       observer.disconnect();
     };
   }, [open]);
+
+  // Rendered box. Maximized pins to a near-fullscreen panel on the right;
+  // otherwise the persisted size (or the responsive default) at the dragged
+  // position. Explicit width/height make the persisted resize visible.
+  const viewportW = typeof window !== "undefined" ? window.innerWidth : 1440;
+  const viewportH = typeof window !== "undefined" ? window.innerHeight : 900;
+  const defaultSize = viewportW >= 2200 ? AI_CHAT_WIDE_SIZE : AI_CHAT_SIZE;
+  let dockBox;
+  if (maximized) {
+    const width = Math.min(AI_CHAT_MAX.width, viewportW - 24);
+    const height = Math.min(AI_CHAT_MAX.height, viewportH - 100);
+    dockBox = { left: Math.max(12, viewportW - width - 12), top: 82, width, height };
+  } else {
+    dockBox = {
+      left: position.left,
+      top: position.top,
+      width: size.width || defaultSize.width,
+      height: size.height || defaultSize.height,
+    };
+  }
 
   return (
     <>
@@ -549,10 +668,16 @@ export function AtlasAiDock({
         <section
           aria-label="Atlas AI"
           aria-modal="false"
-          className="ga-ai-dock"
+          className={`ga-ai-dock${maximized ? " is-maximized" : ""}`}
+          data-ai-maximized={maximized ? "true" : "false"}
           ref={chatRef}
           role="dialog"
-          style={{ left: `${position.left}px`, top: `${position.top}px` }}
+          style={{
+            left: `${dockBox.left}px`,
+            top: `${dockBox.top}px`,
+            width: `${dockBox.width}px`,
+            height: `${dockBox.height}px`,
+          }}
         >
           <header
             className="ga-ai-dock-header"
@@ -578,9 +703,32 @@ export function AtlasAiDock({
                 <em>{groundingLine}</em>
               </span>
             </div>
-            <button aria-label="Close Atlas AI" onClick={close} type="button">
-              x
-            </button>
+            <div className="ga-ai-dock-header-actions">
+              <button
+                aria-label={maximized ? "Restore Atlas AI size" : "Maximize Atlas AI"}
+                aria-pressed={maximized}
+                className="ga-ai-dock-icon-btn"
+                onClick={toggleMaximize}
+                title={maximized ? "Restore" : "Maximize"}
+                type="button"
+              >
+                {maximized ? (
+                  <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3.5" y="5.5" width="7" height="7" rx="1" />
+                    <path d="M6 5.5V4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1.5" />
+                  </svg>
+                ) : (
+                  <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="3" width="10" height="10" rx="1" />
+                  </svg>
+                )}
+              </button>
+              <button aria-label="Close Atlas AI" className="ga-ai-dock-icon-btn" onClick={close} type="button">
+                <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+              </button>
+            </div>
           </header>
           <div className="ga-ai-dock-body">
             <div aria-live="polite" className="ga-ai-dock-transcript">
@@ -600,8 +748,7 @@ export function AtlasAiDock({
                     key={prompt}
                     onClick={() => {
                       if (!available) return;
-                      setEvidenceDetail(null);
-                      void aiChat.ask(prompt);
+                      askWithContext(prompt);
                     }}
                     title={
                       !available
@@ -626,8 +773,7 @@ export function AtlasAiDock({
             onSubmit={(event) => {
               event.preventDefault();
               if (!available) return;
-              setEvidenceDetail(null);
-              void aiChat.ask(aiChat.draft);
+              askWithContext(aiChat.draft);
             }}
           >
             <input
@@ -678,6 +824,28 @@ export function AtlasAiDock({
               Atlas AI answers are grounded in available governance metadata and should be reviewed before action.
             </p>
           ) : null}
+          {maximized ? null : (
+            <div
+              aria-hidden="true"
+              className="ga-ai-dock-resize"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                resizeRef.current = {
+                  x: event.clientX,
+                  y: event.clientY,
+                  width: dockBox.width,
+                  height: dockBox.height,
+                };
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+              }}
+              title="Drag to resize"
+            >
+              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                <path d="M11 5 5 11M11 9l-2 2" />
+              </svg>
+            </div>
+          )}
         </section>
       ) : null}
     </>

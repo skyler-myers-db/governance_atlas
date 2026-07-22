@@ -45,6 +45,86 @@ _LINEAGE_RECOMMENDATIONS_TTL_S = 180
 _LINEAGE_RECOMMENDATIONS_FAILED_TTL_S = 60
 
 
+# How many of the top recommended assets to warm the full lineage build for
+# after the recommendations warm completes, and how many to build at once. A
+# small pool keeps concurrent system.access.table_lineage load bounded while
+# still collapsing 10 serial ~12s builds into a few waves.
+_LINEAGE_WARM_AHEAD_COUNT = 10
+_LINEAGE_WARM_AHEAD_WORKERS = 3
+_LINEAGE_WARM_AHEAD_INFLIGHT: set[str] = set()
+_LINEAGE_WARM_AHEAD_GUARD = threading.Lock()
+
+
+def _warm_recommended_lineage_ahead(
+    request_uc,
+    store,
+    system_uc,
+    cache_scope: str,
+    recommendations_payload,
+) -> None:
+    """Pre-warm full lineage for the top-N recommended assets.
+
+    Best-effort and self-guarded: each FQN warms at most once concurrently, and
+    an already-fresh full-lineage cache short-circuits the build inside
+    lineage_payload. Failures are logged, never raised — this is background
+    warming, not a request path.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    try:
+        items = list((recommendations_payload or {}).get("items") or [])
+    except Exception:
+        return
+    fqns: list[str] = []
+    for item in items[:_LINEAGE_WARM_AHEAD_COUNT]:
+        fqn = ""
+        if isinstance(item, dict):
+            fqn = str(item.get("fqn") or item.get("assetFqn") or "").strip()
+        if fqn and fqn not in fqns:
+            fqns.append(fqn)
+    if not fqns:
+        return
+
+    def _warm_one(fqn: str) -> None:
+        key = lineage_service.lineage_cache_key(
+            request_uc,
+            fqn,
+            cache_scope=cache_scope,
+            profile=lineage_service.LINEAGE_PROFILE_FULL,
+        )
+        with _LINEAGE_WARM_AHEAD_GUARD:
+            if key in _LINEAGE_WARM_AHEAD_INFLIGHT:
+                return
+            _LINEAGE_WARM_AHEAD_INFLIGHT.add(key)
+        try:
+            lineage_service.lineage_payload(
+                request_uc,
+                store,
+                fqn,
+                cache_scope=cache_scope,
+                system_uc=system_uc,
+                profile=lineage_service.LINEAGE_PROFILE_FULL,
+            )
+        except Exception:
+            _LINEAGE_LOGGER.warning(
+                "lineage warm-ahead failed for %s", fqn, exc_info=True
+            )
+        finally:
+            with _LINEAGE_WARM_AHEAD_GUARD:
+                _LINEAGE_WARM_AHEAD_INFLIGHT.discard(key)
+
+    def _run() -> None:
+        with ThreadPoolExecutor(
+            max_workers=min(_LINEAGE_WARM_AHEAD_WORKERS, len(fqns)),
+            thread_name_prefix="atlas-lineage-warm-ahead",
+        ) as pool:
+            list(pool.map(_warm_one, fqns))
+
+    threading.Thread(
+        target=_run, name="atlas-lineage-warm-ahead", daemon=True
+    ).start()
+
+
 def _no_store(response: JSONResponse) -> JSONResponse:
     """Loading-state envelopes must NEVER be HTTP-cached: with
     `max-age=30, stale-while-revalidate=120` the browser kept re-reading
@@ -495,6 +575,19 @@ def api_lineage_recommendations(
                             limit=_LINEAGE_RECOMMENDATIONS_WARM_LIMIT,
                         )
                         lineage_service._TTL_CACHE[cache_key] = (time.time(), warmed_payload)
+                        # Warm-ahead the FULL lineage build for the top
+                        # recommended assets so the picker's example assets
+                        # open fast (cold lineage was 10-20s). Runs under the
+                        # same actor scope/uc as the eventual click so the
+                        # warmed cache keys match. Bounded + guarded inside
+                        # _warm_recommended_lineage_ahead.
+                        _warm_recommended_lineage_ahead(
+                            request_uc,
+                            store,
+                            system_uc,
+                            cache_scope,
+                            warmed_payload,
+                        )
                     except Exception:
                         _LINEAGE_LOGGER.warning(
                             "lineage recommendations warmer failed",

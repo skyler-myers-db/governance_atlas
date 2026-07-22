@@ -108,9 +108,10 @@ export const ROUTES = [
     // blueprint's earlier draft and in shared links — both must keep working
     // forever (COHESION alias column: "/asset/*, /entity/*").
     aliases: ["/entity/*", "/asset/*"],
-    // nav: null is deliberate — Asset 360 is the hub, not a rail destination.
-    // The rail shows a contextual entry when an asset is in context; Wave B
-    // generates that from this table instead of the orphaned ASSET_360_NAV_ITEM.
+    // nav: null is deliberate — the DETAIL route is not itself a rail
+    // destination. The rail's PERMANENT "Asset 360" entry (owner directive:
+    // Asset 360 is no longer hidden) targets this route when an asset is in
+    // context, and the bare /assets picker below otherwise.
     nav: null,
     paramsSchema: {
       tab: str(),
@@ -119,6 +120,20 @@ export const ROUTES = [
       col: str(),
       ...PEEK,
     },
+  },
+  {
+    surface: "assets",
+    path: "/assets",
+    // Bare /assets is the search-first Asset 360 picker (owner directive:
+    // "Asset 360 is still hidden by default — make it visible"). The permanent
+    // rail entry lands here whenever no asset is in context or remembered, so
+    // the entry is never a dead end. Mirrors the bare /lineage picker pattern.
+    // Declared AFTER /assets/:fqn so the greedy detail route wins for any path
+    // that carries an FQN segment; matchPattern only lands here for the exact
+    // bare path.
+    aliases: [],
+    nav: null,
+    paramsSchema: { q: str(), ...PEEK },
   },
   {
     surface: "stewardship",

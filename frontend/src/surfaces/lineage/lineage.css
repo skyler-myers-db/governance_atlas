@@ -115,3 +115,290 @@
 .ga-lin-rec-row.ga-sys-entity-chip.is-row {
   width: 100%;
 }
+
+/* ==========================================================================
+   Lineage springboard (bare /lineage home). Two-column: main column (search +
+   ranked rich cards + recent journeys) and a live featured mini-graph rail,
+   with a "how lineage works" strip beneath.
+   ========================================================================== */
+.ga-lin-home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+  gap: 22px;
+  align-items: start;
+}
+.ga-lin-home-main {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+@media (max-width: 1080px) {
+  .ga-lin-home {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Ranked rich cards ---------- */
+.ga-lin-ranked {
+  display: grid;
+  gap: 12px;
+}
+.ga-lin-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .ga-lin-rank-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ga-lin-rank-card {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ga-border);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.72), rgba(8, 23, 42, 0.72));
+  cursor: pointer;
+  transition:
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ga-lin-rank-card:hover {
+  border-color: rgba(102, 197, 255, 0.55);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(102, 197, 255, 0.12);
+  transform: translateY(-2px);
+}
+.ga-lin-rank-card:focus-visible {
+  outline: none;
+  border-color: rgba(102, 197, 255, 0.55);
+  box-shadow: 0 0 0 2px var(--ga-focus);
+}
+.ga-lin-rank-card.is-skeleton {
+  min-height: 128px;
+  cursor: default;
+  background:
+    linear-gradient(100deg, rgba(17, 44, 72, 0.5) 30%, rgba(102, 197, 255, 0.14) 50%, rgba(17, 44, 72, 0.5) 70%);
+  background-size: 200% 100%;
+  animation: ga-lin-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes ga-lin-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-lin-rank-card.is-skeleton { animation: none; }
+}
+.ga-lin-rank-badge {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(102, 197, 255, 0.12);
+  border: 1px solid rgba(102, 197, 255, 0.3);
+  color: var(--ga-bright-blue);
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 13px;
+  font-weight: 700;
+}
+.ga-lin-rank-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.ga-lin-rank-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+}
+.ga-lin-rank-title.ga-sys-entity-chip {
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ga-white);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+/* The FQN text sits in the chip's label span — ellipsize THAT so a long
+   name can never push the object-type pill outside the card. */
+.ga-lin-rank-title.ga-sys-entity-chip .ga-sys-entity-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ga-lin-rank-type {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(178, 189, 194, 0.12);
+  border: 1px solid rgba(178, 189, 194, 0.28);
+  color: var(--ga-gray);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ga-lin-rank-path {
+  color: var(--ga-text-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ga-lin-rank-edges {
+  display: grid;
+  gap: 6px;
+}
+.ga-lin-rank-edgecount {
+  color: var(--ga-text-muted);
+  font-size: 11.5px;
+}
+.ga-lin-rank-edgecount strong {
+  color: var(--ga-white);
+  font-size: 15px;
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+}
+.ga-lin-rank-split {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.ga-lin-rank-up { color: var(--ga-teal); }
+.ga-lin-rank-down { color: var(--ga-bright-blue); }
+.ga-lin-rank-splitbar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(102, 197, 255, 0.28);
+  overflow: hidden;
+}
+.ga-lin-rank-splitbar > span {
+  display: block;
+  height: 100%;
+  background: var(--ga-teal);
+}
+.ga-lin-rank-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.ga-lin-rank-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ga-lin-rank-tag.tone-good { background: rgba(46, 230, 166, 0.12); color: var(--ga-success); border: 1px solid rgba(46, 230, 166, 0.32); }
+.ga-lin-rank-tag.tone-warn { background: rgba(255, 181, 71, 0.12); color: var(--ga-warning); border: 1px solid rgba(255, 181, 71, 0.32); }
+
+/* ---------- Featured mini-graph rail ---------- */
+.ga-lin-feature {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--ga-border);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.6), rgba(8, 23, 42, 0.6));
+  position: sticky;
+  top: 12px;
+}
+.ga-lin-feature-frame {
+  height: 340px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ga-lin-feature-frame .ga-lineage-v2-canvas {
+  min-height: 0;
+  height: 100%;
+  border-radius: 12px;
+}
+/* Compact preview: hide the filter/legend bar so the mini-graph stays clean. */
+.ga-lin-feature-frame .ga-lineage-v2-legend { display: none; }
+.ga-lin-feature-open {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(102, 197, 255, 0.4);
+  background: rgba(102, 197, 255, 0.12);
+  color: var(--ga-bright-blue);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.ga-lin-feature-open:hover {
+  background: rgba(102, 197, 255, 0.2);
+  border-color: rgba(102, 197, 255, 0.6);
+  color: var(--ga-white);
+}
+.ga-lin-feature-open:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ga-focus);
+}
+
+/* ---------- Recent journeys ---------- */
+.ga-lin-recent {
+  display: grid;
+  gap: 10px;
+}
+.ga-lin-recent-rows {
+  display: grid;
+  gap: 6px;
+}
+
+/* ---------- How lineage works strip ---------- */
+.ga-lin-how {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ga-border-muted);
+}
+@media (max-width: 860px) {
+  .ga-lin-how {
+    grid-template-columns: 1fr;
+  }
+}
+.ga-lin-how-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.ga-lin-how-num {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(102, 197, 255, 0.12);
+  border: 1px solid rgba(102, 197, 255, 0.32);
+  color: var(--ga-bright-blue);
+  font-weight: 700;
+  font-size: 13px;
+}
+.ga-lin-how-step strong {
+  display: block;
+  color: var(--ga-white);
+  font-size: 13.5px;
+  margin-bottom: 3px;
+}
+.ga-lin-how-step p {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

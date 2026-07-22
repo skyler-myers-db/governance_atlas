@@ -28,6 +28,10 @@
   color: var(--ga-text-muted);
 }
 
+.ga-disc-search:hover {
+  border-color: var(--ga-border-strong);
+}
+
 .ga-disc-search:focus-within {
   border-color: var(--ga-focus);
   box-shadow: var(--ga-shadow-focus);
@@ -77,6 +81,13 @@
   font-size: 0.85rem;
 }
 
+.ga-disc-sort select:hover,
+.ga-disc-query-builder select:hover,
+.ga-disc-query-builder input:hover,
+.ga-disc-saved-searches input:hover {
+  border-color: var(--ga-border-strong);
+}
+
 .ga-disc-sort select:focus-visible,
 .ga-disc-query-builder select:focus-visible,
 .ga-disc-query-builder input:focus-visible,
@@ -84,6 +95,10 @@
   outline: none;
   border-color: var(--ga-focus);
   box-shadow: var(--ga-shadow-focus);
+}
+
+.ga-disc-sort select {
+  cursor: pointer;
 }
 
 .ga-disc-layout-toggle {
@@ -136,8 +151,17 @@
   background: var(--ga-surface-raised);
 }
 
+/* Distinguish "clear ALL" from the solid-bordered per-value chips: a dashed
+   border + leading gap reads as a group-terminating action, so the applied
+   set is one coherent chip row (each chip clears one facet; this clears all). */
 .ga-disc-chip-clear-all {
   color: var(--ga-text-muted);
+  margin-inline-start: var(--ga-space-1, 4px);
+  border-style: dashed;
+}
+
+.ga-disc-chip-clear-all:hover {
+  color: var(--ga-text);
 }
 
 .ga-disc-activity-group {
@@ -220,13 +244,25 @@
   cursor: pointer;
 }
 
+/* --ga-surface-raised/-strong are alpha-identical to --ga-surface, so the
+   old hover AND selected states were invisible — the owner's "filters stack
+   weirdly / no hover" report. Soft blue tint makes hover legible; the
+   selected chip gets a blue wash + inset accent bar so an applied facet is
+   unmistakable at a glance. Selected-hover deepens the tint so a selected
+   option still responds to the pointer. */
 .ga-disc-facet-group > div > button:hover {
-  background: var(--ga-surface-raised);
+  background: var(--ga-surface-soft);
+  color: var(--ga-text-strong);
 }
 
 .ga-disc-facet-group > div > button[aria-pressed="true"] {
-  background: var(--ga-surface-strong);
+  background: color-mix(in srgb, var(--ga-bright-blue) 12%, transparent);
   color: var(--ga-text-strong);
+  box-shadow: inset 2px 0 0 var(--ga-bright-blue);
+}
+
+.ga-disc-facet-group > div > button[aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--ga-bright-blue) 18%, transparent);
 }
 
 .ga-disc-facet-group > div > button > span:not(.ga-disc-facet-dot):not(.ga-disc-facet-square) {

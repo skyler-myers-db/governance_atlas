@@ -465,7 +465,25 @@ describe("AssetHubPage — header actions", () => {
     );
   });
 
-  it("kebab menu copies the canonical link and deep-links Catalog Explorer from live access data", async () => {
+  it("renders a FIRST-CLASS 'Open in Databricks' header button as an absolute Catalog Explorer URL from the live deepLink", async () => {
+    // Owner directive 2: the Catalog Explorer affordance is promoted OUT of the
+    // kebab into a visible header button that always renders for a real FQN.
+    // The relative deepLink is made absolute against the workspace host so the
+    // anchor opens Databricks, not the app origin; new tab + rel=noopener.
+    primeHappyPath();
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("orders"));
+    const button = screen.getByRole("link", { name: "Open in Databricks" });
+    expect(button.getAttribute("href")).toBe(
+      "https://dbc-3aa503a9-4fa8.cloud.databricks.com/explore/data/main/sales/orders",
+    );
+    expect(button.getAttribute("target")).toBe("_blank");
+    expect(button.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(button.getAttribute("title")).toBe("Open in Databricks Catalog Explorer");
+  });
+
+  it("kebab menu copies the canonical link and still offers Catalog Explorer as an absolute Databricks URL", async () => {
     primeHappyPath();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -479,7 +497,10 @@ describe("AssetHubPage — header actions", () => {
     const menu = await screen.findByRole("menu", { name: "More asset actions" });
 
     const explorer = within(menu).getByText("Open in Catalog Explorer");
-    expect(explorer.closest("a").getAttribute("href")).toBe("/explore/data/main/sales/orders");
+    expect(explorer.closest("a").getAttribute("href")).toBe(
+      "https://dbc-3aa503a9-4fa8.cloud.databricks.com/explore/data/main/sales/orders",
+    );
+    expect(explorer.closest("a").getAttribute("rel")).toBe("noopener noreferrer");
 
     fireEvent.click(within(menu).getByText("Copy link"));
     await waitFor(() => expect(writeText).toHaveBeenCalled());

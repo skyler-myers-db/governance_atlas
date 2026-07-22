@@ -694,6 +694,8 @@ class DualWriteGovernanceStore:
         actor_email: str = "",
         actor_role: str = "reader",
         request_id: str | None = None,
+        note: str | None = None,
+        action: str = "owner-removed",
     ) -> Any:
         result = self._delta_store.remove_owner(
             uc_full_name,
@@ -701,6 +703,8 @@ class DualWriteGovernanceStore:
             actor_email=actor_email,
             actor_role=actor_role,
             request_id=request_id,
+            note=note,
+            action=action,
         )
         self._mirror.delete_owner(uc_full_name, owner_email)
         return result

@@ -29,6 +29,21 @@ import {
  * node mention a real, middle-clickable `<a href>`).
  */
 
+// Every rendered owner is a real link to the owner-search grammar (cross-
+// linking law + owner direction #2b). Falls back to plain text only when the
+// owner string is a placeholder we can't address.
+function OwnerLink({ owner, className = "" }) {
+  const text = String(owner || "").trim();
+  if (!text) return <>No owner recorded</>;
+  return (
+    <EntityChip
+      appearance="inline"
+      className={className}
+      entity={{ kind: "owner", email: text, label: text }}
+    />
+  );
+}
+
 function ImpactFact({ label, value, detail, tone = "neutral" }) {
   return (
     <div className={`ga-lineage-impact-fact tone-${tone}`.trim()}>
@@ -464,18 +479,42 @@ export function LineageDetailRail({
               backend emits approval-blocker records.
             */}
             <ul className="ga-lineage-impact-list">
-              <li>Owners: {detailOwner || subjectStats.ownerLabel || "No owner recorded"}</li>
+              <li>Owners: <OwnerLink owner={detailOwner || subjectStats.ownerLabel} /></li>
               <li>Sensitivity: {focusedAsset?.sensitivity || subject?.classification || "No sensitivity label"}</li>
-              <li>Access scope: {accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "Not returned"}</li>
+              <li>Access scope: {(() => {
+                const scope = accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "";
+                const map = { "actor-scoped": "Your access", "workspace-scoped": "Workspace", "full-lineage": "Full lineage", "full": "Full" };
+                return map[scope] || (scope ? scope.replace(/-/g, " ").replace(/scoped/g, "").trim() || "Permission-aware" : "Not returned");
+              })()}</li>
               <li>Access grants: {accessGrants.length ? `${accessGrants.length} grant row(s) returned` : "No access-grant rows returned"}</li>
               <li>Policies: {linkedPolicies.length ? linkedPolicies.map((policy) => firstMeaningful(policy?.name, policy?.title, policy?.id, policy)).slice(0, 3).join(", ") : "No policies linked"}</li>
               <li>Controls affected: {linkedControls.length ? `${linkedControls.length} linked control(s)` : "No controls linked"}</li>
               <li>Databricks DQM: {dqmSummary.healthStatus ? `${dqmSummary.healthStatus} · freshness ${dqmSummary.freshnessStatus || "—"} · completeness ${dqmSummary.completenessStatus || "—"}` : "No DQM status returned"}</li>
               <li>Databricks profile: {profileMetricRows.length ? `${profileMetricRows.length} metric table row(s)` : profileMetrics?.monitor?.profileMetricsTableName ? "Monitor configured; metric tables not visible" : "No profile monitor returned"}</li>
               <li>Lakeflow: {lakeflowJobs.length || lakeflowPipelines.length ? `${lakeflowJobs.length} job run(s), ${lakeflowPipelines.length} pipeline update(s)` : "No Lakeflow rows joined from lineage"}</li>
-              <li>Required approvals: {focusedAsset?.openRequests == null ? "Not returned for this selection" : Number(focusedAsset.openRequests) ? `${focusedAsset.openRequests} open request(s)` : "No open approval requests"}</li>
+              <li>
+                Required approvals:{" "}
+                {focusedAsset?.openRequests == null ? (
+                  "Not returned for this selection"
+                ) : Number(focusedAsset.openRequests) ? (
+                  // Owner direction #2b: the open-request count links into the
+                  // Stewardship queue scoped to this asset (surface ref — no
+                  // per-item id is returned on the count, so we address the
+                  // filtered queue, never a dead GOV-… link).
+                  <EntityChip
+                    appearance="inline"
+                    entity={{
+                      surface: "stewardship",
+                      params: { q: subject?.fqn || focus?.fqn || "" },
+                      label: `${focusedAsset.openRequests} open request(s)`,
+                    }}
+                  />
+                ) : (
+                  "No open approval requests"
+                )}
+              </li>
               <li>Truncation: {truncationSummary}</li>
-              <li>Hydration: {Object.values(progressive).some(Boolean) ? "Progressive lineage state is active" : "Full profile currently displayed"}</li>
+              <li>Graph state: {Object.values(progressive).some(Boolean) ? "Still loading the full graph" : "Full graph loaded"}</li>
             </ul>
           </div>
           <div className="ga-lineage-v2-rail-section">
@@ -557,7 +596,7 @@ export function LineageDetailRail({
                   updatedAt / Delta write history (fix_plan #6). */}
               <div><span>Data updated</span><strong>{railFreshness || "Unavailable"}</strong></div>
               <div><span>Rows</span><strong>{railRows || "Unavailable"}</strong></div>
-              <div><span>Owner</span><strong>{railOwner || "Unavailable"}</strong></div>
+              <div><span>Owner</span><strong>{railOwner ? <OwnerLink owner={railOwner} /> : "Unavailable"}</strong></div>
               {railType ? <div><span>Type</span><strong>{railType}</strong></div> : null}
               {railSize ? <div><span>Size</span><strong>{railSize}{railFiles ? ` · ${railFiles} files` : ""}</strong></div> : null}
             </div>
@@ -570,12 +609,30 @@ export function LineageDetailRail({
             <header><span>Recent activity</span><span className="ga-lineage-v2-rail-count">{recentActivityCount}</span></header>
             {recentActivity.length ? (
               <ul>
-                {recentActivity.slice(0, 5).map((event, index) => (
-                  <li key={`${event.id || event.kind || "event"}-${index}`}>
-                    <strong>{event.kind || event.title || event.action || "Activity"}</strong>
-                    <span>{event.timestamp || event.observedAt || event.at || ""}</span>
-                  </li>
-                ))}
+                {recentActivity.slice(0, 5).map((event, index) => {
+                  const label = event.kind || event.title || event.action || "Activity";
+                  const when = event.timestamp || event.observedAt || event.at || "";
+                  // Owner direction #2b: an audit event with an id becomes a
+                  // real link into the Evidence ledger (→ /evidence?event=ID).
+                  // Events without an addressable id stay honest static rows.
+                  const eventId = event.id || event.auditId || event.eventId || "";
+                  return (
+                    <li key={`${eventId || label}-${index}`}>
+                      {eventId ? (
+                        <EntityChip
+                          appearance="row"
+                          className="ga-lin-rail-row"
+                          entity={{ kind: "event", id: eventId, label, meta: when }}
+                        />
+                      ) : (
+                        <span className="ga-lin-rail-row-static">
+                          <strong>{label}</strong>
+                          <span>{when}</span>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : activityFetch?.loading ? (
               // L10: activity is being fetched lazily now that this tab is

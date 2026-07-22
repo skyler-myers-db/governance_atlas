@@ -477,6 +477,17 @@ export function auditChipId(value = "") {
 }
 
 /** "metadata_update-requested" → "Metadata update requested". */
+export function humanizeCommentText(text = "") {
+  const value = textValue(text);
+  // Seeded comment bodies are sometimes bare event slugs ("task-created",
+  // "task-triage-updated") — humanize those to sentence case; leave real
+  // prose untouched (no raw enums in the UI — verifier).
+  if (/^[a-z]+(?:[-_][a-z]+)+$/.test(value)) {
+    return humanizeAuditAction(value);
+  }
+  return value;
+}
+
 export function humanizeAuditAction(action = "") {
   const text = textValue(action).replace(/[_\s-]+/g, " ").trim();
   if (!text) return "Audit event";

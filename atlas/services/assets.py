@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -134,6 +135,8 @@ cached_sample_rows = metadata_service.cached_sample_rows
 cached_lineage_up = metadata_service.cached_lineage_up
 cached_lineage_down = metadata_service.cached_lineage_down
 cached_table_constraints = metadata_service.cached_table_constraints
+warm_estate_headers = metadata_service.warm_estate_headers
+prefetch_asset_header = metadata_service.prefetch_asset_header
 
 normalize_str = metadata_service.normalize_str
 filter_asset_rows = metadata_service.filter_asset_rows
@@ -1101,6 +1104,36 @@ def normalize_asset_detail_sections(
     if "profiler" in normalized:
         normalized.update({"activity", "schema"})
     return tuple(section for section in ASSET_DETAIL_SECTIONS if section in normalized)
+
+
+def annotate_account_member(
+    uc: Any, entries: Sequence[Dict[str, Any]], *, keys: Sequence[str] = ("email", "name", "ownerEmail")
+) -> None:
+    """Stamp each owner/steward entry with ``accountMember`` (True/False/None).
+
+    Honesty-at-read: rendering surfaces can badge principals that are not real
+    workspace members instead of silently trusting or hiding them. ``None`` when
+    the roster is unavailable (degraded) — we never assert a false negative.
+    The roster is cached server-side so this is a set lookup, not a SCIM call.
+    """
+    if not entries:
+        return
+    try:
+        from atlas.services import identity_roster
+
+        roster = identity_roster.get_roster(uc)
+    except Exception:
+        return
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        principal = ""
+        for key in keys:
+            candidate = normalize_str(entry.get(key))
+            if candidate:
+                principal = candidate
+                break
+        entry["accountMember"] = roster.account_member_flag(principal)
 
 
 def owner_entries(row: pd.Series) -> List[Dict[str, str]]:
@@ -3958,20 +3991,22 @@ def asset_detail_payload(
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
     sections: Optional[Sequence[str]] = None,
     allow_direct_metadata_write: bool = True,
+    force_rebuild: bool = False,
 ) -> Dict[str, Any]:
     normalized_scope = normalize_str(cache_scope) or "shared"
     requested_sections = normalize_asset_detail_sections(sections)
     section_key = ",".join(requested_sections)
     cache_key = f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}:{section_key}"
 
-    cached_payload = cached_asset_detail_payload(
-        uc,
-        asset_fqn,
-        cache_scope=normalized_scope,
-        sections=requested_sections,
-    )
-    if cached_payload is not None:
-        return cached_payload
+    if not force_rebuild:
+        cached_payload = cached_asset_detail_payload(
+            uc,
+            asset_fqn,
+            cache_scope=normalized_scope,
+            sections=requested_sections,
+        )
+        if cached_payload is not None:
+            return cached_payload
 
     def load() -> Dict[str, Any]:
         store = (
@@ -4109,6 +4144,12 @@ def asset_detail_payload(
             base["glossaryTerm"] = base["glossaryTerms"][0]
 
         if "header" in loaded_sections:
+            # Warm the four independent header round trips concurrently
+            # (DESCRIBE DETAIL, DESCRIBE HISTORY, information_schema.tables,
+            # table comment) so the sequential reads below all hit the TTL
+            # cache. Serializing these was the dominant cold-header cost
+            # (~5-7s wall-clock for four mutually-independent ~1.2s queries).
+            metadata_service.prefetch_asset_header(uc, catalog, schema, table)
             try:
                 detail_df = cached_table_detail(uc, catalog, schema, table)
             except Exception:
@@ -4356,27 +4397,35 @@ def asset_detail_payload(
             base["metadataAudit"] = metadata_audit_records(store, base["fqn"])
 
         if "schema" in loaded_sections:
-            try:
-                columns_df = cached_columns(uc, catalog, schema, table)
-            except Exception:
-                columns_df = pd.DataFrame()
-            if columns_df.empty:
+            # The schema tab needs three independent reads: column list,
+            # column tags, and constraints. Fire them concurrently so a cold
+            # schema tab pays one round trip of latency, not three serialized.
+            # column_tags is NOT cache-backed, so we capture the gather result
+            # directly rather than prefetch-then-reread (which would double the
+            # query). columns / constraints self-cache, so we re-read those
+            # from cache below for the empty-fallback logic.
+            _schema_results = metadata_service.gather_parallel(
+                (
+                    lambda: cached_columns(uc, catalog, schema, table),
+                    lambda: uc.get_table_column_tags(catalog, schema, table),
+                    lambda: cached_table_constraints(uc, catalog, schema, table),
+                ),
+                max_workers=3,
+            )
+            columns_df = _schema_results[0]
+            column_tags_df = _schema_results[1]
+            schema_constraints_df = _schema_results[2]
+            if not isinstance(columns_df, pd.DataFrame) or columns_df.empty:
                 try:
                     columns_df = uc.get_table_columns(catalog, schema, table)
                 except Exception:
                     columns_df = pd.DataFrame()
-            try:
-                column_tags_df = uc.get_table_column_tags(catalog, schema, table)
-            except Exception:
+            if not isinstance(column_tags_df, pd.DataFrame):
                 column_tags_df = pd.DataFrame()
             # Constraints live under the "properties" section in the public payload,
-            # but the schema tab needs per-column PK/FK/NOT NULL chips, so fetch them
-            # here too (cheap — cached at the UC layer) and surface via column_records.
-            try:
-                schema_constraints_df = cached_table_constraints(
-                    uc, catalog, schema, table
-                )
-            except Exception:
+            # but the schema tab needs per-column PK/FK/NOT NULL chips, so surface
+            # them here too via column_records.
+            if not isinstance(schema_constraints_df, pd.DataFrame):
                 schema_constraints_df = pd.DataFrame()
             column_links_df = pd.DataFrame()
             if not glossary_links_df.empty:
@@ -4414,30 +4463,39 @@ def asset_detail_payload(
             base["preview"] = preview_records(sample_df)
 
         if "properties" in loaded_sections:
-            try:
-                properties_df = uc.get_table_properties(catalog, schema, table)
-            except Exception:
+            # Two independent reads — run concurrently.
+            _prop_results = metadata_service.gather_parallel(
+                (
+                    lambda: uc.get_table_properties(catalog, schema, table),
+                    lambda: uc.get_table_constraints(catalog, schema, table),
+                ),
+                max_workers=2,
+            )
+            properties_df = _prop_results[0]
+            constraints_df = _prop_results[1]
+            if not isinstance(properties_df, pd.DataFrame):
                 properties_df = pd.DataFrame()
-            try:
-                constraints_df = uc.get_table_constraints(catalog, schema, table)
-            except Exception:
+            if not isinstance(constraints_df, pd.DataFrame):
                 constraints_df = pd.DataFrame()
             base["tableProperties"] = table_property_records(properties_df)
             base["constraints"] = constraint_records(constraints_df)
             base["customProperties"] = list(base["tableProperties"])
 
         if "operational" in loaded_sections:
-            try:
-                operational_upstream_df = uc.get_operational_context_upstream(
-                    catalog, schema, table
-                )
-            except Exception:
+            # Upstream / downstream operational-context reads are independent —
+            # run concurrently.
+            _op_results = metadata_service.gather_parallel(
+                (
+                    lambda: uc.get_operational_context_upstream(catalog, schema, table),
+                    lambda: uc.get_operational_context_downstream(catalog, schema, table),
+                ),
+                max_workers=2,
+            )
+            operational_upstream_df = _op_results[0]
+            operational_downstream_df = _op_results[1]
+            if not isinstance(operational_upstream_df, pd.DataFrame):
                 operational_upstream_df = pd.DataFrame()
-            try:
-                operational_downstream_df = uc.get_operational_context_downstream(
-                    catalog, schema, table
-                )
-            except Exception:
+            if not isinstance(operational_downstream_df, pd.DataFrame):
                 operational_downstream_df = pd.DataFrame()
             base["relatedAssets"] = related_assets(
                 uc,
@@ -4481,11 +4539,130 @@ def asset_detail_payload(
             for section in ASSET_DETAIL_SECTIONS
             if section not in loaded_sections
         ]
+        # Envelope honesty: stamp the wall-clock instant this metadata was
+        # observed from Unity Catalog. The freshness fields (updatedAt /
+        # dataUpdatedAt / lastAltered) are real source timestamps; this is the
+        # OBSERVATION time. It lets the cache live longer than the old 300s
+        # (see ASSET_DETAIL_FRESH_TTL_S) without lying — the UI can render "as
+        # of N min ago" and revalidate, rather than blocking cold every 5 min.
+        observed_at = _now_iso()
+        base["metadataObservedAt"] = observed_at
+        base["metadataStaleAfter"] = _iso_after(ASSET_DETAIL_FRESH_TTL_S)
+        # Identity-integrity honesty: badge every owner/steward block with
+        # whether the principal is a real workspace member. Roster is cached,
+        # so this is a set lookup, not a per-asset SCIM round-trip.
+        annotate_account_member(uc, base.get("owners") or [])
+        annotate_account_member(uc, base.get("ownerAssignments") or [])
         return base
+
+    # Stale-while-revalidate: when a still-usable (live-signal) payload is
+    # cached but past its fresh window, serve it immediately and rebuild in
+    # the background instead of blocking the request on a cold load. This is
+    # what keeps a return-visit warm (<0.7s) even after the fresh TTL lapses.
+    stale = None if force_rebuild else _TTL_CACHE.get(cache_key)
+    if stale is not None:
+        age = time.time() - stale[0]
+        stale_payload = stale[1]
+        if (
+            ASSET_DETAIL_FRESH_TTL_S <= age < ASSET_DETAIL_STALE_TTL_S
+            and asset_payload_has_live_signals(stale_payload)
+        ):
+            _revalidate_asset_detail_async(
+                uc,
+                inventory_or_store,
+                asset_fqn,
+                cache_scope=normalized_scope,
+                hidden_catalogs=hidden_catalogs,
+                sections=requested_sections,
+                allow_direct_metadata_write=allow_direct_metadata_write,
+                cache_key=cache_key,
+            )
+            return stale_payload
 
     payload = load()
     _TTL_CACHE[cache_key] = (time.time(), payload)
     return payload
+
+
+# Asset-detail cache windows. Freshness fields inside the payload are real
+# source timestamps; the cache carries `metadataObservedAt` so a longer TTL
+# stays honest (the UI shows observed-age + revalidates). Live-signal payloads
+# serve fresh for 15 min, then stale-while-revalidate for up to 1 hr; empty /
+# no-signal payloads keep the old short 20s window so a transient cold-start
+# self-heals fast.
+ASSET_DETAIL_FRESH_TTL_S = 900
+ASSET_DETAIL_STALE_TTL_S = 3600
+ASSET_DETAIL_EMPTY_TTL_S = 20
+
+_ASSET_DETAIL_REVALIDATING: set[str] = set()
+_ASSET_DETAIL_REVALIDATING_GUARD = threading.Lock()
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _iso_after(seconds: int) -> str:
+    from datetime import datetime, timedelta, timezone
+
+    return (
+        (datetime.now(timezone.utc) + timedelta(seconds=seconds))
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _revalidate_asset_detail_async(
+    uc,
+    inventory_or_store,
+    asset_fqn: str,
+    *,
+    cache_scope: str,
+    hidden_catalogs: Sequence[str],
+    sections: Sequence[str],
+    allow_direct_metadata_write: bool,
+    cache_key: str,
+) -> None:
+    """Rebuild an asset-detail payload off-request (stale-while-revalidate).
+
+    Guarded so a burst of stale re-hits triggers ONE rebuild, not N
+    (thundering-herd guard). The rebuild pops nothing until it has a fresh
+    payload, so readers keep seeing the stale (but honest, observedAt-stamped)
+    body until the swap.
+    """
+    import threading
+
+    with _ASSET_DETAIL_REVALIDATING_GUARD:
+        if cache_key in _ASSET_DETAIL_REVALIDATING:
+            return
+        _ASSET_DETAIL_REVALIDATING.add(cache_key)
+
+    def _run() -> None:
+        try:
+            fresh = asset_detail_payload(
+                uc,
+                inventory_or_store,
+                asset_fqn,
+                cache_scope=cache_scope,
+                hidden_catalogs=hidden_catalogs,
+                sections=sections,
+                allow_direct_metadata_write=allow_direct_metadata_write,
+                force_rebuild=True,
+            )
+            _TTL_CACHE[cache_key] = (time.time(), fresh)
+        except Exception:
+            pass
+        finally:
+            with _ASSET_DETAIL_REVALIDATING_GUARD:
+                _ASSET_DETAIL_REVALIDATING.discard(cache_key)
+
+    threading.Thread(
+        target=_run,
+        name=f"atlas-asset-detail-revalidate-{asset_fqn}",
+        daemon=True,
+    ).start()
 
 
 def cached_asset_detail_payload(
@@ -4504,7 +4681,13 @@ def cached_asset_detail_payload(
         return None
     age = time.time() - cached[0]
     payload = cached[1]
-    ttl_s = 300 if asset_payload_has_live_signals(payload) else 20
+    # Live-signal payloads carry metadataObservedAt, so a 15-min fresh window
+    # stays honest (was 300s). Empty payloads keep the short self-healing TTL.
+    ttl_s = (
+        ASSET_DETAIL_FRESH_TTL_S
+        if asset_payload_has_live_signals(payload)
+        else ASSET_DETAIL_EMPTY_TTL_S
+    )
     if age < ttl_s:
         return payload
     return None

@@ -137,8 +137,12 @@ SELECT
   COALESCE(owners.owner_count, 0) AS owner_count,
   COALESCE(open_work.open_work_count, 0) AS open_work_count,
   COALESCE(owners.owner_count, 0) > 0 AS has_owner,
-  lower(COALESCE(tags.certification, '')) IN ('certified', 'approved', 'gold', 'trusted', 'yes', 'true') AS is_certified,
-  lower(COALESCE(tags.criticality, '')) IN ('critical', 'high') AS is_critical
+  -- Strict certification matches atlas.services.semantics.CERTIFIED_STRICT_VALUES:
+  -- only an explicit "Certified" label counts. Trusted/Approved/Gold get their
+  -- own facets and are never silently folded into "certified" (kept the numbers
+  -- from drifting across surfaces in the 2026-07 audit).
+  lower(COALESCE(tags.certification, '')) = 'certified' AS is_certified,
+  lower(COALESCE(tags.criticality, '')) IN ('critical', 'high', 'tier 1', 'tier1', 'tier-1', 'p0', 'p1') AS is_critical
 FROM system.information_schema.tables t
 LEFT JOIN tags
   ON tags.catalog_name = t.table_catalog

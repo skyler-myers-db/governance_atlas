@@ -2907,6 +2907,8 @@ WHEN NOT MATCHED THEN INSERT * """)
         actor_email: str = "",
         actor_role: str = "reader",
         request_id: str | None = None,
+        note: str | None = None,
+        action: str = "owner-removed",
     ) -> None:
         before_df = self.uc.query_df(
             f"SELECT owner_email, owner_type, updated_at, updated_by "
@@ -2920,11 +2922,15 @@ WHEN NOT MATCHED THEN INSERT * """)
             f"WHERE uc_full_name = {sql_literal(uc_full_name)} "
             f"AND lower(owner_email) = {sql_literal(owner_email.strip().lower())}"
         )
+        # The `before` snapshot below is the reversibility record: it captures
+        # the exact owner_email/owner_type that was cleared so the assignment can
+        # be reconstructed from the audit log. `note`/`action` let the identity
+        # integrity cleanup label its removals distinctly from user-driven ones.
         self.append_metadata_audit(
             entity_type="owner_assignment",
             entity_fqn=uc_full_name,
             entity_id=owner_email.strip().lower(),
-            action="owner-removed",
+            action=action,
             actor_email=actor_email or owner_email.strip().lower(),
             actor_role=actor_role,
             request_id=request_id,
@@ -2932,6 +2938,7 @@ WHEN NOT MATCHED THEN INSERT * """)
             if before_df is None or before_df.empty
             else before_df.to_dict(orient="records"),
             after=[],
+            detail=note,
         )
 
     # ── Change requests ─────────────────────────────────────

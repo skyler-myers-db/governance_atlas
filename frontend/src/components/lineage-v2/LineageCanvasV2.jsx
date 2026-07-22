@@ -14,6 +14,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { LineageNodeCard } from "./LineageNodeCard";
 import { mergeAccumulatedGraph } from "./mergeAccumulatedGraph";
+import { catalogExplorerUrl } from "../../surfaces/lineage/lineagePresentation";
 
 /**
  * LineageCanvasV2 — design-faithful lineage canvas built on React Flow.
@@ -111,6 +112,7 @@ function LineageFlowNodeComponent({ data }) {
         type="target"
       />
       <LineageNodeCard
+        databricksHref={data.databricksHref}
         header={data.header}
         isDimmed={data.isDimmed}
         isFocus={data.isFocus}
@@ -120,6 +122,7 @@ function LineageFlowNodeComponent({ data }) {
         node={data.node}
         onClick={data.onSelect}
         onColumnSelect={data.onColumnSelect}
+        onOpenAsset={data.onOpenAsset}
         selectedColumnName={data.selectedColumnName}
         variant={nodeIsTall(data.node) ? "tall" : "compact"}
       />
@@ -135,6 +138,95 @@ function LineageFlowNodeComponent({ data }) {
 const LineageFlowNode = memo(LineageFlowNodeComponent);
 
 const NODE_TYPES = { lineage: LineageFlowNode };
+
+/**
+ * Graph-shaped loading skeleton (owner direction #4). Instead of a bare
+ * spinner, we shimmer a miniature upstream → focus → downstream topology so
+ * the wait reads as "a graph is assembling", plus an honest caption of what
+ * is loading. Purely decorative — aria-hidden, with a polite status label.
+ */
+function LineageGraphSkeleton({ caption = "Loading lineage from Unity Catalog…" }) {
+  const upstream = [0, 1, 2];
+  const downstream = [0, 1];
+  return (
+    <div className="ga-lineage-v2-skeleton" role="status" aria-live="polite">
+      <div className="ga-lineage-v2-skeleton-stage" aria-hidden="true">
+        <svg className="ga-lineage-v2-skeleton-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {upstream.map((i) => (
+            <path key={`u${i}`} d={`M20 ${22 + i * 28} C 38 ${22 + i * 28}, 40 50, 50 50`} />
+          ))}
+          {downstream.map((i) => (
+            <path key={`d${i}`} d={`M50 50 C 60 50, 62 ${34 + i * 32}, 80 ${34 + i * 32}`} />
+          ))}
+        </svg>
+        <div className="ga-lineage-v2-skeleton-col is-upstream">
+          {upstream.map((i) => (
+            <span className="ga-lineage-v2-skeleton-card" key={`uc${i}`} />
+          ))}
+        </div>
+        <div className="ga-lineage-v2-skeleton-col is-focus">
+          <span className="ga-lineage-v2-skeleton-card is-focus" />
+        </div>
+        <div className="ga-lineage-v2-skeleton-col is-downstream">
+          {downstream.map((i) => (
+            <span className="ga-lineage-v2-skeleton-card" key={`dc${i}`} />
+          ))}
+        </div>
+      </div>
+      {caption ? (
+        <div className="ga-lineage-v2-skeleton-caption">
+          <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />
+          <span>{caption}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Human labels for the kind filter/legend (owner direction #2a + #3 legend).
+const KIND_LABELS = {
+  table: "Table",
+  pipeline: "Pipeline",
+  job: "Job",
+  notebook: "Notebook",
+  "saved-query": "Query",
+  dashboard: "Dashboard",
+  model: "Model",
+  udf: "Function",
+  volume: "Volume",
+  restricted: "Reference",
+};
+
+function kindLabel(kind) {
+  return KIND_LABELS[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : "Asset");
+}
+
+// Directed reachability from the focus node id: `upstream` = nodes that flow
+// INTO the focus (follow target→source), `downstream` = nodes the focus flows
+// INTO (follow source→target). Used to bucket the type filters by direction
+// and to power the Upstream/Downstream direction toggle. Classification runs
+// over the FULL edge set so hidden nodes still carry a correct direction.
+function directedReach(edges, focusId, forward) {
+  const adj = new Map();
+  edges.forEach((edge) => {
+    const from = forward ? edge.source : edge.target;
+    const to = forward ? edge.target : edge.source;
+    if (!adj.has(from)) adj.set(from, []);
+    adj.get(from).push(to);
+  });
+  const seen = new Set();
+  const queue = [focusId];
+  while (queue.length) {
+    const next = queue.shift();
+    (adj.get(next) || []).forEach((id) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      queue.push(id);
+    });
+  }
+  seen.delete(focusId);
+  return seen;
+}
 
 function buildAdjacency(edges) {
   const adjacency = new Map();
@@ -175,10 +267,19 @@ function CanvasInner({
   warming = false,
   onRetry = null,
   onRenderedGraphChange = null,
+  onOpenAsset = null,
+  workspaceHost = "",
+  minZoom = 0.5,
 }) {
   const reactFlow = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
   const [hoveredNodeId, setHoveredNodeId] = useState("");
+  // Canvas-level view filters (owner direction #2a). `disabledKinds` holds the
+  // kinds the user has toggled OFF (storing the OFF set means any newly-
+  // arrived kind defaults to visible as the accumulated graph grows). The
+  // `direction` segment scopes to upstream/downstream relative to focus.
+  const [disabledKinds, setDisabledKinds] = useState(() => new Set());
+  const [direction, setDirection] = useState("all");
   // Accumulated graph: the merged superset of nodes/edges seen across
   // all lineage payloads received THIS focus session. Two regimes:
   //   • EXPAND: the new payload's focus node is already in the merged
@@ -230,7 +331,103 @@ function CanvasInner({
       sticky: useSticky,
     });
   }, [nodesArray.length, edgesArray.length, useSticky, onRenderedGraphChange]);
-  const adjacency = useMemo(() => buildAdjacency(edgesArray), [edgesArray]);
+  // Reset the view filters whenever the focus asset changes (a genuine
+  // re-anchor / fresh navigation). Keyed on the focus FQN so an in-place
+  // EXPAND (same focus, more neighbors) keeps the user's chosen filters.
+  const focusFqnForReset = graph.focus?.fqn || "";
+  useEffect(() => {
+    setDisabledKinds(new Set());
+    setDirection("all");
+  }, [focusFqnForReset]);
+
+  // Classify every node's direction relative to the focus and tally kind
+  // counts (owner direction #2a: "counts"). Runs over the full accumulated
+  // set so the legend describes the whole graph, not the filtered view.
+  const focusNodeId = useMemo(() => {
+    const byFqn = focusFqnForReset
+      ? nodesArray.find((node) => node.fqn === focusFqnForReset)
+      : null;
+    return byFqn?.id || nodesArray.find((node) => node.isFocus)?.id || "";
+  }, [nodesArray, focusFqnForReset]);
+  const upstreamIds = useMemo(
+    () => (focusNodeId ? directedReach(edgesArray, focusNodeId, false) : new Set()),
+    [edgesArray, focusNodeId],
+  );
+  const downstreamIds = useMemo(
+    () => (focusNodeId ? directedReach(edgesArray, focusNodeId, true) : new Set()),
+    [edgesArray, focusNodeId],
+  );
+  const directionOf = useCallback(
+    (node) => {
+      if (!node || node.id === focusNodeId || node.fqn === focusFqnForReset) return "focus";
+      if (upstreamIds.has(node.id)) return "upstream";
+      if (downstreamIds.has(node.id)) return "downstream";
+      return "other";
+    },
+    [upstreamIds, downstreamIds, focusNodeId, focusFqnForReset],
+  );
+  // Kind tallies split by direction — the legend chips show a total count and
+  // the direction segment shows upstream/downstream totals.
+  const kindMeta = useMemo(() => {
+    const map = new Map();
+    let upstreamTotal = 0;
+    let downstreamTotal = 0;
+    nodesArray.forEach((node) => {
+      const dir = directionOf(node);
+      if (dir === "upstream") upstreamTotal += 1;
+      if (dir === "downstream") downstreamTotal += 1;
+      if (dir === "focus") return;
+      const entry = map.get(node.kind) || { kind: node.kind, count: 0, upstream: 0, downstream: 0 };
+      entry.count += 1;
+      if (dir === "upstream") entry.upstream += 1;
+      if (dir === "downstream") entry.downstream += 1;
+      map.set(node.kind, entry);
+    });
+    const kinds = [...map.values()].sort((a, b) => b.count - a.count || a.kind.localeCompare(b.kind));
+    return { kinds, upstreamTotal, downstreamTotal, peerTotal: nodesArray.length - (focusNodeId ? 1 : 0) };
+  }, [nodesArray, directionOf, focusNodeId]);
+
+  const directionMatches = useCallback(
+    (node) => {
+      if (directionOf(node) === "focus") return true;
+      if (direction === "all") return true;
+      return directionOf(node) === direction;
+    },
+    [direction, directionOf],
+  );
+
+  // The filtered (visible) view fed to dagre + React Flow. The focus node is
+  // always kept so the graph never loses its anchor. Edges survive only when
+  // BOTH endpoints survive.
+  const visibleNodes = useMemo(
+    () =>
+      nodesArray.filter(
+        (node) =>
+          directionOf(node) === "focus" ||
+          (!disabledKinds.has(node.kind) && directionMatches(node)),
+      ),
+    [nodesArray, disabledKinds, directionMatches, directionOf],
+  );
+  const visibleIdSet = useMemo(() => new Set(visibleNodes.map((node) => node.id)), [visibleNodes]);
+  const visibleEdges = useMemo(
+    () => edgesArray.filter((edge) => visibleIdSet.has(edge.source) && visibleIdSet.has(edge.target)),
+    [edgesArray, visibleIdSet],
+  );
+  const filtersActive = disabledKinds.size > 0 || direction !== "all";
+  const toggleKind = useCallback((kind) => {
+    setDisabledKinds((current) => {
+      const next = new Set(current);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }, []);
+  const resetFilters = useCallback(() => {
+    setDisabledKinds(new Set());
+    setDirection("all");
+  }, []);
+
+  const adjacency = useMemo(() => buildAdjacency(visibleEdges), [visibleEdges]);
   const tracedNodeIds = useMemo(() => tracedSubgraph(adjacency, hoveredNodeId), [adjacency, hoveredNodeId]);
 
   const handleNodeClick = useCallback(
@@ -251,8 +448,8 @@ function CanvasInner({
   );
 
   const positions = useMemo(
-    () => computeDagreLayout(nodesArray, edgesArray),
-    [nodesArray, edgesArray],
+    () => computeDagreLayout(visibleNodes, visibleEdges),
+    [visibleNodes, visibleEdges],
   );
 
   // React Flow expects { id, position, data, type } for nodes and
@@ -265,7 +462,7 @@ function CanvasInner({
   // every other card is demoted to a plain peer.
   const currentFocusFqn = graph.focus?.fqn || "";
   const flowNodes = useMemo(() => {
-    return nodesArray.map((node) => {
+    return visibleNodes.map((node) => {
       const position = positions.get(node.id) || { x: 0, y: 0 };
       const measuredHeight = nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT;
       const isFocus = currentFocusFqn
@@ -309,6 +506,11 @@ function CanvasInner({
             selectedColumn?.assetFqn === node.fqn ? selectedColumn?.columnName || "" : "",
           onSelect: handleNodeClick,
           onColumnSelect,
+          onOpenAsset,
+          // Node-level Databricks deep link (owner direction #2c). Built from
+          // the workspace host + FQN; "" when we can't stand behind a real
+          // link, so the card omits the affordance rather than dead-linking.
+          databricksHref: catalogExplorerUrl(node.fqn, workspaceHost),
         },
         // Disable React Flow's selection / drag — node identity is the
         // model, not a draggable artifact.
@@ -317,7 +519,7 @@ function CanvasInner({
       };
     });
   }, [
-    nodesArray,
+    visibleNodes,
     positions,
     hoveredNodeId,
     tracedNodeIds,
@@ -327,6 +529,8 @@ function CanvasInner({
     selectedColumn?.assetFqn,
     selectedColumn?.columnName,
     onColumnSelect,
+    onOpenAsset,
+    workspaceHost,
     currentFocusFqn,
   ]);
 
@@ -338,33 +542,50 @@ function CanvasInner({
     (typeof document !== "undefined"
       && getComputedStyle(document.documentElement).getPropertyValue(name).trim())
     || fallback;
-  const focusEdgeColor = cssVar("--ga-bright-blue", "#66c5ff");
-  const idleEdgeColor = "rgba(178, 189, 194, 0.55)";
+  // Direction-tinted edges (owner direction #3): upstream flow reads teal,
+  // downstream reads bright-blue, so the eye can follow provenance vs impact
+  // at a glance. Restricted edges keep their dashed-amber treatment (the CSS
+  // override wins) — a verified honesty contract we must not regress.
+  const focusEdgeColor = cssVar("--ga-bright-blue", "rgba(102,197,255,1)");
+  const upstreamEdgeColor = cssVar("--ga-teal", "rgba(92,225,230,1)");
+  const edgeSideOf = useCallback(
+    (edge) => {
+      const upSide = (id) => id === focusNodeId || upstreamIds.has(id);
+      const downSide = (id) => id === focusNodeId || downstreamIds.has(id);
+      if (upSide(edge.source) && upSide(edge.target)) return "upstream";
+      if (downSide(edge.source) && downSide(edge.target)) return "downstream";
+      return "downstream";
+    },
+    [focusNodeId, upstreamIds, downstreamIds],
+  );
   const flowEdges = useMemo(() => {
-    return edgesArray.map((edge) => {
+    return visibleEdges.map((edge) => {
       const isFocusEdge = focusReactFlowId
         ? edge.source === focusReactFlowId || edge.target === focusReactFlowId
         : false;
       const isTraced = !hoveredNodeId
         || (tracedNodeIds.has(edge.source) && tracedNodeIds.has(edge.target));
+      const side = edgeSideOf(edge);
+      const tint = side === "upstream" ? upstreamEdgeColor : focusEdgeColor;
+      const idleStroke = side === "upstream" ? "rgba(92, 225, 230, 0.42)" : "rgba(102, 197, 255, 0.42)";
       return {
         id: edge.id,
         source: edge.source,
         target: edge.target,
         type: "smoothstep",
         animated: isFocusEdge,
-        markerEnd: { type: MarkerType.ArrowClosed, color: isFocusEdge ? focusEdgeColor : idleEdgeColor },
+        markerEnd: { type: MarkerType.ArrowClosed, color: tint },
         style: {
-          stroke: isFocusEdge ? focusEdgeColor : `rgba(102, 197, 255, 0.45)`,
-          strokeWidth: isFocusEdge ? 1.6 : 1.1,
-          opacity: isTraced ? (isFocusEdge ? 1 : 0.6) : 0.18,
+          stroke: isFocusEdge ? tint : idleStroke,
+          strokeWidth: isFocusEdge ? 1.8 : 1.1,
+          opacity: isTraced ? (isFocusEdge ? 1 : 0.62) : 0.16,
           transition: "opacity 200ms cubic-bezier(0.22, 1, 0.36, 1)",
         },
         data: { isRestricted: edge.isRestricted },
         className: edge.isRestricted ? "ga-lineage-v2-edge-restricted" : undefined,
       };
     });
-  }, [edgesArray, focusReactFlowId, hoveredNodeId, tracedNodeIds, focusEdgeColor]);
+  }, [visibleEdges, focusReactFlowId, hoveredNodeId, tracedNodeIds, focusEdgeColor, upstreamEdgeColor, edgeSideOf]);
 
   // Header hydration changes node card content after React Flow's initial
   // measurements. Refresh node internals so invisible handles keep valid
@@ -444,8 +665,8 @@ function CanvasInner({
 
   if (stubOnlyGraph && hydrating) {
     return (
-      <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-hydrating">
-        <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />
+      <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-hydrating ga-lineage-v2-canvas-state-skeleton">
+        <LineageGraphSkeleton caption="" />
         <strong>Loading lineage from Unity Catalog</strong>
         <span>Walking system.access.table_lineage outward from the focus asset…</span>
       </div>
@@ -465,10 +686,71 @@ function CanvasInner({
 
   return (
     <div className="ga-lineage-v2-canvas">
+      {kindMeta.kinds.length ? (
+        <div className="ga-lineage-v2-legend" role="group" aria-label="Lineage graph filters and legend">
+          <div className="ga-lineage-v2-legend-directions" role="group" aria-label="Direction filter">
+            {[
+              ["all", "All", kindMeta.peerTotal],
+              ["upstream", "Upstream", kindMeta.upstreamTotal],
+              ["downstream", "Downstream", kindMeta.downstreamTotal],
+            ].map(([key, label, count]) => (
+              <button
+                aria-pressed={direction === key}
+                className={`ga-lineage-v2-legend-dir ${direction === key ? "is-active" : ""}`.trim()}
+                key={key}
+                onClick={() => setDirection(key)}
+                title={`Show ${label.toLowerCase()} assets`}
+                type="button"
+              >
+                {label}
+                <span className="ga-lineage-v2-legend-count">{count}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ga-lineage-v2-legend-kinds">
+            {kindMeta.kinds.map((entry) => {
+              const off = disabledKinds.has(entry.kind);
+              return (
+                <button
+                  aria-pressed={!off}
+                  className={`ga-lineage-v2-legend-chip ${off ? "is-off" : ""}`.trim()}
+                  data-node-kind={entry.kind}
+                  key={entry.kind}
+                  onClick={() => toggleKind(entry.kind)}
+                  title={`${off ? "Show" : "Hide"} ${kindLabel(entry.kind)} nodes (${entry.upstream} up / ${entry.downstream} down)`}
+                  type="button"
+                >
+                  <span aria-hidden="true" className="ga-lineage-v2-legend-swatch" />
+                  {kindLabel(entry.kind)}
+                  <span className="ga-lineage-v2-legend-count">{entry.count}</span>
+                </button>
+              );
+            })}
+            {filtersActive ? (
+              <button
+                className="ga-lineage-v2-legend-reset"
+                onClick={resetFilters}
+                type="button"
+              >
+                Reset
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {hydrating || useSticky ? (
         <div className="ga-lineage-v2-canvas-banner" role="status">
           <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />
           {useSticky ? "Switching focus…" : "Loading from Unity Catalog…"}
+        </div>
+      ) : null}
+      {!flowNodes.length ? (
+        <div className="ga-lineage-v2-filter-empty" role="status">
+          <strong>No nodes match the current filters</strong>
+          <span>Every connected asset is hidden by the direction or type filters above.</span>
+          <button className="ga-lineage-v2-secondary-btn" onClick={resetFilters} type="button">
+            Reset filters
+          </button>
         </div>
       ) : null}
       <ReactFlow
@@ -479,7 +761,7 @@ function CanvasInner({
         fitView
         fitViewOptions={{ padding: 0.2 }}
         maxZoom={2.25}
-        minZoom={0.5}
+        minZoom={minZoom}
         nodes={flowNodes}
         nodeTypes={NODE_TYPES}
         nodesConnectable={false}
@@ -559,6 +841,9 @@ export function LineageCanvasV2({
   warming = false,
   onRetry = null,
   onRenderedGraphChange = null,
+  onOpenAsset = null,
+  workspaceHost = "",
+  minZoom = 0.5,
 }) {
   // ReactFlowProvider is mounted at the application root in main.jsx, so we
   // don't need to wrap the canvas here. CanvasInner consumes the provider
@@ -569,14 +854,17 @@ export function LineageCanvasV2({
       focusId={focusId}
       graph={graph}
       hydrating={hydrating}
+      minZoom={minZoom}
       nodeHeaders={nodeHeaders}
       onFocusChange={onFocusChange}
       onColumnSelect={onColumnSelect}
+      onOpenAsset={onOpenAsset}
       onRenderedGraphChange={onRenderedGraphChange}
       onRetry={onRetry}
       selectedColumn={selectedColumn}
       selectedNodeFqn={selectedNodeFqn}
       warming={warming}
+      workspaceHost={workspaceHost}
     />
   );
 }

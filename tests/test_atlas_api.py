@@ -770,6 +770,107 @@ class AtlasApiTests(unittest.TestCase):
         self.assertFalse(payload["authoritative"])
         self.assertTrue(any("not substituted" in warning for warning in payload["meta"]["warnings"]))
 
+    def test_atlas_ai_grounds_estate_count_on_canonical_metrics(self) -> None:
+        """Genie snapshot drift must never override the canonical UI number.
+
+        Genie reports 31 certified; the visible estate has 1 strictly-certified
+        asset. Atlas AI must answer the canonical figure and warn about the drift.
+        """
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="genie",
+            genie_space_id="space-1",
+            genie_space_title="Governance Atlas Metadata Room",
+            atlas_ai_require_benchmark=True,
+            workspace_host="https://example.cloud.databricks.com",
+        )
+        genie_payload = {
+            "question": "How many certified assets do we have?",
+            "intent": "genie",
+            "answer": "There are **31 certified assets**.",
+            "recommendations": [],
+            "evidence": [
+                {
+                    "type": "genie_query",
+                    "statementId": "stmt-1",
+                    "sql": "SELECT COUNT(*) FROM x WHERE is_certified = TRUE",
+                    "resultRows": [{"certified_asset_count": "31"}],
+                }
+            ],
+            "confidence": "genie-grounded",
+            "provider": "genie",
+            "providerState": {"provider": "genie", "state": "available", "spaceId": "space-1"},
+            "warnings": [],
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+            _visible_assets=lambda request: _visible_assets(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload):
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiQuestion(question="How many certified assets do we have?"),
+            )
+
+        payload = _response_json(response)
+        self.assertIn("1 certified asset", payload["answer"])
+        self.assertNotIn("31 certified", payload["answer"])
+        self.assertEqual(payload["confidence"], "canonical-grounded")
+        # Grounding now short-circuits BEFORE Genie (so estate answers are
+        # correct even when Genie is down), so there is no Genie number to
+        # diverge from — the canonical answer + confidence is the contract.
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertEqual(payload["evidence"][0]["metric"], "certifiedAssets")
+
+    def test_atlas_ai_injects_page_context_into_genie_prompt(self) -> None:
+        """Per-asset context must reach Genie so 'this asset' binds to a real FQN."""
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="genie",
+            genie_space_id="space-1",
+            genie_space_title="Governance Atlas Metadata Room",
+            atlas_ai_require_benchmark=True,
+            workspace_host="https://example.cloud.databricks.com",
+        )
+        genie_payload = {
+            "question": "Who owns this asset?",
+            "intent": "genie",
+            "answer": "Owned by skyler@entrada.ai.",
+            "recommendations": [],
+            "evidence": [{"type": "genie_query", "statementId": "s", "sql": "SELECT 1"}],
+            "confidence": "genie-grounded",
+            "provider": "genie",
+            "providerState": {"provider": "genie", "state": "available", "spaceId": "space-1"},
+            "warnings": [],
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload) as ask_genie:
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiQuestion(
+                    question="Who owns this asset?",
+                    context=atlas_api.AtlasAiContext(
+                        surface="assets", assetFqn="finance_prod.curated.revenue_daily"
+                    ),
+                ),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        prompt = ask_genie.call_args.kwargs["question"]
+        self.assertIn("finance_prod.curated.revenue_daily", prompt)
+        self.assertIn("this asset", prompt.lower())
+        # The user-facing question is preserved, not the augmented prompt.
+        self.assertEqual(_response_json(response)["question"], "Who owns this asset?")
+
 
 def _age_cache_prefix(prefix: str, seconds: float = 3600) -> None:
     """Backdate cached entries so the fresh-TTL check misses but stale data remains."""

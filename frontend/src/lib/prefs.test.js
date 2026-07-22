@@ -3,10 +3,12 @@ import {
   pushRecentAsset,
   readDiscoveryDensity,
   readFavoriteAssets,
+  readLastAsset,
   readPref,
   readSavedSearches,
   readSessionCache,
   toggleFavoriteAsset,
+  writeLastAsset,
   writePref,
   writeSessionCache,
 } from "./prefs";
@@ -76,6 +78,15 @@ describe("lib/prefs — namespaced preferences", () => {
     expect(next[0]).toBe("asset.3");
     expect(next.length).toBeLessThanOrEqual(20);
     expect(new Set(next).size).toBe(next.length);
+  });
+
+  it("remembers the last opened Asset 360 record (empty by default)", () => {
+    expect(readLastAsset()).toBe("");
+    writeLastAsset("main.sales.orders");
+    expect(readLastAsset()).toBe("main.sales.orders");
+    // Non-string / clearing writes normalize to "".
+    writeLastAsset("");
+    expect(readLastAsset()).toBe("");
   });
 
   it("degrades to fallbacks when storage is unavailable", () => {
