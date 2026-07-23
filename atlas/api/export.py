@@ -50,21 +50,31 @@ def _request_id(request: Request) -> str | None:
         return request.headers.get("x-databricks-request-id") or request.headers.get("x-request-id")
 
 
+_EXPORT_ROW_WORKERS = 8
+
+
 def _build_rows(asset_fqns: List[str], request: Request) -> list[dict]:
     """Assemble the per-asset row payload. Uses the existing
     _asset_detail_payload helper so the export surface inherits all of
     the normal visibility + redaction rules — an export can never show
-    a field that the asset-detail API would hide."""
+    a field that the asset-detail API would hide.
+
+    The per-asset detail is a ~1s SQL round trip, so a large selection is
+    fanned out across a bounded thread pool (each asset still goes through the
+    identical openability + redaction path). Order is preserved to match the
+    caller's selection; unopenable/failed assets drop out (fail-closed)."""
+    from concurrent.futures import ThreadPoolExecutor
+
     from runtime_app import _asset_detail_payload, _asset_is_openable
 
-    rows: list[dict] = []
-    for fqn in asset_fqns:
-        fqn_normalized = _normalize_str(fqn)
-        if not fqn_normalized:
-            continue
+    normalized = [fqn for fqn in (_normalize_str(f) for f in asset_fqns) if fqn]
+    if not normalized:
+        return []
+
+    def _row_for(fqn_normalized: str) -> Optional[dict]:
+        # Fail closed — invisible assets can't leak through export.
         if not _asset_is_openable(fqn_normalized, request):
-            # Fail closed — invisible assets can't leak through export.
-            continue
+            return None
         try:
             payload = _asset_detail_payload(
                 fqn_normalized,
@@ -72,26 +82,31 @@ def _build_rows(asset_fqns: List[str], request: Request) -> list[dict]:
                 sections=["header"],
             )
         except Exception:
-            continue
-        rows.append(
-            {
-                "fqn": payload.get("fqn") or fqn_normalized,
-                "name": payload.get("name"),
-                "catalog": payload.get("catalog"),
-                "schema": payload.get("schema"),
-                "description": payload.get("description"),
-                "domain": payload.get("domain"),
-                "tier": payload.get("tier"),
-                "certification": payload.get("certification"),
-                "sensitivity": payload.get("sensitivity"),
-                "criticality": payload.get("criticality"),
-                "dataProduct": payload.get("dataProduct") or payload.get("data_product"),
-                "governanceStatus": payload.get("governanceStatus"),
-                "owners": payload.get("owners") or [],
-                "tagEntries": payload.get("tagEntries") or [],
-            }
-        )
-    return rows
+            return None
+        return {
+            "fqn": payload.get("fqn") or fqn_normalized,
+            "name": payload.get("name"),
+            "catalog": payload.get("catalog"),
+            "schema": payload.get("schema"),
+            "description": payload.get("description"),
+            "domain": payload.get("domain"),
+            "tier": payload.get("tier"),
+            "certification": payload.get("certification"),
+            "sensitivity": payload.get("sensitivity"),
+            "criticality": payload.get("criticality"),
+            "dataProduct": payload.get("dataProduct") or payload.get("data_product"),
+            "governanceStatus": payload.get("governanceStatus"),
+            "owners": payload.get("owners") or [],
+            "tagEntries": payload.get("tagEntries") or [],
+        }
+
+    workers = max(1, min(_EXPORT_ROW_WORKERS, len(normalized)))
+    if workers == 1:
+        return [row for row in (_row_for(fqn) for fqn in normalized) if row is not None]
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        # pool.map preserves input order, so the CSV row order matches the
+        # actor's selection.
+        return [row for row in pool.map(_row_for, normalized) if row is not None]
 
 
 def _persist_export_job(

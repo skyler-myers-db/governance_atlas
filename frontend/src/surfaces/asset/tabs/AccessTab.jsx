@@ -48,6 +48,67 @@ export function AccessTab({ access, fqn }) {
     }
   };
 
+  // The Request-access CTA is defined once and rendered in EVERY loaded state
+  // (available OR unavailable) — a user most wants to request access precisely
+  // when the access context is unavailable, and keeping it mounted stops the
+  // button/form from flickering as the access payload settles.
+  const requestAccessCard = (
+    <SectionCard
+      title="Request access"
+      subtitle="File a governance request for a steward to widen your access to this asset."
+    >
+      {formOpen ? (
+        <form className="ga-asset-dialog-form" onSubmit={handleSubmit}>
+          <label className="ga-asset-field">
+            <span>Why do you need access?</span>
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Describe the work that needs this asset — context helps the steward triage."
+              rows={4}
+              autoFocus
+            />
+          </label>
+          {requestAccess.errorMessage ? (
+            <p className="ga-asset-form-error" role="alert">
+              {requestAccess.errorMessage}
+            </p>
+          ) : null}
+          <div className="ga-asset-dialog-footer">
+            <Button
+              variant="tertiary"
+              type="button"
+              onClick={() => {
+                setFormOpen(false);
+                setNote("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              tone="accent"
+              type="submit"
+              loading={requestAccess.submitting}
+              disabled={!note.trim() || !assetFqn}
+            >
+              Submit request
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button
+          variant="secondary"
+          disabled={!assetFqn}
+          title={assetFqn ? undefined : "Asset identity unavailable — cannot file a request."}
+          onClick={() => setFormOpen(true)}
+        >
+          Request access
+        </Button>
+      )}
+    </SectionCard>
+  );
+
   const state = String(access?.state || "").toLowerCase();
   if (!access || state === "loading") {
     return (
@@ -58,12 +119,15 @@ export function AccessTab({ access, fqn }) {
   }
   if (state !== "available") {
     return (
-      <SectionCard title="Access">
-        <UnavailableState
-          title="Access context unavailable"
-          reason={access?.message || "No access context was returned for this asset."}
-        />
-      </SectionCard>
+      <div className="ga-asset-tab-grid">
+        <SectionCard title="Access">
+          <UnavailableState
+            title="Access context unavailable"
+            reason={access?.message || "No access context was returned for this asset."}
+          />
+        </SectionCard>
+        {requestAccessCard}
+      </div>
     );
   }
 
@@ -133,60 +197,7 @@ export function AccessTab({ access, fqn }) {
         </SectionCard>
       ) : null}
 
-      <SectionCard
-        title="Request access"
-        subtitle="File a governance request for a steward to widen your access to this asset."
-      >
-        {formOpen ? (
-          <form className="ga-asset-dialog-form" onSubmit={handleSubmit}>
-            <label className="ga-asset-field">
-              <span>Why do you need access?</span>
-              <textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Describe the work that needs this asset — context helps the steward triage."
-                rows={4}
-                autoFocus
-              />
-            </label>
-            {requestAccess.errorMessage ? (
-              <p className="ga-asset-form-error" role="alert">
-                {requestAccess.errorMessage}
-              </p>
-            ) : null}
-            <div className="ga-asset-dialog-footer">
-              <Button
-                variant="tertiary"
-                type="button"
-                onClick={() => {
-                  setFormOpen(false);
-                  setNote("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                tone="accent"
-                type="submit"
-                loading={requestAccess.submitting}
-                disabled={!note.trim() || !assetFqn}
-              >
-                Submit request
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <Button
-            variant="secondary"
-            disabled={!assetFqn}
-            title={assetFqn ? undefined : "Asset identity unavailable — cannot file a request."}
-            onClick={() => setFormOpen(true)}
-          >
-            Request access
-          </Button>
-        )}
-      </SectionCard>
+      {requestAccessCard}
     </div>
   );
 }

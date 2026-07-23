@@ -130,14 +130,22 @@ function ControlsInAction() {
   const { decisions, summary, enforcementNote, status } = useControlDecisions();
 
   const total = numberOrNull(summary.total) ?? decisions.length;
-  const approved = numberOrNull(summary.approved) ?? 0;
-  const rejected = numberOrNull(summary.rejected) ?? 0;
+  // Honest, informative breakdown by the ACTUAL outcomes present (resolved,
+  // approved, rejected, pending, …) rather than only approve/reject — which
+  // read 0 when the log is mostly stewardship resolutions.
+  const byOutcome = Array.isArray(summary.byOutcome) ? summary.byOutcome : [];
+  const outcomeSummary = byOutcome.length
+    ? byOutcome
+        .filter((entry) => entry && entry.outcome)
+        .map((entry) => `${entry.count} ${entry.outcome}`)
+        .join(" · ")
+    : `${numberOrNull(summary.approved) ?? 0} approved · ${numberOrNull(summary.rejected) ?? 0} rejected`;
 
   return (
     <SectionCard
       className="ga-admin-card"
       status={status === "loading" || status === "hydrating" ? "loading" : undefined}
-      subtitle={`${approved} approved · ${rejected} rejected · ${total} decisions`}
+      subtitle={`${total} decision${total === 1 ? "" : "s"} — ${outcomeSummary}`}
       title="Controls in action"
     >
       {decisions.length ? (
