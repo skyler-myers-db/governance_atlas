@@ -2694,14 +2694,23 @@ def api_atlas_ai_autofill(request: Request, body: AtlasAiAutofill | None = Body(
     # data (unlike Genie, which must stay OBO). Fall back to OBO if present.
     forwarded_token = _request_obo_token(request)
     try:
+        # Prefer the app service principal (holds the serving CAN_QUERY grant).
+        # Only fall back to OBO on an AUTH error, and surface the SP error so a
+        # scope/permission misconfig is diagnosable instead of masked.
         try:
             result = ai_generation.generate_fields(config=cfg, kind=kind, context=context or {})
-        except Exception:
+        except ValueError:
+            raise
+        except Exception as sp_error:
             if not forwarded_token:
                 raise
-            result = ai_generation.generate_fields(
-                config=cfg, kind=kind, context=context or {}, user_access_token=forwarded_token,
-            )
+            try:
+                result = ai_generation.generate_fields(
+                    config=cfg, kind=kind, context=context or {}, user_access_token=forwarded_token,
+                )
+            except Exception:
+                # Re-raise the SP error (the primary path) for diagnosis.
+                raise sp_error
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
