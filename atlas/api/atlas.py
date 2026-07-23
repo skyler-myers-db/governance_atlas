@@ -2048,6 +2048,94 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
     return None
 
 
+# --- Scoped-count grounding ---------------------------------------------------
+# Facet-scoped count questions ("how many certified assets in Finance?", "how
+# many PII assets?", "how many assets in the Tier 1 tier?") are NOT estate-wide
+# aggregates, so estate grounding declines them and they used to drift through
+# Genie. This computes them from the same inventory + predicates the dashboard
+# uses. It fires only when a real domain/tier/sensitivity VALUE is named (the
+# subset dimensions estate can't express), and the answer states exactly which
+# filters it applied so the number is never a mislabelled global count.
+_UNCERTIFIED_PHRASES = (
+    "uncertified", "un-certified", "not certified", "without certification",
+    "aren't certified", "arent certified", "isn't certified", "isnt certified",
+    "lacking certification", "no certification", "not been certified",
+)
+
+
+def _value_in_text(text: str, value: str) -> bool:
+    name = _normalize_str(value)
+    if not name:
+        return False
+    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(name.lower())}(?![A-Za-z0-9])", text))
+
+
+def _scoped_count_grounding(question: str, request, ai_context, *, visible_assets_fn) -> dict | None:
+    text = _normalize_str(question).lower()
+    if not any(a in text for a in _AGGREGATE_TOKENS):
+        return None
+    # Owner-gap counts belong to ownership grounding (which runs first); don't
+    # answer them here with a non-owner scope.
+    if _mentions_owner_gap(text):
+        return None
+    try:
+        visible = visible_assets_fn(request)
+    except Exception:
+        return None
+    if visible is None or getattr(visible, "empty", True):
+        return None
+    facets = atlas_metrics.known_facet_values(visible)
+    domains = [d for d in facets["domains"] if _value_in_text(text, d)]
+    tiers = [t for t in facets["tiers"] if _value_in_text(text, t)]
+    sensitivities = [s for s in facets["sensitivities"] if _value_in_text(text, s)]
+    # Trigger only on a real subset scope estate metrics can't express.
+    if not (domains or tiers or sensitivities):
+        return None
+    cde = ("cde" in text) or ("critical data element" in text)
+    certified: bool | None = None
+    if any(p in text for p in _UNCERTIFIED_PHRASES):
+        certified = False
+    elif "certif" in text:
+        certified = True
+    critical: bool | None = None
+    if not cde and ("critical" in text or "business-critical" in text or "business critical" in text):
+        critical = True
+    matched = atlas_metrics.scoped_asset_count(
+        visible_assets=visible, domains=domains, tiers=tiers, sensitivities=sensitivities,
+        certified=certified, critical=critical, cde=cde or None,
+    )
+    adjectives: list[str] = []
+    if certified is True:
+        adjectives.append("certified")
+    if certified is False:
+        adjectives.append("uncertified")
+    if critical:
+        adjectives.append("business-critical")
+    if cde:
+        adjectives.append("CDE")
+    adjectives.extend(sensitivities)  # e.g. PII / Confidential as a classifier
+    noun = (" ".join(adjectives) + " assets") if adjectives else "assets"
+    scopes: list[str] = []
+    if domains:
+        scopes.append(f"the {', '.join(domains)} domain{'s' if len(domains) > 1 else ''}")
+    if tiers:
+        scopes.append(f"the {', '.join(tiers)} tier{'s' if len(tiers) > 1 else ''}")
+    scope_str = (" in " + " and ".join(scopes)) if scopes else ""
+    answer = (
+        f"There are **{matched:,}** {noun}{scope_str}, computed from the same canonical "
+        "inventory the Command Center uses."
+    )
+    return {
+        "answer": answer,
+        "evidence": {
+            "type": "metric", "id": "scopedAssetCount", "metric": "scopedAssetCount",
+            "value": matched, "label": f"{matched} {noun}{scope_str}".strip(),
+            "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+        },
+        "warnings": [],
+    }
+
+
 # Direction detection is phrase-based, not bare-token: "what feeds X" is
 # upstream but "what does X feed" / "X feeds into" is DOWNSTREAM. The bare
 # "feed" token used to classify both as upstream, so "what does this feed?"
@@ -2187,6 +2275,15 @@ def api_atlas_ai_recommendations(
     if _early_ground is None:
         try:
             _early_ground = _ownership_grounding(
+                question, request, ai_context, visible_assets_fn=_visible_assets,
+            )
+        except Exception:
+            _early_ground = None
+    # Facet-scoped counts ("how many certified assets in Finance?") — computed
+    # from canonical inventory, before estate grounding declines them to Genie.
+    if _early_ground is None:
+        try:
+            _early_ground = _scoped_count_grounding(
                 question, request, ai_context, visible_assets_fn=_visible_assets,
             )
         except Exception:

@@ -890,6 +890,67 @@ class AtlasApiTests(unittest.TestCase):
             ]
         )
 
+    @staticmethod
+    def _scoped_frame() -> pd.DataFrame:
+        return pd.DataFrame([
+            {"fqn": "finance_prod.gold.a", "domain": "Finance", "tier": "Tier 1",
+             "sensitivity": "PII", "certification": "Certified", "criticality": "Critical"},
+            {"fqn": "finance_prod.gold.b", "domain": "Finance", "tier": "Tier 1",
+             "certification": "Draft", "criticality": "Critical"},
+            {"fqn": "main.customer.c", "domain": "Customer", "tier": "Tier 2",
+             "sensitivity": "PII", "certification": "Certified"},
+        ])
+
+    def _ask_with_frame(self, question, frame, context=None):
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="local", genie_space_id="", genie_space_title="",
+            atlas_ai_require_benchmark=False, workspace_host="https://example.cloud.databricks.com",
+        )
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: frame, _store=lambda: FakeStore(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ), patch.object(atlas_api.genie_service, "ask_genie") as ask_genie:
+            kwargs = {"question": question}
+            if context is not None:
+                kwargs["context"] = context
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo"}),
+                atlas_api.AtlasAiQuestion(**kwargs),
+            )
+        return _response_json(response), ask_genie
+
+    def test_scoped_count_certified_in_domain(self) -> None:
+        # "how many certified assets in Finance?" → 1 (a is Certified; b is Draft).
+        payload, ask_genie = self._ask_with_frame(
+            "How many certified assets in the Finance domain?", self._scoped_frame())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertIn("1", payload["answer"])
+        self.assertIn("certified", payload["answer"].lower())
+        self.assertIn("Finance", payload["answer"])
+        self.assertEqual(payload["evidence"][0]["metric"], "scopedAssetCount")
+        ask_genie.assert_not_called()
+
+    def test_scoped_count_by_tier_value(self) -> None:
+        payload, _ = self._ask_with_frame("How many assets are in the Tier 1 tier?", self._scoped_frame())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertIn("2", payload["answer"])  # a + b
+        self.assertIn("Tier 1", payload["answer"])
+
+    def test_scoped_count_by_sensitivity_value(self) -> None:
+        payload, _ = self._ask_with_frame("How many PII assets do we have?", self._scoped_frame())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertIn("2", payload["answer"])  # a + c
+        self.assertIn("PII", payload["answer"])
+
+    def test_global_certified_count_stays_estate_not_scoped(self) -> None:
+        # No subset scope → estate metric (certifiedAssets), NOT scoped-count.
+        payload, _ = self._ask_with_frame("How many certified assets are there?", self._scoped_frame())
+        self.assertEqual(payload["evidence"][0]["metric"], "certifiedAssets")
+
     def _ask_grounded(self, question, context=None):
         """Call the endpoint with ownership grounding active (Genie unconfigured
         is fine — grounding short-circuits before the Genie branch)."""

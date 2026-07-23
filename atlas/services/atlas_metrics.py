@@ -16,7 +16,7 @@ import math
 from numbers import Integral, Real
 import os
 import re
-from typing import Any, Dict, Iterable, List, Mapping, Sequence
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import pandas as pd
 
@@ -326,6 +326,61 @@ def known_scope_values(visible_assets: pd.DataFrame) -> List[str]:
 _GENERIC_SCOPE_WORDS = frozenset(
     {"none", "low", "medium", "high", "moderate", "other", "unknown", "n/a", "na", "general"}
 )
+
+
+def known_facet_values(visible_assets: pd.DataFrame) -> Dict[str, List[str]]:
+    """Distinct domain / tier / sensitivity values — the subset dimensions that
+    trigger scoped-count grounding (estate metrics are all global; these are the
+    facets they can't express). Criticality/certification are handled as concept
+    predicates (is_critical / is_certified), not value matches.
+    """
+    df = _safe_df(visible_assets)
+    return {
+        "domains": _distinct_values(df, "domain"),
+        "tiers": _distinct_values(df, "tier"),
+        "sensitivities": _distinct_values(df, "sensitivity"),
+    }
+
+
+def scoped_asset_count(
+    *,
+    visible_assets: pd.DataFrame,
+    domains: Optional[Sequence[str]] = None,
+    tiers: Optional[Sequence[str]] = None,
+    sensitivities: Optional[Sequence[str]] = None,
+    certified: Optional[bool] = None,
+    critical: Optional[bool] = None,
+    cde: Optional[bool] = None,
+) -> int:
+    """Count visible assets matching a facet scope, using the SAME predicates the
+    Command Center/Discovery use (semantics.is_certified / is_critical /
+    is_cde_asset, and exact domain/tier/sensitivity match). This lets Atlas AI
+    answer "how many certified assets in Finance?" / "how many PII assets?" from
+    the canonical inventory instead of the drifting Genie view.
+    """
+    df = _safe_df(visible_assets)
+    dset = {_text(d).lower() for d in (domains or []) if _text(d)}
+    tset = {_text(t).lower() for t in (tiers or []) if _text(t)}
+    sset = {_text(s).lower() for s in (sensitivities or []) if _text(s)}
+    matched = 0
+    for _, row in df.iterrows():
+        row_map = _row_dict(row)
+        if dset and _row_text(row_map, "domain").lower() not in dset:
+            continue
+        if tset and _row_text(row_map, "tier").lower() not in tset:
+            continue
+        if sset and _row_text(row_map, "sensitivity").lower() not in sset:
+            continue
+        if certified is True and not _is_certified(row_map):
+            continue
+        if certified is False and _is_certified(row_map):
+            continue
+        if critical is True and not _is_critical(row_map):
+            continue
+        if cde is True and not _is_cde_asset(row_map):
+            continue
+        matched += 1
+    return matched
 
 
 def asset_ownership(*, visible_assets: pd.DataFrame, fqn: str) -> Dict[str, Any]:

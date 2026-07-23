@@ -26,6 +26,9 @@ const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
 // to the viewport at drag time so the dock can never exceed the visible area.
 const AI_CHAT_MIN = { width: 320, height: 360 };
 const AI_CHAT_MAX = { width: 720, height: 960 };
+// Resize grips: 4 edges + 4 corners, so a bottom-right-anchored dock can be
+// grown from its top/left toward screen centre (not just shrunk from the se).
+const RESIZE_HANDLES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 
 // Active facet scope from the Discover URL (the URL is the source of truth for
 // Discover state). Only present filters are included, so an unfiltered page
@@ -615,25 +618,52 @@ export function AtlasAiDock({
     };
   }, []);
 
-  // Corner-handle resize. Clamps to [AI_CHAT_MIN, AI_CHAT_MAX] and to whatever
-  // the viewport allows from the dock's current top/left, so the dock can never
-  // grow off-screen. A resize implicitly exits the maximized state.
+  // Edge/corner resize. `start.dir` is one of n/s/e/w/ne/nw/se/sw. Dragging a
+  // west/north edge grows the dock toward screen centre while pinning the
+  // opposite edge (left/top move with the size) — the bottom-right-anchored
+  // dock could otherwise only SHRINK, since its se corner sits against the
+  // viewport edge. Clamps to [AI_CHAT_MIN, AI_CHAT_MAX] and the viewport, and a
+  // resize implicitly exits the maximized state.
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const onPointerMove = (event) => {
       const start = resizeRef.current;
       if (!start) return;
-      const maxViewportW = Math.max(AI_CHAT_MIN.width, window.innerWidth - position.left - 12);
-      const maxViewportH = Math.max(AI_CHAT_MIN.height, window.innerHeight - position.top - 12);
-      const nextWidth = Math.min(
-        Math.min(AI_CHAT_MAX.width, maxViewportW),
-        Math.max(AI_CHAT_MIN.width, start.width + event.clientX - start.x),
-      );
-      const nextHeight = Math.min(
-        Math.min(AI_CHAT_MAX.height, maxViewportH),
-        Math.max(AI_CHAT_MIN.height, start.height + event.clientY - start.y),
-      );
-      setSize({ width: Math.round(nextWidth), height: Math.round(nextHeight) });
+      const dir = start.dir || "se";
+      const innerW = window.innerWidth;
+      const innerH = window.innerHeight;
+      const rightEdge = start.left + start.width;
+      const bottomEdge = start.top + start.height;
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      let width = start.width;
+      let height = start.height;
+      let left = start.left;
+      let top = start.top;
+      if (dir.includes("e")) width = start.width + dx;
+      if (dir.includes("w")) width = start.width - dx;
+      if (dir.includes("s")) height = start.height + dy;
+      if (dir.includes("n")) height = start.height - dy;
+      width = Math.min(AI_CHAT_MAX.width, Math.max(AI_CHAT_MIN.width, width));
+      height = Math.min(AI_CHAT_MAX.height, Math.max(AI_CHAT_MIN.height, height));
+      // Anchor the opposite edge, then clamp to the viewport gutters.
+      if (dir.includes("w")) {
+        left = rightEdge - width;
+        if (left < 12) { left = 12; width = rightEdge - 12; }
+      } else if (dir.includes("e") && left + width > innerW - 12) {
+        width = innerW - 12 - left;
+      }
+      if (dir.includes("n")) {
+        top = bottomEdge - height;
+        if (top < 82) { top = 82; height = bottomEdge - 82; }
+      } else if (dir.includes("s") && top + height > innerH - 12) {
+        height = innerH - 12 - top;
+      }
+      width = Math.max(AI_CHAT_MIN.width, width);
+      height = Math.max(AI_CHAT_MIN.height, height);
+      setSize({ width: Math.round(width), height: Math.round(height) });
+      setPosition((prev) => ({ ...prev, left: Math.round(left), top: Math.round(top) }));
+      if (maximized) setMaximized(false);
     };
     const onPointerUp = () => {
       resizeRef.current = null;
@@ -644,7 +674,7 @@ export function AtlasAiDock({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [position.left, position.top]);
+  }, [maximized]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined" || typeof ResizeObserver === "undefined") {
@@ -866,28 +896,36 @@ export function AtlasAiDock({
               Atlas AI answers are grounded in available governance metadata and should be reviewed before action.
             </p>
           ) : null}
-          {maximized ? null : (
-            <div
-              aria-hidden="true"
-              className="ga-ai-dock-resize"
-              onPointerDown={(event) => {
-                if (event.button !== 0) return;
-                event.preventDefault();
-                resizeRef.current = {
-                  x: event.clientX,
-                  y: event.clientY,
-                  width: dockBox.width,
-                  height: dockBox.height,
-                };
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-              }}
-              title="Drag to resize"
-            >
-              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-                <path d="M11 5 5 11M11 9l-2 2" />
-              </svg>
-            </div>
-          )}
+          {maximized
+            ? null
+            : RESIZE_HANDLES.map((dir) => (
+                <div
+                  aria-hidden="true"
+                  className={`ga-ai-dock-resize ga-ai-dock-resize-${dir}`}
+                  key={dir}
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+                    resizeRef.current = {
+                      x: event.clientX,
+                      y: event.clientY,
+                      width: dockBox.width,
+                      height: dockBox.height,
+                      left: dockBox.left,
+                      top: dockBox.top,
+                      dir,
+                    };
+                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                  }}
+                  title="Drag to resize"
+                >
+                  {dir === "se" ? (
+                    <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                      <path d="M11 5 5 11M11 9l-2 2" />
+                    </svg>
+                  ) : null}
+                </div>
+              ))}
         </section>
       ) : null}
     </>

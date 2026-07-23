@@ -186,6 +186,29 @@ class OwnershipGroundingHelpersTests(unittest.TestCase):
         own = atlas_metrics.asset_ownership(visible_assets=self._frame(), fqn="nope.nope.nope")
         self.assertFalse(own["found"])
 
+    @staticmethod
+    def _scoped() -> pd.DataFrame:
+        return pd.DataFrame([
+            {"fqn": "a", "domain": "Finance", "tier": "Tier 1", "sensitivity": "PII", "certification": "Certified", "criticality": "Critical"},
+            {"fqn": "b", "domain": "Finance", "tier": "Tier 1", "certification": "Draft", "criticality": "Critical"},
+            {"fqn": "c", "domain": "Customer", "tier": "Tier 2", "sensitivity": "PII", "certification": "Certified"},
+        ])
+
+    def test_known_facet_values(self) -> None:
+        facets = atlas_metrics.known_facet_values(self._scoped())
+        self.assertIn("Finance", facets["domains"])
+        self.assertIn("Tier 1", facets["tiers"])
+        self.assertIn("PII", facets["sensitivities"])
+
+    def test_scoped_asset_count_predicates(self) -> None:
+        df = self._scoped()
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, domains=["Finance"], certified=True), 1)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, domains=["Finance"], certified=False), 1)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, tiers=["Tier 1"]), 2)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, sensitivities=["PII"]), 2)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, domains=["Finance"], critical=True), 2)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df), 3)
+
 
 class AtlasMetricsTests(unittest.TestCase):
     def test_command_center_payload_counts_visible_assets_without_fake_deltas(self) -> None:
