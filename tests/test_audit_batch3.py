@@ -110,3 +110,39 @@ class BoardReportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExportRowConcurrencyTests(unittest.TestCase):
+    """Follow-up: _build_rows fans per-asset detail across a thread pool. It must
+    preserve selection order AND stay fail-closed (drop unopenable assets)."""
+
+    def _run(self, fqns):
+        import sys
+        import types
+
+        rt = types.ModuleType("runtime_app")
+        rt._asset_is_openable = lambda fqn, request: "hidden" not in fqn
+        rt._asset_detail_payload = lambda fqn, request=None, sections=None: {"fqn": fqn, "name": fqn.split(".")[-1]}
+        saved = sys.modules.get("runtime_app")
+        sys.modules["runtime_app"] = rt
+        try:
+            from atlas.api import export as export_api
+
+            return [row["fqn"] for row in export_api._build_rows(fqns, request=None)]
+        finally:
+            if saved is not None:
+                sys.modules["runtime_app"] = saved
+            else:
+                sys.modules.pop("runtime_app", None)
+
+    def test_preserves_order_and_fails_closed_parallel(self):
+        # >1 asset triggers the ThreadPoolExecutor path.
+        fqns = [f"c.s.a{i}" for i in range(20)]
+        fqns.insert(5, "c.s.hidden_secret")
+        result = self._run(fqns)
+        self.assertNotIn("c.s.hidden_secret", result)  # fail-closed
+        self.assertEqual(result, [f"c.s.a{i}" for i in range(20)])  # order preserved
+
+    def test_single_asset_serial_path(self):
+        self.assertEqual(self._run(["c.s.only"]), ["c.s.only"])
+        self.assertEqual(self._run(["c.s.hidden"]), [])

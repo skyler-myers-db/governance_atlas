@@ -927,6 +927,7 @@ def api_governance_control_decisions(
 
     decisions: List[Dict[str, Any]] = []
     approved = rejected = 0
+    by_outcome: Dict[str, int] = {}
     if df is not None and not df.empty:
         for _, row in df.iterrows():
             after = _parse(row.get("after_json"))
@@ -938,6 +939,11 @@ def api_governance_control_decisions(
                 approved += 1
             elif decision == "rejected":
                 rejected += 1
+            # Real outcome distribution — the audit log holds resolutions,
+            # approvals, rejections, triage, etc.; count them honestly rather
+            # than only approve/reject (which read 0 when the log is mostly
+            # workbench resolutions).
+            by_outcome[decision] = by_outcome.get(decision, 0) + 1
             decisions.append(
                 {
                     "auditId": _normalize_str(row.get("audit_id")),
@@ -958,7 +964,19 @@ def api_governance_control_decisions(
         {
             "ok": True,
             "decisions": decisions,
-            "summary": {"total": len(decisions), "approved": approved, "rejected": rejected},
+            "summary": {
+                "total": len(decisions),
+                "approved": approved,
+                "rejected": rejected,
+                # [{outcome, count}] sorted by count desc for an honest,
+                # informative breakdown of what stewards actually did.
+                "byOutcome": [
+                    {"outcome": outcome, "count": count}
+                    for outcome, count in sorted(
+                        by_outcome.items(), key=lambda item: (-item[1], item[0])
+                    )
+                ],
+            },
             "scope": "governance-review-activity",
             # Honesty gate (CLAUDE.md): never claim access enforcement.
             "enforcementNote": (
