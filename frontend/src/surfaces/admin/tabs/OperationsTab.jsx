@@ -29,6 +29,9 @@ function absoluteHost(raw) {
   return /^https?:\/\//i.test(host) ? host : `https://${host}`;
 }
 
+/**
+ * @param {{ heading?: string, value?: any, hint?: string, href?: string, linkTitle?: string }} props
+ */
 function SummaryTile({ heading, value, hint, href, linkTitle }) {
   const strong = <strong>{value}</strong>;
   return (

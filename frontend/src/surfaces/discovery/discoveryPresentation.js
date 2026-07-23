@@ -309,7 +309,10 @@ export function labelForRuntimeState(state) {
   return raw ? humanizeEnumLabel(raw) : "Unknown";
 }
 
-/** Workspace-scoped Databricks-backed payloads count as trustworthy sources. */
+/**
+ * Workspace-scoped Databricks-backed payloads count as trustworthy sources.
+ * @param {Record<string, any>} [meta]
+ */
 export function isDatabricksBackedDiscoveryMeta(meta = {}) {
   if (!meta || typeof meta !== "object") return false;
   const source = String(meta.source || meta.inventorySource || meta.dataSource || "").toLowerCase();

@@ -82,6 +82,9 @@ const ExternalIcon = (
  * contractual title. Styled as a secondary system button so it sits inline with
  * the header/peek controls; pass `variant="menu"` for a plain menu-item row.
  */
+/**
+ * @param {{ href?: any, label?: string, variant?: string, className?: string, onClick?: any }} props
+ */
 export function ExternalLink({
   href,
   label = "Open in Databricks",

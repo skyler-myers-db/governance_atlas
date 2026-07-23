@@ -15,6 +15,9 @@ import { normalizeStatus } from "./statusContract";
 
 const SKELETON_VARIANTS = { tile: 3, card: 4, table: 6, page: 8 };
 
+/**
+ * @param {{ variant?: string, lines?: number, label?: string, className?: string }} props
+ */
 export function LoadingState({ variant = "card", lines, label = "Loading", className = "" }) {
   const kind = SKELETON_VARIANTS[variant] != null ? variant : "card";
   const count = Number.isInteger(lines) && lines > 0 ? lines : SKELETON_VARIANTS[kind];

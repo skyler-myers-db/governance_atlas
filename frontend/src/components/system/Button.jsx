@@ -38,7 +38,7 @@ export function Button({
 
   return (
     <button
-      type={type}
+      type={/** @type {"button" | "submit" | "reset"} */ (type)}
       className={classes}
       // Loading disables interaction; aria-busy tells AT why.
       disabled={disabled || loading}

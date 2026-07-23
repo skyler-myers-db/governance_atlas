@@ -477,7 +477,7 @@ export default function GlossaryPage() {
                   onClick={(event) => {
                     // Whole-card click is a convenience zone; the term chip
                     // below is the real anchor (middle-click/copy keep working).
-                    if (event.target.closest("a, button")) return;
+                    if (/** @type {HTMLElement} */ (event.target).closest("a, button")) return;
                     openTerm(term);
                   }}
                 >

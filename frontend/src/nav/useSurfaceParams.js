@@ -27,6 +27,10 @@ import { useSearchParams } from "react-router-dom";
 
 import { normalizeSchema, parseSearch, writeParams } from "./routes.js";
 
+/**
+ * @param {any} schema
+ * @returns {[Record<string, any>, (patch: Record<string, any>, options?: { push?: boolean }) => void]}
+ */
 export function useSurfaceParams(schema) {
   const [searchParams, setSearchParams] = useSearchParams();
 

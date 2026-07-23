@@ -140,7 +140,7 @@ export function StatTile({
 
   if (href) {
     const Anchor = inRouter ? Link : "a";
-    const anchorProps = inRouter ? { to: href } : { href };
+    const anchorProps = /** @type {any} */ (inRouter ? { to: href } : { href });
     const handleClick = (event) => {
       if (!navigate || event.defaultPrevented) return;
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

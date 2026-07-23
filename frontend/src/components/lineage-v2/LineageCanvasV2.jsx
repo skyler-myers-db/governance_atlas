@@ -689,11 +689,11 @@ function CanvasInner({
       {kindMeta.kinds.length ? (
         <div className="ga-lineage-v2-legend" role="group" aria-label="Lineage graph filters and legend">
           <div className="ga-lineage-v2-legend-directions" role="group" aria-label="Direction filter">
-            {[
+            {/** @type {[string, string, number][]} */ ([
               ["all", "All", kindMeta.peerTotal],
               ["upstream", "Upstream", kindMeta.upstreamTotal],
               ["downstream", "Downstream", kindMeta.downstreamTotal],
-            ].map(([key, label, count]) => (
+            ]).map(([key, label, count]) => (
               <button
                 aria-pressed={direction === key}
                 className={`ga-lineage-v2-legend-dir ${direction === key ? "is-active" : ""}`.trim()}

@@ -133,6 +133,9 @@ function FavoriteStar({ asset, favorites, onToggleFavorite }) {
   );
 }
 
+/**
+ * @param {{ assets?: any[], loading?: boolean, density?: string, favorites?: Set<any>, onToggleFavorite?: Function, onPreview?: Function, sourceAuthoritative?: boolean, emptyState?: any }} props
+ */
 export function DiscoveryResultsTable({
   assets = [],
   loading = false,
@@ -210,6 +213,9 @@ export function DiscoveryResultsTable({
   );
 }
 
+/**
+ * @param {{ assets?: any[], favorites?: Set<any>, onToggleFavorite?: Function, onPreview?: Function, sourceAuthoritative?: boolean }} props
+ */
 export function DiscoveryResultsGrid({
   assets = [],
   favorites = new Set(),
@@ -230,7 +236,7 @@ export function DiscoveryResultsGrid({
             data-asset-fqn={asset.fqn}
             key={asset.fqn}
             onClick={(event) => {
-              if (event.target.closest("a, button, input, select, textarea, label")) return;
+              if (/** @type {HTMLElement} */ (event.target).closest("a, button, input, select, textarea, label")) return;
               onPreview?.(asset.fqn);
             }}
             onKeyDown={(event) => {

@@ -400,6 +400,7 @@ export function nonAuthoritativeMarkerValues(...sources) {
   return sources.flatMap((source) => collectMarkers(source));
 }
 
+/** @param {Record<string, any>} [value] */
 export function evidenceEnvelope(value = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   return {
@@ -422,6 +423,7 @@ export function isNonAuthoritativeEvidenceEnvelope(value = {}) {
   return isNonAuthoritativeMockEvidence(evidenceEnvelope(value));
 }
 
+/** @param {Record<string, any>} [row] */
 function rowIdentifierRejects(row = {}) {
   if (!row || typeof row !== "object" || Array.isArray(row)) return false;
   const text = [

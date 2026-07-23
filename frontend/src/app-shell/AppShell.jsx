@@ -66,6 +66,9 @@ function shellHealthStateFor(bootState, shell, shellDisabled) {
             : "";
 }
 
+/**
+ * @param {{ tone?: string, eyebrow?: string, title?: string, message?: string, loading?: boolean, children?: import('react').ReactNode }} props
+ */
 function BootStateCard({ tone, eyebrow, title, message, loading = false, children }) {
   return (
     <section className="ga-shell-route-state">
@@ -373,7 +376,7 @@ export function AppShell({ children }) {
         data-ai-open={aiDockOpen ? "true" : "false"}
         data-rail-collapsed="false"
         data-shell-sticky-ready={shellHeaderHeight > 0 ? "true" : "false"}
-        style={{ [SHELL_HEADER_HEIGHT_VAR]: `${shellHeaderHeight}px` }}
+        style={/** @type {import('react').CSSProperties} */ ({ [SHELL_HEADER_HEIGHT_VAR]: `${shellHeaderHeight}px` })}
       >
         <Rail
           activeSurface={surface}
@@ -428,7 +431,7 @@ export function AppShell({ children }) {
         <AtlasAiDock
           assetFqn={contextAssetFqn}
           available={runtime.atlasAiAvailable}
-          onOpenChange={setAiDockOpen}
+          onOpenChange={/** @type {any} */ (setAiDockOpen)}
           open={aiDockOpen}
           surface={surface}
           unavailableReason={runtime.atlasAiUnavailableReason}

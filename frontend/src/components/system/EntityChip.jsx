@@ -75,7 +75,7 @@ export function EntityChip({
   const label = children ?? entity.label ?? defaultRefLabel(entity);
   const look = appearance === "inline" || appearance === "row" ? appearance : "chip";
   const Anchor = inRouter ? Link : "a";
-  const anchorProps = inRouter ? { to: href } : { href };
+  const anchorProps = /** @type {any} */ (inRouter ? { to: href } : { href });
 
   const handleClick = (event) => {
     if (!navigate || event.defaultPrevented || isModifiedClick(event)) return;

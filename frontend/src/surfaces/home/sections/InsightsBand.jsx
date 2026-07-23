@@ -171,7 +171,7 @@ export function CoverageMatrixCard({ cells }) {
           className="ga-home-matrix"
           role="table"
           aria-label="Metadata coverage by domain"
-          style={{ "--ga-home-matrix-columns": columns.length }}
+          style={/** @type {import('react').CSSProperties} */ ({ "--ga-home-matrix-columns": columns.length })}
         >
           <div className="ga-home-matrix-row is-header" role="row">
             <span role="columnheader" />
