@@ -217,6 +217,7 @@ SHELL_API_CONTRACT = {
     "auditEvidence": "/api/atlas/audit/evidence",
     "adminControlCenter": "/api/atlas/admin/control-center",
     "atlasAiRecommendations": "/api/atlas-ai/recommendations",
+    "atlasAiMessage": "/api/atlas-ai/message",
     "atlasAiChat": "/api/atlas-ai/chat",
     "cdeRegistry": "/api/cde",
     "bulkImportDryRun": "/api/admin/bulk-import/dry-run",

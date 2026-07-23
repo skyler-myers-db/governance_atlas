@@ -86,13 +86,28 @@ export function useAtlasAiConversation({ request = fetchAtlasAiRecommendations }
         role: "assistant",
         text: "Checking governed metadata...",
         pending: true,
+        stage: "",
       },
     ]);
+
+    // Live Genie progress: the request layer calls this as the real pipeline
+    // stage advances ("Selecting relevant tables" → "Generating the SQL query"
+    // → "Running the query"), so the dock shows what's happening instead of a
+    // canned animation while the answer streams.
+    const onStage = (stage) => {
+      if (requestSeqRef.current !== requestSeq) return;
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessageId ? { ...message, stage: String(stage || "") } : message,
+        ),
+      );
+    };
 
     try {
       const response = await request(resolvedQuestion, {
         ...(controller ? { signal: controller.signal } : {}),
         ...(context ? { context } : {}),
+        onStage,
       });
       if (requestSeqRef.current !== requestSeq) return response;
       setMessages((current) =>

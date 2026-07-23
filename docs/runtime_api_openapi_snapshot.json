@@ -219,6 +219,41 @@
         "title": "AtlasAiContext",
         "type": "object"
       },
+      "AtlasAiPoll": {
+        "description": "Body for POST /atlas-ai/message \u2014 polls a running Genie conversation for\nits progress stage and, when complete, the finalized answer.",
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AtlasAiContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversationId": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Conversationid",
+            "type": "string"
+          },
+          "messageId": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Messageid",
+            "type": "string"
+          },
+          "question": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "title": "AtlasAiPoll",
+        "type": "object"
+      },
       "AtlasAiQuestion": {
         "properties": {
           "context": {
@@ -1586,6 +1621,53 @@
           }
         },
         "summary": "Api Atlas Ai Chat",
+        "tags": [
+          "atlas-ai"
+        ]
+      }
+    },
+    "/api/atlas-ai/message": {
+      "post": {
+        "description": "Poll a running Genie conversation started by /atlas-ai/recommendations.\nReturns {intent: \"genie-pending\", stage} while in flight; the finalized\nanswer envelope (identical to the blocking path) once COMPLETED.",
+        "operationId": "api_atlas_ai_message_api_atlas_ai_message_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AtlasAiPoll"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Atlas Ai Message",
         "tags": [
           "atlas-ai"
         ]

@@ -372,37 +372,33 @@ function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
 // governed-metadata pipeline in general terms only — never name a specific
 // table or claim a query happened, because the backend does not return a
 // real execution plan and fabricated evidence violates the honesty rule.
-const AI_PLAN_LINES = [
-  ["Scoping the question", "governed metadata only"],
-  ["Querying governed metadata", "Unity Catalog + governance store"],
-  ["Filtering by actor visibility", "permission-aware metadata only"],
-  ["Composing grounded answer", "no raw rows read"],
-];
-
-function AtlasAiThinkingStage() {
-  const [revealed, setRevealed] = useState(1);
+// The dock shows the REAL Genie pipeline stages as they arrive (via the
+// `stage` prop, updated by the polling layer): "Selecting relevant tables" →
+// "Generating the SQL query" → "Running the query". Completed stages are
+// checked; the current one carries the caret. Grounded (instant) answers never
+// reach a stage, so this just flashes a brief "Working". No canned animation.
+function AtlasAiThinkingStage({ stage = "" }) {
+  const [history, setHistory] = useState([]);
   useEffect(() => {
-    if (revealed >= AI_PLAN_LINES.length) return undefined;
-    const timeout = setTimeout(() => setRevealed((value) => Math.min(AI_PLAN_LINES.length, value + 1)), 700);
-    return () => clearTimeout(timeout);
-  }, [revealed]);
+    const next = String(stage || "").trim();
+    if (!next) return;
+    setHistory((prev) => (prev[prev.length - 1] === next ? prev : [...prev, next]));
+  }, [stage]);
+  const lines = history.length ? history : ["Preparing your answer"];
   return (
     <div aria-live="polite" className="ga-ai-stage is-thinking" role="status">
       <div className="ga-ai-stage-label">
         <span aria-hidden="true" className="ga-live-dot" />
-        How I&rsquo;m answering this
+        {history.length ? "Genie is working" : "Working"}
       </div>
-      {AI_PLAN_LINES.slice(0, revealed).map(([head, tail], index) => {
-        const isLast = index === revealed - 1;
+      {lines.map((line, index) => {
+        const isLast = index === lines.length - 1;
         return (
-          <div className="ga-ai-stage-plan-line" key={head} style={{ animationDelay: `${index * 80}ms` }}>
-            <span aria-hidden="true">→</span>
+          <div className="ga-ai-stage-plan-line" key={`${line}-${index}`} style={{ animationDelay: `${index * 60}ms` }}>
+            <span aria-hidden="true">{isLast ? "→" : "✓"}</span>
             <span>
-              <span className="ga-ai-stage-plan-mono">{head}</span>{" "}
-              <span>{tail}</span>
-              {isLast && revealed < AI_PLAN_LINES.length ? (
-                <span aria-hidden="true" className="ga-ai-stage-caret" />
-              ) : null}
+              <span>{line}</span>
+              {isLast ? <span aria-hidden="true" className="ga-ai-stage-caret" /> : null}
             </span>
           </div>
         );
@@ -430,7 +426,7 @@ function AtlasAiMessageList({ messages = [], onOpenEvidence, emptyMessage }) {
     >
       <span>{item.role === "user" ? "You" : "Atlas AI"}</span>
       {item.role === "assistant" && item.pending ? (
-        <AtlasAiThinkingStage />
+        <AtlasAiThinkingStage stage={item.stage} />
       ) : (
         <MarkdownBlock className="ga-ai-dock-markdown" source={item.text} />
       )}

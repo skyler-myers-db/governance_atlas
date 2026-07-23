@@ -75,6 +75,7 @@ RUNTIME_PATHS = (
     "/api/atlas/audit/evidence",
     "/api/atlas/admin/control-center",
     "/api/atlas-ai/recommendations",
+    "/api/atlas-ai/message",
     "/api/atlas-ai/chat",
     "/api/classification-recommendations",
     "/api/classification-recommendations/{recommendation_id}",

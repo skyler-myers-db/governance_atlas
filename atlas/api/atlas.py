@@ -265,6 +265,26 @@ class AtlasAiQuestion(BaseModel):
         )
 
 
+class AtlasAiPoll(BaseModel):
+    """Body for POST /atlas-ai/message — polls a running Genie conversation for
+    its progress stage and, when complete, the finalized answer."""
+
+    conversationId: str = Field(default="", max_length=256)
+    messageId: str = Field(default="", max_length=256)
+    question: str = Field(default="", max_length=2000)
+    context: AtlasAiContext | None = None
+
+    @field_validator("conversationId", "messageId", mode="before")
+    @classmethod
+    def _sanitize_id(cls, value):
+        return input_safety.sanitize_plain_text(value, field="genieId", max_length=256, allow_empty=True)
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def _sanitize_poll_question(cls, value):
+        return input_safety.sanitize_plain_text(value, field="question", max_length=2000, allow_empty=True)
+
+
 def _obo_fallback_payload(uc_client) -> tuple[bool, str]:
     runtime_context_fn = getattr(uc_client, "runtime_context", None)
     if not callable(runtime_context_fn):
@@ -2287,6 +2307,75 @@ def _first_evidence_number(evidence: Any) -> int | None:
     return None
 
 
+def _finalize_genie_payload(raw_payload, *, question, request, ai_context, genie_status) -> JSONResponse:
+    """Post-process a completed Genie payload — canonical/lineage grounding
+    override, clickable recommendations from SQL rows — and wrap it. Shared by
+    the instant cache-hit path and the poll-complete path so a streamed answer
+    is identical to a blocking one."""
+    from runtime_app import _store, _uc, _uc_for_request, _visible_assets
+
+    payload = dict(raw_payload or {})
+    payload["question"] = question
+    payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+    lineage_ground = None
+    _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+    if _ctx_fqn:
+        try:
+            lineage_ground = _lineage_grounding(question, _ctx_fqn, [_uc_for_request(request), _uc()])
+        except Exception:
+            lineage_ground = None
+    grounding = lineage_ground or _canonical_estate_grounding(
+        question, request, payload, visible_assets_fn=_visible_assets, store_fn=lambda _req=None: _store()
+    )
+    if grounding:
+        payload["answer"] = grounding["answer"]
+        existing_evidence = payload.get("evidence") if isinstance(payload.get("evidence"), list) else []
+        payload["evidence"] = [grounding["evidence"], *existing_evidence]
+        payload["confidence"] = "canonical-grounded"
+        payload_warnings = [*payload_warnings, *grounding["warnings"]]
+    has_evidence = bool(payload.get("evidence"))
+    if not payload.get("recommendations") and has_evidence:
+        recommendations = _recommendations_from_genie_evidence(payload.get("evidence") or [])
+        if recommendations:
+            payload = {
+                **payload,
+                "recommendations": recommendations,
+                "suggestedActions": [
+                    action
+                    for recommendation in recommendations
+                    for action in recommendation.get("suggestedActions", [])
+                ][:4],
+            }
+    if not payload.get("recommendations"):
+        payload_warnings = [
+            *payload_warnings,
+            "Genie returned no evidence-backed recommendations; local governance-store recommendations were not substituted.",
+        ]
+    return _wrap(
+        payload,
+        request,
+        source="databricks-genie",
+        state="available" if has_evidence else "degraded",
+        authoritative=has_evidence,
+        capabilities={
+            "provider": "genie",
+            "spaceId": genie_status.get("spaceId", ""),
+            "benchmarkState": genie_status.get("benchmarkState", ""),
+            "sampleValuesIncluded": False,
+            "piiValuesIncluded": False,
+        },
+        warnings=payload_warnings or None,
+    )
+
+
+def _genie_cache_key(genie_status: dict, forwarded_token: str, genie_question: str) -> str:
+    token_fragment = hashlib.sha256(forwarded_token.encode("utf-8")).hexdigest()[:12]
+    return _route_cache_key(
+        "atlas_ai_recommendations", genie_status.get("spaceId", ""), token_fragment,
+        genie_question or "__default__",
+    )
+
+
 def api_atlas_ai_recommendations(
     request: Request,
     body: AtlasAiQuestion | None = Body(default=None),
@@ -2401,94 +2490,47 @@ def api_atlas_ai_recommendations(
             else:
                 context_preamble = _ai_context_preamble(ai_context)
                 genie_question = f"{context_preamble}{question}" if context_preamble else question
-                token_fragment = hashlib.sha256(forwarded_token.encode("utf-8")).hexdigest()[:12]
-                genie_cache_key = _route_cache_key(
-                    "atlas_ai_recommendations",
-                    genie_status.get("spaceId", ""),
-                    token_fragment,
-                    genie_question or "__default__",
+                genie_cache_key = _genie_cache_key(genie_status, forwarded_token, genie_question)
+                # Instant repeat: a finalized answer is still cached → return it
+                # directly, no round-trip through Genie or the poll loop.
+                cached_final = _ttl_fresh_value(genie_cache_key, 120)
+                if isinstance(cached_final, dict):
+                    return _finalize_genie_payload(
+                        cached_final, question=question, request=request,
+                        ai_context=ai_context, genie_status=genie_status,
+                    )
+                # Otherwise start the Genie conversation WITHOUT blocking and
+                # return a "pending" envelope with the ids + initial stage. The
+                # frontend polls POST /atlas-ai/message for real progress stages
+                # and the final answer, instead of hanging on one long request.
+                started = genie_service.start_genie(
+                    config=cfg, question=genie_question, user_access_token=forwarded_token,
                 )
-                cached_payload = _ttl_value(
-                    genie_cache_key,
-                    120,
-                    lambda: genie_service.ask_genie(
-                        config=cfg,
-                        question=genie_question,
-                        user_access_token=forwarded_token,
-                    ),
-                )
-                payload = dict(cached_payload or {})
-                # Keep the user-visible question, not the context-augmented prompt.
-                payload["question"] = question
-                payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
-                # Canonical estate grounding: for aggregate count questions, ground
-                # the answer on the same numbers the Command Center shows so Atlas AI
-                # never contradicts the UI even when the Genie snapshot has drifted.
-                # Lineage grounding first: "what feeds/depends on this asset"
-                # is answered from real UC lineage, not the lineage-less Genie
-                # snapshot (which said "nothing feeds it" while the graph
-                # rendered upstream sources — verifier BLOCK).
-                lineage_ground = None
-                _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
-                if _ctx_fqn:
-                    try:
-                        # OBO carries the actor's system.access.table_lineage
-                        # grant (how the lineage feature reads it); the app SP
-                        # is the fallback. Pass both — the grounding tries each.
-                        lineage_ground = _lineage_grounding(
-                            question, _ctx_fqn, [_uc_for_request(request), _uc()]
-                        )
-                    except Exception:
-                        lineage_ground = None
-                grounding = lineage_ground or _canonical_estate_grounding(
-                    question,
-                    request,
-                    payload,
-                    visible_assets_fn=_visible_assets,
-                    # The app store (same one the Command Center reads) — the
-                    # OBO _store_for_read returned change-requests unavailable,
-                    # so openRequests fell back to Genie (1) and contradicted
-                    # the UI's 2 (verifier BLOCK).
-                    store_fn=lambda _req=None: _store(),
-                )
-                if grounding:
-                    payload["answer"] = grounding["answer"]
-                    existing_evidence = payload.get("evidence") if isinstance(payload.get("evidence"), list) else []
-                    payload["evidence"] = [grounding["evidence"], *existing_evidence]
-                    payload["confidence"] = "canonical-grounded"
-                    payload_warnings = [*payload_warnings, *grounding["warnings"]]
-                has_evidence = bool(payload.get("evidence"))
-                if not payload.get("recommendations") and has_evidence:
-                    recommendations = _recommendations_from_genie_evidence(payload.get("evidence") or [])
-                    if recommendations:
-                        payload = {
-                            **payload,
-                            "recommendations": recommendations,
-                            "suggestedActions": [
-                                action
-                                for recommendation in recommendations
-                                for action in recommendation.get("suggestedActions", [])
-                            ][:4],
-                        }
-                if not payload.get("recommendations"):
-                    payload_warnings = [
-                        *payload_warnings,
-                        "Genie returned no evidence-backed recommendations; local governance-store recommendations were not substituted.",
-                    ]
                 return _wrap(
-                    payload,
+                    {
+                        "question": question,
+                        "intent": "genie-pending",
+                        "answer": "",
+                        "recommendations": [],
+                        "evidence": [],
+                        "confidence": "pending",
+                        "provider": "genie",
+                        "providerState": genie_status,
+                        "conversationId": started["conversationId"],
+                        "messageId": started["messageId"],
+                        "status": started["status"],
+                        "stage": started["stage"],
+                        "warnings": [],
+                    },
                     request,
                     source="databricks-genie",
-                    state="available" if has_evidence else "degraded",
-                    authoritative=has_evidence,
+                    state="pending",
+                    authoritative=False,
                     capabilities={
                         "provider": "genie",
+                        "genieStreaming": True,
                         "spaceId": genie_status.get("spaceId", ""),
-                        "benchmarkState": genie_status.get("benchmarkState", ""),
-                        "sampleValuesIncluded": False,
-                        "piiValuesIncluded": False,
                     },
-                    warnings=payload_warnings or None,
                 )
         elif genie_status.get("provider") == "genie":
             genie_warning = _normalize_str(genie_status.get("message"))
@@ -2531,6 +2573,71 @@ def api_atlas_ai_recommendations(
     )
 
 
+def api_atlas_ai_message(request: Request, body: AtlasAiPoll | None = Body(default=None)) -> JSONResponse:
+    """Poll a running Genie conversation started by /atlas-ai/recommendations.
+    Returns {intent: "genie-pending", stage} while in flight; the finalized
+    answer envelope (identical to the blocking path) once COMPLETED."""
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token
+
+    _ensure_live_runtime()
+    conversation_id = _normalize_str(getattr(body, "conversationId", "")) if body else ""
+    message_id = _normalize_str(getattr(body, "messageId", "")) if body else ""
+    question = _normalize_str(getattr(body, "question", "")) if body else ""
+    ai_context = getattr(body, "context", None) if body else None
+    if not conversation_id or not message_id:
+        raise HTTPException(status_code=422, detail="conversationId and messageId are required.")
+
+    cfg = _config()
+    genie_status = genie_service.provider_status(cfg)
+    unavailable = lambda note: _wrap(  # noqa: E731
+        {
+            "question": question, "intent": "unavailable", "answer": "", "recommendations": [],
+            "evidence": [], "suggestedActions": [], "confidence": "unavailable", "provider": "genie",
+            "providerState": genie_status, "warnings": [note],
+        },
+        request, source="databricks-genie", state="unavailable", authoritative=False,
+        capabilities={"provider": "genie", "genie": genie_status},
+    )
+    if not (genie_status.get("provider") == "genie" and genie_status.get("state") == "available"):
+        return unavailable("Atlas AI recommendations require a configured Databricks Genie space.")
+    forwarded_token = _request_obo_token(request)
+    if not forwarded_token:
+        return unavailable("Genie-backed Atlas AI requires the forwarded Databricks user token.")
+
+    try:
+        result = genie_service.poll_genie(
+            config=cfg, conversation_id=conversation_id, message_id=message_id,
+            user_access_token=forwarded_token,
+        )
+    except Exception as exc:
+        return unavailable(f"Atlas AI could not complete the request: {exc.__class__.__name__}: {exc}")
+
+    if not result.get("done"):
+        return _wrap(
+            {
+                "question": question, "intent": "genie-pending", "answer": "", "recommendations": [],
+                "evidence": [], "suggestedActions": [], "confidence": "pending", "provider": "genie",
+                "providerState": genie_status, "conversationId": conversation_id, "messageId": message_id,
+                "status": result.get("status", ""), "stage": result.get("stage", "Working"), "warnings": [],
+            },
+            request, source="databricks-genie", state="pending", authoritative=False,
+            capabilities={"provider": "genie", "genieStreaming": True, "spaceId": genie_status.get("spaceId", "")},
+        )
+
+    # COMPLETED: finalize (grounding override + recommendations) and cache the
+    # raw payload so an identical repeat question is instant.
+    raw = result.get("payload") or {}
+    context_preamble = _ai_context_preamble(ai_context)
+    genie_question = f"{context_preamble}{question}" if context_preamble else question
+    try:
+        _ttl_value(_genie_cache_key(genie_status, forwarded_token, genie_question), 120, lambda: raw)
+    except Exception:
+        pass
+    return _finalize_genie_payload(
+        raw, question=question, request=request, ai_context=ai_context, genie_status=genie_status,
+    )
+
+
 def api_atlas_ai_chat(
     request: Request,
     body: AtlasAiQuestion,
@@ -2559,6 +2666,7 @@ def build_atlas_router() -> APIRouter:
 def build_atlas_ai_router() -> APIRouter:
     router = APIRouter(prefix="/api/atlas-ai", tags=["atlas-ai"])
     router.add_api_route("/recommendations", api_atlas_ai_recommendations, methods=["POST"], response_class=JSONResponse)
+    router.add_api_route("/message", api_atlas_ai_message, methods=["POST"], response_class=JSONResponse)
     router.add_api_route("/chat", api_atlas_ai_chat, methods=["POST"], response_class=JSONResponse)
     return router
 
@@ -2577,5 +2685,6 @@ __all__ = [
     "api_audit_evidence",
     "api_admin_control_center",
     "api_atlas_ai_recommendations",
+    "api_atlas_ai_message",
     "api_atlas_ai_chat",
 ]

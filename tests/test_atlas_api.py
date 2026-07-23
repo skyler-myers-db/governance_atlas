@@ -162,7 +162,7 @@ class AtlasApiTests(unittest.TestCase):
         router = atlas_api.build_atlas_ai_router()
         paths = {route.path for route in router.routes}
         self.assertEqual(
-            {"/api/atlas-ai/recommendations", "/api/atlas-ai/chat"},
+            {"/api/atlas-ai/recommendations", "/api/atlas-ai/message", "/api/atlas-ai/chat"},
             paths,
         )
 
@@ -640,24 +640,57 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
+        started = {
+            "conversationId": "conv-1", "messageId": "msg-1", "status": "SUBMITTED",
+            "stage": "Submitted to Genie", "providerState": genie_payload["providerState"],
+        }
+        # POST no longer blocks — it starts the conversation and returns a
+        # pending handle; the finalized answer comes from the poll endpoint.
         with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload) as ask_genie:
-            response = atlas_api.api_atlas_ai_recommendations(
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+        ), patch.object(atlas_api.genie_service, "start_genie", return_value=started) as start_genie:
+            pending = atlas_api.api_atlas_ai_recommendations(
                 _request({"x-forwarded-access-token": "obo-token-1"}),
                 atlas_api.AtlasAiQuestion(question="Which assets are missing stewardship?"),
             )
+        start_genie.assert_called_once()
+        pending_payload = _response_json(pending)
+        self.assertEqual(pending_payload["intent"], "genie-pending")
+        self.assertEqual(pending_payload["conversationId"], "conv-1")
+        self.assertEqual(pending_payload["meta"]["state"], "pending")
 
-        self.assertEqual(response.status_code, 200)
+        poll_result = {"status": "COMPLETED", "stage": "Done", "done": True, "payload": genie_payload}
+        with patch.multiple(
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: _visible_assets(), _store=lambda: FakeStore(),
+            _uc=lambda: None, _uc_for_request=lambda request: None,
+        ), patch.object(atlas_api.genie_service, "poll_genie", return_value=poll_result) as poll_genie:
+            response = atlas_api.api_atlas_ai_message(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiPoll(conversationId="conv-1", messageId="msg-1",
+                                      question="Which assets are missing stewardship?"),
+            )
+        poll_genie.assert_called_once()
         payload = _response_json(response)
-        ask_genie.assert_called_once()
         self.assertEqual(payload["provider"], "genie")
         self.assertEqual(payload["meta"]["source"], "databricks-genie")
         self.assertEqual(payload["meta"]["state"], "available")
         self.assertEqual(payload["meta"]["capabilities"]["spaceId"], "space-1")
         self.assertTrue(payload["authoritative"])
+
+    def _poll_done(self, config, genie_payload, question):
+        import runtime_app
+
+        poll_result = {"status": "COMPLETED", "stage": "Done", "done": True, "payload": genie_payload}
+        with patch.multiple(
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: _visible_assets(), _store=lambda: FakeStore(),
+            _uc=lambda: None, _uc_for_request=lambda request: None,
+        ), patch.object(atlas_api.genie_service, "poll_genie", return_value=poll_result):
+            return atlas_api.api_atlas_ai_message(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiPoll(conversationId="c", messageId="m", question=question),
+            )
 
     def test_atlas_ai_derives_actions_from_genie_query_rows(self) -> None:
         import runtime_app
@@ -698,16 +731,7 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
-        with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload):
-            response = atlas_api.api_atlas_ai_recommendations(
-                _request({"x-forwarded-access-token": "obo-token-1"}),
-                atlas_api.AtlasAiQuestion(question="Recommend priority governance work"),
-            )
-
+        response = self._poll_done(config, genie_payload, "Recommend priority governance work")
         payload = _response_json(response)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["provider"], "genie")
@@ -742,23 +766,11 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
-        with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(
-            atlas_api.genie_service,
-            "ask_genie",
-            return_value=genie_payload,
-        ), patch.object(
-            atlas_api.atlas_metrics,
-            "build_ai_recommendations",
+        with patch.object(
+            atlas_api.atlas_metrics, "build_ai_recommendations",
             return_value={"recommendations": [{"title": "Local fallback"}]},
         ) as build_local:
-            response = atlas_api.api_atlas_ai_recommendations(
-                _request({"x-forwarded-access-token": "obo-token-1"}),
-                atlas_api.AtlasAiQuestion(question="Recommend priority governance work"),
-            )
+            response = self._poll_done(config, genie_payload, "Recommend priority governance work")
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
@@ -849,11 +861,17 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
+        started = {
+            "conversationId": "c", "messageId": "m", "status": "SUBMITTED",
+            "stage": "Submitted to Genie", "providerState": genie_payload["providerState"],
+        }
+        # _visible_assets=None so the ownership/scoped/estate grounders decline
+        # and the question reaches Genie — the augmented prompt now goes to
+        # start_genie (the non-blocking start), not the removed blocking call.
         with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload) as ask_genie:
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: None, _uc=lambda: None, _uc_for_request=lambda request: None,
+        ), patch.object(atlas_api.genie_service, "start_genie", return_value=started) as start_genie:
             response = atlas_api.api_atlas_ai_recommendations(
                 _request({"x-forwarded-access-token": "obo-token-1"}),
                 atlas_api.AtlasAiQuestion(
@@ -865,7 +883,7 @@ class AtlasApiTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 200)
-        prompt = ask_genie.call_args.kwargs["question"]
+        prompt = start_genie.call_args.kwargs["question"]
         self.assertIn("finance_prod.curated.revenue_daily", prompt)
         self.assertIn("this asset", prompt.lower())
         # The user-facing question is preserved, not the augmented prompt.

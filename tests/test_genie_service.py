@@ -8,18 +8,32 @@ from atlas.services import genie
 
 
 class FakeGenieClient:
-    def __init__(self, message, statement=None):
-        self.genie = SimpleNamespace(start_conversation_and_wait=self.start_conversation_and_wait)
+    def __init__(self, message, statement=None, started=None):
+        self.genie = SimpleNamespace(
+            start_conversation_and_wait=self.start_conversation_and_wait,
+            start_conversation=self.start_conversation,
+            get_message=self.get_message,
+        )
         self.statement_execution = (
             SimpleNamespace(get_statement=lambda statement_id: statement)
             if statement is not None
             else None
         )
         self.message = message
+        self.started = started
         self.calls = []
+        self.get_message_calls = []
 
     def start_conversation_and_wait(self, **kwargs):
         self.calls.append(kwargs)
+        return self.message
+
+    def start_conversation(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.started
+
+    def get_message(self, **kwargs):
+        self.get_message_calls.append(kwargs)
         return self.message
 
 
@@ -185,6 +199,64 @@ class GenieServiceTests(unittest.TestCase):
         self.assertNotIn("resultRows", payload["evidence"][0])
         self.assertNotIn("1 governed evidence row", payload["answer"])
         self.assertTrue(any("sentinel no-result" in warning.lower() for warning in payload["warnings"]))
+
+    def test_genie_stage_labels_map_message_status(self) -> None:
+        self.assertEqual(genie.genie_stage_label("FILTERING_CONTEXT"), "Selecting relevant tables")
+        self.assertEqual(genie.genie_stage_label("ASKING_AI"), "Generating the SQL query")
+        self.assertEqual(genie.genie_stage_label("EXECUTING_QUERY"), "Running the query")
+        self.assertEqual(genie.genie_stage_label("unknown-thing"), "Working")
+
+    def test_start_genie_returns_ids_and_stage_without_waiting(self) -> None:
+        started = SimpleNamespace(conversation_id="conv-9", message_id="msg-9", status="SUBMITTED")
+        client = FakeGenieClient(message=None, started=started)
+
+        result = genie.start_genie(
+            config=self._config(atlas_ai_provider="genie", genie_space_id="space-1"),
+            question="Which domains need stewardship?",
+            client=client,
+        )
+
+        self.assertEqual(client.calls[0]["space_id"], "space-1")
+        self.assertEqual(result["conversationId"], "conv-9")
+        self.assertEqual(result["messageId"], "msg-9")
+        self.assertEqual(result["stage"], "Submitted to Genie")
+
+    def test_poll_genie_reports_stage_while_running(self) -> None:
+        message = SimpleNamespace(status="EXECUTING_QUERY", conversation_id="conv-9", message_id="msg-9")
+        client = FakeGenieClient(message)
+
+        result = genie.poll_genie(
+            config=self._config(atlas_ai_provider="genie", genie_space_id="space-1"),
+            conversation_id="conv-9", message_id="msg-9", client=client,
+        )
+
+        self.assertEqual(client.get_message_calls[0]["conversation_id"], "conv-9")
+        self.assertTrue(result["done"])  # EXECUTING_QUERY is a terminal/answer state
+        self.assertEqual(result["stage"], "Running the query")
+        self.assertIn("payload", result)
+
+    def test_poll_genie_pending_has_no_payload(self) -> None:
+        message = SimpleNamespace(status="FILTERING_CONTEXT", conversation_id="c", message_id="m")
+        client = FakeGenieClient(message)
+
+        result = genie.poll_genie(
+            config=self._config(atlas_ai_provider="genie", genie_space_id="space-1"),
+            conversation_id="c", message_id="m", client=client,
+        )
+
+        self.assertFalse(result["done"])
+        self.assertEqual(result["stage"], "Selecting relevant tables")
+        self.assertNotIn("payload", result)
+
+    def test_poll_genie_raises_on_failed_status(self) -> None:
+        message = SimpleNamespace(status="FAILED", conversation_id="c", message_id="m")
+        client = FakeGenieClient(message)
+
+        with self.assertRaises(RuntimeError):
+            genie.poll_genie(
+                config=self._config(atlas_ai_provider="genie", genie_space_id="space-1"),
+                conversation_id="c", message_id="m", client=client,
+            )
 
 
 if __name__ == "__main__":
