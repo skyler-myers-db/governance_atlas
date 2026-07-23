@@ -149,6 +149,9 @@ def generate_fields(
     from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
 
     w = client or _workspace_client(config, user_access_token=user_access_token)
+    # NB: some models (e.g. Claude Opus 4.8 on Databricks) reject `temperature`,
+    # so it is intentionally omitted — the strict-JSON prompt is deterministic
+    # enough without it.
     response = w.serving_endpoints.query(
         name=status["endpoint"],
         messages=[
@@ -156,7 +159,6 @@ def generate_fields(
             ChatMessage(role=ChatMessageRole.USER, content=user),
         ],
         max_tokens=400,
-        temperature=0.2,
     )
     parsed = _extract_json(_message_content(response))
     # Only surface allowed keys, trimmed; drop empties so the UI fills selectively.
