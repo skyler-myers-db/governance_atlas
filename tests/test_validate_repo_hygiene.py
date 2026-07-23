@@ -39,12 +39,13 @@ export default [{
 }];
 """.strip()
 
-ENTITY_WORKSPACE = """
-import { canOpenLinkedAssetRecord, prefetchAssetAvailability } from "../hooks/useAssetDetail";
+USE_ASSET_DETAIL = """
+export function prefetchAssetAvailability(details) {
+  return details;
+}
 
-function verify(detail) {
-  prefetchAssetAvailability([detail]);
-  return canOpenLinkedAssetRecord(detail);
+export function canOpenLinkedAssetRecord(detail) {
+  return Boolean(detail);
 }
 """.strip()
 
@@ -115,6 +116,7 @@ class RepoHygieneValidationTests(unittest.TestCase):
     def _write_base_tree(self, root: Path) -> None:
         (root / ".github/workflows").mkdir(parents=True, exist_ok=True)
         (root / "frontend/src/components").mkdir(parents=True, exist_ok=True)
+        (root / "frontend/src/hooks").mkdir(parents=True, exist_ok=True)
         (root / "frontend/src/lib").mkdir(parents=True, exist_ok=True)
         (root / "frontend/src/types").mkdir(parents=True, exist_ok=True)
         (root / "atlas").mkdir(parents=True, exist_ok=True)
@@ -122,7 +124,7 @@ class RepoHygieneValidationTests(unittest.TestCase):
         (root / "frontend/package.json").write_text(json.dumps(PACKAGE_JSON), encoding="utf-8")
         (root / "frontend/eslint.config.js").write_text(ESLINT_CONFIG, encoding="utf-8")
         (root / "frontend/src/App.jsx").write_text("export default function App() { return null; }\n", encoding="utf-8")
-        (root / "frontend/src/components/EntityWorkspace.jsx").write_text(ENTITY_WORKSPACE, encoding="utf-8")
+        (root / "frontend/src/hooks/useAssetDetail.js").write_text(USE_ASSET_DETAIL, encoding="utf-8")
         (root / "frontend/src/lib/api.js").write_text("export function fetchBootstrap() { return {}; }\n", encoding="utf-8")
         (root / "frontend/src/main.jsx").write_text("console.log('main');\n", encoding="utf-8")
         (root / ".gitignore").write_text(GITIGNORE, encoding="utf-8")
@@ -145,7 +147,7 @@ class RepoHygieneValidationTests(unittest.TestCase):
             "frontend/package.json",
             "frontend/eslint.config.js",
             "frontend/src/App.jsx",
-            "frontend/src/components/EntityWorkspace.jsx",
+            "frontend/src/hooks/useAssetDetail.js",
             "frontend/src/lib/api.js",
             "frontend/src/main.jsx",
             "atlas/runtime_contract.py",
@@ -161,19 +163,19 @@ class RepoHygieneValidationTests(unittest.TestCase):
 
         self.assertEqual(failures, [])
 
-    def test_validate_reports_missing_entity_workspace_hotfix_proof(self) -> None:
+    def test_validate_reports_missing_asset_detail_hotfix_proof(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             self._write_base_tree(root)
-            (root / "frontend/src/components/EntityWorkspace.jsx").write_text(
-                'export default function EntityWorkspace() { return null; }\n',
+            (root / "frontend/src/hooks/useAssetDetail.js").write_text(
+                'export function useAssetDetail() { return null; }\n',
                 encoding="utf-8",
             )
 
             failures = validate_repo_hygiene.validate(root=root, tracked_files=self._tracked_files())
 
         self.assertTrue(
-            any("EntityWorkspace branch-state hotfix proof is missing" in failure for failure in failures)
+            any("useAssetDetail branch-state hotfix proof is missing" in failure for failure in failures)
         )
 
     def test_validate_reports_missing_frontend_foundation_contracts(self) -> None:

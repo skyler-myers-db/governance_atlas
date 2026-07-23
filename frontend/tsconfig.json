@@ -21,11 +21,6 @@
     "src/hooks/useGovernanceGlossaryTerm.js",
     "src/hooks/useGovernanceSummary.js",
     "src/hooks/useRuntimeStatus.js",
-    "src/components/AppFrame.jsx",
-    "src/components/DiscoveryWorkspace.jsx",
-    "src/components/EntityWorkspace.jsx",
-    "src/components/GovernanceWorkspace.jsx",
-    "src/components/LineageWorkspace.jsx",
     "src/types/**/*.d.ts",
     "vite.config.js"
   ],
