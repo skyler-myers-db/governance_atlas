@@ -460,6 +460,135 @@
   outline-offset: 1px;
 }
 
+/* ------------------------------------------------ category trends (G9) */
+
+.ga-home-cat-card {
+  grid-column: span 5;
+}
+
+.ga-home-cat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.ga-home-cat-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ga-border-muted);
+}
+
+.ga-home-cat-row:last-child {
+  border-bottom: 0;
+}
+
+.ga-home-cat-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ga-home-cat-label {
+  color: var(--ga-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ga-home-cat-count {
+  color: var(--ga-text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ga-home-cat-spark {
+  width: 132px;
+  height: 40px;
+  color: var(--ga-bright-blue);
+}
+
+.ga-home-cat-spark.is-up {
+  color: var(--ga-success);
+}
+
+.ga-home-cat-spark.is-down {
+  color: var(--ga-danger);
+}
+
+.ga-home-cat-spark.is-empty {
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface-muted);
+}
+
+.ga-home-cat-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.ga-home-cat-spark-dot {
+  fill: currentColor;
+}
+
+.ga-home-cat-spark-collecting-dot {
+  fill: var(--ga-text-faint);
+}
+
+.ga-home-cat-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.ga-home-cat-latest {
+  color: var(--ga-text-strong);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ga-home-cat-delta {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ga-text-muted);
+}
+
+.ga-home-cat-delta.is-up {
+  color: var(--ga-success);
+}
+
+.ga-home-cat-delta.is-down {
+  color: var(--ga-danger);
+}
+
+.ga-home-cat-collecting {
+  color: var(--ga-text-faint);
+  font-size: 11px;
+}
+
+.ga-home-cat-footer {
+  margin: 12px 0 0;
+  color: var(--ga-text-muted);
+  font-size: 12px;
+}
+
 /* --------------------------------------------------------------- domains */
 
 .ga-home-domain-bars {

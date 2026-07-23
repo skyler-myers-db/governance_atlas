@@ -10,7 +10,7 @@ import {
   toast,
 } from "../../components/system";
 import { useDiscoveryResults } from "../../hooks/useDiscoveryResults";
-import { exportAssets } from "../../lib/api";
+import { exportAssets, fetchEvidencePackBlob } from "../../lib/api";
 import { exportAvailable, exportReason } from "../../lib/capabilities";
 import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
 import {
@@ -317,6 +317,30 @@ export function DiscoveryPage({
       toast(error?.message || "Export failed.", { tone: "danger" });
     } finally {
       setExporting(false);
+    }
+  };
+
+  // G10 — tamper-evident evidence pack (.zip: CSV + SHA-256 provenance manifest).
+  const [exportingPack, setExportingPack] = useState(false);
+  const handleEvidencePack = async () => {
+    const fqns = sortedAssets.map((asset) => asset?.fqn).filter(Boolean).slice(0, 500);
+    if (!fqns.length || exportingPack) return;
+    setExportingPack(true);
+    try {
+      const blob = await fetchEvidencePackBlob(fqns);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `atlas-evidence-pack-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast(`Evidence pack (${fqns.length} asset${fqns.length === 1 ? "" : "s"} + checksum manifest) downloaded.`, { tone: "success" });
+    } catch (error) {
+      toast(error?.message || "Evidence pack export failed.", { tone: "danger" });
+    } finally {
+      setExportingPack(false);
     }
   };
   const assetsByFqn = useMemo(() => {
@@ -749,15 +773,26 @@ export function DiscoveryPage({
           Advanced
         </Button>
         {exportEnabled ? (
-          <Button
-            disabled={exporting || !sortedAssets.length}
-            loading={exporting}
-            onClick={handleExport}
-            title={`Export the current ${Math.min(sortedAssets.length, 500)} result${sortedAssets.length === 1 ? "" : "s"} as CSV`}
-            variant="secondary"
-          >
-            Export CSV
-          </Button>
+          <>
+            <Button
+              disabled={exporting || !sortedAssets.length}
+              loading={exporting}
+              onClick={handleExport}
+              title={`Export the current ${Math.min(sortedAssets.length, 500)} result${sortedAssets.length === 1 ? "" : "s"} as CSV`}
+              variant="secondary"
+            >
+              Export CSV
+            </Button>
+            <Button
+              disabled={exportingPack || !sortedAssets.length}
+              loading={exportingPack}
+              onClick={handleEvidencePack}
+              title="Download a tamper-evident evidence pack (.zip): the CSV + a SHA-256 provenance manifest"
+              variant="secondary"
+            >
+              Evidence pack
+            </Button>
+          </>
         ) : (
           <Button
             aria-disabled="true"

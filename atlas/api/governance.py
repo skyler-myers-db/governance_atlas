@@ -897,6 +897,80 @@ def api_governance_patch_glossary(
     )
 
 
+def api_governance_control_decisions(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+) -> JSONResponse:
+    """G4 — "Controls in action": real governance decisions from the audit log
+    (change requests approved/rejected by stewards/admins, with before/after
+    status + note). Steward/admin gated. This evidences governance REVIEW
+    ACTIVITY, not access enforcement — GA never blocks queries/access, and the
+    payload says so plainly."""
+    import json as _json
+
+    from runtime_app import _ensure_can_approve, _ensure_live_runtime, _store
+
+    _ensure_live_runtime()
+    _ensure_can_approve(request)  # steward/admin only
+    store = _store()
+    try:
+        df = store.list_governance_decisions(limit=int(limit))
+    except Exception:
+        df = None
+
+    def _parse(value: Any) -> Dict[str, Any]:
+        try:
+            parsed = _json.loads(value) if value else {}
+            return parsed if isinstance(parsed, dict) else {}
+        except (ValueError, TypeError):
+            return {}
+
+    decisions: List[Dict[str, Any]] = []
+    approved = rejected = 0
+    if df is not None and not df.empty:
+        for _, row in df.iterrows():
+            after = _parse(row.get("after_json"))
+            before = _parse(row.get("before_json"))
+            after_status = _normalize_str(after.get("status")).lower()
+            action = _normalize_str(row.get("action"))
+            decision = after_status or ("approved" if "approved" in action else "updated")
+            if decision == "approved":
+                approved += 1
+            elif decision == "rejected":
+                rejected += 1
+            decisions.append(
+                {
+                    "auditId": _normalize_str(row.get("audit_id")),
+                    "action": action,
+                    "decision": decision,
+                    "entityFqn": _normalize_str(row.get("entity_fqn")),
+                    "entityId": _normalize_str(row.get("entity_id")),
+                    "actor": _normalize_str(row.get("actor_email")),
+                    "actorRole": _normalize_str(row.get("actor_role")),
+                    "beforeStatus": _normalize_str(before.get("status")),
+                    "afterStatus": after_status,
+                    "note": _normalize_str(row.get("detail")),
+                    "at": _normalize_str(row.get("created_at")),
+                }
+            )
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "decisions": decisions,
+            "summary": {"total": len(decisions), "approved": approved, "rejected": rejected},
+            "scope": "governance-review-activity",
+            # Honesty gate (CLAUDE.md): never claim access enforcement.
+            "enforcementNote": (
+                "These are governance controls in action — change requests approved or rejected by "
+                "stewards and admins, with actor, timestamp, and status change. This evidences "
+                "governance REVIEW activity, not access enforcement: Governance Atlas does not block "
+                "queries, deny logins, or mask rows/columns."
+            ),
+        }
+    )
+
+
 def build_governance_router() -> APIRouter:
     router = APIRouter(tags=["governance"])
     router.add_api_route(
@@ -926,6 +1000,13 @@ def build_governance_router() -> APIRouter:
         methods=["GET"],
         response_class=JSONResponse,
         name="api_governance_glossary_term",
+    )
+    router.add_api_route(
+        "/api/governance/control-decisions",
+        api_governance_control_decisions,
+        methods=["GET"],
+        response_class=JSONResponse,
+        name="api_governance_control_decisions",
     )
     router.add_api_route(
         "/api/governance/requests",

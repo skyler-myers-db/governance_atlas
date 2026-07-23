@@ -1,5 +1,17 @@
-import { EntityChip, LoadingState, SectionCard, UnavailableState } from "../../../components/system";
+import { Badge, EmptyState, EntityChip, LoadingState, SectionCard, UnavailableState } from "../../../components/system";
+import { useControlDecisions } from "../../../hooks/useControlDecisions";
 import { numberOrNull, numberValue, percentValue, stateText } from "../adminPresentation";
+
+// Decision → Badge tone: approvals read good (green), rejections bad (red),
+// everything else (updated / reassigned / etc.) stays neutral.
+const DECISION_TONE = { approved: "good", rejected: "bad" };
+
+function formatWhen(value) {
+  const text = String(value || "").trim();
+  if (!text) return "—";
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? text : new Date(parsed).toLocaleDateString();
+}
 
 /*
  * Control Center · Policy tab (Wave C6). Renders the backed policy-exceptions
@@ -112,10 +124,93 @@ function CoveragePanel({ policies, hydrating }) {
   );
 }
 
+function ControlsInAction() {
+  // Hooks first, no early return (React hook-order rule). The Admin surface is
+  // admin-gated upstream, so no extra gating here.
+  const { decisions, summary, enforcementNote, status } = useControlDecisions();
+
+  const total = numberOrNull(summary.total) ?? decisions.length;
+  const approved = numberOrNull(summary.approved) ?? 0;
+  const rejected = numberOrNull(summary.rejected) ?? 0;
+
+  return (
+    <SectionCard
+      className="ga-admin-card"
+      status={status === "loading" || status === "hydrating" ? "loading" : undefined}
+      subtitle={`${approved} approved · ${rejected} rejected · ${total} decisions`}
+      title="Controls in action"
+    >
+      {decisions.length ? (
+        <div className="ga-admin-decisions-scroll">
+          <table className="ga-admin-decisions-table">
+            <thead>
+              <tr>
+                <th>Decision</th>
+                <th>Asset</th>
+                <th>Actor</th>
+                <th>Change</th>
+                <th>Note</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {decisions.map((entry) => {
+                const decision = String(entry.decision || "").trim();
+                const asset = entry.entityFqn || entry.entityId || "—";
+                const hasChange = entry.beforeStatus && entry.afterStatus;
+                return (
+                  <tr key={entry.auditId || `${asset}-${entry.at}`}>
+                    <td>
+                      <Badge tone={DECISION_TONE[decision.toLowerCase()] || "neutral"}>
+                        {decision || "—"}
+                      </Badge>
+                    </td>
+                    <td className="ga-admin-decisions-asset">{asset}</td>
+                    <td>
+                      <span className="ga-admin-decisions-actor">{entry.actor || "—"}</span>
+                      {entry.actorRole ? (
+                        <span className="ga-admin-decisions-role">{entry.actorRole}</span>
+                      ) : null}
+                    </td>
+                    <td className="ga-admin-decisions-change">
+                      {hasChange ? (
+                        <>
+                          {entry.beforeStatus}
+                          <i aria-hidden="true"> → </i>
+                          {entry.afterStatus}
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="ga-admin-decisions-note">{entry.note || "—"}</td>
+                    <td className="ga-admin-decisions-when">{formatWhen(entry.at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState
+          body="Approvals and rejections appear here as stewards act on requests."
+          title="No governance decisions recorded yet"
+        />
+      )}
+      {enforcementNote ? (
+        // Honesty gate: these are governance REVIEW decisions, not access
+        // enforcement. Keep the payload's caveat prominent under the panel.
+        <p className="ga-admin-decisions-caveat">{enforcementNote}</p>
+      ) : null}
+    </SectionCard>
+  );
+}
+
 export function PolicyTab({ policyCards, policies, hydrating }) {
   return (
     <div className="ga-admin-tab-body" id="ga-admin-panel-policy" role="tabpanel">
       <PolicyRequirementCards cards={policyCards} hydrating={hydrating} />
+      <ControlsInAction />
       <CoveragePanel hydrating={hydrating} policies={policies} />
     </div>
   );

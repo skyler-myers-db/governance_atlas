@@ -860,6 +860,33 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
             ) USING DELTA""",
         ),
     ),
+    Migration(
+        version=18,
+        name="governance_category_metrics_snapshots",
+        statements=(
+            # G9 — per-category (per-domain / per-tier) daily governance
+            # snapshots for category-level trend history. Parallel to
+            # governance_metrics_snapshots but keyed additionally by
+            # (category_kind, category_key). History accumulates from the
+            # first write forward — there is no historical source to backfill,
+            # so a young series is honestly marked "collecting", never drawn
+            # as a multi-point line.
+            """CREATE TABLE IF NOT EXISTS {category_metrics_snapshots_table} (
+                snapshot_id        STRING NOT NULL,
+                scope_key          STRING NOT NULL COMMENT 'visibility scope (app | obo-<hash>)',
+                snapshot_date      DATE NOT NULL,
+                category_kind      STRING NOT NULL COMMENT 'domain | tier',
+                category_key       STRING NOT NULL COMMENT 'the domain name or certification tier',
+                category_label     STRING,
+                asset_count        BIGINT,
+                coverage           DOUBLE COMMENT 'metadata coverage % for the category',
+                certification_pct  DOUBLE COMMENT 'certified % for the category (tier kind)',
+                score              DOUBLE COMMENT 'governance score for the category (domain kind)',
+                created_at         TIMESTAMP,
+                created_by         STRING
+            ) USING DELTA""",
+        ),
+    ),
 )
 
 
@@ -935,6 +962,7 @@ def apply_migrations(
                 governance_queue_projection_table=_fq_table(catalog, schema, "governance_queue_projection"),
                 glossary_summary_projection_table=_fq_table(catalog, schema, "glossary_summary_projection"),
                 metrics_snapshots_table=_fq_table(catalog, schema, "governance_metrics_snapshots"),
+                category_metrics_snapshots_table=_fq_table(catalog, schema, "governance_category_metrics_snapshots"),
                 change_events_table=_fq_table(catalog, schema, "change_events"),
                 change_event_consumers_table=_fq_table(catalog, schema, "change_event_consumers"),
                 change_event_consumer_offsets_table=_fq_table(catalog, schema, "change_event_consumer_offsets"),

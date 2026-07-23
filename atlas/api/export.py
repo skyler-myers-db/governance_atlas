@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
@@ -110,6 +110,7 @@ def _persist_export_job(
     error_detail: Optional[str] = None,
     mode: str = "sync",
     fail_closed: bool = False,
+    checksum: Optional[str] = None,
 ) -> None:
     from runtime_app import _ensure_governance_store, _store
     from atlas.util import sql_literal
@@ -146,7 +147,7 @@ def _persist_export_job(
     NULL,
     {int(row_count)},
     {int(byte_count)},
-    NULL,
+    {sql_literal(checksum)},
     {sql_literal(error_detail)},
     timestamp({sql_literal(ts)}),
     {sql_literal(actor_email)},
@@ -170,6 +171,7 @@ def _persist_export_job(
                 "status": status,
                 "mode": mode,
                 "format": "csv",
+                "sha256": checksum,
                 "errorDetail": error_detail,
             },
             source="api",
@@ -226,6 +228,9 @@ def api_export_assets(
     rows = _build_rows(asset_fqns, request)
     csv_text = export_service.build_csv(rows, EXPORT_CSV_COLUMNS)
     byte_count = len(csv_text.encode("utf-8"))
+    # G10: SHA-256 of the exact bytes served — persisted + audit-logged so the
+    # export is tamper-evident (a recipient re-hashes and compares).
+    checksum = export_service.content_sha256(csv_text) if rows else None
 
     job_id = export_service.new_job_id()
     filter_snapshot = export_service.build_filter_snapshot(
@@ -250,6 +255,7 @@ def api_export_assets(
         error_detail=None if rows else "No visible assets matched the export request.",
         mode="sync",
         fail_closed=True,
+        checksum=checksum,
     )
 
     if not rows:
@@ -268,7 +274,152 @@ def api_export_assets(
             "Content-Disposition": f'attachment; filename="atlas-export-{job_id}.csv"',
             "X-GOVAT-Export-Job-Id": job_id,
             "X-GOVAT-Export-Row-Count": str(len(rows)),
+            "X-GOVAT-Export-SHA256": checksum or "",
         },
+    )
+
+
+def api_export_evidence_pack(
+    payload: ExportAssetsRequest,
+    request: Request,
+) -> Response:
+    """G10 — a tamper-evident evidence pack: the asset CSV + a provenance
+    manifest.json (SHA-256 of the CSV, actor, timestamp, filter) zipped
+    together. Checksummed + provenance-stamped, NOT cryptographically signed.
+    Same OBO/visibility contract as the CSV export."""
+    import io
+    import zipfile
+
+    from runtime_app import _ensure_live_runtime
+
+    _ensure_live_runtime()
+
+    auth_mode = _request_auth_mode(request)
+    actor_scoped = auth_mode == capability_service.OBO_AVAILABLE_MODE
+    actor_email = _user_email(request) or "unknown"
+    actor_role = _actor_role_slug(request)
+    requested_at = datetime.now(timezone.utc)
+    token_captured_at = requested_at if actor_scoped else None
+
+    asset_fqns = [fqn for fqn in (_normalize_str(f) for f in (payload.assetFqns or [])) if fqn]
+
+    decision = export_service.evaluate_export_request(
+        actor_scoped=actor_scoped,
+        token_captured_at=token_captured_at,
+        asset_count=len(asset_fqns),
+        sync=True,
+        now=requested_at,
+    )
+    if not decision.allowed:
+        return JSONResponse(
+            status_code=403 if decision.status == "stale_auth" else 400,
+            content={"error": {"code": decision.status, "message": decision.reason}},
+        )
+
+    rows = _build_rows(asset_fqns, request)
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail="No visible assets matched the export request.",
+        )
+    csv_text = export_service.build_csv(rows, EXPORT_CSV_COLUMNS)
+    byte_count = len(csv_text.encode("utf-8"))
+    checksum = export_service.content_sha256(csv_text)
+    job_id = export_service.new_job_id()
+    data_filename = f"atlas-export-{job_id}.csv"
+
+    filter_snapshot = export_service.build_filter_snapshot(
+        asset_fqns=asset_fqns,
+        actor_email=actor_email,
+        visibility_scope=capability_service.runtime_visibility_scope(auth_mode),
+        format="evidence-pack",
+        requested_at=requested_at,
+    )
+    manifest = export_service.build_provenance_manifest(
+        job_id=job_id,
+        actor_email=actor_email,
+        actor_role=actor_role,
+        generated_at=requested_at,
+        filter_snapshot=filter_snapshot,
+        row_count=len(rows),
+        byte_count=byte_count,
+        sha256=checksum,
+        data_filename=data_filename,
+    )
+
+    _persist_export_job(
+        request=request,
+        job_id=job_id,
+        asset_fqns=asset_fqns,
+        actor_email=actor_email,
+        actor_role=actor_role,
+        filter_snapshot=filter_snapshot,
+        status="ready",
+        requested_at=requested_at,
+        token_captured_at=token_captured_at,
+        row_count=len(rows),
+        byte_count=byte_count,
+        mode="evidence-pack",
+        fail_closed=True,
+        checksum=checksum,
+    )
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(data_filename, csv_text)
+        archive.writestr("manifest.json", manifest)
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="atlas-evidence-pack-{job_id}.zip"',
+            "X-GOVAT-Export-Job-Id": job_id,
+            "X-GOVAT-Export-SHA256": checksum,
+        },
+    )
+
+
+def api_export_board_report(request: Request) -> Response:
+    """G8 — a board-ready executive governance report assembled from the live
+    command-center + insights payloads, returned as print-ready HTML (Print →
+    Save as PDF). Unavailable metrics stay labeled, never fabricated."""
+    from runtime_app import _ensure_live_runtime, _store_for_read, _user_email, _visible_assets
+    from atlas.services import atlas_metrics
+
+    _ensure_live_runtime()
+    actor_email = _user_email(request) or "unknown"
+    generated_at = datetime.now(timezone.utc)
+
+    store = _store_for_read()
+    visible = _visible_assets(request)
+    try:
+        command_center = atlas_metrics.command_center_payload(visible_assets=visible, store=store)
+    except Exception:
+        command_center = {}
+    try:
+        insights = atlas_metrics.insights_dashboard_payload(visible_assets=visible, store=store)
+    except Exception:
+        insights = {}
+
+    org_name = "Governance Atlas"
+    try:
+        branding = store.get_tenant_branding() if hasattr(store, "get_tenant_branding") else {}
+        org_name = _normalize_str(branding.get("org_display_name")) or org_name
+    except Exception:
+        org_name = "Governance Atlas"
+
+    html_doc = export_service.build_board_report_html(
+        command_center=command_center,
+        insights=insights,
+        actor_email=actor_email,
+        generated_at=generated_at,
+        org_name=org_name,
+    )
+    filename = f"atlas-board-report-{generated_at.strftime('%Y-%m-%d')}.html"
+    return Response(
+        content=html_doc,
+        media_type="text/html",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -765,6 +916,18 @@ def build_export_router() -> APIRouter:
         api_export_assets,
         methods=["POST"],
         name="api_export_assets",
+    )
+    router.add_api_route(
+        "/api/export/evidence-pack",
+        api_export_evidence_pack,
+        methods=["POST"],
+        name="api_export_evidence_pack",
+    )
+    router.add_api_route(
+        "/api/export/board-report",
+        api_export_board_report,
+        methods=["POST"],
+        name="api_export_board_report",
     )
     router.add_api_route(
         "/api/export/enqueue",

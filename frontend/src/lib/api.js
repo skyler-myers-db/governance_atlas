@@ -1228,6 +1228,40 @@ export function exportAssets(assetFqns, options = {}) {
   );
 }
 
+// G10 — fetch the tamper-evident evidence pack (.zip: CSV + provenance
+// manifest) as a Blob. Bypasses the JSON `request` helper because the response
+// is binary; still routes through buildUrl for the /api base + OBO cookies.
+export async function fetchEvidencePackBlob(assetFqns, options = {}) {
+  const response = await fetch(buildUrl("/export/evidence-pack"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/zip" },
+    body: JSON.stringify({ assetFqns: Array.isArray(assetFqns) ? assetFqns : [] }),
+    signal: options.signal,
+  });
+  if (!response.ok) {
+    let message = `Evidence pack export failed (${response.status}).`;
+    try {
+      const payload = await response.json();
+      message = payload?.error?.message || payload?.detail || message;
+    } catch {
+      /* keep default */
+    }
+    throw new ApiError(message, response.status, {});
+  }
+  return response.blob();
+}
+
+// G8 — board-ready executive report as print-ready HTML text (POST, no body).
+export function fetchBoardReportHtml(options = {}) {
+  return request("/export/board-report", { method: "POST", signal: options.signal });
+}
+
+// G4 — "Controls in action": governance decisions (approvals/rejections).
+export function fetchControlDecisions(options = {}) {
+  const query = options.limit ? `?limit=${encodeURIComponent(options.limit)}` : "";
+  return request(`/governance/control-decisions${query}`, { signal: options.signal });
+}
+
 export function fetchAdminCoverageDrilldown(options = {}) {
   const params = new URLSearchParams();
   appendList(params, "requiredFields", options.requiredFields);
