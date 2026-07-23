@@ -9,7 +9,7 @@ const EMPTY_GOVERNANCE = {
 };
 
 /**
- * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false} | boolean} [options={}]
+ * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false, sections?: string[], section?: string} | boolean} [options={}]
  */
 export function useGovernanceSummary(options = {}) {
   const resolvedOptions =

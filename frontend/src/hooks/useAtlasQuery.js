@@ -82,6 +82,10 @@ function sectionsSatisfied(data, sections) {
  * `data == null` is terminal: with no payload there is nothing to poll
  * toward — react-query's own pending fetch covers the first load. This
  * matches every legacy refetchInterval fn (all returned false on undefined).
+ *
+ * @param {any} data
+ * @param {{ until?: Function, sections?: any }} [options]
+ * @param {any} [query]
  */
 function pollTerminal(data, { until, sections } = {}, query = null) {
   if (typeof until === "function") return until(data, query) === true;
@@ -269,6 +273,7 @@ export function useAtlasQuery(config = /** @type {any} */ ({})) {
   );
   const isPolling = Boolean(normalizedPoll && enabled && pending && !pollExhausted);
 
+  /** @type {"loading"|"hydrating"|"available"|"degraded"|"unavailable"|"error"} */
   let status = envelopeStatus(query.data ?? null, { hasSeed, refreshError });
   if (query.isError && data == null) {
     // The fetch itself failed with nothing renderable — a terminal error, not

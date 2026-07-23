@@ -28,5 +28,12 @@
     "src/components/LineageWorkspace.jsx",
     "src/types/**/*.d.ts",
     "vite.config.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.js",
+    "**/*.test.jsx",
+    "**/__tests__/**"
   ]
 }

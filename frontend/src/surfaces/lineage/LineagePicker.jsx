@@ -76,7 +76,7 @@ function RankedAssetCard({ item, onOpen, rank }) {
       onClick={handleClick}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
-          if (event.target.closest?.("a")) return;
+          if (/** @type {HTMLElement} */ (event.target).closest?.("a")) return;
           event.preventDefault();
           onOpen(item.fqn);
         }

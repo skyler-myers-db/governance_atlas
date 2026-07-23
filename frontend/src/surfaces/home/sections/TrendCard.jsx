@@ -132,6 +132,9 @@ function TrendLineChart({ points }) {
   );
 }
 
+/**
+ * @param {{ posture?: Record<string, any> }} props
+ */
 export function TrendCard({ posture = {} }) {
   // Hook runs unconditionally, before any early return (CLAUDE.md rule).
   const [windowKey, setWindowKey] = useState("26w");

@@ -282,7 +282,7 @@ function CdeDetailPanel({ cde, onClose }) {
 
 export function CdeRegistry({
   rows,
-  summary = {},
+  summary = /** @type {Record<string, any>} */ ({}),
   loading = false,
   filters,
   onFiltersChange,

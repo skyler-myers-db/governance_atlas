@@ -6,7 +6,7 @@
  * so they inherit chip/button text color.
  */
 
-const BASE = {
+const BASE = /** @type {import('react').SVGProps<SVGSVGElement>} */ ({
   width: 14,
   height: 14,
   viewBox: "0 0 16 16",
@@ -17,7 +17,7 @@ const BASE = {
   strokeLinejoin: "round",
   "aria-hidden": true,
   focusable: "false",
-};
+});
 
 export const KIND_ICONS = {
   asset: (

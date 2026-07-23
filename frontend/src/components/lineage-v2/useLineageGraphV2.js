@@ -216,6 +216,7 @@ function normalizeEdge(rawEdge) {
  *   columnLineage: object,
  *   edgeDetails: object,
  *   hydrating: boolean,
+ *   warming: boolean,
  *   loading: boolean,
  *   error: string,
  *   meta: object|null,

@@ -38,7 +38,7 @@ export function Drawer({
 
   useEffect(() => {
     if (!open) return undefined;
-    const previouslyFocused = document.activeElement;
+    const previouslyFocused = /** @type {HTMLElement | null} */ (document.activeElement);
     const panel = panelRef.current;
     panel?.focus();
 
@@ -84,7 +84,9 @@ export function Drawer({
 
   const style =
     width != null
-      ? { "--ga-sys-drawer-width": typeof width === "number" ? `${width}px` : String(width) }
+      ? /** @type {import('react').CSSProperties} */ ({
+          "--ga-sys-drawer-width": typeof width === "number" ? `${width}px` : String(width),
+        })
       : undefined;
 
   return createPortal(

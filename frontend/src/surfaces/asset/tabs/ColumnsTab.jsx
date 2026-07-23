@@ -22,6 +22,7 @@ export function ColumnsTab({ asset, loading, highlightCol = "" }) {
   const hasGlossary = rows.some(columnHasGlossary);
   const highlight = String(highlightCol || "").trim();
 
+  /** @type {any[]} */
   const columns = [
     {
       key: "name",

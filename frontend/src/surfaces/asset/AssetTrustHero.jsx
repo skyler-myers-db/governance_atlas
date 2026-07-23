@@ -110,6 +110,16 @@ function FreshnessValue({ label, value, hydrating, fallbackReason }) {
   );
 }
 
+/**
+ * @param {{
+ *   role: string,
+ *   entry?: any,
+ *   hydrating?: boolean,
+ *   assetFqn?: string,
+ *   canMutate?: boolean,
+ *   onAssigned?: () => void,
+ * }} props
+ */
 function OwnerRole({ role, entry, hydrating = false, assetFqn = "", canMutate = false, onAssigned }) {
   const ref = ownerRef(entry);
   const ownerType = ASSIGNABLE_OWNER_TYPES[role];
@@ -145,8 +155,11 @@ function OwnerRole({ role, entry, hydrating = false, assetFqn = "", canMutate = 
  *   freshness: { state?: string, dataUpdatedAt?: string, lastAltered?: string,
  *                labels?: Record<string,string>, message?: string } | null,
  *   ownership: { ucOwner?: any, businessOwner?: any, steward?: any } | null,
+ *   ownershipPending?: boolean,
  *   hydrating?: boolean,
  *   compact?: boolean,
+ *   canMutate?: boolean,
+ *   onAssigned?: () => void,
  * }} props
  */
 export function AssetTrustHero({ asset, freshness, ownership, ownershipPending = false, hydrating = false, compact = false, canMutate = false, onAssigned }) {

@@ -107,6 +107,9 @@ function TabList({
   );
 }
 
+/**
+ * @param {{ tabs?: any[], value?: any, defaultValue?: any, onChange?: Function, [key: string]: any }} props
+ */
 function PlainTabStrip({ tabs = [], value, defaultValue, onChange, ...rest }) {
   const [internal, setInternal] = useState(
     defaultValue ?? tabs.find((tab) => !tab.disabled)?.key,
@@ -120,6 +123,9 @@ function PlainTabStrip({ tabs = [], value, defaultValue, onChange, ...rest }) {
   return <TabList tabs={tabs} value={active} onChange={handleChange} {...rest} />;
 }
 
+/**
+ * @param {{ param?: any, tabs?: any[], defaultValue?: any, onChange?: Function, [key: string]: any }} props
+ */
 function UrlTabStrip({ param, tabs = [], defaultValue, onChange, ...rest }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlValue = searchParams.get(param);
@@ -140,6 +146,9 @@ function UrlTabStrip({ param, tabs = [], defaultValue, onChange, ...rest }) {
   return <TabList tabs={tabs} value={active} onChange={handleChange} {...rest} />;
 }
 
+/**
+ * @param {{ param?: any, tabs?: any[], defaultValue?: any, onChange?: Function, [key: string]: any }} props
+ */
 function AdapterTabStrip({ param, tabs = [], defaultValue, onChange, ...rest }) {
   const active = param.value ?? defaultValue ?? tabs.find((tab) => !tab.disabled)?.key;
   const handleChange = (key) => {

@@ -95,7 +95,7 @@ const ASSET_360_POLL = {
 };
 
 export function useAsset360(assetFqn, options = {}) {
-  /** @type {{ enabled?: boolean, staleTime?: number, gcTime?: number }} */
+  /** @type {{ enabled?: boolean, staleTime?: number, gcTime?: number, refetchInterval?: number | false }} */
   const resolvedOptions = options && typeof options === "object" ? options : {};
   const normalizedFqn = String(assetFqn || "").trim();
   const enabled = resolvedOptions.enabled !== false && Boolean(normalizedFqn);

@@ -193,7 +193,7 @@ export function DataTable({
                         <td key={key} className={column.align === "right" ? "align-right" : undefined}>
                           {wrapAsLink ? (
                             <Anchor
-                              {...(inRouter ? { to: href } : { href })}
+                              {.../** @type {any} */ (inRouter ? { to: href } : { href })}
                               className="ga-sys-table-rowlink"
                               onClick={(event) => {
                                 if (!navigate || event.defaultPrevented) return;

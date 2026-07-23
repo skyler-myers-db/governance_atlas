@@ -486,6 +486,16 @@ function AtlasAiMessageList({ messages = [], onOpenEvidence, emptyMessage }) {
 // Controlled component: AppShell owns `open` because the frame root must
 // reflect it as data-ai-open (legacy per-surface squeeze CSS keys on it) and
 // the header's Atlas AI chip opens the dock too.
+/**
+ * @param {{
+ *   surface?: string,
+ *   assetFqn?: string,
+ *   available?: boolean,
+ *   unavailableReason?: string,
+ *   open?: boolean,
+ *   onOpenChange?: (open?: boolean) => void,
+ * }} props
+ */
 export function AtlasAiDock({
   surface = "home",
   assetFqn = "",

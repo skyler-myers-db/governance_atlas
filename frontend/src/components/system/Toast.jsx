@@ -51,6 +51,9 @@ const TONES = new Set(["neutral", "success", "warning", "danger", "accent"]);
  * toast(message, {tone, action: {label, onClick}, duration})
  * duration defaults to 5s (8s with an action so it can be reached);
  * duration: 0 makes it persistent until dismissed.
+ *
+ * @param {string} message
+ * @param {{ tone?: string, action?: ({ label?: string, onClick?: () => void } | null), duration?: number }} [options]
  */
 export function toast(message, { tone = "neutral", action = null, duration } = {}) {
   const id = ++sequence;

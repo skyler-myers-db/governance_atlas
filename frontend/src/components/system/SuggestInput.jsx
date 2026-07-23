@@ -23,6 +23,10 @@ function fireChange(onChange, value) {
   if (typeof onChange === "function") onChange({ target: { value } });
 }
 
+/**
+ * @param {{ value?: any, onChange?: any, options?: any[], id?: any, className?: string,
+ *   onKeyDown?: any, onBlur?: any, onFocus?: any, maxVisible?: number, [x: string]: any }} props
+ */
 export function SuggestInput({
   value,
   onChange,

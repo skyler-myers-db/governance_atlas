@@ -58,6 +58,16 @@ async function copyText(text) {
   return false;
 }
 
+/**
+ * @param {{
+ *   fqn?: string,
+ *   editor?: any,
+ *   access?: any,
+ *   graph?: any,
+ *   onCertified?: (value?: any) => void,
+ *   onAfterWrite?: () => void,
+ * }} props
+ */
 export function AssetHeaderActions({
   fqn,
   editor,

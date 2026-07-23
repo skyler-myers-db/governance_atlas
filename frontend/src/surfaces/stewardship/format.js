@@ -181,7 +181,7 @@ export function looksLikeEmail(value = "") {
 /* ------------------------------------------------------------------ */
 
 export function normalizeCurrentUser(value = {}) {
-  const user = value && typeof value === "object" ? value : {};
+  const user = /** @type {Record<string, any>} */ (value && typeof value === "object" ? value : {});
   const email = textValue(user.email || user.userEmail || user.actorEmail).toLowerCase();
   const name = textValue(user.name || user.userName || user.actorName || user.displayName).toLowerCase();
   const role = textValue(user.role || user.actorRole);
@@ -244,6 +244,7 @@ export function hasNonAuthoritativeWorkItemMarker(...values) {
   );
 }
 
+/** @param {Record<string, any>} [item] */
 export function isValidationWorkItem(item = {}) {
   if (!item || typeof item !== "object") return false;
   const requestId = textValue(item.requestId || item.id).toLowerCase();
