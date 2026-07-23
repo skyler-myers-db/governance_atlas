@@ -352,9 +352,23 @@ _GENIE_STAGE_LABELS = {
     "CANCELLED": "Cancelled",
     "QUERY_RESULT_EXPIRED": "Query result expired",
 }
-# Terminal states — polling stops here.
+# _finalize_message ACCEPTS these (the blocking waiter can hand back a message
+# in EXECUTING_QUERY once results are ready)…
 _GENIE_DONE_STATES = {"COMPLETED", "EXECUTING_QUERY"}
+# …but POLLING must terminate only on COMPLETED — stopping at EXECUTING_QUERY
+# would finalize before the NL answer + result rows exist (review B1).
+_GENIE_POLL_DONE_STATES = {"COMPLETED"}
 _GENIE_FAIL_STATES = {"FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"}
+
+
+def _safe_getattr(obj: Any, name: str) -> Any:
+    """getattr that also swallows KeyError — the SDK's Wait.__getattr__ raises
+    KeyError (not AttributeError) for keys outside its bind dict, which a plain
+    getattr(..., default) does NOT catch."""
+    try:
+        return getattr(obj, name, None)
+    except Exception:
+        return None
 
 
 def genie_stage_label(status: str) -> str:
@@ -439,18 +453,35 @@ def start_genie(
         raise RuntimeError(status.get("message") or "Genie is not configured.")
     w = client or _workspace_client(config, user_access_token=user_access_token)
     started = w.genie.start_conversation(space_id=status["spaceId"], content=prompt)
+    # `start_conversation` returns an SDK Wait whose ids live in a private bind
+    # dict reached via a KeyError-raising __getattr__; its `.response`
+    # (GenieStartConversationResponse) is a real attribute carrying the ids +
+    # the initial message. Read the safe attribute first, fall back defensively.
+    response = _safe_getattr(started, "response")
+    bind = {}
+    bind_fn = _safe_getattr(started, "bind")
+    if callable(bind_fn):
+        try:
+            bind = bind_fn() or {}
+        except Exception:
+            bind = {}
     conversation_id = normalize_str(
-        _obj_get(started, "conversation_id") or _obj_get(_obj_get(started, "conversation"), "id")
+        _obj_get(response, "conversation_id") or bind.get("conversation_id") or _safe_getattr(started, "conversation_id")
     )
     message_id = normalize_str(
-        _obj_get(started, "message_id") or _obj_get(_obj_get(started, "message"), "id")
+        _obj_get(response, "message_id") or bind.get("message_id") or _safe_getattr(started, "message_id")
     )
-    message_status = _status_value(_obj_get(started, "status") or _obj_get(_obj_get(started, "message"), "status"))
+    initial_message = _obj_get(response, "message")
+    message_status = _status_value(
+        _obj_get(initial_message, "status") or _safe_getattr(started, "status")
+    ) or "SUBMITTED"
+    if not conversation_id or not message_id:
+        raise RuntimeError("Genie start_conversation did not return conversation/message ids.")
     return {
         "conversationId": conversation_id,
         "messageId": message_id,
-        "status": message_status or "SUBMITTED",
-        "stage": genie_stage_label(message_status or "SUBMITTED"),
+        "status": message_status,
+        "stage": genie_stage_label(message_status),
         "providerState": status,
     }
 
@@ -479,7 +510,9 @@ def poll_genie(
     message_status = _status_value(_obj_get(message, "status"))
     if message_status in _GENIE_FAIL_STATES:
         raise RuntimeError(f"Genie message did not complete successfully: {message_status}")
-    done = message_status in _GENIE_DONE_STATES
+    # Poll terminates only on COMPLETED — finalizing at EXECUTING_QUERY would
+    # return before the NL answer + result rows are populated (review B1).
+    done = message_status in _GENIE_POLL_DONE_STATES
     result: Dict[str, Any] = {
         "status": message_status,
         "stage": genie_stage_label(message_status),

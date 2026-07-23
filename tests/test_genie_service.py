@@ -221,7 +221,9 @@ class GenieServiceTests(unittest.TestCase):
         self.assertEqual(result["messageId"], "msg-9")
         self.assertEqual(result["stage"], "Submitted to Genie")
 
-    def test_poll_genie_reports_stage_while_running(self) -> None:
+    def test_poll_genie_executing_query_is_not_done(self) -> None:
+        # Review B1: EXECUTING_QUERY means the SQL is still running — polling
+        # must NOT finalize here (the answer + rows aren't ready), it keeps going.
         message = SimpleNamespace(status="EXECUTING_QUERY", conversation_id="conv-9", message_id="msg-9")
         client = FakeGenieClient(message)
 
@@ -231,9 +233,48 @@ class GenieServiceTests(unittest.TestCase):
         )
 
         self.assertEqual(client.get_message_calls[0]["conversation_id"], "conv-9")
-        self.assertTrue(result["done"])  # EXECUTING_QUERY is a terminal/answer state
+        self.assertFalse(result["done"])
         self.assertEqual(result["stage"], "Running the query")
-        self.assertIn("payload", result)
+        self.assertNotIn("payload", result)
+
+    def test_poll_genie_completed_finalizes_with_payload(self) -> None:
+        message = SimpleNamespace(
+            status="COMPLETED", conversation_id="conv-9", message_id="msg-9",
+            attachments=[SimpleNamespace(text=SimpleNamespace(content="Two assets are uncertified."))],
+        )
+        client = FakeGenieClient(message)
+
+        result = genie.poll_genie(
+            config=self._config(atlas_ai_provider="genie", genie_space_id="space-1"),
+            conversation_id="conv-9", message_id="msg-9", client=client,
+        )
+
+        self.assertTrue(result["done"])
+        self.assertEqual(result["stage"], "Done")
+        self.assertEqual(result["payload"]["answer"], "Two assets are uncertified.")
+
+    def test_start_genie_reads_sdk_wait_without_keyerror(self) -> None:
+        # The real SDK returns a Wait whose __getattr__ raises KeyError for keys
+        # outside its bind dict; ids live on `.response`. start_genie must not
+        # blow up on that shape.
+        class KeyErrorWait:
+            def __init__(self):
+                self.response = SimpleNamespace(
+                    conversation_id="conv-w", message_id="msg-w",
+                    message=SimpleNamespace(status="FETCHING_METADATA"),
+                )
+
+            def __getattr__(self, key):  # mimic databricks Wait.__getattr__
+                raise KeyError(key)
+
+        client = FakeGenieClient(message=None, started=KeyErrorWait())
+        result = genie.start_genie(
+            config=self._config(atlas_ai_provider="genie", genie_space_id="space-1"),
+            question="Which assets need stewardship?", client=client,
+        )
+        self.assertEqual(result["conversationId"], "conv-w")
+        self.assertEqual(result["messageId"], "msg-w")
+        self.assertEqual(result["stage"], "Reading governed metadata")
 
     def test_poll_genie_pending_has_no_payload(self) -> None:
         message = SimpleNamespace(status="FILTERING_CONTEXT", conversation_id="c", message_id="m")

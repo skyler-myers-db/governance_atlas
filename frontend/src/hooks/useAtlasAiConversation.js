@@ -110,13 +110,26 @@ export function useAtlasAiConversation({ request = fetchAtlasAiRecommendations }
         onStage,
       });
       if (requestSeqRef.current !== requestSeq) return response;
+      // Surface a genuine failure (Genie FAILED / unavailable) as an error with
+      // its reason, instead of collapsing to the bland "did not return an
+      // answer" — the user must be able to tell a crash from an empty result.
+      const rawAnswer = String(response?.answer || "").trim();
+      const warnings = Array.isArray(response?.warnings)
+        ? response.warnings
+        : Array.isArray(response?.meta?.warnings)
+          ? response.meta.warnings
+          : [];
+      const failureNote = response?.warning || warnings.find(Boolean) || "";
+      const isFailure =
+        (response?.intent === "unavailable" || response?.nonAuthoritative) && !rawAnswer && Boolean(failureNote);
       setMessages((current) =>
         current.map((message) =>
           message.id === assistantMessageId
             ? {
                 ...message,
-                text: normalizeAnswer(response),
+                text: isFailure ? failureNote : normalizeAnswer(response),
                 pending: false,
+                error: isFailure || undefined,
                 evidenceCount: evidenceCount(response),
                 response,
               }
