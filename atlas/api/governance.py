@@ -822,6 +822,11 @@ def api_governance_upsert_glossary(
         change_note=_normalize_str(payload.changeNote) or None,
         actor_role=actor_role,
     )
+    # The /atlas/taxonomy/overview endpoint (which the glossary surface reads)
+    # caches its payload in the shared api cache — a separate cache from the
+    # governance service's own. Clear it too so a term write (e.g. Approve)
+    # reflects immediately on the surface instead of after the 90s TTL.
+    _invalidate_cache_prefix("atlas_taxonomy_overview")
     return JSONResponse(
         {
             "ok": True,
@@ -875,6 +880,7 @@ def api_governance_patch_glossary(
         change_note=_normalize_str(payload.changeNote) or None,
         actor_role=actor_role,
     )
+    _invalidate_cache_prefix("atlas_taxonomy_overview")
     return JSONResponse(
         {
             "ok": True,
