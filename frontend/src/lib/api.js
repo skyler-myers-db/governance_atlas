@@ -983,6 +983,21 @@ export async function fetchAtlasAiRecommendations(question = "", options = {}) {
   return normalize(first);
 }
 
+// AI autofill: draft freeform field values from context (e.g. a glossary
+// definition + domain from a term name) via the generative endpoint. Returns
+// { fields, model, warnings }; the caller drops fields into the form for review.
+export async function fetchAiAutofill(kind, context = {}, options = {}) {
+  const path = contractPath("atlasAiAutofill") || "/atlas-ai/autofill";
+  const body = { kind: String(kind || "").trim() };
+  if (context && typeof context === "object" && Object.keys(context).length) body.context = context;
+  const response = unwrapEnvelope(await requestJson(path, "POST", body, { signal: options.signal }));
+  return {
+    fields: response?.fields && typeof response.fields === "object" ? response.fields : {},
+    model: String(response?.model || ""),
+    warnings: Array.isArray(response?.warnings) ? response.warnings : [],
+  };
+}
+
 export function fetchAsset360(assetFqn, options = {}) {
   const template = contractPath("asset360") || "/atlas/assets/{asset_fqn}/360";
   return request(routeToken(assetRoute(template, assetFqn), "asset_fqn", assetFqn), {

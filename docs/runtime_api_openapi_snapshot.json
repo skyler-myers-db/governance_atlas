@@ -188,6 +188,31 @@
         "title": "AssetTagsPatch",
         "type": "object"
       },
+      "AtlasAiAutofill": {
+        "description": "Body for POST /atlas-ai/autofill \u2014 draft freeform field values from\ncontext (e.g. a glossary term name) using the generative endpoint.",
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "kind": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "AtlasAiAutofill",
+        "type": "object"
+      },
       "AtlasAiContext": {
         "description": "Page-awareness context the dock sends with each question.\n\n``surface`` is the current left-nav surface id; ``assetFqn`` is the asset\nthe user is looking at (route asset or peek drawer). Both feed the Genie\nprompt preamble so \"this asset\" / \"on this page\" questions resolve to the\nconcrete surface the user is on.",
         "properties": {
@@ -1584,6 +1609,53 @@
         "summary": "Api Patch Asset Tags",
         "tags": [
           "assets"
+        ]
+      }
+    },
+    "/api/atlas-ai/autofill": {
+      "post": {
+        "description": "Draft freeform field values (e.g. a glossary definition + domain from a\nterm name) with the generative endpoint. Returns {fields, model, warnings};\neverything is a draft the user reviews before saving \u2014 this never writes.",
+        "operationId": "api_atlas_ai_autofill_api_atlas_ai_autofill_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AtlasAiAutofill"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Atlas Ai Autofill",
+        "tags": [
+          "atlas-ai"
         ]
       }
     },

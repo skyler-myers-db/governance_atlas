@@ -162,7 +162,10 @@ class AtlasApiTests(unittest.TestCase):
         router = atlas_api.build_atlas_ai_router()
         paths = {route.path for route in router.routes}
         self.assertEqual(
-            {"/api/atlas-ai/recommendations", "/api/atlas-ai/message", "/api/atlas-ai/chat"},
+            {
+                "/api/atlas-ai/recommendations", "/api/atlas-ai/message",
+                "/api/atlas-ai/autofill", "/api/atlas-ai/chat",
+            },
             paths,
         )
 

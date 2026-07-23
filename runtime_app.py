@@ -218,6 +218,7 @@ SHELL_API_CONTRACT = {
     "adminControlCenter": "/api/atlas/admin/control-center",
     "atlasAiRecommendations": "/api/atlas-ai/recommendations",
     "atlasAiMessage": "/api/atlas-ai/message",
+    "atlasAiAutofill": "/api/atlas-ai/autofill",
     "atlasAiChat": "/api/atlas-ai/chat",
     "cdeRegistry": "/api/cde",
     "bulkImportDryRun": "/api/admin/bulk-import/dry-run",

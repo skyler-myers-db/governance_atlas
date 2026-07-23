@@ -265,6 +265,34 @@ class AtlasAiQuestion(BaseModel):
         )
 
 
+class AtlasAiAutofill(BaseModel):
+    """Body for POST /atlas-ai/autofill — draft freeform field values from
+    context (e.g. a glossary term name) using the generative endpoint."""
+
+    kind: str = Field(default="", max_length=64)
+    context: dict | None = None
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def _sanitize_kind(cls, value):
+        return input_safety.sanitize_plain_text(value, field="kind", max_length=64, allow_empty=True)
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def _sanitize_ctx(cls, value):
+        if not isinstance(value, Mapping):
+            return None
+        cleaned: dict[str, Any] = {}
+        for raw_key, raw_val in list(value.items())[:12]:
+            key = input_safety.sanitize_plain_text(raw_key, field="ctx", max_length=48, allow_empty=True)
+            if not key:
+                continue
+            cleaned[key] = input_safety.sanitize_plain_text(
+                str(raw_val)[:500] if raw_val is not None else "", field="ctx", max_length=500, allow_empty=True
+            )
+        return cleaned or None
+
+
 class AtlasAiPoll(BaseModel):
     """Body for POST /atlas-ai/message — polls a running Genie conversation for
     its progress stage and, when complete, the finalized answer."""
@@ -2638,6 +2666,50 @@ def api_atlas_ai_message(request: Request, body: AtlasAiPoll | None = Body(defau
     )
 
 
+def api_atlas_ai_autofill(request: Request, body: AtlasAiAutofill | None = Body(default=None)) -> JSONResponse:
+    """Draft freeform field values (e.g. a glossary definition + domain from a
+    term name) with the generative endpoint. Returns {fields, model, warnings};
+    everything is a draft the user reviews before saving — this never writes."""
+    from atlas.services import ai_generation
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token
+
+    _ensure_live_runtime()
+    kind = _normalize_str(getattr(body, "kind", "")) if body else ""
+    context = getattr(body, "context", None) if body else None
+    if not kind:
+        raise HTTPException(status_code=422, detail="kind is required.")
+
+    cfg = _config()
+    status = ai_generation.provider_status(cfg)
+    unavailable = lambda note: _wrap(  # noqa: E731
+        {"kind": kind, "fields": {}, "model": status.get("endpoint", ""), "warnings": [note]},
+        request, source="databricks-foundation-model", state="unavailable", authoritative=False,
+        capabilities={"provider": "ai-generation", "endpoint": status.get("endpoint", "")},
+    )
+    if status["state"] != "available":
+        return unavailable(status["message"])
+    forwarded_token = _request_obo_token(request)
+    if not forwarded_token:
+        return unavailable("AI autofill requires the forwarded Databricks user token.")
+    try:
+        result = ai_generation.generate_fields(
+            config=cfg, kind=kind, context=context or {}, user_access_token=forwarded_token,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        return unavailable(f"AI autofill is unavailable right now: {exc.__class__.__name__}: {exc}")
+    return _wrap(
+        {"kind": kind, "fields": result.get("fields", {}), "model": result.get("model", ""),
+         "warnings": result.get("warnings", [])},
+        request, source="databricks-foundation-model",
+        state="available" if result.get("fields") else "degraded",
+        authoritative=False,
+        capabilities={"provider": "ai-generation", "endpoint": result.get("model", "")},
+        warnings=result.get("warnings") or None,
+    )
+
+
 def api_atlas_ai_chat(
     request: Request,
     body: AtlasAiQuestion,
@@ -2667,6 +2739,7 @@ def build_atlas_ai_router() -> APIRouter:
     router = APIRouter(prefix="/api/atlas-ai", tags=["atlas-ai"])
     router.add_api_route("/recommendations", api_atlas_ai_recommendations, methods=["POST"], response_class=JSONResponse)
     router.add_api_route("/message", api_atlas_ai_message, methods=["POST"], response_class=JSONResponse)
+    router.add_api_route("/autofill", api_atlas_ai_autofill, methods=["POST"], response_class=JSONResponse)
     router.add_api_route("/chat", api_atlas_ai_chat, methods=["POST"], response_class=JSONResponse)
     return router
 
@@ -2686,5 +2759,6 @@ __all__ = [
     "api_admin_control_center",
     "api_atlas_ai_recommendations",
     "api_atlas_ai_message",
+    "api_atlas_ai_autofill",
     "api_atlas_ai_chat",
 ]

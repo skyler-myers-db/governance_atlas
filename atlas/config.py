@@ -71,6 +71,9 @@ class AppConfig:
     genie_space_title: str = ""
     atlas_ai_provider: str = "local"
     atlas_ai_require_benchmark: bool = False
+    # Foundation-model serving endpoint for generative/agentic features (AI
+    # autofill, draft copy). A reasoning model by default; empty disables it.
+    ai_generation_endpoint: str = "databricks-claude-opus-4-8"
     lakebase_enabled: bool = False
     lakebase_endpoint_name: str = ""
     lakebase_schema: str = ""
@@ -116,6 +119,9 @@ class AppConfig:
                 or ("genie" if (_env_optional("GOVAT_GENIE_SPACE_ID") or _env_optional("GENIE_SPACE_ID")) else "local")
             ),
             atlas_ai_require_benchmark=_env_bool("GOVAT_ATLAS_AI_REQUIRE_BENCHMARK", False),
+            ai_generation_endpoint=(
+                _env_optional("GOVAT_AI_GENERATION_ENDPOINT") or "databricks-claude-opus-4-8"
+            ),
             lakebase_enabled=_env_bool("GOVAT_LAKEBASE_ENABLED", False),
             lakebase_endpoint_name=_env_optional("GOVAT_LAKEBASE_ENDPOINT_NAME")
             or _env_optional("POSTGRES_ENDPOINT_NAME")
