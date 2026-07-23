@@ -59,6 +59,11 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
   // alongside the extended roster).
   const [reviewerFormOpen, setReviewerFormOpen] = useState(false);
   const [reviewerEmail, setReviewerEmail] = useState("");
+  // Optimistic status after an approve/reject: the write persists immediately
+  // (DB), but the term detail is derived from the heavy taxonomy-overview
+  // payload that rebuilds on a delay — so reflect the decision at once instead
+  // of leaving a stale "Draft"/"Proposed" badge until the refetch lands.
+  const [localStatus, setLocalStatus] = useState(null);
   // Autofill reviewer picks from real account principals (fetched only while
   // the assign form is open); the server validates against the same roster.
   const roster = useWorkspaceRoster({ enabled: reviewerFormOpen });
@@ -101,6 +106,7 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
     if (decideReview.submitting) return;
     try {
       await decideReview.mutate(status);
+      setLocalStatus(status);
       toast(
         status === "approved" ? `${term.term} approved.` : `${term.term} rejected.`,
         { tone: status === "approved" ? "success" : "warning" },
@@ -139,6 +145,7 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
   useEffect(() => {
     setReviewerFormOpen(false);
     setReviewerEmail("");
+    setLocalStatus(null);
     assignReviewer.reset();
     decideReview.reset();
     // reset is stable (react-query); keying on the term id only is intended.
@@ -172,7 +179,8 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
   const pendingRequests = term.recentRequests.filter((request) =>
     ["pending", "open", "in_review", "new"].includes(String(request.status || "").toLowerCase()),
   );
-  const awaitingReview = termAwaitingReview(term);
+  const effectiveStatus = localStatus || term.status;
+  const awaitingReview = termAwaitingReview({ ...term, status: effectiveStatus });
   const showDecision = canDecide && awaitingReview;
   const firstAsset = term.assets.find((asset) => asset.fqn) || null;
 
@@ -198,7 +206,7 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
         <SectionCard
           className="ga-glos-detail-card is-definition"
           title="Definition & status"
-          actions={<Badge tone={statusToneFor(term.status)}>{statusLabelFor(term.status, "Draft")}</Badge>}
+          actions={<Badge tone={statusToneFor(effectiveStatus)}>{statusLabelFor(effectiveStatus, "Draft")}</Badge>}
         >
           <p className="ga-glos-definition">
             {term.definition || "No definition recorded for this term."}
