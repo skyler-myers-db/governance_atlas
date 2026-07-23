@@ -775,6 +775,22 @@
         "title": "QualityRunInlineRequest",
         "type": "object"
       },
+      "RolePatch": {
+        "properties": {
+          "email": {
+            "default": "",
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "default": "",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "title": "RolePatch",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {

@@ -458,3 +458,35 @@
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* G3 — Roles tab: assign-a-role form + roster table. */
+.ga-admin-roles-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+.ga-admin-roles-field { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+.ga-admin-roles-field > span { color: var(--ga-text-muted); font-size: 12px; }
+.ga-admin-roles-select {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface);
+  color: var(--ga-text);
+  font: inherit;
+}
+.ga-admin-roles-select:focus { outline: none; border-color: var(--ga-bright-blue); }
+.ga-admin-roles-hint { margin: 10px 0 0; color: var(--ga-text-muted); font-size: 12px; }
+.ga-admin-form-error { margin: 10px 0 0; color: var(--ga-danger); font-size: 13px; }
+.ga-admin-roles-scroll { overflow-x: auto; width: 100%; }
+.ga-admin-roles-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ga-admin-roles-table thead th {
+  text-align: left; padding: 8px 12px;
+  color: var(--ga-text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--ga-border); white-space: nowrap;
+}
+.ga-admin-roles-table tbody td {
+  padding: 10px 12px; color: var(--ga-text);
+  border-bottom: 1px solid color-mix(in srgb, var(--ga-border) 60%, transparent);
+}

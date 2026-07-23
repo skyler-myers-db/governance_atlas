@@ -418,3 +418,10 @@
     flex-direction: column;
   }
 }
+
+/* G6 — term Approve/Reject decision row in the Pending review card. */
+.ga-glos-decision {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}

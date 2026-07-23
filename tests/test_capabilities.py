@@ -7,6 +7,33 @@ from pathlib import Path
 from atlas.services import capabilities as capability_service
 
 
+class ExportCapabilityTests(unittest.TestCase):
+    """G2 — export is available exactly under OBO/per-user authorization
+    (the endpoint enforces the same actor-scoped contract server-side)."""
+
+    def _caps(self, *, per_user_authorization: bool):
+        return capability_service.bootstrap_capabilities(
+            actor_role="reader",
+            authenticated=True,
+            runtime_state="live",
+            store_state="live",
+            per_user_authorization=per_user_authorization,
+        )
+
+    def test_export_available_under_obo(self):
+        export = self._caps(per_user_authorization=True)["exportAllowed"]
+        self.assertTrue(export["available"])
+        self.assertEqual(export["state"], "available")
+
+    def test_export_unavailable_without_obo_and_reason_is_honest(self):
+        export = self._caps(per_user_authorization=False)["exportAllowed"]
+        self.assertFalse(export["available"])
+        self.assertEqual(export["state"], "unavailable")
+        # No longer the stale "not implemented" reason.
+        self.assertNotIn("not implemented", export["reason"].lower())
+        self.assertIn("per-user authorization", export["reason"].lower())
+
+
 class CapabilityPayloadTests(unittest.TestCase):
     def test_live_writer_capabilities_are_truthful(self) -> None:
         payload = capability_service.bootstrap_capabilities(

@@ -76,7 +76,11 @@ function safeDecode(value = "") {
 
 const EMPTY_TERM_DRAFT = { name: "", definition: "", domain: "", ownerEmail: "", status: "draft" };
 
-export default function GlossaryPage() {
+export default function GlossaryPage({ shell = null }) {
+  // G6: term Approve/Reject is a governance decision — steward/admin only.
+  const canDecideReview = ["steward", "admin"].includes(
+    String(shell?.role || shell?.actorRole || "").trim().toLowerCase(),
+  );
   const routeParams = useParams();
   // Terminal greedy path param: /glossary/:termId mounts as a RR splat.
   const termId = safeDecode(String(routeParams["*"] || ""));
@@ -515,6 +519,7 @@ export default function GlossaryPage() {
           {selectedTerm ? (
             <div ref={termDetailRef} className="ga-glos-detail-anchor">
               <TermDetail
+                canDecide={canDecideReview}
                 childTerms={childTerms}
                 onClose={closeTermDetail}
                 onEdit={openEditTerm}

@@ -466,12 +466,24 @@ def bootstrap_capabilities(
             protected_read=True,
             product_mode=auth_mode,
         )
+        # G2: the /api/export/* endpoints ARE implemented — they build a real,
+        # visibility-redacted CSV and enforce a per-user (OBO) auth + freshness
+        # contract server-side (export_service.evaluate_export_request denies
+        # non-actor-scoped requests by design). So the capability is available
+        # exactly when the actor has OBO/per-user authorization, and honestly
+        # unavailable (not "not implemented") otherwise.
+        obo_active = auth_mode == OBO_AVAILABLE_MODE
         export_allowed = _flag(
-            available=False,
-            state="unavailable",
-            reason="Authenticated export endpoints are not implemented in the live runtime yet.",
-            actor_scoped=actor_scoped_reads,
-            workspace_scoped=not actor_scoped_reads,
+            available=obo_active,
+            state="available" if obo_active else "unavailable",
+            reason=(
+                ""
+                if obo_active
+                else "Export runs under your Databricks identity — it stays disabled until "
+                "Databricks per-user authorization (OBO) is active for this session."
+            ),
+            actor_scoped=obo_active,
+            workspace_scoped=not obo_active,
             visibility_scope=read_visibility_scope,
             source=metadata_source,
             protected_read=True,

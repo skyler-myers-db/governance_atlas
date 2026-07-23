@@ -235,6 +235,7 @@ function DataPactRoute() {
 /* ------------------------------------------------------------------ */
 
 function GlossaryRoute() {
+  const shellCtx = useShellContext();
   // Wave-C4 flipped: the rebuilt Glossary & CDEs surface is
   // router-self-sufficient — it reads /glossary/:termId via useParams and
   // ?tab=/?cde=/?q=/?status= via useSurfaceParams, and renders real anchors
@@ -242,6 +243,7 @@ function GlossaryRoute() {
   // (ga-pending-glossary-term sessionStorage + ga:select-glossary-term
   // window event) is dead: nav/routes.js promotes legacy ?term= links to
   // the durable /glossary/<termId> path in the canonical gate upstream.
+  // Only shell identity rides in — G6 term Approve/Reject is steward/admin-gated.
   return (
     <Suspense
       fallback={
@@ -251,7 +253,7 @@ function GlossaryRoute() {
         />
       }
     >
-      <GlossaryPage />
+      <GlossaryPage shell={shellCtx.shell} />
     </Suspense>
   );
 }

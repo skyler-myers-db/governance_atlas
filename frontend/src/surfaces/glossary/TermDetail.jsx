@@ -42,7 +42,7 @@ function OwnerLine({ label, email }) {
   );
 }
 
-export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEdit, onClose }) {
+export function TermDetail({ term, termLookup, terms = [], childTerms = [], canDecide = false, onEdit, onClose }) {
   // Reviewer assignment goes through the same governed glossary upsert the
   // legacy registry used (POST /governance/glossary, replaying term fields
   // alongside the extended roster).
@@ -51,6 +51,46 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
   // Autofill reviewer picks from real account principals (fetched only while
   // the assign form is open); the server validates against the same roster.
   const roster = useWorkspaceRoster({ enabled: reviewerFormOpen });
+
+  // G6 — Approve/Reject a proposed term. A glossary term's review IS its own
+  // status workflow (draft/proposed/in_review → approved | rejected), not an
+  // asset-linked change request (that model left the decision UI empty on live
+  // data). The decision replays the term's fields through the same governed
+  // upsert with the new status. Gated to stewards/admins via `canDecide`.
+  const decideReview = useAtlasMutation({
+    mutate: (status) =>
+      upsertGovernanceGlossaryTerm({
+        termId: term.termId,
+        name: term.term,
+        definition: term.definition || "",
+        domain: term.domain === "Unassigned" ? "" : term.domain || "",
+        ownerEmail: term.ownerEmail || "",
+        status,
+        reviewers: term.reviewers.map((reviewer) => ({
+          email: reviewer.email,
+          role: reviewer.role || "Reviewer",
+          state: reviewer.state || "active",
+        })),
+        changeNote:
+          status === "approved"
+            ? `Term "${term.term}" approved in glossary review.`
+            : `Term "${term.term}" rejected in glossary review.`,
+      }),
+    invalidates: [["atlas", "taxonomy-overview"], ["governance", "glossary"]],
+  });
+
+  const decide = async (status) => {
+    if (decideReview.submitting) return;
+    try {
+      await decideReview.mutate(status);
+      toast(
+        status === "approved" ? `${term.term} approved.` : `${term.term} rejected.`,
+        { tone: status === "approved" ? "success" : "warning" },
+      );
+    } catch {
+      /* decideReview.errorMessage renders inline in the review card. */
+    }
+  };
 
   const assignReviewer = useAtlasMutation({
     mutate: (email) =>
@@ -79,6 +119,7 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
     setReviewerFormOpen(false);
     setReviewerEmail("");
     assignReviewer.reset();
+    decideReview.reset();
     // reset is stable (react-query); keying on the term id only is intended.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term.termId]);
@@ -105,8 +146,13 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
     ? termLookup.get(term.parentTermId) || matchTermByIdOrName(terms, term.parentTermId)
     : null;
   const hasHierarchy = Boolean(term.parentTermId || childTerms.length);
-  const pendingRequests = term.recentRequests.filter((request) => request.status === "pending");
+  // Canonical open-request statuses (legacy/thread paths emit "open"/"new" too,
+  // which the old strict `=== "pending"` filter silently dropped).
+  const pendingRequests = term.recentRequests.filter((request) =>
+    ["pending", "open", "in_review", "new"].includes(String(request.status || "").toLowerCase()),
+  );
   const awaitingReview = termAwaitingReview(term);
+  const showDecision = canDecide && awaitingReview;
   const firstAsset = term.assets.find((asset) => asset.fqn) || null;
 
   return (
@@ -257,7 +303,7 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
           )}
         </SectionCard>
 
-        {/* 4 — pending review → the stewardship work item */}
+        {/* 4 — pending review → approve/reject the term */}
         <SectionCard className="ga-glos-detail-card" title="Pending review">
           {pendingRequests.length ? (
             <div className="ga-glos-review-list">
@@ -276,8 +322,10 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
             </div>
           ) : awaitingReview ? (
             <p className="ga-glos-muted">
-              This term is {statusLabelFor(term.status, "Draft")} and awaiting review. No stewardship
-              item is filed yet — assign a reviewer below to start the workflow.
+              This term is {statusLabelFor(term.status, "Draft")} and awaiting review.
+              {showDecision
+                ? " Approve it to publish, or reject to send it back."
+                : " A steward or admin can approve or reject it."}
             </p>
           ) : (
             <p className="ga-glos-muted">
@@ -285,6 +333,33 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
               {term.reviewedAt ? `Last reviewed ${compactDate(term.reviewedAt)}.` : "No review timestamp recorded."}
             </p>
           )}
+          {showDecision ? (
+            <div className="ga-glos-decision">
+              <Button
+                loading={decideReview.submitting}
+                onClick={() => decide("approved")}
+                size="sm"
+                tone="success"
+                variant="primary"
+              >
+                Approve
+              </Button>
+              <Button
+                disabled={decideReview.submitting}
+                onClick={() => decide("rejected")}
+                size="sm"
+                tone="danger"
+                variant="secondary"
+              >
+                Reject
+              </Button>
+            </div>
+          ) : null}
+          {decideReview.errorMessage ? (
+            <p className="ga-glos-form-error" role="alert">
+              {decideReview.errorMessage}
+            </p>
+          ) : null}
         </SectionCard>
 
         {/* 5 — stewardship: reviewers + history */}
