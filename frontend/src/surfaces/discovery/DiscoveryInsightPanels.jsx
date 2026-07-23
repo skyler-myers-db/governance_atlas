@@ -17,6 +17,13 @@ const GOVERNANCE_VIEWS = [
   { label: "High Coverage Assets", view: "High coverage" },
 ];
 
+// Degraded-only fallback: DiscoveryPage renders the SERVER `facets.views`
+// counts (authoritative `view_matches` over the full estate). This client
+// recompute runs ONLY when the server omits the views facet, so its predicates
+// MUST mirror atlas/services/assets.py `view_matches` exactly — otherwise the
+// count drifts from what clicking the view actually returns. (Audit B2/B4: the
+// old code counted Certified leniently — certified+trusted+draft = 47 vs the
+// strict 44 — and used a High-coverage threshold of 80 vs the server's 75.)
 export function savedViewCountsFor(assets = []) {
   const counts = {
     "All assets": assets.length,
@@ -27,14 +34,18 @@ export function savedViewCountsFor(assets = []) {
     "High coverage": 0,
   };
   for (const entry of assets) {
+    const certification = String(entry?.certification || "").trim();
     const noOwner = !entry?.owners?.length;
-    const noCert = !entry?.certification || entry.certification === "Unassigned";
+    const isCertified = certification.toLowerCase() === "certified"; // strict, matches semantics.is_certified
+    const needsCertification = certification === "Unassigned"; // server: == "Unassigned" only
     const score = Number(entry?.coverageScore || 0);
+    const needsAttention =
+      String(entry?.governanceStatus || "") === "Needs Work" || Number(entry?.openRequests || 0) > 0;
     if (noOwner) counts["Needs owner"] += 1;
-    if (noCert) counts["Needs certification"] += 1;
-    if (!noCert) counts.Certified += 1;
-    if (score >= 80) counts["High coverage"] += 1;
-    if (noOwner || noCert || score < 50) counts["Needs attention"] += 1;
+    if (needsCertification) counts["Needs certification"] += 1;
+    if (isCertified) counts.Certified += 1;
+    if (score >= 75) counts["High coverage"] += 1;
+    if (needsAttention) counts["Needs attention"] += 1;
   }
   return counts;
 }

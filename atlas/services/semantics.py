@@ -16,7 +16,14 @@ it without circular-import risk.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Mapping
+
+# Audit F4: match a standalone "cde" token only. `\b` treats "_" as a word char,
+# so "cde_registry" / "cder" do NOT match (they are not CDEs); "cde", "a cde
+# field", "tag:CDE" do. Replaces a bare `" cde"` substring that false-matched
+# control-plane tables like `cde_registry`.
+_CDE_TOKEN_RE = re.compile(r"\bcde\b", re.IGNORECASE)
 
 # Tag values that mark an asset as business-critical (Tier 1 / Critical).
 CRITICALITY_VALUES = {
@@ -120,6 +127,6 @@ def is_cde_asset(row: Mapping[str, Any]) -> bool:
     haystack = " ".join(tokens).lower()
     return (
         "critical data element" in haystack
-        or " cde" in f" {haystack}"
+        or bool(_CDE_TOKEN_RE.search(haystack))
         or is_critical(row)
     )

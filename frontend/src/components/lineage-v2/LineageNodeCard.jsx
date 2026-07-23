@@ -189,12 +189,12 @@ function CertifiedBadge() {
       <svg aria-hidden="true" viewBox="0 0 24 24" width="11" height="11">
         <path
           d="M12 2l2.5 2.4 3.4-.5.6 3.4 3 1.7-1.5 3.1 1.5 3.1-3 1.7-.6 3.4-3.4-.5L12 22l-2.5-2.4-3.4.5-.6-3.4-3-1.7L4 12 2.5 8.9l3-1.7.6-3.4 3.4.5z"
-          fill="rgba(52, 211, 153, 0.18)"
-          stroke="#34d399"
+          fill="color-mix(in srgb, var(--ga-success) 18%, transparent)"
+          stroke="var(--ga-success)"
           strokeWidth="1.4"
           strokeLinejoin="round"
         />
-        <path d="M9 12l2 2 4-4" fill="none" stroke="#34d399" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 12l2 2 4-4" fill="none" stroke="var(--ga-success)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
   );

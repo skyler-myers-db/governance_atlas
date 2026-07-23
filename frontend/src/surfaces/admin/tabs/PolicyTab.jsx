@@ -63,6 +63,18 @@ function CoveragePanel({ policies, hydrating }) {
       }
       title={panelTitle}
     >
+      {metadataScoped ? (
+        // Audit G4: make the enforcement gap explicit for auditors instead of
+        // leaving it implied by the subtitle. There is no policy-enforcement
+        // data source in the workspace, so we do NOT fabricate "control X was
+        // enforced" evidence — we show metadata completeness and point to the
+        // real, immutable control/audit evidence.
+        <p className="ga-admin-coverage-note">
+          Policy-enforcement evidence is not yet wired to a source, so this shows
+          metadata completeness per domain — not proof a control was enforced.
+          For enforced-control and grant evidence, see the Evidence surface.
+        </p>
+      ) : null}
       {!policies.length && hydrating ? (
         <LoadingState label="Loading coverage rows" variant="card" />
       ) : policies.length ? (

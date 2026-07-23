@@ -1220,9 +1220,16 @@ def governance_summary(
             {"label": "Assets", "value": int(len(inventory.index))},
             {
                 "label": "Needs attention",
+                # Audit F5: deduplicated OR (an asset that is BOTH "Needs Work"
+                # AND has pending requests is ONE needs-attention asset, not
+                # two). The old `eq(...).sum() + gt(...).sum()` double-counted
+                # the overlap and could exceed the "Assets" total. Matches the
+                # discovery view_matches("Needs attention") predicate.
                 "value": int(
-                    inventory["governance_status"].eq("Needs Work").sum()
-                    + inventory["pending_requests"].gt(0).sum()
+                    (
+                        inventory["governance_status"].eq("Needs Work")
+                        | inventory["pending_requests"].gt(0)
+                    ).sum()
                 ),
             },
             {

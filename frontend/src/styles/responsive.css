@@ -1,0 +1,47 @@
+/*
+ * styles/responsive.css — narrow-viewport hardening (tablet + small-laptop
+ * first; phone best-effort). Imported LAST from main.jsx.
+ *
+ * Clean-file contract: ga-* selectors only, --ga-* tokens, zero raw hex, zero
+ * priority flags (check-css enforced — this file must stay at 0 on every
+ * metric). Rules are order-independent: each is scoped under `.ga-side-nav` so
+ * it out-specifies the single-class base rules regardless of load order.
+ *
+ * Scope note: the rail COLUMN width and the topbar stacking live in
+ * northstar.css (that sheet owns the priority-flagged shell grid). This file
+ * only restyles the rail's INNER chrome into an icons-only mini rail below
+ * 900px, matching the width collapse northstar performs at the same breakpoint.
+ */
+
+@media (max-width: 900px) {
+  /* Icons-only mini rail: center the brand mark, hide every text label so the
+     glyphs sit centered in the 60px column. */
+  .ga-side-nav .ga-side-nav-logo {
+    justify-content: center;
+  }
+
+  .ga-side-nav .ga-side-nav-logo span,
+  .ga-side-nav .ga-side-nav-section-title,
+  .ga-side-nav .ga-side-nav-badge,
+  .ga-side-nav .ga-side-nav-item > span:not(.ga-side-nav-icon),
+  .ga-side-nav .ga-side-nav-user .ga-user-chip-sidebar-copy,
+  .ga-side-nav .ga-side-nav-user .ga-user-chip-caret {
+    display: none;
+  }
+
+  .ga-side-nav .ga-side-nav-item {
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .ga-side-nav .ga-side-nav-user,
+  .ga-side-nav .ga-side-nav-user .ga-user-chip-trigger {
+    justify-content: center;
+  }
+
+  .ga-side-nav .ga-side-nav-user .ga-user-chip-trigger {
+    grid-template-columns: auto;
+    gap: 0;
+  }
+}

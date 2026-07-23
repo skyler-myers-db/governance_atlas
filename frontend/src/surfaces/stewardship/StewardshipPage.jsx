@@ -263,6 +263,34 @@ export function StewardshipPage({ currentUser = null }) {
     );
   };
 
+  // Assign to ANOTHER steward. Same backed triage PATCH as assignToMe, but the
+  // assignee is a roster-validated email the steward picks. Returns a promise
+  // resolving truthy on success so the inline picker knows to close itself; a
+  // rejected write resolves falsy and surfaces the reason in the triage banner.
+  const assignTo = async (rawEmail) => {
+    const email = String(rawEmail || "").trim();
+    if (!email || !selectedRequestId || triage.submitting) return false;
+    setTriageFailure("");
+    try {
+      await triage.mutate({
+        requestId: selectedRequestId,
+        body: {
+          status: patchableStatus(selectedItem?.status),
+          assignee: email,
+          priority: "",
+        },
+        patch: { assigned: email, assignee: email, assignedTo: email },
+      });
+      toast(`Assigned to ${email}.`, { tone: "success" });
+      return true;
+    } catch (error) {
+      setTriageFailure(
+        humanMutationError(error, "Couldn't reassign the work item — the server rejected the change."),
+      );
+      return false;
+    }
+  };
+
   const setPriority = (priority) => {
     if (!priority) return;
     runTriage(
@@ -477,6 +505,7 @@ export function StewardshipPage({ currentUser = null }) {
             item={selectedItem}
             mutationUnavailableReason={mutationUnavailableReason}
             onAssignToMe={assignToMe}
+            onAssignTo={assignTo}
             onComment={commentOnItem}
             onResolve={resolveItem}
             onSetPriority={setPriority}

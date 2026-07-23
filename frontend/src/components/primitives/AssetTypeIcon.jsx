@@ -11,21 +11,33 @@
 
 import { displayObjectType } from "../../lib/assetPresentation";
 
+/**
+ * Each profile pairs a glyph with a single --ga-* accent token. On the dark
+ * theme the chip is a low-alpha tint of that accent (color-mix → transparent,
+ * matching the color-mix tint pattern used across the surface stylesheets) with
+ * the glyph drawn in the full accent. This keeps per-type hue distinction while
+ * honoring the repo rule: no hard-coded hex, no light surfaces. `accent` is a
+ * CSS custom-property reference so the tint and glyph stay in lockstep.
+ */
 const TYPE_PROFILES = {
-  "Delta Table": { bg: "#eef2ff", fg: "#4f46e5", glyph: "disc" },
-  "Streaming Table": { bg: "#ecfeff", fg: "#0891b2", glyph: "waves" },
-  "Materialized View": { bg: "#f0fdfa", fg: "#0f766e", glyph: "layers" },
-  "View": { bg: "#f1f5f9", fg: "#475569", glyph: "eye" },
-  "External Table": { bg: "#fffbeb", fg: "#b45309", glyph: "cloud" },
-  "Managed Table": { bg: "#eef2ff", fg: "#4f46e5", glyph: "disc" },
-  "Pipeline": { bg: "#fdf4ff", fg: "#a21caf", glyph: "branch" },
-  "Notebook": { bg: "#fef3c7", fg: "#92400e", glyph: "notebook" },
-  "Dashboard": { bg: "#fff7ed", fg: "#c2410c", glyph: "chart" },
-  "Volume": { bg: "#f0f9ff", fg: "#0369a1", glyph: "folder" },
-  "Model": { bg: "#fef2f2", fg: "#b91c1c", glyph: "brain" },
-  "Function": { bg: "#f5f3ff", fg: "#6d28d9", glyph: "code" },
-  __fallback: { bg: "#eef3f8", fg: "#52657d", glyph: "database" },
+  "Delta Table": { accent: "var(--ga-bright-blue)", glyph: "disc" },
+  "Streaming Table": { accent: "var(--ga-teal)", glyph: "waves" },
+  "Materialized View": { accent: "var(--ga-success)", glyph: "layers" },
+  "View": { accent: "var(--ga-gray)", glyph: "eye" },
+  "External Table": { accent: "var(--ga-warning)", glyph: "cloud" },
+  "Managed Table": { accent: "var(--ga-bright-blue)", glyph: "disc" },
+  "Pipeline": { accent: "var(--ga-purple)", glyph: "branch" },
+  "Notebook": { accent: "var(--ga-warning)", glyph: "notebook" },
+  "Dashboard": { accent: "var(--ga-danger)", glyph: "chart" },
+  "Volume": { accent: "var(--ga-light-blue)", glyph: "folder" },
+  "Model": { accent: "var(--ga-danger)", glyph: "brain" },
+  "Function": { accent: "var(--ga-purple)", glyph: "code" },
+  __fallback: { accent: "var(--ga-gray)", glyph: "database" },
 };
+
+// Low-alpha tint of the profile accent, for the chip background on the dark
+// theme. Shared helper so the ratio is defined once.
+const tint = (accent) => `color-mix(in srgb, ${accent} 16%, transparent)`;
 
 const GLYPH_PATHS = {
   // All 24x24, stroke-only.
@@ -130,9 +142,9 @@ export function AssetTypeIcon({
       role="img"
       style={{
         alignItems: "center",
-        background: profile.bg,
+        background: tint(profile.accent),
         borderRadius: Math.round(px * 0.25),
-        color: profile.fg,
+        color: profile.accent,
         display: "inline-flex",
         flex: "0 0 auto",
         height: `${px}px`,

@@ -196,8 +196,8 @@
   height: 8px;
   padding: 0 3px;
   border-radius: 999px;
-  background: #e11d74; /* same pink accent as brand */
-  color: #fff;
+  background: var(--ga-danger); /* notification accent (dark-theme token) */
+  color: var(--ga-navy-980); /* on-accent text against the bright dot */
   font-size: 10px;
   font-weight: 800;
   display: inline-flex;

@@ -147,7 +147,10 @@ export const ROUTES = [
       section: "govern",
       label: "Stewardship",
       icon: "listChecks",
-      // Badge counts MY open items (same number as the bell), not estate total.
+      // Audit B1: badge = actionable stewardship WORK across the estate
+      // (open change requests + glossary term reviews) plus unread
+      // notifications — it is NOT assignee-filtered and is a broader
+      // population than the Command Center "Open change requests" KPI.
       badgeKey: "myWork",
     },
     paramsSchema: {

@@ -412,7 +412,7 @@ describe("StewardshipPage (surfaces/stewardship)", () => {
 
     expect(
       screen.getByText(
-        "1 in the visible estate · 1 on out-of-scope assets (1 target asset outside the visible estate)",
+        "2 open change requests: 1 in the visible estate · 1 on out-of-scope assets (1 target asset outside the visible estate)",
       ),
     ).toBeTruthy();
   });

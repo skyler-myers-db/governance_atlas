@@ -11,7 +11,9 @@ body {
 .gh-app.gh-app-with-rail,
 .ga-shell-app {
   --ga-topbar-bg: #08172a;
-  --gh-side-rail-w: clamp(208px, 7.9vw, 240px);
+  /* The side-rail width custom property is (re-)declared later at the North
+     Star shell authority block; this early duplicate was dead, so it was
+     removed to make room for the responsive collapse override at end of file. */
   --ga-topbar-h: 56px;
   --ga-topbar-search-w: clamp(480px, 18.5vw, 560px);
   --ga-ai-dock-width: min(380px, max(300px, calc(100vw - var(--gh-side-rail-w, 240px) - 44px)));
@@ -1045,46 +1047,6 @@ body {
 
 
 
-@media (max-width: 980px) {
-  .gh-app.gh-app-with-rail,
-.ga-shell-app {
-    grid-template-rows: auto minmax(0, 1fr) !important;
-  }
-
-  .gh-app.gh-app-with-rail > .gh-shell-header,
-.ga-shell-app > .ga-shell-header {
-    height: auto !important;
-    min-height: 56px !important;
-  }
-
-  .gh-shell-topbar.ga-topbar,
-.ga-shell-topbar.ga-topbar {
-    height: auto !important;
-    min-height: 56px !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    align-items: stretch !important;
-    gap: 10px !important;
-    padding: 12px 16px !important;
-  }
-
-  .gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
-  .gh-shell-topbar.ga-topbar .ga-topbar-search-slot,
-  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
-.ga-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
-.ga-shell-topbar.ga-topbar .ga-topbar-search-slot,
-.ga-shell-topbar.ga-topbar .ga-topbar-actions {
-    min-width: 0 !important;
-    width: 100% !important;
-  }
-
-  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
-.ga-shell-topbar.ga-topbar .ga-topbar-actions {
-    flex-wrap: wrap !important;
-    justify-content: flex-start !important;
-  }}
-
-
-
 @media (max-height: 760px) and (min-width: 981px) {
   .gh-app.gh-app-with-rail,
 .ga-shell-app {
@@ -1469,4 +1431,68 @@ body {
 @keyframes ga-kpi-hydrate-pulse {
   0%, 100% { opacity: 0.45; }
   50% { opacity: 0.75; }
+}
+
+/* ==========================================================================
+   RESPONSIVE SHELL AUTHORITY (appended last on purpose)
+   --------------------------------------------------------------------------
+   Desktop (>=981px) is untouched — every rule below is inside a max-width
+   media query. These rules are the FINAL word for narrow viewports: the shell
+   grid/topbar/header above carry priority flags from the pre-Atlas layout, so
+   this block must sit at the end of the cascade to win without adding new
+   overrides. Two fixes:
+     1. <=980px — stack the topbar into one column and let the header row grow
+        to fit it. The fixed 56px header row was clipping the tall stacked
+        topbar down over the page content (the "Executive overview" eyebrow
+        overlapping the "Workspace > Dev" breadcrumb). A single column can
+        never exceed the viewport, killing the horizontal scrollbar too.
+     2. <=900px — collapse the left rail to an icons-only mini rail (60px) so
+        the content column reclaims ~150px. Only the COLUMN width lives here
+        (it re-points the side-rail width token the priority-flagged grid
+        consumes); the rail's inner label-hiding is in styles/responsive.css.
+   ========================================================================== */
+
+@media (max-width: 980px) {
+  .gh-app.gh-app-with-rail,
+  .ga-shell-app {
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .gh-app.gh-app-with-rail > .gh-shell-header,
+  .ga-shell-app > .ga-shell-header {
+    height: auto !important;
+    min-height: 56px !important;
+  }
+
+  .gh-shell-topbar.ga-topbar,
+  .ga-shell-topbar.ga-topbar {
+    height: auto !important;
+    min-height: 56px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px 16px !important;
+  }
+
+  .gh-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
+  .gh-shell-topbar.ga-topbar .ga-topbar-search-slot,
+  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
+  .ga-shell-topbar.ga-topbar .ga-workspace-breadcrumb,
+  .ga-shell-topbar.ga-topbar .ga-topbar-search-slot,
+  .ga-shell-topbar.ga-topbar .ga-topbar-actions {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .gh-shell-topbar.ga-topbar .ga-topbar-actions,
+  .ga-shell-topbar.ga-topbar .ga-topbar-actions {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .ga-shell-app {
+    --gh-side-rail-w: 60px;
+  }
 }

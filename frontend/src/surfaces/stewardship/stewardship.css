@@ -315,10 +315,70 @@
   overflow-wrap: anywhere;
 }
 
+/* Planned-change items — deliberately NOT buttons. De-emphasized rows that
+   read as informational recommendations, never as executable controls. */
 .ga-stew-suggestions {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ga-stew-suggestion {
   display: flex;
+  align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
+  padding: 7px 10px;
+  border: 1px dashed var(--ga-border-muted);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface-soft);
+}
+
+.ga-stew-suggestion-tag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: var(--ga-radius-pill, 999px);
+  background: var(--ga-surface-raised);
+  border: 1px solid var(--ga-border-muted);
+  color: var(--ga-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ga-stew-suggestion-label {
+  color: var(--ga-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.ga-stew-suggestion-detail {
+  color: var(--ga-text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* Assign-to-another-steward inline picker (roster typeahead + confirm/cancel). */
+.ga-stew-assign-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ga-stew-assign-input {
+  min-width: 200px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface-raised);
+  color: var(--ga-text);
+  font: inherit;
+  font-size: 12.5px;
 }
 
 .ga-stew-comments {

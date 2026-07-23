@@ -431,7 +431,12 @@ export function scopeSummary(openRequestScope) {
   const outOfScope = finiteNumber(scope.outOfScopeOpenCount);
   const caption = textValue(scope.caption);
   if (visible !== null && outOfScope !== null) {
-    return `${visible} in the visible estate · ${outOfScope} on out-of-scope assets${caption ? ` (${caption})` : ""}`;
+    // Audit B1: spell out that this partitions OPEN CHANGE REQUESTS (a subset
+    // of the work queue, which also contains term reviews) — the bare
+    // "N in the visible estate · M out-of-scope" read as a partition of the
+    // "N work items" header it sits under (an impossible 1+1=6).
+    const totalOpen = visible + outOfScope;
+    return `${totalOpen} open change request${totalOpen === 1 ? "" : "s"}: ${visible} in the visible estate · ${outOfScope} on out-of-scope assets${caption ? ` (${caption})` : ""}`;
   }
   return caption;
 }
