@@ -32,12 +32,24 @@ def _workspace_client(config: AppConfig | None = None, user_access_token: str = 
         from databricks.sdk import WorkspaceClient
     except ImportError as exc:  # pragma: no cover - import guard
         raise RuntimeError("databricks-sdk is required for AI autofill.") from exc
+    import os
+
     token = normalize_str(user_access_token)
     host = normalize_str(_cfg(config, "workspace_host")) if config is not None else ""
     if token and host:
         return WorkspaceClient(
             host=host, token=token, auth_type="pat",
             product="governance-atlas", product_version="atlas-ai-generation-obo",
+        )
+    # App service principal: the serving-endpoint CAN_QUERY grant is on the SP,
+    # so force OAuth M2M (client_id/secret) — the app's default DATABRICKS_TOKEN
+    # is a PAT that lacks the model-serving scope.
+    client_id = os.environ.get("DATABRICKS_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("DATABRICKS_CLIENT_SECRET", "").strip()
+    if client_id and client_secret and host:
+        return WorkspaceClient(
+            host=host, client_id=client_id, client_secret=client_secret, auth_type="oauth-m2m",
+            product="governance-atlas", product_version="atlas-ai-generation-m2m",
         )
     return WorkspaceClient()
 
