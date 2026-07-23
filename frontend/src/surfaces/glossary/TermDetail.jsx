@@ -104,15 +104,18 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
 
   const decide = async (status) => {
     if (decideReview.submitting) return;
+    // Optimistic: flip the badge immediately (the upsert response rebuilds the
+    // heavy governance summary and can take 20-30s). Revert on failure.
+    setLocalStatus(status);
     try {
       await decideReview.mutate(status);
-      setLocalStatus(status);
       toast(
         status === "approved" ? `${term.term} approved.` : `${term.term} rejected.`,
         { tone: status === "approved" ? "success" : "warning" },
       );
     } catch {
-      /* decideReview.errorMessage renders inline in the review card. */
+      setLocalStatus(null);
+      /* decideReview.errorMessage also renders inline in the review card. */
     }
   };
 
