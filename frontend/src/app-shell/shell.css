@@ -361,11 +361,6 @@ a.ga-icon-button {
   height: 24px;
 }
 
-/* Lineage brings its own panels: no FAB there (legacy :has() rule). */
-.ga-shell-app:has(.ga-lineage-explorer) .ga-ai-fab {
-  display: none;
-}
-
 @media (max-width: 1600px) {
   .ga-ai-fab {
     right: 14px;
@@ -567,25 +562,63 @@ a.ga-icon-button {
   color: var(--ga-text-strong);
 }
 
-/* Bottom-right resize grip. Absolutely positioned so it never disturbs the
-   grid layout; the pointer handler in AtlasAiDock.jsx does the actual resize. */
+/* Resize grips: 4 edges + 4 corners. Absolutely positioned so they never
+   disturb the grid layout; the pointer handler in AtlasAiDock.jsx does the
+   actual resize (edges pin the opposite side so the dock grows toward centre).
+   Edge strips are 8px thin bands; corners are 16px squares that sit above the
+   edges. */
 .ga-ai-dock-resize {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 18px;
-  height: 18px;
+  touch-action: none;
+  z-index: 3;
+  color: rgba(158, 205, 236, 0.7);
+}
+
+/* Edges */
+.ga-ai-dock-resize-n,
+.ga-ai-dock-resize-s {
+  left: 16px;
+  right: 16px;
+  height: 7px;
+  cursor: ns-resize;
+}
+/* Offsets sit the 7px strips mostly OUTSIDE the dock (only ~2px inside) so they
+   never create a dead click-zone over the transcript/input (review F7). */
+.ga-ai-dock-resize-n { top: -5px; }
+.ga-ai-dock-resize-s { bottom: -5px; }
+.ga-ai-dock-resize-e,
+.ga-ai-dock-resize-w {
+  top: 16px;
+  bottom: 16px;
+  width: 7px;
+  cursor: ew-resize;
+}
+.ga-ai-dock-resize-e { right: -5px; }
+.ga-ai-dock-resize-w { left: -5px; }
+
+/* Corners (win over edges via later paint + larger hit box) */
+.ga-ai-dock-resize-ne,
+.ga-ai-dock-resize-nw,
+.ga-ai-dock-resize-se,
+.ga-ai-dock-resize-sw {
+  width: 16px;
+  height: 16px;
+  z-index: 4;
+}
+.ga-ai-dock-resize-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.ga-ai-dock-resize-se {
+  right: -4px;
+  bottom: -4px;
+  cursor: nwse-resize;
   display: inline-flex;
   align-items: flex-end;
   justify-content: flex-end;
   padding: 2px;
-  color: rgba(158, 205, 236, 0.7);
-  cursor: nwse-resize;
-  touch-action: none;
-  z-index: 3;
 }
+.ga-ai-dock-resize-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.ga-ai-dock-resize-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
 
-.ga-ai-dock-resize:hover {
+.ga-ai-dock-resize-se:hover {
   color: var(--ga-bright-blue);
 }
 
@@ -833,6 +866,44 @@ a.ga-icon-button {
   overflow: auto;
   padding: 8px;
   white-space: pre-wrap;
+}
+
+/* Inline generated-SQL block shown with the answer (open by default). */
+.ga-ai-dock-inline-sql {
+  margin-top: 8px;
+}
+
+.ga-ai-dock-inline-sql > summary {
+  cursor: pointer;
+  color: var(--ga-text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  list-style: none;
+  padding: 2px 0;
+  user-select: none;
+}
+
+.ga-ai-dock-inline-sql > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ga-ai-dock-inline-sql > summary::before {
+  content: "▾ ";
+  color: var(--ga-text-faint);
+}
+
+.ga-ai-dock-inline-sql:not([open]) > summary::before {
+  content: "▸ ";
+}
+
+.ga-ai-dock-inline-sql > summary:hover {
+  color: var(--ga-bright-blue);
+}
+
+.ga-ai-dock-inline-sql .ga-ai-dock-evidence-sql {
+  margin-top: 6px;
+  max-height: 200px;
 }
 
 .ga-ai-dock-evidence-empty {

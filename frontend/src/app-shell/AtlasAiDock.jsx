@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { AtlasAiMark } from "../components/northstar/AtlasAiPanel";
 import { MarkdownBlock } from "../components/primitives/MarkdownBlock";
@@ -25,6 +26,51 @@ const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
 // to the viewport at drag time so the dock can never exceed the visible area.
 const AI_CHAT_MIN = { width: 320, height: 360 };
 const AI_CHAT_MAX = { width: 720, height: 960 };
+// Viewport gutters — SHARED by clampAiChatPosition (drag + ResizeObserver) and
+// the resize handler, so the two paths agree. A mismatch here made a south-edge
+// resize get yanked ~52px on the next ResizeObserver tick (review F5).
+const AI_DOCK_GUTTER = { side: 12, top: 12, bottom: 64 };
+// Resize grips: 4 edges + 4 corners, so a bottom-right-anchored dock can be
+// grown from its top/left toward screen centre (not just shrunk from the se).
+const RESIZE_HANDLES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
+// setPointerCapture throws NotFoundError if the pointer is no longer active
+// (e.g. released between events). Never let that surface as an unhandled error.
+function capturePointer(event) {
+  try {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  } catch {
+    /* pointer already released — capture is a best-effort nicety */
+  }
+}
+
+// Active facet scope from the Discover URL (the URL is the source of truth for
+// Discover state). Only present filters are included, so an unfiltered page
+// sends no scope. Kept small + string-only for the backend's sanitizer.
+//
+// CALLER MUST gate this to the Discover surface: `q`/`domain` are Discover's
+// facet grammar, but Glossary/Evidence/Lineage reuse the same param NAMES for
+// their own search boxes. Reading them elsewhere would forward another
+// surface's search text as an authoritative asset filter the user never set.
+export function scopeFromSearch(search) {
+  const params = new URLSearchParams(search || "");
+  const list = (key) => params.getAll(key).map((value) => value.trim()).filter(Boolean);
+  const single = (key) => String(params.get(key) || "").trim();
+  const scope = {};
+  // Real Discover array facets (discoveryParams.js). `view` = saved governance
+  // views ("Needs owner", …) — a genuine active filter that changes which
+  // assets are shown, so it MUST stay part of "here". type/catalog were missing
+  // before, so a user filtered by those got an incomplete "here".
+  for (const key of ["domain", "criticality", "tier", "certification", "sensitivity", "view", "type", "catalog"]) {
+    const values = list(key);
+    if (values.length) scope[key] = values;
+  }
+  const owner = single("owner");
+  if (owner) scope.owner = owner;
+  const query = single("q");
+  if (query) scope.query = query;
+  return Object.keys(scope).length ? scope : null;
+}
 
 // Per-surface grounding copy + suggested prompts, keyed by the NEW surface
 // ids (nav/routes.js). Content is unchanged from AppFrame's AI_ROUTE_COPY —
@@ -158,16 +204,16 @@ function defaultAiChatPosition() {
 
 function clampAiChatPosition(position) {
   if (typeof window === "undefined") return position;
-  const padding = 12;
-  const footerReserve = 64;
+  const padding = AI_DOCK_GUTTER.side;
+  const footerReserve = AI_DOCK_GUTTER.bottom;
   const defaultSize = window.innerWidth >= 2200 ? AI_CHAT_WIDE_SIZE : AI_CHAT_SIZE;
   const width = Number(position.width) || defaultSize.width;
   const height = Number(position.height) || defaultSize.height;
   const maxLeft = Math.max(padding, window.innerWidth - width - padding);
-  const maxTop = Math.max(padding, window.innerHeight - height - footerReserve);
+  const maxTop = Math.max(AI_DOCK_GUTTER.top, window.innerHeight - height - footerReserve);
   return {
     left: Math.min(Math.max(position.left, padding), maxLeft),
-    top: Math.min(Math.max(position.top, padding), maxTop),
+    top: Math.min(Math.max(position.top, AI_DOCK_GUTTER.top), maxTop),
   };
 }
 
@@ -298,6 +344,31 @@ function AtlasAiEvidenceDetail({ evidence, onClose }) {
   );
 }
 
+// The generated SQL, shown INLINE with the answer (open by default) so the
+// user sees how Genie derived it without hunting for a toggle — "more
+// information, not less". Collapsible for when they want it out of the way.
+function AtlasAiInlineSql({ evidence = [] }) {
+  const query = (Array.isArray(evidence) ? evidence : []).find(
+    (item) => item && (item.sql || item.generatedSql),
+  );
+  const sql = String(query?.sql || query?.generatedSql || "").trim();
+  if (!sql) return null;
+  const statementId = String(query?.statementId || query?.statement_id || "").trim();
+  const rowCount = Number(query?.rowCount ?? query?.totalRowCount);
+  return (
+    <details className="ga-ai-dock-inline-sql" open>
+      <summary>
+        Generated SQL
+        {Number.isFinite(rowCount) ? ` · ${rowCount.toLocaleString()} row${rowCount === 1 ? "" : "s"}` : ""}
+        {statementId ? ` · ${statementId.slice(0, 10)}…` : ""}
+      </summary>
+      <pre className="ga-ai-dock-evidence-sql" data-testid="atlas-ai-inline-sql">
+        <code>{sql}</code>
+      </pre>
+    </details>
+  );
+}
+
 function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
   const items = evidence
     .map((item, index) => normalizeAiEvidenceItem(item, index))
@@ -326,37 +397,33 @@ function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
 // governed-metadata pipeline in general terms only — never name a specific
 // table or claim a query happened, because the backend does not return a
 // real execution plan and fabricated evidence violates the honesty rule.
-const AI_PLAN_LINES = [
-  ["Scoping the question", "governed metadata only"],
-  ["Querying governed metadata", "Unity Catalog + governance store"],
-  ["Filtering by actor visibility", "permission-aware metadata only"],
-  ["Composing grounded answer", "no raw rows read"],
-];
-
-function AtlasAiThinkingStage() {
-  const [revealed, setRevealed] = useState(1);
+// The dock shows the REAL Genie pipeline stages as they arrive (via the
+// `stage` prop, updated by the polling layer): "Selecting relevant tables" →
+// "Generating the SQL query" → "Running the query". Completed stages are
+// checked; the current one carries the caret. Grounded (instant) answers never
+// reach a stage, so this just flashes a brief "Working". No canned animation.
+function AtlasAiThinkingStage({ stage = "" }) {
+  const [history, setHistory] = useState([]);
   useEffect(() => {
-    if (revealed >= AI_PLAN_LINES.length) return undefined;
-    const timeout = setTimeout(() => setRevealed((value) => Math.min(AI_PLAN_LINES.length, value + 1)), 700);
-    return () => clearTimeout(timeout);
-  }, [revealed]);
+    const next = String(stage || "").trim();
+    if (!next) return;
+    setHistory((prev) => (prev[prev.length - 1] === next ? prev : [...prev, next]));
+  }, [stage]);
+  const lines = history.length ? history : ["Preparing your answer"];
   return (
     <div aria-live="polite" className="ga-ai-stage is-thinking" role="status">
       <div className="ga-ai-stage-label">
         <span aria-hidden="true" className="ga-live-dot" />
-        How I&rsquo;m answering this
+        {history.length ? "Genie is working" : "Working"}
       </div>
-      {AI_PLAN_LINES.slice(0, revealed).map(([head, tail], index) => {
-        const isLast = index === revealed - 1;
+      {lines.map((line, index) => {
+        const isLast = index === lines.length - 1;
         return (
-          <div className="ga-ai-stage-plan-line" key={head} style={{ animationDelay: `${index * 80}ms` }}>
-            <span aria-hidden="true">→</span>
+          <div className="ga-ai-stage-plan-line" key={`${line}-${index}`} style={{ animationDelay: `${index * 60}ms` }}>
+            <span aria-hidden="true">{isLast ? "→" : "✓"}</span>
             <span>
-              <span className="ga-ai-stage-plan-mono">{head}</span>{" "}
-              <span>{tail}</span>
-              {isLast && revealed < AI_PLAN_LINES.length ? (
-                <span aria-hidden="true" className="ga-ai-stage-caret" />
-              ) : null}
+              <span>{line}</span>
+              {isLast ? <span aria-hidden="true" className="ga-ai-stage-caret" /> : null}
             </span>
           </div>
         );
@@ -384,13 +451,14 @@ function AtlasAiMessageList({ messages = [], onOpenEvidence, emptyMessage }) {
     >
       <span>{item.role === "user" ? "You" : "Atlas AI"}</span>
       {item.role === "assistant" && item.pending ? (
-        <AtlasAiThinkingStage />
+        <AtlasAiThinkingStage stage={item.stage} />
       ) : (
         <MarkdownBlock className="ga-ai-dock-markdown" source={item.text} />
       )}
       {item.role === "assistant" && !item.pending && !item.error ? (
         <>
           <AtlasAiEvidenceList evidence={item.response?.evidence || []} onOpenEvidence={onOpenEvidence} />
+          <AtlasAiInlineSql evidence={item.response?.evidence || []} />
           <em>
             {item.evidenceCount
               ? `${item.evidenceCount} evidence record${item.evidenceCount === 1 ? "" : "s"} returned.`
@@ -433,11 +501,25 @@ export function AtlasAiDock({
   const resizeRef = useRef(null);
 
   // Page-awareness context sent with every question so the backend can resolve
-  // "this asset"/"this page" to a concrete entity. Recomputed as the user
-  // navigates; memoized so the ask callbacks get a stable reference per surface.
+  // "this asset"/"this page"/"here" to a concrete scope. Recomputed as the user
+  // navigates OR changes filters; memoized so the ask callbacks get a stable
+  // reference. `scope` carries the ACTIVE facet filters from the URL (the URL is
+  // the state) so "how many assets here lack an owner?" can see the domain the
+  // user is filtered to — not just the surface name.
+  const location = useLocation();
+  // Gate to Discover: only that surface's URL uses the facet grammar
+  // scopeFromSearch reads. Elsewhere, `q`/`domain` mean something else entirely.
+  const scope = useMemo(
+    () => (surface === "discovery" ? scopeFromSearch(location.search) : null),
+    [surface, location.search],
+  );
   const aiContext = useMemo(
-    () => ({ surface, assetFqn: String(assetFqn || "").trim() }),
-    [surface, assetFqn],
+    () => ({
+      surface,
+      assetFqn: String(assetFqn || "").trim(),
+      ...(scope ? { scope } : {}),
+    }),
+    [surface, assetFqn, scope],
   );
   const aiChat = useAtlasAiConversation();
 
@@ -521,11 +603,10 @@ export function AtlasAiDock({
     [close, navigate, openPeek],
   );
 
-  // Lineage owns its own side panels — the dock closes when entering it
-  // (same behavior as AppFrame).
-  useEffect(() => {
-    if (surface === "lineage") setOpen(false);
-  }, [surface, setOpen]);
+  // (Removed the lineage force-close: the dock used to snap shut the moment you
+  // entered /lineage, so the AI was unreachable exactly where its lineage
+  // grounding — "what feeds/depends on this table?" — is most useful. The dock
+  // floats/drags over the canvas and does not fight lineage's own side panels.)
 
   useEffect(() => {
     if (!open) return undefined;
@@ -573,25 +654,55 @@ export function AtlasAiDock({
     };
   }, []);
 
-  // Corner-handle resize. Clamps to [AI_CHAT_MIN, AI_CHAT_MAX] and to whatever
-  // the viewport allows from the dock's current top/left, so the dock can never
-  // grow off-screen. A resize implicitly exits the maximized state.
+  // Edge/corner resize. `start.dir` is one of n/s/e/w/ne/nw/se/sw. Dragging a
+  // west/north edge grows the dock toward screen centre while pinning the
+  // opposite edge (left/top move with the size) — the bottom-right-anchored
+  // dock could otherwise only SHRINK, since its se corner sits against the
+  // viewport edge. Clamps to [AI_CHAT_MIN, AI_CHAT_MAX] and the viewport, and a
+  // resize implicitly exits the maximized state.
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const onPointerMove = (event) => {
       const start = resizeRef.current;
       if (!start) return;
-      const maxViewportW = Math.max(AI_CHAT_MIN.width, window.innerWidth - position.left - 12);
-      const maxViewportH = Math.max(AI_CHAT_MIN.height, window.innerHeight - position.top - 12);
-      const nextWidth = Math.min(
-        Math.min(AI_CHAT_MAX.width, maxViewportW),
-        Math.max(AI_CHAT_MIN.width, start.width + event.clientX - start.x),
-      );
-      const nextHeight = Math.min(
-        Math.min(AI_CHAT_MAX.height, maxViewportH),
-        Math.max(AI_CHAT_MIN.height, start.height + event.clientY - start.y),
-      );
-      setSize({ width: Math.round(nextWidth), height: Math.round(nextHeight) });
+      const dir = start.dir || "se";
+      const innerW = window.innerWidth;
+      const innerH = window.innerHeight;
+      const rightEdge = start.left + start.width;
+      const bottomEdge = start.top + start.height;
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      let width = start.width;
+      let height = start.height;
+      let left = start.left;
+      let top = start.top;
+      if (dir.includes("e")) width = start.width + dx;
+      if (dir.includes("w")) width = start.width - dx;
+      if (dir.includes("s")) height = start.height + dy;
+      if (dir.includes("n")) height = start.height - dy;
+      width = Math.min(AI_CHAT_MAX.width, Math.max(AI_CHAT_MIN.width, width));
+      height = Math.min(AI_CHAT_MAX.height, Math.max(AI_CHAT_MIN.height, height));
+      // Anchor the opposite edge, then clamp to the SAME viewport gutters
+      // clampAiChatPosition uses, so the ResizeObserver never re-clamps and
+      // yanks the dock after a drag (review F5).
+      const { side, top: topGutter, bottom: bottomGutter } = AI_DOCK_GUTTER;
+      if (dir.includes("w")) {
+        left = rightEdge - width;
+        if (left < side) { left = side; width = rightEdge - side; }
+      } else if (dir.includes("e") && left + width > innerW - side) {
+        width = innerW - side - left;
+      }
+      if (dir.includes("n")) {
+        top = bottomEdge - height;
+        if (top < topGutter) { top = topGutter; height = bottomEdge - topGutter; }
+      } else if (dir.includes("s") && top + height > innerH - bottomGutter) {
+        height = innerH - bottomGutter - top;
+      }
+      width = Math.max(AI_CHAT_MIN.width, width);
+      height = Math.max(AI_CHAT_MIN.height, height);
+      setSize({ width: Math.round(width), height: Math.round(height) });
+      setPosition((prev) => ({ ...prev, left: Math.round(left), top: Math.round(top) }));
+      if (maximized) setMaximized(false);
     };
     const onPointerUp = () => {
       resizeRef.current = null;
@@ -602,7 +713,7 @@ export function AtlasAiDock({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [position.left, position.top]);
+  }, [maximized]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined" || typeof ResizeObserver === "undefined") {
@@ -693,7 +804,7 @@ export function AtlasAiDock({
                 width: box?.width,
                 height: box?.height,
               };
-              event.currentTarget.setPointerCapture?.(event.pointerId);
+              capturePointer(event);
             }}
           >
             <div>
@@ -824,28 +935,36 @@ export function AtlasAiDock({
               Atlas AI answers are grounded in available governance metadata and should be reviewed before action.
             </p>
           ) : null}
-          {maximized ? null : (
-            <div
-              aria-hidden="true"
-              className="ga-ai-dock-resize"
-              onPointerDown={(event) => {
-                if (event.button !== 0) return;
-                event.preventDefault();
-                resizeRef.current = {
-                  x: event.clientX,
-                  y: event.clientY,
-                  width: dockBox.width,
-                  height: dockBox.height,
-                };
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-              }}
-              title="Drag to resize"
-            >
-              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-                <path d="M11 5 5 11M11 9l-2 2" />
-              </svg>
-            </div>
-          )}
+          {maximized
+            ? null
+            : RESIZE_HANDLES.map((dir) => (
+                <div
+                  aria-hidden="true"
+                  className={`ga-ai-dock-resize ga-ai-dock-resize-${dir}`}
+                  key={dir}
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+                    resizeRef.current = {
+                      x: event.clientX,
+                      y: event.clientY,
+                      width: dockBox.width,
+                      height: dockBox.height,
+                      left: dockBox.left,
+                      top: dockBox.top,
+                      dir,
+                    };
+                    capturePointer(event);
+                  }}
+                  title="Drag to resize"
+                >
+                  {dir === "se" ? (
+                    <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                      <path d="M11 5 5 11M11 9l-2 2" />
+                    </svg>
+                  ) : null}
+                </div>
+              ))}
         </section>
       ) : null}
     </>

@@ -139,6 +139,8 @@ resources:
         - catalog.tables:read
         - catalog.connections
         - dashboards.genie
+        # Lets AI autofill query the foundation-model serving endpoint.
+        - serving.serving-endpoints
       resources:
         - name: sql-warehouse
           sql_warehouse:
@@ -187,6 +189,12 @@ targets:
                 name: Governance Atlas Metadata Room
                 space_id: ${var.genie_space_id}
                 permission: CAN_RUN
+            # Grants the app service principal CAN_QUERY on the reasoning model
+            # used by AI autofill (drafts glossary definitions, etc.).
+            - name: atlas-ai-generation
+              serving_endpoint:
+                name: databricks-claude-opus-4-8
+                permission: CAN_QUERY
             - name: atlas-lakebase
               postgres:
                 branch: ${var.lakebase_branch}

@@ -345,6 +345,20 @@
   color: var(--ga-text-muted);
 }
 
+/* Label row with an inline AI-draft action on the right. */
+.ga-glos-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ga-glos-field-label-row > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
 .ga-glos-field input,
 .ga-glos-field textarea,
 .ga-glos-field select {

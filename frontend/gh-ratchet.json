@@ -4,11 +4,10 @@
   "files": {
     "components/lineage-v2/LineageCanvasV2.jsx": {
       "gh": 1,
-      "hex": 1,
       "cssImport": 1
     },
     "components/lineage-v2/LineageNodeCard.jsx": {
-      "hex": 12
+      "hex": 2
     },
     "components/primitives/AssetTypeIcon.jsx": {
       "gh": 1,

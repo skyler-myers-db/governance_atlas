@@ -16,7 +16,7 @@ import math
 from numbers import Integral, Real
 import os
 import re
-from typing import Any, Dict, Iterable, List, Mapping, Sequence
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import pandas as pd
 
@@ -255,6 +255,201 @@ def owner_count_for_row(row: Mapping[str, Any]) -> int:
     except Exception:
         owners = []
     return len(owners)
+
+
+
+
+def _split_principals(raw: Any) -> List[str]:
+    """Comma-split a raw owner field into distinct trimmed principals."""
+    text = _text(raw)
+    if not text:
+        return []
+    seen: List[str] = []
+    for part in text.split(","):
+        item = part.strip()
+        if item and item not in seen:
+            seen.append(item)
+    return seen
+
+
+def _distinct_values(df: pd.DataFrame, *keys: str) -> List[str]:
+    values: List[str] = []
+    seen: set[str] = set()
+    for _, row in df.iterrows():
+        value = _row_text(_row_dict(row), *keys)
+        key = value.lower()
+        if value and key not in seen and key != "unassigned":
+            seen.add(key)
+            values.append(value)
+    return values
+
+
+def known_domains(visible_assets: pd.DataFrame) -> List[str]:
+    """Distinct non-empty domain labels present in the visible estate.
+
+    Used to detect a domain qualifier in a free-text question so estate-count
+    grounding can decline questions it cannot scope, and ownership grounding
+    can answer domain-scoped ones.
+    """
+    return _distinct_values(_safe_df(visible_assets), "domain")
+
+
+def known_scope_values(visible_assets: pd.DataFrame) -> List[str]:
+    """Distinct domain / tier / sensitivity values in the estate.
+
+    Estate-count grounding declines a question that names any of these, because
+    none of the estate metrics can scope to a domain/tier/sensitivity subset —
+    answering with the global number would be confidently wrong. (Criticality
+    and certification values are deliberately excluded: those ARE the concepts
+    the criticalAssets / certifiedAssets metrics represent.)
+    """
+    df = _safe_df(visible_assets)
+    values: List[str] = []
+    seen: set[str] = set()
+    for value in (
+        *_distinct_values(df, "domain"),
+        *_distinct_values(df, "tier"),
+        *_distinct_values(df, "sensitivity"),
+    ):
+        key = value.lower()
+        # Generic quality/coverage adjectives that also show up as tier/
+        # sensitivity labels would over-decline legitimate global questions
+        # ("how many assets have low coverage") — skip them. Distinctive labels
+        # (Confidential, Public, Finance, "Tier 1") are kept so scoped questions
+        # still decline. (review F2)
+        if key not in seen and key not in _GENERIC_SCOPE_WORDS:
+            seen.add(key)
+            values.append(value)
+    return values
+
+
+# Words too generic to safely treat as a scoping qualifier (they collide with
+# coverage/quality phrasing in otherwise-global questions).
+_GENERIC_SCOPE_WORDS = frozenset(
+    {
+        "none", "low", "medium", "high", "moderate", "other", "unknown", "n/a", "na", "general",
+        # Common sensitivity/domain labels that collide with everyday phrasing
+        # ("for internal use", "how much data") — too ambiguous to treat as a
+        # scoping trigger. Distinctive labels (Confidential, Restricted, PII,
+        # Finance) are kept so real scoped questions still ground. (review F2)
+        "internal", "public", "external", "data",
+    }
+)
+
+
+def known_facet_values(visible_assets: pd.DataFrame) -> Dict[str, List[str]]:
+    """Distinct domain / tier / sensitivity values — the subset dimensions that
+    trigger scoped-count grounding (estate metrics are all global; these are the
+    facets they can't express). Criticality/certification are handled as concept
+    predicates (is_critical / is_certified), not value matches.
+    """
+    df = _safe_df(visible_assets)
+
+    def _distinct_nongeneric(*keys: str) -> List[str]:
+        # Drop generic quality/coverage adjectives ("low", "none", …) that
+        # double as facet labels — they'd false-trigger scoped-count on an
+        # otherwise-global question (e.g. "how many assets have low coverage").
+        return [v for v in _distinct_values(df, *keys) if v.lower() not in _GENERIC_SCOPE_WORDS]
+
+    return {
+        "domains": _distinct_nongeneric("domain"),
+        "tiers": _distinct_nongeneric("tier"),
+        "sensitivities": _distinct_nongeneric("sensitivity"),
+    }
+
+
+def scoped_asset_count(
+    *,
+    visible_assets: pd.DataFrame,
+    domains: Optional[Sequence[str]] = None,
+    tiers: Optional[Sequence[str]] = None,
+    sensitivities: Optional[Sequence[str]] = None,
+    certified: Optional[bool] = None,
+    critical: Optional[bool] = None,
+    cde: Optional[bool] = None,
+) -> int:
+    """Count visible assets matching a facet scope, using the SAME predicates the
+    Command Center/Discovery use (semantics.is_certified / is_critical /
+    is_cde_asset, and exact domain/tier/sensitivity match). This lets Atlas AI
+    answer "how many certified assets in Finance?" / "how many PII assets?" from
+    the canonical inventory instead of the drifting Genie view.
+    """
+    df = _safe_df(visible_assets)
+    dset = {_text(d).lower() for d in (domains or []) if _text(d)}
+    tset = {_text(t).lower() for t in (tiers or []) if _text(t)}
+    sset = {_text(s).lower() for s in (sensitivities or []) if _text(s)}
+    matched = 0
+    for _, row in df.iterrows():
+        row_map = _row_dict(row)
+        if dset and _row_text(row_map, "domain").lower() not in dset:
+            continue
+        if tset and _row_text(row_map, "tier").lower() not in tset:
+            continue
+        if sset and _row_text(row_map, "sensitivity").lower() not in sset:
+            continue
+        if certified is True and not _is_certified(row_map):
+            continue
+        if certified is False and _is_certified(row_map):
+            continue
+        if critical is True and not _is_critical(row_map):
+            continue
+        if cde is True and not _is_cde_asset(row_map):
+            continue
+        matched += 1
+    return matched
+
+
+def asset_ownership(*, visible_assets: pd.DataFrame, fqn: str) -> Dict[str, Any]:
+    """Full ownership picture for one asset, matching what the asset page shows.
+
+    Reports BOTH the Unity Catalog owner (the `uc_owner`/`table_owner` catalog
+    principal) and the governance owners (business owner / steward / technical
+    owner). The two are distinct: an asset can have a UC owner and still have no
+    business owner or steward — which is exactly why the Command Center counts it
+    as "needs stewardship" while the asset page shows a UC owner. Answering with
+    only one of them is what made the AI contradict the rest of the app.
+    """
+    df = _safe_df(visible_assets)
+    target = _text(fqn).lower()
+    if not target:
+        return {"found": False, "fqn": _text(fqn)}
+    for _, row in df.iterrows():
+        row_map = _row_dict(row)
+        row_fqn = _row_text(row_map, "fqn", "full_name", "fullName")
+        if row_fqn.lower() != target:
+            continue
+        return {
+            "found": True,
+            "fqn": row_fqn or _text(fqn),
+            "domain": _row_text(row_map, "domain"),
+            "ucOwner": _row_text(row_map, "uc_owner", "ucOwner", "table_owner"),
+            "businessOwners": _split_principals(_row_value(row_map, "business_owner", "businessOwner")),
+            "stewards": _split_principals(_row_value(row_map, "steward")),
+            "technicalOwners": _split_principals(_row_value(row_map, "technical_owner", "technicalOwner")),
+        }
+    return {"found": False, "fqn": _text(fqn)}
+
+
+def ownership_gap_metrics(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
+    """Per-domain governance-ownership gaps, using the SAME predicate the
+    Command Center stewardship recommendations use (owner_count_for_row == 0,
+    i.e. no business owner / steward / technical owner). This is what makes the
+    AI agree with the dashboard ("Finance has 17 assets without an owner").
+    """
+    df = _safe_df(visible_assets)
+    by_domain: Dict[str, Dict[str, int]] = {}
+    total_assets = 0
+    total_ownerless = 0
+    for _, row in df.iterrows():
+        row_map = _row_dict(row)
+        total_assets += 1
+        domain = _row_text(row_map, "domain") or "Unassigned"
+        bucket = by_domain.setdefault(domain, {"total": 0, "ownerless": 0})
+        bucket["total"] += 1
+        if owner_count_for_row(row_map) == 0:
+            total_ownerless += 1
+            bucket["ownerless"] += 1
+    return {"byDomain": by_domain, "totalAssets": total_assets, "totalOwnerless": total_ownerless}
 
 
 def metadata_coverage_for_row(row: Mapping[str, Any] | pd.Series) -> float:
@@ -817,6 +1012,11 @@ def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, A
     if assets_df.empty:
         return []
     buckets: Dict[str, Dict[str, int]] = {}
+    # Raw criticality/tier strings per tier bucket → the exact Discovery
+    # criticality-facet values that reproduce this tier's assets (the facet
+    # matches over tier + criticality, so the display label "Tier 1 - Business
+    # Critical" never has to match a raw field verbatim).
+    bucket_values: Dict[str, set] = {}
     has_tier_signal = False
     for _, row in assets_df.iterrows():
         row_map = row.to_dict()
@@ -827,6 +1027,7 @@ def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, A
         label = _tier_label(tier_value)
         bucket = buckets.setdefault(label, {"certified": 0, "total": 0})
         bucket["total"] += 1
+        bucket_values.setdefault(label, set()).add(_text(tier_value))
         if _is_certified(row_map):
             bucket["certified"] += 1
     if not has_tier_signal:
@@ -842,6 +1043,7 @@ def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, A
                 "value": value,
                 "certified": counts["certified"],
                 "total": total,
+                "filterValues": sorted(v for v in bucket_values.get(label, set()) if v),
             }
         )
     rows.sort(key=lambda item: _tier_order(_text(item.get("label"))))
@@ -878,14 +1080,22 @@ def _risk_heatmap(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
         return []
     has_criticality_signal = False
     counts: Dict[tuple[str, str], int] = {}
+    # Per impact bucket, the RAW criticality/tier strings that mapped into it.
+    # Emitted so the UI can link a cell to Discovery's criticality facet and
+    # land on exactly the assets behind the number (the facet matches over
+    # businessCriticality/criticality/tier, the same fields _risk_impact_label
+    # reads) — no bucket-label guessing, no empty-page link.
+    impact_values: Dict[str, set] = {}
     for _, row in assets_df.iterrows():
         row_map = row.to_dict()
-        if not _has_value(_row_value(row_map, "criticality", "business_criticality", "businessCriticality", "tier")):
+        raw_criticality = _row_value(row_map, "criticality", "business_criticality", "businessCriticality", "tier")
+        if not _has_value(raw_criticality):
             continue
         has_criticality_signal = True
         impact = _risk_impact_label(row_map)
         likelihood = _risk_likelihood_label(100.0 - metadata_coverage_for_row(row_map))
         counts[(impact, likelihood)] = counts.get((impact, likelihood), 0) + 1
+        impact_values.setdefault(impact, set()).add(_text(raw_criticality))
     if not has_criticality_signal:
         return []
     return [
@@ -896,6 +1106,9 @@ def _risk_heatmap(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
             "likelihood": likelihood,
             "value": count,
             "count": count,
+            # Same for every cell in the impact row (likelihood has no facet);
+            # the link is honestly scoped to the impact level, not the cell.
+            "filterValues": sorted(v for v in impact_values.get(impact, set()) if v),
         }
         for (impact, likelihood), count in sorted(counts.items())
     ]
@@ -3914,7 +4127,7 @@ def _critical_certification_recommendations(assets_df: pd.DataFrame) -> tuple[Li
         recommendations.append(
             {
                 "title": f"Certify critical asset {_asset_name(fqn) or fqn}",
-                "detail": f"{fqn or 'An actor-visible asset'} is marked critical but is not certified.",
+                "detail": f"{fqn or 'An asset'} is marked critical but is not certified.",
                 "evidence": [
                     {
                         "type": "asset",
@@ -3933,7 +4146,7 @@ def _critical_certification_recommendations(assets_df: pd.DataFrame) -> tuple[Li
     if recommendations:
         return recommendations[:3], "", True
     if critical_signal_available and certification_signal_available:
-        return [], "No actor-visible critical assets without certification were found.", True
+        return [], "No visible critical assets without certification were found.", True
     return [], "Criticality and certification signals are not available for the current visible metadata.", False
 
 
@@ -3950,7 +4163,7 @@ def _stewardship_recommendations(assets_df: pd.DataFrame) -> List[Dict[str, Any]
         recommendations.append(
             {
                 "title": f"Assign stewardship for {domain}",
-                "detail": f"{domain} has {count} actor-visible asset{'s' if count != 1 else ''} without an owner.",
+                "detail": f"{domain} has {count} asset{'s' if count != 1 else ''} without an owner.",
                 "evidence": [
                     {
                         "type": "domain",
@@ -4068,9 +4281,9 @@ def build_ai_recommendations(*, visible_assets: pd.DataFrame, store: Any, questi
             question=question,
             intent=intent,
             recommendations=recommendations,
-            answer="" if recommendations else "No actor-visible stewardship ownership gaps were found.",
+            answer="" if recommendations else "No visible stewardship ownership gaps were found.",
             confidence="evidence-backed" if recommendations else "low",
-            warnings=[] if recommendations else ["No actor-visible stewardship ownership gaps were found."],
+            warnings=[] if recommendations else ["No visible stewardship ownership gaps were found."],
         )
 
     if intent == "priority":

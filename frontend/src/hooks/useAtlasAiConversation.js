@@ -86,22 +86,50 @@ export function useAtlasAiConversation({ request = fetchAtlasAiRecommendations }
         role: "assistant",
         text: "Checking governed metadata...",
         pending: true,
+        stage: "",
       },
     ]);
+
+    // Live Genie progress: the request layer calls this as the real pipeline
+    // stage advances ("Selecting relevant tables" → "Generating the SQL query"
+    // → "Running the query"), so the dock shows what's happening instead of a
+    // canned animation while the answer streams.
+    const onStage = (stage) => {
+      if (requestSeqRef.current !== requestSeq) return;
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessageId ? { ...message, stage: String(stage || "") } : message,
+        ),
+      );
+    };
 
     try {
       const response = await request(resolvedQuestion, {
         ...(controller ? { signal: controller.signal } : {}),
         ...(context ? { context } : {}),
+        onStage,
       });
       if (requestSeqRef.current !== requestSeq) return response;
+      // Surface a genuine failure (Genie FAILED / unavailable) as an error with
+      // its reason, instead of collapsing to the bland "did not return an
+      // answer" — the user must be able to tell a crash from an empty result.
+      const rawAnswer = String(response?.answer || "").trim();
+      const warnings = Array.isArray(response?.warnings)
+        ? response.warnings
+        : Array.isArray(response?.meta?.warnings)
+          ? response.meta.warnings
+          : [];
+      const failureNote = response?.warning || warnings.find(Boolean) || "";
+      const isFailure =
+        (response?.intent === "unavailable" || response?.nonAuthoritative) && !rawAnswer && Boolean(failureNote);
       setMessages((current) =>
         current.map((message) =>
           message.id === assistantMessageId
             ? {
                 ...message,
-                text: normalizeAnswer(response),
+                text: isFailure ? failureNote : normalizeAnswer(response),
                 pending: false,
+                error: isFailure || undefined,
                 evidenceCount: evidenceCount(response),
                 response,
               }

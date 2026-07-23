@@ -19,7 +19,7 @@ import { useCdeDashboard } from "../../hooks/useCdeDashboard";
 import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
 import { useAtlasMutation } from "../../hooks/useAtlasQuery";
 import { useTaxonomyOverview } from "../../hooks/useTaxonomyOverview";
-import { updateAssetMetadata, upsertGovernanceGlossaryTerm } from "../../lib/api";
+import { fetchAiAutofill, updateAssetMetadata, upsertGovernanceGlossaryTerm } from "../../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
 import { useAtlasNavigate } from "../../nav/useAtlasNavigate";
 import { useSurfaceParams } from "../../nav/useSurfaceParams";
@@ -219,6 +219,52 @@ export default function GlossaryPage() {
 
   const [termForm, setTermForm] = useState(null); // {mode:"create"|"edit", termId?, draft}
   const [termFormError, setTermFormError] = useState("");
+  const [aiAutofilling, setAiAutofilling] = useState(false);
+
+  // Agentic AI autofill: draft the definition (and suggest a domain) from the
+  // term name via the foundation-model endpoint. It only FILLS EMPTY fields for
+  // the steward to review/edit — it never overwrites text they already typed and
+  // never saves. To re-draft, clear the field first.
+  const handleAiAutofillTerm = async () => {
+    const name = text(termForm?.draft?.name);
+    if (!name) {
+      setTermFormError("Enter a term name first — AI autofill drafts from it.");
+      return;
+    }
+    setTermFormError("");
+    setAiAutofilling(true);
+    try {
+      const { fields, warnings } = await fetchAiAutofill("glossaryTerm", {
+        termName: name,
+        domain: text(termForm?.draft?.domain),
+      });
+      if (!fields.definition && !fields.domain) {
+        toast(warnings[0] || "AI autofill didn't return a draft. Try a more specific name.", { tone: "warning" });
+        return;
+      }
+      // Decide from the CURRENT draft (not inside the async state updater) so
+      // the toast reflects what actually filled. Only fill empty fields.
+      const draftNow = termForm?.draft || {};
+      const willFillDef = Boolean(fields.definition) && !text(draftNow.definition);
+      const willFillDomain = Boolean(fields.domain) && !text(draftNow.domain);
+      if (!willFillDef && !willFillDomain) {
+        toast("Definition and domain are already filled; clear a field to re-draft it.", { tone: "info" });
+        return;
+      }
+      setTermForm((current) => {
+        if (!current) return current;
+        const draft = { ...current.draft };
+        if (willFillDef) draft.definition = fields.definition;
+        if (willFillDomain) draft.domain = fields.domain;
+        return { ...current, draft };
+      });
+      toast("AI drafted this term — review and edit before saving.", { tone: "success" });
+    } catch (error) {
+      toast(error?.message || "AI autofill is unavailable right now.", { tone: "warning" });
+    } finally {
+      setAiAutofilling(false);
+    }
+  };
   const [cdeForm, setCdeForm] = useState(null); // {assetFqn, rationale}
   // Real account principals for the owner autofill — fetched only while a term
   // form is open (the endpoint is steward-gated and rarely changes).
@@ -525,10 +571,27 @@ export default function GlossaryPage() {
                 value={termForm.draft.name}
               />
             </label>
-            <label className="ga-glos-field">
-              <span>Definition</span>
+            <div className="ga-glos-field">
+              <div className="ga-glos-field-label-row">
+                <span>Definition</span>
+                <Button
+                  disabled={termUpsert.submitting}
+                  loading={aiAutofilling}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    handleAiAutofillTerm();
+                  }}
+                  size="sm"
+                  title="Draft the definition and domain from the term name using Atlas AI"
+                  type="button"
+                  variant="tertiary"
+                >
+                  ✨ AI draft
+                </Button>
+              </div>
               <textarea
-                disabled={termUpsert.submitting}
+                aria-label="Definition"
+                disabled={termUpsert.submitting || aiAutofilling}
                 onChange={(event) =>
                   setTermForm((current) => ({
                     ...current,
@@ -539,7 +602,7 @@ export default function GlossaryPage() {
                 rows={4}
                 value={termForm.draft.definition}
               />
-            </label>
+            </div>
             <div className="ga-glos-field-row">
               <label className="ga-glos-field">
                 <span>Domain</span>

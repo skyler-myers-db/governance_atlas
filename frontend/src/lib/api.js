@@ -903,7 +903,27 @@ export function fetchWorkspaceRoster(options = {}) {
     });
 }
 
-export function fetchAtlasAiRecommendations(question = "", options = {}) {
+function abortableDelay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      // Remove the listener on the normal path too, so a long poll loop can't
+      // accrete one abort listener per iteration on the shared signal.
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+export async function fetchAtlasAiRecommendations(question = "", options = {}) {
   const path = contractPath("atlasAiRecommendations") || "/atlas-ai/recommendations";
   const body = { question: String(question || "").trim() };
   // Page-awareness: forward the surface + asset the user is viewing so the AI
@@ -912,14 +932,17 @@ export function fetchAtlasAiRecommendations(question = "", options = {}) {
   const context = options.context || {};
   const surface = String(context.surface || "").trim();
   const assetFqn = String(context.assetFqn || "").trim();
-  if (surface || assetFqn) {
+  // `scope` carries the active facet filters so the AI can resolve "here"/"this
+  // page" to the actual domain/criticality the user is filtered to.
+  const scope = context.scope && typeof context.scope === "object" ? context.scope : null;
+  if (surface || assetFqn || scope) {
     body.context = {};
     if (surface) body.context.surface = surface;
     if (assetFqn) body.context.assetFqn = assetFqn;
+    if (scope) body.context.scope = scope;
   }
-  return requestJson(path, "POST", body, {
-    signal: options.signal,
-  }).then((payload) => {
+
+  const normalize = (payload) => {
     const response = unwrapEnvelope(payload);
     if (isNonAuthoritativeMockEvidence(response, response?.recommendations, response?.warnings)) {
       return {
@@ -930,7 +953,49 @@ export function fetchAtlasAiRecommendations(question = "", options = {}) {
       };
     }
     return response;
-  });
+  };
+
+  const first = unwrapEnvelope(await requestJson(path, "POST", body, { signal: options.signal }));
+  // Genie answers run asynchronously: the POST returns a "pending" handle
+  // (conversation + message id) immediately, and we poll /atlas-ai/message for
+  // the REAL pipeline stages + the final answer — so the UI shows progress
+  // instead of hanging on one indefinite request. Grounded (instant) answers
+  // skip this entirely. onStage(stage) is invoked as the stage changes.
+  if (first?.intent === "genie-pending" && first.conversationId && first.messageId) {
+    if (typeof options.onStage === "function") options.onStage(first.stage || "Working");
+    const pollPath = contractPath("atlasAiMessage") || "/atlas-ai/message";
+    const pollBody = { conversationId: first.conversationId, messageId: first.messageId, question: body.question };
+    if (body.context) pollBody.context = body.context;
+    const deadline = Date.now() + (options.timeoutMs || 150000);
+    let lastStage = first.stage || "";
+    while (Date.now() < deadline) {
+      await abortableDelay(options.pollIntervalMs || 1200, options.signal);
+      const polled = unwrapEnvelope(await requestJson(pollPath, "POST", pollBody, { signal: options.signal }));
+      if (polled?.stage && polled.stage !== lastStage && typeof options.onStage === "function") {
+        lastStage = polled.stage;
+        options.onStage(lastStage);
+      }
+      if (polled?.intent === "genie-pending") continue;
+      return normalize(polled); // terminal: done, unavailable, or error envelope
+    }
+    throw new Error("Atlas AI timed out waiting for Genie to finish. Try a narrower question.");
+  }
+  return normalize(first);
+}
+
+// AI autofill: draft freeform field values from context (e.g. a glossary
+// definition + domain from a term name) via the generative endpoint. Returns
+// { fields, model, warnings }; the caller drops fields into the form for review.
+export async function fetchAiAutofill(kind, context = {}, options = {}) {
+  const path = contractPath("atlasAiAutofill") || "/atlas-ai/autofill";
+  const body = { kind: String(kind || "").trim() };
+  if (context && typeof context === "object" && Object.keys(context).length) body.context = context;
+  const response = unwrapEnvelope(await requestJson(path, "POST", body, { signal: options.signal }));
+  return {
+    fields: response?.fields && typeof response.fields === "object" ? response.fields : {},
+    model: String(response?.model || ""),
+    warnings: Array.isArray(response?.warnings) ? response.warnings : [],
+  };
 }
 
 export function fetchAsset360(assetFqn, options = {}) {

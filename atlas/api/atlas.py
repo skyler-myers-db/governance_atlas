@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import datetime as dt
+import re
 import threading
 from typing import Any, Mapping, Optional, Sequence
 
@@ -201,6 +202,9 @@ class AtlasAiContext(BaseModel):
 
     surface: str = Field(default="", max_length=64)
     assetFqn: str = Field(default="", max_length=512)
+    # Active facet filters from the Discover URL (domain/criticality/tier/…),
+    # so "here"/"this page" resolves to the actual scope. Sanitized + capped.
+    scope: dict | None = None
 
     @field_validator("surface", "assetFqn", mode="before")
     @classmethod
@@ -211,6 +215,39 @@ class AtlasAiContext(BaseModel):
             max_length=512,
             allow_empty=True,
         )
+
+    @field_validator("scope", mode="before")
+    @classmethod
+    def _sanitize_scope(cls, value):
+        if not isinstance(value, Mapping):
+            return None
+
+        def _clean(raw, limit):
+            # Pre-truncate BEFORE sanitizing: sanitize_plain_text RAISES on
+            # overflow, so a long search box (scope.query) would 422 the whole
+            # AI request. Truncating first turns that into a safe, dropped value.
+            try:
+                text = str(raw) if raw is not None else ""
+                return input_safety.sanitize_plain_text(
+                    text[:limit], field="scope", max_length=limit, allow_empty=True
+                )
+            except Exception:
+                return ""
+
+        cleaned: dict[str, Any] = {}
+        for raw_key, raw_val in list(value.items())[:12]:  # cap keys
+            key = _clean(raw_key, 32)
+            if not key:
+                continue
+            if isinstance(raw_val, (list, tuple)):
+                items = [item for item in (_clean(item, 128) for item in list(raw_val)[:24]) if item]
+                if items:
+                    cleaned[key] = items
+            else:
+                item = _clean(raw_val, 128)
+                if item:
+                    cleaned[key] = item
+        return cleaned or None
 
 
 class AtlasAiQuestion(BaseModel):
@@ -226,6 +263,54 @@ class AtlasAiQuestion(BaseModel):
             max_length=2000,
             allow_empty=True,
         )
+
+
+class AtlasAiAutofill(BaseModel):
+    """Body for POST /atlas-ai/autofill — draft freeform field values from
+    context (e.g. a glossary term name) using the generative endpoint."""
+
+    kind: str = Field(default="", max_length=64)
+    context: dict | None = None
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def _sanitize_kind(cls, value):
+        return input_safety.sanitize_plain_text(value, field="kind", max_length=64, allow_empty=True)
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def _sanitize_ctx(cls, value):
+        if not isinstance(value, Mapping):
+            return None
+        cleaned: dict[str, Any] = {}
+        for raw_key, raw_val in list(value.items())[:12]:
+            key = input_safety.sanitize_plain_text(raw_key, field="ctx", max_length=48, allow_empty=True)
+            if not key:
+                continue
+            cleaned[key] = input_safety.sanitize_plain_text(
+                str(raw_val)[:500] if raw_val is not None else "", field="ctx", max_length=500, allow_empty=True
+            )
+        return cleaned or None
+
+
+class AtlasAiPoll(BaseModel):
+    """Body for POST /atlas-ai/message — polls a running Genie conversation for
+    its progress stage and, when complete, the finalized answer."""
+
+    conversationId: str = Field(default="", max_length=256)
+    messageId: str = Field(default="", max_length=256)
+    question: str = Field(default="", max_length=2000)
+    context: AtlasAiContext | None = None
+
+    @field_validator("conversationId", "messageId", mode="before")
+    @classmethod
+    def _sanitize_id(cls, value):
+        return input_safety.sanitize_plain_text(value, field="genieId", max_length=256, allow_empty=True)
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def _sanitize_poll_question(cls, value):
+        return input_safety.sanitize_plain_text(value, field="question", max_length=2000, allow_empty=True)
 
 
 def _obo_fallback_payload(uc_client) -> tuple[bool, str]:
@@ -1576,9 +1661,56 @@ def _ai_context_preamble(context: "AtlasAiContext | None") -> str:
     if surface:
         label = _AI_SURFACE_LABELS.get(surface.lower(), f"the {surface} surface")
         parts.append(f"The user is on {label}.")
+    scope_line = _scope_summary(getattr(context, "scope", None))
+    if scope_line:
+        parts.append(
+            f"They are filtering the view to {scope_line}. Interpret 'here', 'this page', "
+            "'these assets', and 'the current view' as that filtered scope."
+        )
     if not parts:
         return ""
     return "Context: " + " ".join(parts) + "\n\n"
+
+
+_SCOPE_LABELS = {
+    "domain": "domain", "criticality": "criticality", "tier": "tier",
+    "certification": "certification", "sensitivity": "sensitivity",
+    "view": "saved view", "owner": "owner", "query": "search",
+}
+
+
+def _scope_summary(scope) -> str:
+    """Human-readable one-liner for the active facet scope (or "")."""
+    if not isinstance(scope, Mapping):
+        return ""
+    pieces: list[str] = []
+    for key, label in _SCOPE_LABELS.items():
+        value = scope.get(key)
+        if not value:
+            continue
+        if isinstance(value, (list, tuple)):
+            joined = ", ".join(_normalize_str(item) for item in value if _normalize_str(item))
+            if joined:
+                pieces.append(f"{label} {joined}")
+        else:
+            text = _normalize_str(value)
+            if text:
+                if key == "owner" and text == "__unassigned__":
+                    text = "unassigned"
+                pieces.append(f"{label} {text}")
+    return "; ".join(pieces)
+
+
+def _scope_domain(scope) -> str:
+    """The single domain the user is filtered to, if exactly one — else ""."""
+    if not isinstance(scope, Mapping):
+        return ""
+    value = scope.get("domain")
+    if isinstance(value, (list, tuple)):
+        domains = [_normalize_str(item) for item in value if _normalize_str(item)]
+        return domains[0] if len(domains) == 1 else ""
+    text = _normalize_str(value)
+    return text
 
 
 # Canonical estate-metric grounding. The Genie curated view is a single-catalog
@@ -1645,6 +1777,26 @@ def _canonical_estate_grounding(
         return None
     if visible_assets is None or getattr(visible_assets, "empty", True):
         return None
+    # Fix #1: estate metrics are ESTATE-WIDE. If the question is scoped to a
+    # subset this metric can't compute — a specific domain, or an
+    # owner-gap qualifier — returning the global number as "canonical" is a
+    # confidently-wrong answer (e.g. "how many Finance assets have no owner?"
+    # used to return the total estate count 50). Decline so the ownership
+    # grounding or Genie handles it honestly instead.
+    qlower = _normalize_str(question).lower()
+    if _mentions_owner_gap(qlower):
+        return None
+    if any(noun in qlower for noun in _FACET_SCOPE_NOUNS):
+        return None
+    try:
+        # A named domain/tier/sensitivity VALUE also scopes the question (e.g.
+        # "how many Finance assets", "how many Confidential assets"). Criticality
+        # and certification values are excluded — those ARE the concepts the
+        # criticalAssets / certifiedAssets metrics represent.
+        if _find_domain_in_text(qlower, atlas_metrics.known_scope_values(visible_assets)):
+            return None
+    except Exception:
+        pass
     try:
         store = store_fn(request)
     except Exception:
@@ -1692,6 +1844,385 @@ def _canonical_estate_grounding(
             f"canonical estate figure ({canonical_value}) so it matches the UI."
         )
     return {"answer": answer, "evidence": canonical_evidence, "warnings": warnings}
+
+
+# --- Ownership grounding -----------------------------------------------------
+# Ownership questions ("who owns this?", "which domain has the most assets
+# without an owner?", "how many Finance assets have no owner?") are NOT estate
+# aggregates and were previously answered by the drifting Genie curated view —
+# which contradicted the Command Center (Genie said Customer/10; the dashboard
+# says Finance/17) and the asset page (Genie said "no owner" for an asset whose
+# UC owner is shown on screen). These ground on the SAME inventory + predicate
+# the dashboard uses, so the AI agrees with the rest of the app.
+
+# Owner/steward terms and gap indicators. A question is an "owner-gap" question
+# when it names an owner/steward AND a gap indicator — this is broader and more
+# robust than an explicit phrase list (which missed "missing a steward", "need a
+# steward", "don't have a business owner", … and let those fall through to the
+# WRONG global estate count).
+_OWNER_TERMS = ("owner", "owns", "owned", "ownership", "steward", "stewardship", "stewarded")
+_GAP_INDICATORS = (
+    "without", "missing", "lack", "lacking", "unowned", "ownerless", "unassigned",
+    "no owner", "no assigned owner", "no steward", "no business owner", "no governance owner",
+    "have no", "has no", "with no", "need an", "needs an", "need a", "needs a",
+    "need owner", "needs owner", "need owners", "don't have", "do not have", "does not have",
+    "assign an owner", "assign owners",
+    # Negation phrasings ("how many assets are NOT owned?", "aren't assigned an
+    # owner"). Combined with an owner/steward term in _mentions_owner_gap, so
+    # these don't over-trigger on unrelated negations. Without them these
+    # slipped both gates and returned the global estate total (review F1).
+    "not owned", "not assigned", "not have an owner", "not have a steward",
+    "aren't owned", "arent owned", "aren't assigned", "arent assigned",
+    "isn't owned", "isnt owned", "isn't assigned", "isnt assigned",
+    "no one owns", "no-one owns", "nobody owns", "not stewarded", "not been assigned",
+)
+_OWNER_INTENT_TOKENS = ("owner", "owns", "owned", "ownership", "steward", "stewardship")
+_PER_ASSET_OWNER_PHRASES = (
+    "who owns", "who is the owner", "who are the owners", "who's the owner",
+    "owner of", "owned by", "does this asset have an owner", "is this owned",
+    "who stewards", "who is the steward", "ownership of",
+)
+_SUPERLATIVE_MOST = ("most", "highest", "greatest", "largest", "top", "worst")
+_SUPERLATIVE_LEAST = ("fewest", "least", "lowest", "smallest", "best")
+_AGGREGATE_TOKENS = ("how many", "how much", "number of", "count", "total", "are there", "do we have")
+# Facet nouns that scope a question to a subset no estate metric can compute.
+# Their presence makes estate-count grounding decline (so it never answers a
+# subset question with the estate-wide number).
+_FACET_SCOPE_NOUNS = (
+    "domain", "tier", "catalog", "schema", "sensitivity", "classification",
+    "data product", "dataproduct", "sensitive", "pii", "gdpr", "phi",
+    "personally identifiable",
+)
+# Collection/plural signals that mean a question is NOT about one focused asset
+# (so per-asset ownership grounding must not hijack it to the current page).
+_COLLECTION_TOKENS = (
+    "which ", "most ", "least ", "fewest", "all ", "every ", "list ", "each ",
+    "tables", "assets", "datasets", "domains", "these", "them", "top ",
+)
+_FQN_RE = re.compile(r"\b([A-Za-z0-9_]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\b")
+
+
+def _mentions_owner_gap(text: str) -> bool:
+    if not any(term in text for term in _OWNER_TERMS):
+        return False
+    return any(indicator in text for indicator in _GAP_INDICATORS)
+
+
+def _find_domain_in_text(text: str, domains) -> str:
+    """Return the original-cased domain whose name appears as a word in text."""
+    for domain in domains:
+        name = _normalize_str(domain)
+        if not name:
+            continue
+        if re.search(rf"(?<![A-Za-z0-9]){re.escape(name.lower())}(?![A-Za-z0-9])", text):
+            return domain
+    return ""
+
+
+def _extract_question_fqn(question: str) -> str:
+    match = _FQN_RE.search(_normalize_str(question))
+    return match.group(1) if match else ""
+
+
+def _asset_ownership_answer(own: dict) -> dict:
+    fqn = own.get("fqn") or "this asset"
+    if not own.get("found"):
+        return {
+            "answer": (
+                f"`{fqn}` is not in your visible asset inventory, so its ownership is "
+                "unavailable. It may be outside your permission scope or not yet inventoried."
+            ),
+            "evidence": {
+                "type": "asset", "id": fqn, "label": fqn,
+                "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+            },
+            "warnings": [],
+        }
+    uc = _normalize_str(own.get("ucOwner"))
+    business = [p for p in (own.get("businessOwners") or []) if _normalize_str(p)]
+    stewards = [p for p in (own.get("stewards") or []) if _normalize_str(p)]
+    technical = [p for p in (own.get("technicalOwners") or []) if _normalize_str(p)]
+    sentences: list[str] = []
+    if uc:
+        sentences.append(f"In Unity Catalog, `{fqn}` is owned by **{uc}**.")
+    if business:
+        label = "business owner" if len(business) == 1 else "business owners"
+        sentences.append(f"Its {label} {'is' if len(business) == 1 else 'are'} {', '.join(business)}.")
+    if stewards:
+        label = "steward" if len(stewards) == 1 else "stewards"
+        sentences.append(f"Its {label} {'is' if len(stewards) == 1 else 'are'} {', '.join(stewards)}.")
+    if technical:
+        label = "technical owner" if len(technical) == 1 else "technical owners"
+        sentences.append(f"Its {label} {'is' if len(technical) == 1 else 'are'} {', '.join(technical)}.")
+    # "Governance owner" is business owner OR steward OR technical owner — the
+    # SAME predicate the Command Center's ownerless count uses. Only claim "no
+    # owner" when ALL of them are absent, or the AI contradicts the dashboard
+    # (which counts a technical-owner-only asset as owned).
+    if not business and not stewards and not technical:
+        if uc:
+            sentences.append(
+                "It has no assigned governance owner (business owner, steward, or technical owner), "
+                "so it still needs one even though it has a Unity Catalog owner."
+            )
+        else:
+            sentences.append(
+                f"No owner is recorded for `{fqn}` — neither a Unity Catalog owner nor a governance "
+                "owner (business owner, steward, or technical owner). It needs an owner assigned."
+            )
+    return {
+        "answer": " ".join(sentences),
+        "evidence": {
+            "type": "asset", "id": fqn, "label": fqn,
+            "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+        },
+        "warnings": [],
+    }
+
+
+def _ownership_gap_evidence(value: int) -> dict:
+    return {
+        "type": "metric", "id": "assetsWithoutOwner", "metric": "assetsWithoutOwner",
+        "value": value, "label": f"{value} assets without an owner",
+        "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+    }
+
+
+def _has_nonowner_facet_qualifier(text: str) -> bool:
+    """True when the question carries a certification/criticality/tier/
+    sensitivity/CDE qualifier beyond owner+domain — i.e. a compound question the
+    ownerless-count branches would answer while silently dropping that facet."""
+    if "certif" in text:  # certified / uncertified / certification
+        return True
+    if "critical data element" in text or _value_in_text(text, "cde"):
+        return True
+    if _value_in_text(text, "critical"):
+        return True
+    return any(w in text for w in ("tier", "sensitivity", "classification", "classified", "pii", "confidential"))
+
+
+def _ownership_grounding(question: str, request, ai_context, *, visible_assets_fn) -> dict | None:
+    text = _normalize_str(question).lower()
+    if not text or not any(token in text for token in _OWNER_INTENT_TOKENS):
+        return None
+    try:
+        visible = visible_assets_fn(request)
+    except Exception:
+        return None
+    if visible is None or getattr(visible, "empty", True):
+        return None
+
+    gap = _mentions_owner_gap(text)
+    # A compound owner+facet question ("how many CERTIFIED assets without an
+    # owner in Finance?") can't be answered by the ownerless-count branches
+    # without ignoring the facet (→ over-count). `compound_facet` suppresses the
+    # gap branches (B/C/D) so it declines to Genie instead of answering wrong
+    # (review F4). Per-asset ownership (branch A) is unaffected.
+    compound_facet = _has_nonowner_facet_qualifier(text)
+    mentions_domain_word = "domain" in text
+    superlative_most = any(w in text for w in _SUPERLATIVE_MOST)
+    superlative_least = any(w in text for w in _SUPERLATIVE_LEAST)
+    superlative = superlative_most or superlative_least
+    domains = atlas_metrics.known_domains(visible)
+    named_domain = _find_domain_in_text(text, domains)
+    # "here"/"this page"/"these" → the domain the user is filtered to (context
+    # scope), so page-aware ownership questions resolve without naming a domain.
+    if not named_domain and any(p in text for p in ("here", "this page", "these", "current view", "on this page")):
+        scope_domain = _scope_domain(getattr(ai_context, "scope", None))
+        if scope_domain and scope_domain.lower() in {d.lower() for d in domains}:
+            named_domain = next(d for d in domains if d.lower() == scope_domain.lower())
+
+    # (B) Superlative across domains: "which domain has the most/fewest assets
+    #     without an owner?"
+    if mentions_domain_word and superlative and not compound_facet and (gap or "owner" in text or "steward" in text):
+        metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
+        candidates = [
+            (name, vals["ownerless"], vals["total"])
+            for name, vals in metrics["byDomain"].items()
+            if vals["ownerless"] > 0
+        ]
+        if not candidates:
+            return {
+                "answer": "Every domain in the visible estate has assigned owners — no domain has assets without an owner.",
+                "evidence": _ownership_gap_evidence(0), "warnings": [],
+            }
+        # Tie-break MUST match the Command Center's stewardship ranking
+        # (-count, then name ascending), or the AI names a different top domain
+        # than the dashboard's top stewardship card on a tie.
+        if superlative_least:
+            ordered = sorted(candidates, key=lambda item: (item[1], item[0].lower()))
+            lead_word = "fewest (but non-zero)"
+        else:
+            ordered = sorted(candidates, key=lambda item: (-item[1], item[0].lower()))
+            lead_word = "most"
+        pick = ordered[0]
+        rest = ordered[1:3]
+        answer = (
+            f"The **{pick[0]}** domain has the {lead_word} assets without an assigned owner — "
+            f"**{pick[1]}** of its {pick[2]} visible assets."
+        )
+        if rest:
+            answer += " Next: " + ", ".join(f"{name} ({owner_gap})" for name, owner_gap, _total in rest) + "."
+        answer += " Owner here means a business owner, steward, or technical owner, matching the Command Center."
+        return {"answer": answer, "evidence": _ownership_gap_evidence(pick[1]), "warnings": []}
+
+    # (C) Domain-scoped ownerless count: "how many Finance assets have no owner?"
+    if named_domain and not compound_facet and (gap or ("owner" in text and any(a in text for a in _AGGREGATE_TOKENS))):
+        metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
+        bucket = metrics["byDomain"].get(named_domain, {"total": 0, "ownerless": 0})
+        if bucket["ownerless"] == 0:
+            answer = (
+                f"All {bucket['total']} visible assets in the **{named_domain}** domain have an assigned owner."
+            )
+        else:
+            answer = (
+                f"**{bucket['ownerless']}** of the **{bucket['total']}** visible assets in the "
+                f"**{named_domain}** domain have no assigned owner (business owner, steward, or technical "
+                "owner). This matches the Command Center stewardship recommendation."
+            )
+        return {"answer": answer, "evidence": _ownership_gap_evidence(bucket["ownerless"]), "warnings": []}
+
+    # (D) Global ownerless count: "how many assets have no owner?"
+    if gap and not compound_facet and any(a in text for a in _AGGREGATE_TOKENS):
+        metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
+        total_gap = metrics["totalOwnerless"]
+        answer = (
+            f"**{total_gap}** of the **{metrics['totalAssets']}** visible assets have no assigned owner "
+            "(business owner, steward, or technical owner). Assets can still have a Unity Catalog owner "
+            "while needing a governance owner assigned."
+        )
+        return {"answer": answer, "evidence": _ownership_gap_evidence(total_gap), "warnings": []}
+
+    # (A) Per-asset ownership: "who owns this asset / who owns <fqn>?"
+    # A collection/superlative/plural question ("who owns our most critical
+    # tables?", "which assets have no owner?") is NOT about the current page,
+    # even when an asset FQN is in context — don't answer it about that one asset.
+    asset_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+    question_fqn = _extract_question_fqn(question)
+    is_collection = superlative or mentions_domain_word or any(tok in text for tok in _COLLECTION_TOKENS)
+    # A specific FQN written in the question always wins (it names one asset);
+    # otherwise the context asset only answers a clearly-singular question.
+    if question_fqn:
+        target_fqn = question_fqn
+    elif is_collection:
+        target_fqn = ""
+    else:
+        target_fqn = asset_fqn
+    per_asset = any(p in text for p in _PER_ASSET_OWNER_PHRASES) or (
+        target_fqn and ("this asset" in text or "this table" in text or "this dataset" in text)
+    )
+    if target_fqn and per_asset:
+        own = atlas_metrics.asset_ownership(visible_assets=visible, fqn=target_fqn)
+        return _asset_ownership_answer(own)
+    return None
+
+
+# --- Scoped-count grounding ---------------------------------------------------
+# Facet-scoped count questions ("how many certified assets in Finance?", "how
+# many PII assets?", "how many assets in the Tier 1 tier?") are NOT estate-wide
+# aggregates, so estate grounding declines them and they used to drift through
+# Genie. This computes them from the same inventory + predicates the dashboard
+# uses. It fires only when a real domain/tier/sensitivity VALUE is named (the
+# subset dimensions estate can't express), and the answer states exactly which
+# filters it applied so the number is never a mislabelled global count.
+_UNCERTIFIED_PHRASES = (
+    "uncertified", "un-certified", "not certified", "not yet certified",
+    "without certification", "aren't certified", "arent certified",
+    "isn't certified", "isnt certified", "lacking certification", "no certification",
+    "not been certified", "decertified", "de-certified", "pending certification",
+    "awaiting certification", "need certification", "needs certification",
+    "needing certification", "require certification", "requires certification",
+    "requiring certification", "recertification", "re-certification", "needs to be certified",
+)
+
+
+# Classification concepts users ask about that may NOT exist as a literal
+# sensitivity value in a given estate (which might tag Confidential/Restricted).
+_CLASSIFICATION_TOKENS = ("pii", "gdpr", "phi", "personally identifiable", "sensitive", "classified")
+
+
+def _value_in_text(text: str, value: str) -> bool:
+    name = _normalize_str(value)
+    if not name:
+        return False
+    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(name.lower())}(?![A-Za-z0-9])", text))
+
+
+def _scoped_count_grounding(question: str, request, ai_context, *, visible_assets_fn) -> dict | None:
+    text = _normalize_str(question).lower()
+    if not any(a in text for a in _AGGREGATE_TOKENS):
+        return None
+    # Owner-gap counts belong to ownership grounding (which runs first); don't
+    # answer them here with a non-owner scope.
+    if _mentions_owner_gap(text):
+        return None
+    try:
+        visible = visible_assets_fn(request)
+    except Exception:
+        return None
+    if visible is None or getattr(visible, "empty", True):
+        return None
+    facets = atlas_metrics.known_facet_values(visible)
+    domains = [d for d in facets["domains"] if _value_in_text(text, d)]
+    tiers = [t for t in facets["tiers"] if _value_in_text(text, t)]
+    sensitivities = [s for s in facets["sensitivities"] if _value_in_text(text, s)]
+    # A classification qualifier we can't map to a real sensitivity value in this
+    # estate (e.g. "PII" when the estate tags Confidential/Restricted) must NOT be
+    # silently dropped from the count — decline so Genie answers it honestly,
+    # rather than returning "N Finance assets" (ignoring PII) or the estate total.
+    if not sensitivities and any(t in text for t in _CLASSIFICATION_TOKENS):
+        return None
+    # Trigger only on a real subset scope estate metrics can't express.
+    if not (domains or tiers or sensitivities):
+        return None
+    cde = _value_in_text(text, "cde") or ("critical data element" in text)
+    certified: bool | None = None
+    # Check the negation/pending phrasings FIRST; only then the positive. The
+    # word-boundary match for "certified" won't fire on "uncertified"/
+    # "decertified" (preceded by letters), so an uncertified question can never
+    # fall through to the certified count (review F1).
+    if any(p in text for p in _UNCERTIFIED_PHRASES):
+        certified = False
+    elif _value_in_text(text, "certified"):
+        certified = True
+    critical: bool | None = None
+    # Word-boundary so "criticality"/"critically" don't set the is_critical
+    # filter on unrelated questions (review F3).
+    if not cde and (_value_in_text(text, "critical") or "business critical" in text or "business-critical" in text):
+        critical = True
+    matched = atlas_metrics.scoped_asset_count(
+        visible_assets=visible, domains=domains, tiers=tiers, sensitivities=sensitivities,
+        certified=certified, critical=critical, cde=cde or None,
+    )
+    adjectives: list[str] = []
+    if certified is True:
+        adjectives.append("certified")
+    if certified is False:
+        adjectives.append("uncertified")
+    if critical:
+        adjectives.append("business-critical")
+    if cde:
+        adjectives.append("CDE")
+    adjectives.extend(sensitivities)  # e.g. PII / Confidential as a classifier
+    noun = (" ".join(adjectives) + " assets") if adjectives else "assets"
+    scopes: list[str] = []
+    if domains:
+        scopes.append(f"the {', '.join(domains)} domain{'s' if len(domains) > 1 else ''}")
+    if tiers:
+        scopes.append(f"the {', '.join(tiers)} tier{'s' if len(tiers) > 1 else ''}")
+    scope_str = (" in " + " and ".join(scopes)) if scopes else ""
+    answer = (
+        f"There are **{matched:,}** {noun}{scope_str}, computed from the same canonical "
+        "inventory the Command Center uses."
+    )
+    return {
+        "answer": answer,
+        "evidence": {
+            "type": "metric", "id": "scopedAssetCount", "metric": "scopedAssetCount",
+            "value": matched, "label": f"{matched} {noun}{scope_str}".strip(),
+            "source": "unity-catalog-inventory+governance-store (canonical semantics)",
+        },
+        "warnings": [],
+    }
 
 
 # Direction detection is phrase-based, not bare-token: "what feeds X" is
@@ -1804,6 +2335,75 @@ def _first_evidence_number(evidence: Any) -> int | None:
     return None
 
 
+def _finalize_genie_payload(raw_payload, *, question, request, ai_context, genie_status) -> JSONResponse:
+    """Post-process a completed Genie payload — canonical/lineage grounding
+    override, clickable recommendations from SQL rows — and wrap it. Shared by
+    the instant cache-hit path and the poll-complete path so a streamed answer
+    is identical to a blocking one."""
+    from runtime_app import _store, _uc, _uc_for_request, _visible_assets
+
+    payload = dict(raw_payload or {})
+    payload["question"] = question
+    payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+    lineage_ground = None
+    _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
+    if _ctx_fqn:
+        try:
+            lineage_ground = _lineage_grounding(question, _ctx_fqn, [_uc_for_request(request), _uc()])
+        except Exception:
+            lineage_ground = None
+    grounding = lineage_ground or _canonical_estate_grounding(
+        question, request, payload, visible_assets_fn=_visible_assets, store_fn=lambda _req=None: _store()
+    )
+    if grounding:
+        payload["answer"] = grounding["answer"]
+        existing_evidence = payload.get("evidence") if isinstance(payload.get("evidence"), list) else []
+        payload["evidence"] = [grounding["evidence"], *existing_evidence]
+        payload["confidence"] = "canonical-grounded"
+        payload_warnings = [*payload_warnings, *grounding["warnings"]]
+    has_evidence = bool(payload.get("evidence"))
+    if not payload.get("recommendations") and has_evidence:
+        recommendations = _recommendations_from_genie_evidence(payload.get("evidence") or [])
+        if recommendations:
+            payload = {
+                **payload,
+                "recommendations": recommendations,
+                "suggestedActions": [
+                    action
+                    for recommendation in recommendations
+                    for action in recommendation.get("suggestedActions", [])
+                ][:4],
+            }
+    if not payload.get("recommendations"):
+        payload_warnings = [
+            *payload_warnings,
+            "Genie returned no evidence-backed recommendations; local governance-store recommendations were not substituted.",
+        ]
+    return _wrap(
+        payload,
+        request,
+        source="databricks-genie",
+        state="available" if has_evidence else "degraded",
+        authoritative=has_evidence,
+        capabilities={
+            "provider": "genie",
+            "spaceId": genie_status.get("spaceId", ""),
+            "benchmarkState": genie_status.get("benchmarkState", ""),
+            "sampleValuesIncluded": False,
+            "piiValuesIncluded": False,
+        },
+        warnings=payload_warnings or None,
+    )
+
+
+def _genie_cache_key(genie_status: dict, forwarded_token: str, genie_question: str) -> str:
+    token_fragment = hashlib.sha256(forwarded_token.encode("utf-8")).hexdigest()[:12]
+    return _route_cache_key(
+        "atlas_ai_recommendations", genie_status.get("spaceId", ""), token_fragment,
+        genie_question or "__default__",
+    )
+
+
 def api_atlas_ai_recommendations(
     request: Request,
     body: AtlasAiQuestion | None = Body(default=None),
@@ -1824,6 +2424,26 @@ def api_atlas_ai_recommendations(
     if _early_ctx_fqn:
         try:
             _early_ground = _lineage_grounding(question, _early_ctx_fqn, [_uc_for_request(request), _uc()])
+        except Exception:
+            _early_ground = None
+    # Ownership grounding (per-asset owner, domain ownerless counts, superlatives)
+    # runs before estate grounding so "who owns this?" / "which domain has the
+    # most assets without an owner?" agree with the dashboard instead of drifting
+    # through Genie.
+    if _early_ground is None:
+        try:
+            _early_ground = _ownership_grounding(
+                question, request, ai_context, visible_assets_fn=_visible_assets,
+            )
+        except Exception:
+            _early_ground = None
+    # Facet-scoped counts ("how many certified assets in Finance?") — computed
+    # from canonical inventory, before estate grounding declines them to Genie.
+    if _early_ground is None:
+        try:
+            _early_ground = _scoped_count_grounding(
+                question, request, ai_context, visible_assets_fn=_visible_assets,
+            )
         except Exception:
             _early_ground = None
     if _early_ground is None:
@@ -1898,94 +2518,47 @@ def api_atlas_ai_recommendations(
             else:
                 context_preamble = _ai_context_preamble(ai_context)
                 genie_question = f"{context_preamble}{question}" if context_preamble else question
-                token_fragment = hashlib.sha256(forwarded_token.encode("utf-8")).hexdigest()[:12]
-                genie_cache_key = _route_cache_key(
-                    "atlas_ai_recommendations",
-                    genie_status.get("spaceId", ""),
-                    token_fragment,
-                    genie_question or "__default__",
+                genie_cache_key = _genie_cache_key(genie_status, forwarded_token, genie_question)
+                # Instant repeat: a finalized answer is still cached → return it
+                # directly, no round-trip through Genie or the poll loop.
+                cached_final = _ttl_fresh_value(genie_cache_key, 120)
+                if isinstance(cached_final, dict):
+                    return _finalize_genie_payload(
+                        cached_final, question=question, request=request,
+                        ai_context=ai_context, genie_status=genie_status,
+                    )
+                # Otherwise start the Genie conversation WITHOUT blocking and
+                # return a "pending" envelope with the ids + initial stage. The
+                # frontend polls POST /atlas-ai/message for real progress stages
+                # and the final answer, instead of hanging on one long request.
+                started = genie_service.start_genie(
+                    config=cfg, question=genie_question, user_access_token=forwarded_token,
                 )
-                cached_payload = _ttl_value(
-                    genie_cache_key,
-                    120,
-                    lambda: genie_service.ask_genie(
-                        config=cfg,
-                        question=genie_question,
-                        user_access_token=forwarded_token,
-                    ),
-                )
-                payload = dict(cached_payload or {})
-                # Keep the user-visible question, not the context-augmented prompt.
-                payload["question"] = question
-                payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
-                # Canonical estate grounding: for aggregate count questions, ground
-                # the answer on the same numbers the Command Center shows so Atlas AI
-                # never contradicts the UI even when the Genie snapshot has drifted.
-                # Lineage grounding first: "what feeds/depends on this asset"
-                # is answered from real UC lineage, not the lineage-less Genie
-                # snapshot (which said "nothing feeds it" while the graph
-                # rendered upstream sources — verifier BLOCK).
-                lineage_ground = None
-                _ctx_fqn = _normalize_str(getattr(ai_context, "assetFqn", "")) if ai_context else ""
-                if _ctx_fqn:
-                    try:
-                        # OBO carries the actor's system.access.table_lineage
-                        # grant (how the lineage feature reads it); the app SP
-                        # is the fallback. Pass both — the grounding tries each.
-                        lineage_ground = _lineage_grounding(
-                            question, _ctx_fqn, [_uc_for_request(request), _uc()]
-                        )
-                    except Exception:
-                        lineage_ground = None
-                grounding = lineage_ground or _canonical_estate_grounding(
-                    question,
-                    request,
-                    payload,
-                    visible_assets_fn=_visible_assets,
-                    # The app store (same one the Command Center reads) — the
-                    # OBO _store_for_read returned change-requests unavailable,
-                    # so openRequests fell back to Genie (1) and contradicted
-                    # the UI's 2 (verifier BLOCK).
-                    store_fn=lambda _req=None: _store(),
-                )
-                if grounding:
-                    payload["answer"] = grounding["answer"]
-                    existing_evidence = payload.get("evidence") if isinstance(payload.get("evidence"), list) else []
-                    payload["evidence"] = [grounding["evidence"], *existing_evidence]
-                    payload["confidence"] = "canonical-grounded"
-                    payload_warnings = [*payload_warnings, *grounding["warnings"]]
-                has_evidence = bool(payload.get("evidence"))
-                if not payload.get("recommendations") and has_evidence:
-                    recommendations = _recommendations_from_genie_evidence(payload.get("evidence") or [])
-                    if recommendations:
-                        payload = {
-                            **payload,
-                            "recommendations": recommendations,
-                            "suggestedActions": [
-                                action
-                                for recommendation in recommendations
-                                for action in recommendation.get("suggestedActions", [])
-                            ][:4],
-                        }
-                if not payload.get("recommendations"):
-                    payload_warnings = [
-                        *payload_warnings,
-                        "Genie returned no evidence-backed recommendations; local governance-store recommendations were not substituted.",
-                    ]
                 return _wrap(
-                    payload,
+                    {
+                        "question": question,
+                        "intent": "genie-pending",
+                        "answer": "",
+                        "recommendations": [],
+                        "evidence": [],
+                        "confidence": "pending",
+                        "provider": "genie",
+                        "providerState": genie_status,
+                        "conversationId": started["conversationId"],
+                        "messageId": started["messageId"],
+                        "status": started["status"],
+                        "stage": started["stage"],
+                        "warnings": [],
+                    },
                     request,
                     source="databricks-genie",
-                    state="available" if has_evidence else "degraded",
-                    authoritative=has_evidence,
+                    state="pending",
+                    authoritative=False,
                     capabilities={
                         "provider": "genie",
+                        "genieStreaming": True,
                         "spaceId": genie_status.get("spaceId", ""),
-                        "benchmarkState": genie_status.get("benchmarkState", ""),
-                        "sampleValuesIncluded": False,
-                        "piiValuesIncluded": False,
                     },
-                    warnings=payload_warnings or None,
                 )
         elif genie_status.get("provider") == "genie":
             genie_warning = _normalize_str(genie_status.get("message"))
@@ -2028,6 +2601,122 @@ def api_atlas_ai_recommendations(
     )
 
 
+def api_atlas_ai_message(request: Request, body: AtlasAiPoll | None = Body(default=None)) -> JSONResponse:
+    """Poll a running Genie conversation started by /atlas-ai/recommendations.
+    Returns {intent: "genie-pending", stage} while in flight; the finalized
+    answer envelope (identical to the blocking path) once COMPLETED."""
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token
+
+    _ensure_live_runtime()
+    conversation_id = _normalize_str(getattr(body, "conversationId", "")) if body else ""
+    message_id = _normalize_str(getattr(body, "messageId", "")) if body else ""
+    question = _normalize_str(getattr(body, "question", "")) if body else ""
+    ai_context = getattr(body, "context", None) if body else None
+    if not conversation_id or not message_id:
+        raise HTTPException(status_code=422, detail="conversationId and messageId are required.")
+
+    cfg = _config()
+    genie_status = genie_service.provider_status(cfg)
+    unavailable = lambda note: _wrap(  # noqa: E731
+        {
+            "question": question, "intent": "unavailable", "answer": "", "recommendations": [],
+            "evidence": [], "suggestedActions": [], "confidence": "unavailable", "provider": "genie",
+            "providerState": genie_status, "warnings": [note],
+        },
+        request, source="databricks-genie", state="unavailable", authoritative=False,
+        capabilities={"provider": "genie", "genie": genie_status},
+    )
+    if not (genie_status.get("provider") == "genie" and genie_status.get("state") == "available"):
+        return unavailable("Atlas AI recommendations require a configured Databricks Genie space.")
+    forwarded_token = _request_obo_token(request)
+    if not forwarded_token:
+        return unavailable("Genie-backed Atlas AI requires the forwarded Databricks user token.")
+
+    try:
+        result = genie_service.poll_genie(
+            config=cfg, conversation_id=conversation_id, message_id=message_id,
+            user_access_token=forwarded_token,
+        )
+    except Exception as exc:
+        return unavailable(f"Atlas AI could not complete the request: {exc.__class__.__name__}: {exc}")
+
+    if not result.get("done"):
+        return _wrap(
+            {
+                "question": question, "intent": "genie-pending", "answer": "", "recommendations": [],
+                "evidence": [], "suggestedActions": [], "confidence": "pending", "provider": "genie",
+                "providerState": genie_status, "conversationId": conversation_id, "messageId": message_id,
+                "status": result.get("status", ""), "stage": result.get("stage", "Working"), "warnings": [],
+            },
+            request, source="databricks-genie", state="pending", authoritative=False,
+            capabilities={"provider": "genie", "genieStreaming": True, "spaceId": genie_status.get("spaceId", "")},
+        )
+
+    # COMPLETED: finalize (grounding override + recommendations) and cache the
+    # raw payload so an identical repeat question is instant.
+    raw = result.get("payload") or {}
+    context_preamble = _ai_context_preamble(ai_context)
+    genie_question = f"{context_preamble}{question}" if context_preamble else question
+    try:
+        _ttl_value(_genie_cache_key(genie_status, forwarded_token, genie_question), 120, lambda: raw)
+    except Exception:
+        pass
+    return _finalize_genie_payload(
+        raw, question=question, request=request, ai_context=ai_context, genie_status=genie_status,
+    )
+
+
+def api_atlas_ai_autofill(request: Request, body: AtlasAiAutofill | None = Body(default=None)) -> JSONResponse:
+    """Draft freeform field values (e.g. a glossary definition + domain from a
+    term name) with the generative endpoint. Returns {fields, model, warnings};
+    everything is a draft the user reviews before saving — this never writes."""
+    from atlas.services import ai_generation
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token
+
+    _ensure_live_runtime()
+    kind = _normalize_str(getattr(body, "kind", "")) if body else ""
+    context = getattr(body, "context", None) if body else None
+    if not kind:
+        raise HTTPException(status_code=422, detail="kind is required.")
+
+    cfg = _config()
+    status = ai_generation.provider_status(cfg)
+    unavailable = lambda note: _wrap(  # noqa: E731
+        {"kind": kind, "fields": {}, "model": status.get("endpoint", ""), "warnings": [note]},
+        request, source="databricks-foundation-model", state="unavailable", authoritative=False,
+        capabilities={"provider": "ai-generation", "endpoint": status.get("endpoint", "")},
+    )
+    if status["state"] != "available":
+        return unavailable(status["message"])
+    # Call the serving endpoint with the app's service principal, NOT OBO: the
+    # forwarded user token doesn't carry the `model-serving` scope, and drafting
+    # a definition from a foundation model touches no user-specific governed
+    # data (unlike Genie, which must stay OBO). Fall back to OBO if present.
+    forwarded_token = _request_obo_token(request)
+    try:
+        try:
+            result = ai_generation.generate_fields(config=cfg, kind=kind, context=context or {})
+        except Exception:
+            if not forwarded_token:
+                raise
+            result = ai_generation.generate_fields(
+                config=cfg, kind=kind, context=context or {}, user_access_token=forwarded_token,
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        return unavailable(f"AI autofill is unavailable right now: {exc.__class__.__name__}: {exc}")
+    return _wrap(
+        {"kind": kind, "fields": result.get("fields", {}), "model": result.get("model", ""),
+         "warnings": result.get("warnings", [])},
+        request, source="databricks-foundation-model",
+        state="available" if result.get("fields") else "degraded",
+        authoritative=False,
+        capabilities={"provider": "ai-generation", "endpoint": result.get("model", "")},
+        warnings=result.get("warnings") or None,
+    )
+
+
 def api_atlas_ai_chat(
     request: Request,
     body: AtlasAiQuestion,
@@ -2056,6 +2745,8 @@ def build_atlas_router() -> APIRouter:
 def build_atlas_ai_router() -> APIRouter:
     router = APIRouter(prefix="/api/atlas-ai", tags=["atlas-ai"])
     router.add_api_route("/recommendations", api_atlas_ai_recommendations, methods=["POST"], response_class=JSONResponse)
+    router.add_api_route("/message", api_atlas_ai_message, methods=["POST"], response_class=JSONResponse)
+    router.add_api_route("/autofill", api_atlas_ai_autofill, methods=["POST"], response_class=JSONResponse)
     router.add_api_route("/chat", api_atlas_ai_chat, methods=["POST"], response_class=JSONResponse)
     return router
 
@@ -2074,5 +2765,7 @@ __all__ = [
     "api_audit_evidence",
     "api_admin_control_center",
     "api_atlas_ai_recommendations",
+    "api_atlas_ai_message",
+    "api_atlas_ai_autofill",
     "api_atlas_ai_chat",
 ]

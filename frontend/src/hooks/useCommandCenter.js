@@ -1,6 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchCommandCenter } from "../lib/api";
 import { pollBudgetExhausted, useAtlasQuery } from "./useAtlasQuery";
+
+// Last dashboard payload that carried real backed signal, held at MODULE level
+// so it survives navigating away from the Command Center and back — a
+// per-instance ref was destroyed on unmount, so back-nav re-mounted with no
+// retention and (whenever the serverless SQL warehouse had gone cold) blanked
+// the whole dashboard to "—" until the warm refetch returned. The poll-budget
+// bound below still makes this self-healing, so a genuinely degraded estate
+// can't show phantom values forever.
+let lastBackedCommandCenter = null;
+
+// Test seam: reset the cross-navigation retention between test cases so
+// module-level state never bleeds across them.
+export function __resetCommandCenterRetention() {
+  lastBackedCommandCenter = null;
+}
 
 export const EMPTY_COMMAND_CENTER = {
   estate: {
@@ -120,6 +135,9 @@ export function useCommandCenter(options = {}) {
       }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
+    // Keep the cached dashboard for the whole session so back-nav re-renders it
+    // instantly instead of refetching from an empty state.
+    gcTime: resolvedOptions.gcTime ?? 30 * 60_000,
     poll: COMMAND_CENTER_POLL,
     // Legacy escape hatch: callers that pass an explicit refetchInterval keep
     // it verbatim until their Wave B/C rewrite adopts the poll contract.
@@ -141,17 +159,16 @@ export function useCommandCenter(options = {}) {
   // genuinely-empty/degraded estate can't show phantom old values forever, and
   // an all-zero (backed) estate is treated as real data, never as "warming".
   const freshBacked = commandCenterHasBackedSignal(query.data);
-  const lastBackedRef = useRef(null);
   useEffect(() => {
-    if (freshBacked) lastBackedRef.current = query.data;
+    if (freshBacked) lastBackedCommandCenter = query.data;
   }, [freshBacked, query.data]);
   const pollExhausted = pollBudgetExhausted(
     ["atlas", "command-center", pendingRefresh ? "force" : "cache"],
     COMMAND_CENTER_POLL.maxAttempts,
   );
   const canRetain =
-    !freshBacked && Boolean(lastBackedRef.current) && (query.isFetching || !pollExhausted);
-  const retainedData = freshBacked ? query.data : canRetain ? lastBackedRef.current : query.data;
+    !freshBacked && Boolean(lastBackedCommandCenter) && (query.isFetching || !pollExhausted);
+  const retainedData = freshBacked ? query.data : canRetain ? lastBackedCommandCenter : query.data;
   const servedFromRetention = canRetain && Boolean(query.data);
 
   const usableData = retainedData || seedData || null;

@@ -162,7 +162,10 @@ class AtlasApiTests(unittest.TestCase):
         router = atlas_api.build_atlas_ai_router()
         paths = {route.path for route in router.routes}
         self.assertEqual(
-            {"/api/atlas-ai/recommendations", "/api/atlas-ai/chat"},
+            {
+                "/api/atlas-ai/recommendations", "/api/atlas-ai/message",
+                "/api/atlas-ai/autofill", "/api/atlas-ai/chat",
+            },
             paths,
         )
 
@@ -640,24 +643,57 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
+        started = {
+            "conversationId": "conv-1", "messageId": "msg-1", "status": "SUBMITTED",
+            "stage": "Submitted to Genie", "providerState": genie_payload["providerState"],
+        }
+        # POST no longer blocks — it starts the conversation and returns a
+        # pending handle; the finalized answer comes from the poll endpoint.
         with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload) as ask_genie:
-            response = atlas_api.api_atlas_ai_recommendations(
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+        ), patch.object(atlas_api.genie_service, "start_genie", return_value=started) as start_genie:
+            pending = atlas_api.api_atlas_ai_recommendations(
                 _request({"x-forwarded-access-token": "obo-token-1"}),
                 atlas_api.AtlasAiQuestion(question="Which assets are missing stewardship?"),
             )
+        start_genie.assert_called_once()
+        pending_payload = _response_json(pending)
+        self.assertEqual(pending_payload["intent"], "genie-pending")
+        self.assertEqual(pending_payload["conversationId"], "conv-1")
+        self.assertEqual(pending_payload["meta"]["state"], "pending")
 
-        self.assertEqual(response.status_code, 200)
+        poll_result = {"status": "COMPLETED", "stage": "Done", "done": True, "payload": genie_payload}
+        with patch.multiple(
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: _visible_assets(), _store=lambda: FakeStore(),
+            _uc=lambda: None, _uc_for_request=lambda request: None,
+        ), patch.object(atlas_api.genie_service, "poll_genie", return_value=poll_result) as poll_genie:
+            response = atlas_api.api_atlas_ai_message(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiPoll(conversationId="conv-1", messageId="msg-1",
+                                      question="Which assets are missing stewardship?"),
+            )
+        poll_genie.assert_called_once()
         payload = _response_json(response)
-        ask_genie.assert_called_once()
         self.assertEqual(payload["provider"], "genie")
         self.assertEqual(payload["meta"]["source"], "databricks-genie")
         self.assertEqual(payload["meta"]["state"], "available")
         self.assertEqual(payload["meta"]["capabilities"]["spaceId"], "space-1")
         self.assertTrue(payload["authoritative"])
+
+    def _poll_done(self, config, genie_payload, question):
+        import runtime_app
+
+        poll_result = {"status": "COMPLETED", "stage": "Done", "done": True, "payload": genie_payload}
+        with patch.multiple(
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: _visible_assets(), _store=lambda: FakeStore(),
+            _uc=lambda: None, _uc_for_request=lambda request: None,
+        ), patch.object(atlas_api.genie_service, "poll_genie", return_value=poll_result):
+            return atlas_api.api_atlas_ai_message(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiPoll(conversationId="c", messageId="m", question=question),
+            )
 
     def test_atlas_ai_derives_actions_from_genie_query_rows(self) -> None:
         import runtime_app
@@ -698,16 +734,7 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
-        with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload):
-            response = atlas_api.api_atlas_ai_recommendations(
-                _request({"x-forwarded-access-token": "obo-token-1"}),
-                atlas_api.AtlasAiQuestion(question="Recommend priority governance work"),
-            )
-
+        response = self._poll_done(config, genie_payload, "Recommend priority governance work")
         payload = _response_json(response)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["provider"], "genie")
@@ -742,23 +769,11 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
-        with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(
-            atlas_api.genie_service,
-            "ask_genie",
-            return_value=genie_payload,
-        ), patch.object(
-            atlas_api.atlas_metrics,
-            "build_ai_recommendations",
+        with patch.object(
+            atlas_api.atlas_metrics, "build_ai_recommendations",
             return_value={"recommendations": [{"title": "Local fallback"}]},
         ) as build_local:
-            response = atlas_api.api_atlas_ai_recommendations(
-                _request({"x-forwarded-access-token": "obo-token-1"}),
-                atlas_api.AtlasAiQuestion(question="Recommend priority governance work"),
-            )
+            response = self._poll_done(config, genie_payload, "Recommend priority governance work")
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
@@ -849,11 +864,17 @@ class AtlasApiTests(unittest.TestCase):
             "warnings": [],
         }
 
+        started = {
+            "conversationId": "c", "messageId": "m", "status": "SUBMITTED",
+            "stage": "Submitted to Genie", "providerState": genie_payload["providerState"],
+        }
+        # _visible_assets=None so the ownership/scoped/estate grounders decline
+        # and the question reaches Genie — the augmented prompt now goes to
+        # start_genie (the non-blocking start), not the removed blocking call.
         with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _config=lambda: config,
-        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload) as ask_genie:
+            runtime_app, _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: None, _uc=lambda: None, _uc_for_request=lambda request: None,
+        ), patch.object(atlas_api.genie_service, "start_genie", return_value=started) as start_genie:
             response = atlas_api.api_atlas_ai_recommendations(
                 _request({"x-forwarded-access-token": "obo-token-1"}),
                 atlas_api.AtlasAiQuestion(
@@ -865,11 +886,341 @@ class AtlasApiTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 200)
-        prompt = ask_genie.call_args.kwargs["question"]
+        prompt = start_genie.call_args.kwargs["question"]
         self.assertIn("finance_prod.curated.revenue_daily", prompt)
         self.assertIn("this asset", prompt.lower())
         # The user-facing question is preserved, not the augmented prompt.
         self.assertEqual(_response_json(response)["question"], "Who owns this asset?")
+
+    # --- Ownership grounding (fix #1 + #2) -------------------------------
+
+    @staticmethod
+    def _ownership_frame() -> pd.DataFrame:
+        # Finance: 3 assets, 2 ownerless (charges_raw has a UC owner but no
+        # governance owner; orders_raw has neither); Customer: 1 owned.
+        # Global: 4 assets total, 2 ownerless.
+        return pd.DataFrame(
+            [
+                {"fqn": "finance_prod.bronze.charges_raw", "domain": "Finance",
+                 "uc_owner": "skyler@entrada.ai"},
+                {"fqn": "finance_prod.bronze.orders_raw", "domain": "Finance"},
+                {"fqn": "finance_prod.gold.revenue_recognition", "domain": "Finance",
+                 "business_owner": "cfo@entrada.ai"},
+                {"fqn": "main.customer.customer_dim", "domain": "Customer",
+                 "business_owner": "skyler@entrada.ai"},
+            ]
+        )
+
+    @staticmethod
+    def _scoped_frame() -> pd.DataFrame:
+        return pd.DataFrame([
+            {"fqn": "finance_prod.gold.a", "domain": "Finance", "tier": "Tier 1",
+             "sensitivity": "PII", "certification": "Certified", "criticality": "Critical"},
+            {"fqn": "finance_prod.gold.b", "domain": "Finance", "tier": "Tier 1",
+             "certification": "Draft", "criticality": "Critical"},
+            {"fqn": "main.customer.c", "domain": "Customer", "tier": "Tier 2",
+             "sensitivity": "PII", "certification": "Certified"},
+        ])
+
+    def _ask_with_frame(self, question, frame, context=None):
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="local", genie_space_id="", genie_space_title="",
+            atlas_ai_require_benchmark=False, workspace_host="https://example.cloud.databricks.com",
+        )
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: frame, _store=lambda: FakeStore(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ), patch.object(atlas_api.genie_service, "ask_genie") as ask_genie:
+            kwargs = {"question": question}
+            if context is not None:
+                kwargs["context"] = context
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo"}),
+                atlas_api.AtlasAiQuestion(**kwargs),
+            )
+        return _response_json(response), ask_genie
+
+    def test_scoped_count_certified_in_domain(self) -> None:
+        # "how many certified assets in Finance?" → 1 (a is Certified; b is Draft).
+        payload, ask_genie = self._ask_with_frame(
+            "How many certified assets in the Finance domain?", self._scoped_frame())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertIn("1", payload["answer"])
+        self.assertIn("certified", payload["answer"].lower())
+        self.assertIn("Finance", payload["answer"])
+        self.assertEqual(payload["evidence"][0]["metric"], "scopedAssetCount")
+        ask_genie.assert_not_called()
+
+    def test_scoped_count_by_tier_value(self) -> None:
+        payload, _ = self._ask_with_frame("How many assets are in the Tier 1 tier?", self._scoped_frame())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertIn("2", payload["answer"])  # a + b
+        self.assertIn("Tier 1", payload["answer"])
+
+    def test_scoped_count_by_sensitivity_value(self) -> None:
+        payload, _ = self._ask_with_frame("How many PII assets do we have?", self._scoped_frame())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        self.assertIn("2", payload["answer"])  # a + c
+        self.assertIn("PII", payload["answer"])
+
+    def test_global_certified_count_stays_estate_not_scoped(self) -> None:
+        # No subset scope → estate metric (certifiedAssets), NOT scoped-count.
+        payload, _ = self._ask_with_frame("How many certified assets are there?", self._scoped_frame())
+        self.assertEqual(payload["evidence"][0]["metric"], "certifiedAssets")
+
+    def test_scoped_count_uncertified_phrasings_not_inverted(self) -> None:
+        # Review F1: negation/pending phrasings must count UNCERTIFIED (1), never
+        # fall through to the certified count. Answer must say "uncertified".
+        for q in (
+            "How many not yet certified assets in the Finance domain?",
+            "How many Finance domain assets need certification?",
+            "How many pending certification assets in the Finance domain?",
+            "How many decertified assets in the Finance domain?",
+        ):
+            payload, _ = self._ask_with_frame(q, self._scoped_frame())
+            self.assertIn("uncertified", payload["answer"].lower(), q)
+            self.assertIn("1", payload["answer"], q)
+
+    def test_scoped_count_criticality_word_does_not_filter_critical(self) -> None:
+        # Review F3: "critically"/"criticality" must NOT set the is_critical
+        # filter (word-boundary). The answer must not claim "business-critical".
+        payload, _ = self._ask_with_frame(
+            "How many critically important assets in the Finance domain?", self._scoped_frame())
+        self.assertNotIn("business-critical", payload["answer"].lower())
+
+    def test_compound_owner_facet_question_declines(self) -> None:
+        # Review F4: "certified assets without an owner in Finance" must NOT be
+        # answered as a plain ownerless count (which drops "certified"). With
+        # Genie unconfigured it declines — key: not a governed-grounding answer.
+        payload, _ = self._ask_with_frame(
+            "How many certified assets without an owner in the Finance domain?", self._scoped_frame())
+        self.assertNotEqual(payload.get("intent"), "governed-grounding")
+
+    def test_unmappable_classification_declines_not_dropped(self) -> None:
+        # Live-caught: the estate tags Confidential/Restricted, not "PII". A PII
+        # question must NOT return the estate total (no-domain) or drop PII and
+        # count all domain assets — it must decline to Genie.
+        frame = pd.DataFrame([
+            {"fqn": "a", "domain": "Finance", "sensitivity": "Confidential"},
+            {"fqn": "b", "domain": "Finance", "sensitivity": "Restricted"},
+            {"fqn": "c", "domain": "Customer", "sensitivity": "Confidential"},
+        ])
+        for q in ("How many PII assets do we have?", "How many PII assets in the Finance domain?"):
+            payload, _ = self._ask_with_frame(q, frame)
+            self.assertNotEqual(payload.get("intent"), "governed-grounding", q)
+
+    def test_real_sensitivity_value_still_grounds(self) -> None:
+        # A sensitivity value that DOES exist still grounds (Confidential → 2).
+        frame = pd.DataFrame([
+            {"fqn": "a", "domain": "Finance", "sensitivity": "Confidential"},
+            {"fqn": "b", "domain": "Finance", "sensitivity": "Restricted"},
+            {"fqn": "c", "domain": "Customer", "sensitivity": "Confidential"},
+        ])
+        payload, _ = self._ask_with_frame("How many Confidential assets are there?", frame)
+        self.assertEqual(payload["evidence"][0]["metric"], "scopedAssetCount")
+        self.assertIn("2", payload["answer"])
+
+    def test_common_sensitivity_word_does_not_false_trigger(self) -> None:
+        # Review F2: a question that merely contains "internal" must not be
+        # answered as an Internal-sensitivity subset stamped canonical.
+        frame = pd.DataFrame([
+            {"fqn": "a", "domain": "Ops", "sensitivity": "Internal"},
+            {"fqn": "b", "domain": "Ops", "sensitivity": "Confidential"},
+        ])
+        payload, _ = self._ask_with_frame("How many assets are for internal use?", frame)
+        self.assertNotEqual(payload.get("evidence", [{}])[0].get("metric"), "scopedAssetCount")
+
+    def _ask_grounded(self, question, context=None):
+        """Call the endpoint with ownership grounding active (Genie unconfigured
+        is fine — grounding short-circuits before the Genie branch)."""
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="local", genie_space_id="", genie_space_title="",
+            atlas_ai_require_benchmark=False, workspace_host="https://example.cloud.databricks.com",
+        )
+        frame = self._ownership_frame()
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+            _visible_assets=lambda request: frame,
+            _store=lambda: FakeStore(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ), patch.object(atlas_api.genie_service, "ask_genie") as ask_genie:
+            kwargs = {"question": question}
+            if context is not None:
+                kwargs["context"] = context
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo"}),
+                atlas_api.AtlasAiQuestion(**kwargs),
+            )
+        return _response_json(response), ask_genie
+
+    def test_domain_scoped_ownerless_count_not_global_total(self) -> None:
+        # Fix #1 + #2: must answer "2 of 3 Finance" — NOT the global total (4)
+        # stamped canonical, which was the confidently-wrong behaviour.
+        payload, ask_genie = self._ask_grounded(
+            "How many assets in the Finance domain do not have an owner?"
+        )
+        self.assertIn("2", payload["answer"])
+        self.assertIn("Finance", payload["answer"])
+        self.assertNotIn("estate", payload["answer"].lower())
+        self.assertEqual(payload["confidence"], "canonical-grounded")
+        self.assertEqual(payload["intent"], "governed-grounding")
+        ask_genie.assert_not_called()
+
+    def test_domain_superlative_ownerless_matches_dashboard(self) -> None:
+        # Fix #2: "which domain has the most assets without an owner?" must name
+        # Finance (2), not drift to a different domain via Genie.
+        payload, ask_genie = self._ask_grounded(
+            "Which domain has the most assets without an owner?"
+        )
+        self.assertIn("Finance", payload["answer"])
+        self.assertIn("2", payload["answer"])
+        self.assertEqual(payload["intent"], "governed-grounding")
+        ask_genie.assert_not_called()
+
+    def test_per_asset_ownership_reports_uc_owner_and_governance_gap(self) -> None:
+        # Fix #2: an asset with a UC owner but no governance owner must report
+        # BOTH — the AI said "no owner" before while the asset page showed the
+        # UC owner (the app-contradiction defect).
+        payload, ask_genie = self._ask_grounded(
+            "Who owns this asset?",
+            context=atlas_api.AtlasAiContext(surface="assets", assetFqn="finance_prod.bronze.charges_raw"),
+        )
+        self.assertIn("skyler@entrada.ai", payload["answer"])
+        self.assertIn("no assigned governance owner", payload["answer"].lower())
+        self.assertEqual(payload["intent"], "governed-grounding")
+        ask_genie.assert_not_called()
+
+    def test_global_ownerless_count_is_not_total_assets(self) -> None:
+        # Fix #1: "how many assets have no owner?" used to return totalAssets (4);
+        # must return the ownerless count (2).
+        payload, ask_genie = self._ask_grounded("How many assets have no owner?")
+        self.assertIn("2", payload["answer"])
+        self.assertNotIn("4 ", payload["answer"])  # not the total-asset count
+        ask_genie.assert_not_called()
+
+    def test_page_scope_resolves_here_to_filtered_domain(self) -> None:
+        # Fix #3: "how many assets here lack an owner?" while filtered to the
+        # Finance domain must resolve "here" to Finance (2), not the estate.
+        payload, ask_genie = self._ask_grounded(
+            "How many assets here do not have an owner?",
+            context=atlas_api.AtlasAiContext(surface="discovery", scope={"domain": ["Finance"]}),
+        )
+        self.assertIn("2", payload["answer"])
+        self.assertIn("Finance", payload["answer"])
+        ask_genie.assert_not_called()
+
+    def test_steward_phrased_gap_not_global_total(self) -> None:
+        # Review BLOCKER 1: "missing a steward" used to slip the token list and
+        # return the global estate total. Must be grounded on the gap count (2).
+        payload, ask_genie = self._ask_grounded("How many assets are missing a steward?")
+        self.assertIn("2", payload["answer"])
+        self.assertNotIn("4 ", payload["answer"])
+        ask_genie.assert_not_called()
+
+    def test_negation_phrased_gap_not_global_total(self) -> None:
+        # Review F1: "not owned" / "aren't assigned an owner" negation phrasings
+        # used to slip both gates and return the global estate total as canonical.
+        for question in ("How many assets are not owned?", "How many assets aren't assigned an owner?"):
+            payload, ask_genie = self._ask_grounded(question)
+            self.assertIn("2", payload["answer"], question)
+            self.assertNotIn("in the current estate", payload["answer"].lower(), question)
+            ask_genie.assert_not_called()
+
+    def test_technical_owner_only_asset_is_not_ownerless(self) -> None:
+        # Review BLOCKER 2: an asset whose only governance owner is a TECHNICAL
+        # owner must not be reported "no owner" (the dashboard counts it owned).
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="local", genie_space_id="", genie_space_title="",
+            atlas_ai_require_benchmark=False, workspace_host="https://example.cloud.databricks.com",
+        )
+        frame = pd.DataFrame([
+            {"fqn": "main.finance.ledger", "domain": "Finance", "technical_owner": "alice@entrada.ai"},
+        ])
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: frame, _store=lambda: FakeStore(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ), patch.object(atlas_api.genie_service, "ask_genie") as ask_genie:
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo"}),
+                atlas_api.AtlasAiQuestion(
+                    question="Who owns main.finance.ledger?",
+                    context=atlas_api.AtlasAiContext(surface="assets", assetFqn="main.finance.ledger"),
+                ),
+            )
+        payload = _response_json(response)
+        self.assertIn("alice@entrada.ai", payload["answer"])
+        self.assertNotIn("no owner is recorded", payload["answer"].lower())
+        ask_genie.assert_not_called()
+
+    def test_tier_scoped_question_declines_estate_grounding(self) -> None:
+        # Review BLOCKER 3: a tier-scoped question must NOT return the estate
+        # total stamped canonical. With Genie unconfigured it declines to the
+        # unavailable path — the key is it is NOT governed-grounding here.
+        payload, _ = self._ask_grounded("How many assets are in the Gold tier?")
+        self.assertNotEqual(payload.get("intent"), "governed-grounding")
+
+    def test_superlative_tie_break_matches_dashboard_name_ascending(self) -> None:
+        # Review Issue 5: on an ownerless tie, "most" must pick the same domain
+        # the dashboard's top stewardship card does (name ascending), i.e. Alpha.
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="local", genie_space_id="", genie_space_title="",
+            atlas_ai_require_benchmark=False, workspace_host="https://example.cloud.databricks.com",
+        )
+        frame = pd.DataFrame([
+            {"fqn": "z.a.one", "domain": "Zeta"},
+            {"fqn": "z.a.two", "domain": "Zeta"},
+            {"fqn": "a.a.one", "domain": "Alpha"},
+            {"fqn": "a.a.two", "domain": "Alpha"},
+        ])
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None, _config=lambda: config,
+            _visible_assets=lambda request: frame, _store=lambda: FakeStore(),
+            _store_for_read=lambda request=None: FakeStore(),
+        ):
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({}),
+                atlas_api.AtlasAiQuestion(question="Which domain has the most assets without an owner?"),
+            )
+        answer = _response_json(response)["answer"]
+        self.assertIn("Alpha", answer.split(".")[0])  # named as the top domain
+
+    def test_collection_question_on_asset_page_not_answered_about_current_asset(self) -> None:
+        # Review Issue 4: "who owns our most critical tables?" on an asset page
+        # must not be hijacked into a single-asset answer.
+        payload, _ = self._ask_grounded(
+            "Who owns our most critical tables?",
+            context=atlas_api.AtlasAiContext(surface="assets", assetFqn="finance_prod.bronze.charges_raw"),
+        )
+        self.assertNotIn("charges_raw", payload["answer"])
+
+    def test_overlong_scope_value_does_not_reject_request(self) -> None:
+        # Review Issue 7: a >128-char scope value must be truncated, not 422.
+        ctx = atlas_api.AtlasAiContext(surface="discovery", scope={"query": "x" * 400})
+        self.assertLessEqual(len(ctx.scope["query"]), 128)
+
+    def test_scope_summary_and_preamble(self) -> None:
+        # The active facet scope reaches the Genie prompt preamble.
+        ctx = atlas_api.AtlasAiContext(
+            surface="discovery", scope={"domain": ["Finance"], "owner": "__unassigned__"}
+        )
+        preamble = atlas_api._ai_context_preamble(ctx)
+        self.assertIn("domain Finance", preamble)
+        self.assertIn("owner unassigned", preamble)
 
 
 def _age_cache_prefix(prefix: str, seconds: float = 3600) -> None:

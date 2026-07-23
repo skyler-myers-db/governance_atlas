@@ -876,7 +876,8 @@
   padding-right: 4px;
 }
 
-.ga-home-riskmap-row span {
+.ga-home-riskmap-row span,
+.ga-home-riskmap-row a[role="cell"] {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -887,22 +888,59 @@
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  text-decoration: none;
 }
 
-.ga-home-riskmap-row span.tone-critical {
+/* [role="cell"] in the selector so these out-specify the base
+   `.ga-home-riskmap-row a[role="cell"]` rule (0,2,1) — otherwise a populated
+   (colored) cell, which is now an <a>, loses its tone to the muted base. */
+.ga-home-riskmap-row [role="cell"].tone-critical {
   background: color-mix(in srgb, var(--ga-danger) 55%, transparent);
 }
 
-.ga-home-riskmap-row span.tone-high {
+.ga-home-riskmap-row [role="cell"].tone-high {
   background: color-mix(in srgb, var(--ga-danger) 32%, transparent);
 }
 
-.ga-home-riskmap-row span.tone-medium {
+.ga-home-riskmap-row [role="cell"].tone-medium {
   background: color-mix(in srgb, var(--ga-warning) 32%, transparent);
 }
 
-.ga-home-riskmap-row span.tone-low {
+.ga-home-riskmap-row [role="cell"].tone-low {
   background: color-mix(in srgb, var(--ga-light-blue) 26%, transparent);
+}
+
+/* Clickable cells (a populated cell drills into Discovery): a subtle ring on
+   hover/focus signals "this number is a link" without recolouring the tone. */
+.ga-home-riskmap-row a[role="cell"].is-link {
+  cursor: pointer;
+  transition: box-shadow 120ms ease, outline-color 120ms ease;
+}
+
+.ga-home-riskmap-row a[role="cell"].is-link:hover,
+.ga-home-riskmap-row a[role="cell"].is-link:focus-visible {
+  outline: 1.5px solid var(--ga-bright-blue);
+  outline-offset: -1.5px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ga-bright-blue) 22%, transparent);
+}
+
+/* Impact runs down the rows; a rotated caption anchors the y-axis. */
+.ga-home-riskmap-frame {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+}
+
+.ga-home-riskmap-yaxis {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  align-self: center;
+  color: var(--ga-text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .ga-home-riskmap-axis {
@@ -921,6 +959,58 @@
 
 .ga-home-riskmap-axis span:first-child {
   grid-column: 2;
+}
+
+.ga-home-riskmap-xaxis {
+  margin: 2px 0 0;
+  padding-left: 80px;
+  color: var(--ga-text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Colour key for the severity ramp (the map had no legend). */
+.ga-home-riskmap-legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.ga-home-riskmap-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ga-text-muted);
+  font-size: 10.5px;
+}
+
+.ga-home-riskmap-legend i {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--ga-radius-xs);
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface-muted);
+}
+
+.ga-home-riskmap-legend i.tone-critical {
+  background: color-mix(in srgb, var(--ga-danger) 55%, transparent);
+}
+
+.ga-home-riskmap-legend i.tone-high {
+  background: color-mix(in srgb, var(--ga-danger) 32%, transparent);
+}
+
+.ga-home-riskmap-legend i.tone-medium {
+  background: color-mix(in srgb, var(--ga-warning) 32%, transparent);
+}
+
+.ga-home-riskmap-legend i.tone-low {
+  background: color-mix(in srgb, var(--ga-light-blue) 26%, transparent);
 }
 
 /* Coverage matrix */
@@ -981,6 +1071,14 @@
   background: color-mix(in srgb, var(--ga-bright-blue) 14%, transparent);
 }
 
+/* 0% coverage is a real gap, not a broken cell — render it as a visible
+   "needs attention" state (faint dashed danger tint) so a fully-uncovered
+   dimension like Ownership reads intentionally instead of as an empty blank. */
+.ga-home-matrix-row span[role="cell"].tone-empty {
+  background: color-mix(in srgb, var(--ga-danger) 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--ga-danger) 38%, transparent);
+}
+
 .ga-home-matrix-scale {
   display: flex;
   align-items: center;
@@ -1017,11 +1115,22 @@
   font-size: 13px;
 }
 
-.ga-home-tier-row span {
+.ga-home-tier-row span,
+.ga-home-tier-row .ga-home-tier-rowlink {
   color: var(--ga-text-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ga-home-tier-row .ga-home-tier-rowlink {
+  text-decoration: none;
+}
+
+.ga-home-tier-row .ga-home-tier-rowlink:hover,
+.ga-home-tier-row .ga-home-tier-rowlink:focus-visible {
+  color: var(--ga-bright-blue);
+  text-decoration: underline;
 }
 
 .ga-home-tier-row i {
@@ -1088,6 +1197,21 @@
   /* Long asset FQNs (datapact.enterprise_metadata_ops.…) must break inside the
      card, never overflow into the neighbour card. */
   overflow-wrap: anywhere;
+}
+
+/* Action verb so the card announces where its click leads (Assign owners,
+   Review & certify, …) instead of reading as an inert blurb. */
+.ga-home-rec-action {
+  margin-top: 2px;
+  align-self: flex-start;
+  color: var(--ga-bright-blue);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ga-home-rec:hover .ga-home-rec-action,
+.ga-home-rec:focus-visible .ga-home-rec-action {
+  text-decoration: underline;
 }
 
 .ga-home-rec-list > li {

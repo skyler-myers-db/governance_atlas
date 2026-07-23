@@ -337,30 +337,54 @@ def _status_value(raw: Any) -> str:
     return str(value or "").strip().upper()
 
 
-def ask_genie(
-    *,
-    config: AppConfig,
-    question: str,
-    client: Any | None = None,
-    user_access_token: str = "",
-) -> Dict[str, Any]:
-    prompt = normalize_str(question)
-    if not prompt:
-        raise ValueError("Question is required.")
-    status = provider_status(config)
-    if status.get("state") != "available":
-        raise RuntimeError(status.get("message") or "Genie is not configured.")
-    w = client or _workspace_client(config, user_access_token=user_access_token)
-    message = w.genie.start_conversation_and_wait(
-        space_id=status["spaceId"],
-        content=prompt,
-    )
+# Genie MessageStatus (databricks.sdk …dashboards.MessageStatus) → a short,
+# user-facing progress label. These are the REAL pipeline stages, so the dock
+# can show what Genie is actually doing instead of a canned animation.
+_GENIE_STAGE_LABELS = {
+    "SUBMITTED": "Submitted to Genie",
+    "FETCHING_METADATA": "Reading governed metadata",
+    "FILTERING_CONTEXT": "Selecting relevant tables",
+    "ASKING_AI": "Generating the SQL query",
+    "PENDING_WAREHOUSE": "Waiting for the SQL warehouse",
+    "EXECUTING_QUERY": "Running the query",
+    "COMPLETED": "Done",
+    "FAILED": "Failed",
+    "CANCELLED": "Cancelled",
+    "QUERY_RESULT_EXPIRED": "Query result expired",
+}
+# _finalize_message ACCEPTS these (the blocking waiter can hand back a message
+# in EXECUTING_QUERY once results are ready)…
+_GENIE_DONE_STATES = {"COMPLETED", "EXECUTING_QUERY"}
+# …but POLLING must terminate only on COMPLETED — stopping at EXECUTING_QUERY
+# would finalize before the NL answer + result rows exist (review B1).
+_GENIE_POLL_DONE_STATES = {"COMPLETED"}
+_GENIE_FAIL_STATES = {"FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"}
+
+
+def _safe_getattr(obj: Any, name: str) -> Any:
+    """getattr that also swallows KeyError — the SDK's Wait.__getattr__ raises
+    KeyError (not AttributeError) for keys outside its bind dict, which a plain
+    getattr(..., default) does NOT catch."""
+    try:
+        return getattr(obj, name, None)
+    except Exception:
+        return None
+
+
+def genie_stage_label(status: str) -> str:
+    return _GENIE_STAGE_LABELS.get(_status_value(status), "Working")
+
+
+def _finalize_message(w: Any, message: Any, *, prompt: str, status: Dict[str, Any]) -> Dict[str, Any]:
+    """Turn a COMPLETED Genie message into the Atlas AI payload. Shared by the
+    blocking ask_genie() and the non-blocking poll_genie() so both post-process
+    (answer/evidence/conflict handling) identically."""
     message_status = _status_value(_obj_get(message, "status"))
     error = _obj_get(message, "error")
     if error:
         error_payload = _as_dict(error)
         raise RuntimeError(json.dumps(error_payload, sort_keys=True) if error_payload else str(error))
-    if message_status and message_status not in {"COMPLETED", "EXECUTING_QUERY"}:
+    if message_status and message_status not in _GENIE_DONE_STATES:
         raise RuntimeError(f"Genie message did not complete successfully: {message_status}")
     attachments = _attachment_records(message)
     answer = _text_from_attachments(attachments)
@@ -389,3 +413,114 @@ def ask_genie(
         "attachments": attachments,
         "warnings": warnings if evidence else [*warnings, "Genie returned no query evidence for this answer."],
     }
+
+
+def ask_genie(
+    *,
+    config: AppConfig,
+    question: str,
+    client: Any | None = None,
+    user_access_token: str = "",
+) -> Dict[str, Any]:
+    prompt = normalize_str(question)
+    if not prompt:
+        raise ValueError("Question is required.")
+    status = provider_status(config)
+    if status.get("state") != "available":
+        raise RuntimeError(status.get("message") or "Genie is not configured.")
+    w = client or _workspace_client(config, user_access_token=user_access_token)
+    message = w.genie.start_conversation_and_wait(
+        space_id=status["spaceId"],
+        content=prompt,
+    )
+    return _finalize_message(w, message, prompt=prompt, status=status)
+
+
+def start_genie(
+    *,
+    config: AppConfig,
+    question: str,
+    client: Any | None = None,
+    user_access_token: str = "",
+) -> Dict[str, Any]:
+    """Start a Genie conversation WITHOUT waiting, so the caller can poll for
+    progress. Returns the ids + the initial stage. No answer yet."""
+    prompt = normalize_str(question)
+    if not prompt:
+        raise ValueError("Question is required.")
+    status = provider_status(config)
+    if status.get("state") != "available":
+        raise RuntimeError(status.get("message") or "Genie is not configured.")
+    w = client or _workspace_client(config, user_access_token=user_access_token)
+    started = w.genie.start_conversation(space_id=status["spaceId"], content=prompt)
+    # `start_conversation` returns an SDK Wait whose ids live in a private bind
+    # dict reached via a KeyError-raising __getattr__; its `.response`
+    # (GenieStartConversationResponse) is a real attribute carrying the ids +
+    # the initial message. Read the safe attribute first, fall back defensively.
+    response = _safe_getattr(started, "response")
+    bind = {}
+    bind_fn = _safe_getattr(started, "bind")
+    if callable(bind_fn):
+        try:
+            bind = bind_fn() or {}
+        except Exception:
+            bind = {}
+    conversation_id = normalize_str(
+        _obj_get(response, "conversation_id") or bind.get("conversation_id") or _safe_getattr(started, "conversation_id")
+    )
+    message_id = normalize_str(
+        _obj_get(response, "message_id") or bind.get("message_id") or _safe_getattr(started, "message_id")
+    )
+    initial_message = _obj_get(response, "message")
+    message_status = _status_value(
+        _obj_get(initial_message, "status") or _safe_getattr(started, "status")
+    ) or "SUBMITTED"
+    if not conversation_id or not message_id:
+        raise RuntimeError("Genie start_conversation did not return conversation/message ids.")
+    return {
+        "conversationId": conversation_id,
+        "messageId": message_id,
+        "status": message_status,
+        "stage": genie_stage_label(message_status),
+        "providerState": status,
+    }
+
+
+def poll_genie(
+    *,
+    config: AppConfig,
+    conversation_id: str,
+    message_id: str,
+    client: Any | None = None,
+    user_access_token: str = "",
+) -> Dict[str, Any]:
+    """Poll a running Genie message. Returns {status, stage, done} while
+    in-flight; when COMPLETED, also returns the finalized `payload`."""
+    conversation_id = normalize_str(conversation_id)
+    message_id = normalize_str(message_id)
+    if not conversation_id or not message_id:
+        raise ValueError("conversationId and messageId are required.")
+    status = provider_status(config)
+    if status.get("state") != "available":
+        raise RuntimeError(status.get("message") or "Genie is not configured.")
+    w = client or _workspace_client(config, user_access_token=user_access_token)
+    message = w.genie.get_message(
+        space_id=status["spaceId"], conversation_id=conversation_id, message_id=message_id
+    )
+    message_status = _status_value(_obj_get(message, "status"))
+    if message_status in _GENIE_FAIL_STATES:
+        raise RuntimeError(f"Genie message did not complete successfully: {message_status}")
+    # Poll terminates only on COMPLETED — finalizing at EXECUTING_QUERY would
+    # return before the NL answer + result rows are populated (review B1).
+    done = message_status in _GENIE_POLL_DONE_STATES
+    result: Dict[str, Any] = {
+        "status": message_status,
+        "stage": genie_stage_label(message_status),
+        "done": done,
+    }
+    if done:
+        # Reuse the same prompt echoed back on the message so finalize can
+        # row-back a conflicting answer.
+        prompt = normalize_str(_obj_get(message, "content")) or ""
+        result["payload"] = _finalize_message(w, message, prompt=prompt, status=status)
+    return result

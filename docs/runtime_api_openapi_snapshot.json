@@ -188,6 +188,31 @@
         "title": "AssetTagsPatch",
         "type": "object"
       },
+      "AtlasAiAutofill": {
+        "description": "Body for POST /atlas-ai/autofill \u2014 draft freeform field values from\ncontext (e.g. a glossary term name) using the generative endpoint.",
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "kind": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "AtlasAiAutofill",
+        "type": "object"
+      },
       "AtlasAiContext": {
         "description": "Page-awareness context the dock sends with each question.\n\n``surface`` is the current left-nav surface id; ``assetFqn`` is the asset\nthe user is looking at (route asset or peek drawer). Both feed the Genie\nprompt preamble so \"this asset\" / \"on this page\" questions resolve to the\nconcrete surface the user is on.",
         "properties": {
@@ -197,6 +222,18 @@
             "title": "Assetfqn",
             "type": "string"
           },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
           "surface": {
             "default": "",
             "maxLength": 64,
@@ -205,6 +242,41 @@
           }
         },
         "title": "AtlasAiContext",
+        "type": "object"
+      },
+      "AtlasAiPoll": {
+        "description": "Body for POST /atlas-ai/message \u2014 polls a running Genie conversation for\nits progress stage and, when complete, the finalized answer.",
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AtlasAiContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversationId": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Conversationid",
+            "type": "string"
+          },
+          "messageId": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Messageid",
+            "type": "string"
+          },
+          "question": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "title": "AtlasAiPoll",
         "type": "object"
       },
       "AtlasAiQuestion": {
@@ -1540,6 +1612,53 @@
         ]
       }
     },
+    "/api/atlas-ai/autofill": {
+      "post": {
+        "description": "Draft freeform field values (e.g. a glossary definition + domain from a\nterm name) with the generative endpoint. Returns {fields, model, warnings};\neverything is a draft the user reviews before saving \u2014 this never writes.",
+        "operationId": "api_atlas_ai_autofill_api_atlas_ai_autofill_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AtlasAiAutofill"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Atlas Ai Autofill",
+        "tags": [
+          "atlas-ai"
+        ]
+      }
+    },
     "/api/atlas-ai/chat": {
       "post": {
         "operationId": "api_atlas_ai_chat_api_atlas_ai_chat_post",
@@ -1574,6 +1693,53 @@
           }
         },
         "summary": "Api Atlas Ai Chat",
+        "tags": [
+          "atlas-ai"
+        ]
+      }
+    },
+    "/api/atlas-ai/message": {
+      "post": {
+        "description": "Poll a running Genie conversation started by /atlas-ai/recommendations.\nReturns {intent: \"genie-pending\", stage} while in flight; the finalized\nanswer envelope (identical to the blocking path) once COMPLETED.",
+        "operationId": "api_atlas_ai_message_api_atlas_ai_message_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AtlasAiPoll"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Atlas Ai Message",
         "tags": [
           "atlas-ai"
         ]

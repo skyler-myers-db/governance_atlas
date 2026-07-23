@@ -151,6 +151,65 @@ class DetailStore(FakeStore):
         )
 
 
+class OwnershipGroundingHelpersTests(unittest.TestCase):
+    @staticmethod
+    def _frame() -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {"fqn": "finance_prod.bronze.charges_raw", "domain": "Finance", "uc_owner": "skyler@entrada.ai"},
+                {"fqn": "finance_prod.bronze.orders_raw", "domain": "Finance"},
+                {"fqn": "finance_prod.gold.revenue", "domain": "Finance", "business_owner": "cfo@entrada.ai"},
+                {"fqn": "main.customer.customer_dim", "domain": "Customer", "steward": "dm@entrada.ai"},
+            ]
+        )
+
+    def test_known_domains_distinct_nonempty(self) -> None:
+        domains = atlas_metrics.known_domains(self._frame())
+        self.assertIn("Finance", domains)
+        self.assertIn("Customer", domains)
+
+    def test_ownership_gap_metrics_match_dashboard_predicate(self) -> None:
+        metrics = atlas_metrics.ownership_gap_metrics(visible_assets=self._frame())
+        self.assertEqual(metrics["totalAssets"], 4)
+        self.assertEqual(metrics["totalOwnerless"], 2)
+        self.assertEqual(metrics["byDomain"]["Finance"], {"total": 3, "ownerless": 2})
+        self.assertEqual(metrics["byDomain"]["Customer"], {"total": 1, "ownerless": 0})
+
+    def test_asset_ownership_reports_uc_owner_and_governance_gap(self) -> None:
+        own = atlas_metrics.asset_ownership(visible_assets=self._frame(), fqn="finance_prod.bronze.charges_raw")
+        self.assertTrue(own["found"])
+        self.assertEqual(own["ucOwner"], "skyler@entrada.ai")
+        self.assertEqual(own["businessOwners"], [])
+        self.assertEqual(own["stewards"], [])
+
+    def test_asset_ownership_missing_asset(self) -> None:
+        own = atlas_metrics.asset_ownership(visible_assets=self._frame(), fqn="nope.nope.nope")
+        self.assertFalse(own["found"])
+
+    @staticmethod
+    def _scoped() -> pd.DataFrame:
+        return pd.DataFrame([
+            {"fqn": "a", "domain": "Finance", "tier": "Tier 1", "sensitivity": "PII", "certification": "Certified", "criticality": "Critical"},
+            {"fqn": "b", "domain": "Finance", "tier": "Tier 1", "certification": "Draft", "criticality": "Critical"},
+            {"fqn": "c", "domain": "Customer", "tier": "Tier 2", "sensitivity": "PII", "certification": "Certified"},
+        ])
+
+    def test_known_facet_values(self) -> None:
+        facets = atlas_metrics.known_facet_values(self._scoped())
+        self.assertIn("Finance", facets["domains"])
+        self.assertIn("Tier 1", facets["tiers"])
+        self.assertIn("PII", facets["sensitivities"])
+
+    def test_scoped_asset_count_predicates(self) -> None:
+        df = self._scoped()
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, domains=["Finance"], certified=True), 1)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, domains=["Finance"], certified=False), 1)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, tiers=["Tier 1"]), 2)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, sensitivities=["PII"]), 2)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df, domains=["Finance"], critical=True), 2)
+        self.assertEqual(atlas_metrics.scoped_asset_count(visible_assets=df), 3)
+
+
 class AtlasMetricsTests(unittest.TestCase):
     def test_command_center_payload_counts_visible_assets_without_fake_deltas(self) -> None:
         payload = atlas_metrics.command_center_payload(
@@ -1029,6 +1088,19 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertTrue(
             any(row["label"] == "Tier 1 - Business Critical" for row in payload["certificationCoverageByTier"])
         )
+        # Every risk cell and tier row carries the exact criticality-facet
+        # values that reproduce it, so the UI can link the number to the assets
+        # behind it (Discovery's criticality facet matches over criticality/tier).
+        for cell in payload["riskHeatmap"]:
+            self.assertIn("filterValues", cell)
+            self.assertTrue(all(isinstance(value, str) and value for value in cell["filterValues"]))
+        for row in payload["certificationCoverageByTier"]:
+            self.assertIn("filterValues", row)
+            self.assertTrue(all(isinstance(value, str) and value for value in row["filterValues"]))
+        tier1 = next(
+            row for row in payload["certificationCoverageByTier"] if row["label"] == "Tier 1 - Business Critical"
+        )
+        self.assertTrue(tier1["filterValues"], "Tier 1 row must expose facet values to drill into")
 
     def test_insights_quality_availability_tracks_score_not_raw_rows(self) -> None:
         # Intended behavior changed: insights_dashboard_payload now derives

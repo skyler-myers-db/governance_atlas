@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAdminControlCenter,
   fetchAtlasAiRecommendations,
+  fetchAiAutofill,
   fetchAssetDetail,
   fetchCdeDashboard,
   fetchCdeDetail,
@@ -191,6 +192,67 @@ describe("governance API normalization", () => {
       total: 0,
       nonAuthoritative: true,
     });
+  });
+
+  it("forwards page context (surface, assetFqn, active-filter scope) into the request body", async () => {
+    stubJsonResponse({ answer: "ok", authoritative: true, evidence: [] });
+    await fetchAtlasAiRecommendations("how many assets here lack an owner?", {
+      context: { surface: "discovery", assetFqn: "", scope: { domain: ["Finance"], owner: "__unassigned__" } },
+    });
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.context.surface).toBe("discovery");
+    expect(body.context.scope).toEqual({ domain: ["Finance"], owner: "__unassigned__" });
+    // An unfiltered call sends no context object at all.
+    stubJsonResponse({ answer: "ok", authoritative: true, evidence: [] });
+    await fetchAtlasAiRecommendations("hello");
+    expect(JSON.parse(fetch.mock.calls[0][1].body).context).toBeUndefined();
+  });
+
+  it("fetchAiAutofill posts kind+context and returns drafted fields", async () => {
+    stubJsonResponse({ kind: "glossaryTerm", fields: { definition: "A drafted definition.", domain: "Finance" }, model: "databricks-claude-opus-4-8", warnings: [] });
+    const result = await fetchAiAutofill("glossaryTerm", { termName: "Net Revenue" });
+    expect(result.fields).toEqual({ definition: "A drafted definition.", domain: "Finance" });
+    expect(result.model).toBe("databricks-claude-opus-4-8");
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.kind).toBe("glossaryTerm");
+    expect(body.context.termName).toBe("Net Revenue");
+  });
+
+  it("polls Genie for progress stages and returns the final answer", async () => {
+    // POST → pending; poll → pending (new stage); poll → final answer.
+    const responses = [
+      { intent: "genie-pending", conversationId: "c1", messageId: "m1", stage: "Submitted to Genie" },
+      { intent: "genie-pending", conversationId: "c1", messageId: "m1", stage: "Selecting relevant tables" },
+      { intent: "genie", answer: "Finance has 16 certified assets.", authoritative: true, evidence: [{}] },
+    ];
+    let idx = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => {
+        const payload = responses[Math.min(idx, responses.length - 1)];
+        idx += 1;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+          json: async () => payload,
+          text: async () => JSON.stringify(payload),
+        });
+      }),
+    );
+
+    const stages = [];
+    const result = await fetchAtlasAiRecommendations("How many certified assets in Finance?", {
+      pollIntervalMs: 1,
+      onStage: (stage) => stages.push(stage),
+    });
+
+    expect(result.answer).toBe("Finance has 16 certified assets.");
+    expect(stages).toContain("Submitted to Genie");
+    expect(stages).toContain("Selecting relevant tables");
+    // POST + 2 polls
+    expect(fetch.mock.calls.length).toBe(3);
+    expect(fetch.mock.calls[1][0]).toContain("/atlas-ai/message");
   });
 
   it("returns an unavailable Atlas AI recommendation response for non-authoritative providers", async () => {

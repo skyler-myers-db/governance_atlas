@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAtlasQueryClient } from "../lib/queryClient";
 import { resetPollAttempts } from "./useAtlasQuery";
-import { useCommandCenter } from "./useCommandCenter";
+import { useCommandCenter, __resetCommandCenterRetention } from "./useCommandCenter";
 
 const fetchCommandCenterMock = vi.fn();
 
@@ -25,6 +25,9 @@ describe("useCommandCenter", () => {
     // so one test's poll attempts don't flip another test's retention state.
     resetPollAttempts(["atlas", "command-center", "cache"]);
     resetPollAttempts(["atlas", "command-center", "force"]);
+    // Retention now survives navigation at module scope — reset it between
+    // cases so one test's backed payload doesn't mask another's warming/error.
+    __resetCommandCenterRetention();
   });
 
   it("returns normalized command center data when fetch resolves", async () => {

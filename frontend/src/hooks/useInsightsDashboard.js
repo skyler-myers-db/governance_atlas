@@ -80,6 +80,8 @@ export function useInsightsDashboard(options = {}) {
     fetch: (signal) => fetchInsightsDashboard({ signal }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
+    // Retain the cached Risk & quality band across back-nav for the session.
+    gcTime: resolvedOptions.gcTime ?? 30 * 60_000,
     // Poll while the server envelope is still hydrating (cold rebuild after a
     // deploy/TTL expiry returns 200 + meta.state "loading" with empty KPIs);
     // without this the page sits on the empty envelope for the full

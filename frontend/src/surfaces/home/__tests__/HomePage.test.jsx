@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { atlasQueryClient } from "../../../lib/queryClient";
 import { toast, ToastHost } from "../../../components/system";
 import HomePage from "../HomePage.jsx";
+import { __resetCommandCenterRetention } from "../../../hooks/useCommandCenter";
 
 /* ------------------------------------------------------------------ mocks */
 
@@ -130,8 +131,10 @@ function insightsFixture(overrides = {}) {
       { row: "Sales", column: "Discoverability", value: 90 },
       { row: "Sales", column: "Ownership", value: 70 },
     ],
-    certificationCoverageByTier: [{ label: "Tier 1 - Business Critical", value: 75 }],
-    riskHeatmap: [{ row: "Very High", column: "High", value: 2 }],
+    certificationCoverageByTier: [
+      { label: "Tier 1 - Business Critical", value: 75, certified: 3, total: 4, filterValues: ["Critical"] },
+    ],
+    riskHeatmap: [{ row: "Very High", column: "High", value: 2, filterValues: ["Critical"] }],
     riskEvidenceAt: "2026-05-03T09:00:00Z",
     domainLeaderboard: [],
     recommendations: [
@@ -139,6 +142,13 @@ function insightsFixture(overrides = {}) {
         key: "metadataCoverage",
         title: "Improve Finance metadata coverage",
         detail: "Finance has 55% average metadata coverage across 2 assets.",
+        evidence: [{ type: "domain", id: "Finance", metric: "metadataCoverage", value: 55 }],
+      },
+      {
+        key: "assetsWithoutOwner",
+        title: "Assign stewardship for Finance",
+        detail: "Finance has 17 assets without an owner.",
+        evidence: [{ type: "domain", id: "Finance", metric: "assetsWithoutOwner", value: 17 }],
       },
     ],
     scoring: { maturityFormula: [], availableSignals: [] },
@@ -181,6 +191,7 @@ beforeEach(() => {
   api.fetchCommandCenter.mockReset();
   api.fetchInsightsDashboard.mockReset();
   atlasQueryClient.clear();
+  __resetCommandCenterRetention();
   toast.clear();
 });
 
@@ -325,10 +336,30 @@ describe("Command Center (surfaces/home)", () => {
     const band = screen.getByLabelText("Risk and quality");
     expect(within(band).getByText("Risk heatmap")).toBeTruthy();
     expect(within(band).getByText("Evidence from May 3, 2026 (UTC)")).toBeTruthy();
-    expect(within(band).getByRole("table", { name: "Governance risk heatmap" })).toBeTruthy();
+    expect(
+      within(band).getByRole("table", { name: "Governance risk heatmap: impact by likelihood" }),
+    ).toBeTruthy();
     expect(within(band).getByRole("table", { name: "Metadata coverage by domain" })).toBeTruthy();
     expect(within(band).getByText("Tier 1 - Business Critical")).toBeTruthy();
     expect(within(band).getByText("75%")).toBeTruthy();
+    // Legend decodes the colour ramp (was an unlabelled grid before).
+    expect(within(band).getByLabelText("Severity colour key")).toBeTruthy();
+  });
+
+  it("links risk & quality tiles to the assets behind the numbers", async () => {
+    primeHappyPath();
+    renderPage();
+    await settled();
+
+    const band = screen.getByLabelText("Risk and quality");
+    // Populated risk cell drills into Discovery scoped to the impact's
+    // criticality facet (reproduces the counted assets, no empty page).
+    const riskCell = within(band).getByRole("cell", { name: /Open Very High-impact assets/i });
+    expect(riskCell.getAttribute("href")).toContain("/discovery");
+    expect(riskCell.getAttribute("href")).toContain("criticality=Critical");
+    // Cert tier row is a real drill into its assets.
+    const tierLink = within(band).getByRole("link", { name: /Open Tier 1 - Business Critical assets/i });
+    expect(tierLink.getAttribute("href")).toContain("criticality=Critical");
   });
 
   it("renders evidence-backed recommendations as cards and nothing when there are none", async () => {
@@ -336,6 +367,20 @@ describe("Command Center (surfaces/home)", () => {
     renderPage();
     await settled();
     expect(screen.getByText("Improve Finance metadata coverage").closest("a")).toBeTruthy();
+  });
+
+  it("routes an assign-stewardship recommendation to that domain's ownerless assets", async () => {
+    primeHappyPath();
+    renderPage();
+    await settled();
+    // The recommended ACTION is "assign an owner" — the link must land on the
+    // ownerless assets to assign, not the bare Discovery list or work queue.
+    const rec = screen.getByText("Assign stewardship for Finance").closest("a");
+    expect(rec).toBeTruthy();
+    const href = rec.getAttribute("href");
+    expect(href).toContain("domain=Finance");
+    expect(href).toContain("owner=__unassigned__");
+    expect(within(rec).getByText(/Assign owners/i)).toBeTruthy();
   });
 
   it("renders no recommendation slots at all when none are evidence-backed", async () => {
