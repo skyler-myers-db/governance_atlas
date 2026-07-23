@@ -20,6 +20,7 @@ import { DiagnosticsTab } from "./tabs/DiagnosticsTab";
 import { IntegrationsTab } from "./tabs/IntegrationsTab";
 import { OperationsTab } from "./tabs/OperationsTab";
 import { PolicyTab } from "./tabs/PolicyTab";
+import { RolesTab } from "./tabs/RolesTab";
 
 /*
  * AdminPage — the Control Center surface rebuilt on the system layers
@@ -42,7 +43,7 @@ import { PolicyTab } from "./tabs/PolicyTab";
 
 const ADMIN_PARAMS_SCHEMA = { tab: { type: "string" } };
 
-const TAB_KEYS = ["operations", "integrations", "policy", "diagnostics"];
+const TAB_KEYS = ["operations", "integrations", "policy", "roles", "diagnostics"];
 
 const NON_AUTHORITATIVE_COPY =
   "Non-authoritative Control Center diagnostics were rejected. Live diagnostics are required for populated runtime, integration, and policy rows.";
@@ -147,6 +148,7 @@ export default function AdminPage({ shell = null, bootstrap = null }) {
               { key: "operations", label: "Operations", controls: "ga-admin-panel-operations" },
               { key: "integrations", label: "Integrations", controls: "ga-admin-panel-integrations" },
               { key: "policy", label: "Policy", controls: "ga-admin-panel-policy" },
+              { key: "roles", label: "Roles", controls: "ga-admin-panel-roles" },
               { key: "diagnostics", label: "Diagnostics", controls: "ga-admin-panel-diagnostics" },
             ]}
             value={activeTab}
@@ -167,6 +169,8 @@ export default function AdminPage({ shell = null, bootstrap = null }) {
         <IntegrationsTab hydrating={hydrating} integrations={integrations} />
       ) : activeTab === "policy" ? (
         <PolicyTab hydrating={hydrating} policies={policies} policyCards={policyCards} />
+      ) : activeTab === "roles" ? (
+        <RolesTab />
       ) : activeTab === "diagnostics" ? (
         <DiagnosticsTab bootstrap={bootstrap} canReadAdmin={canReadAdmin} />
       ) : (

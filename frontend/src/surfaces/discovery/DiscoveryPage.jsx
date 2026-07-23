@@ -10,6 +10,8 @@ import {
   toast,
 } from "../../components/system";
 import { useDiscoveryResults } from "../../hooks/useDiscoveryResults";
+import { exportAssets } from "../../lib/api";
+import { exportAvailable, exportReason } from "../../lib/capabilities";
 import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
 import {
   readDiscoveryDensity,
@@ -287,6 +289,36 @@ export function DiscoveryPage({
     () => sortedAssets.slice(0, visibleCount),
     [sortedAssets, visibleCount],
   );
+
+  // G2 — export the current (filtered) result set as a visibility-redacted CSV.
+  // Available only under OBO (bootstrap.capabilities.exportAllowed); the backend
+  // enforces the same actor-scoped contract and caps a sync export at 500.
+  const [exporting, setExporting] = useState(false);
+  const exportEnabled = exportAvailable(bootstrap);
+  const handleExport = async () => {
+    const fqns = sortedAssets.map((asset) => asset?.fqn).filter(Boolean).slice(0, 500);
+    if (!fqns.length || exporting) return;
+    setExporting(true);
+    try {
+      const csv = await exportAssets(fqns);
+      const text = typeof csv === "string" ? csv : "";
+      if (!text.trim()) throw new Error("Export returned no rows.");
+      const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `atlas-assets-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast(`Exported ${fqns.length} asset${fqns.length === 1 ? "" : "s"} to CSV.`, { tone: "success" });
+    } catch (error) {
+      toast(error?.message || "Export failed.", { tone: "danger" });
+    } finally {
+      setExporting(false);
+    }
+  };
   const assetsByFqn = useMemo(() => {
     const map = new Map();
     for (const asset of allAssets) if (asset?.fqn) map.set(asset.fqn, asset);
@@ -716,6 +748,27 @@ export function DiscoveryPage({
         >
           Advanced
         </Button>
+        {exportEnabled ? (
+          <Button
+            disabled={exporting || !sortedAssets.length}
+            loading={exporting}
+            onClick={handleExport}
+            title={`Export the current ${Math.min(sortedAssets.length, 500)} result${sortedAssets.length === 1 ? "" : "s"} as CSV`}
+            variant="secondary"
+          >
+            Export CSV
+          </Button>
+        ) : (
+          <Button
+            aria-disabled="true"
+            className="is-disabled"
+            onClick={() => toast(exportReason(bootstrap), { tone: "warning" })}
+            title={exportReason(bootstrap)}
+            variant="secondary"
+          >
+            Export CSV
+          </Button>
+        )}
       </div>
 
       <FilterBar

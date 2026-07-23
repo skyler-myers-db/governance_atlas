@@ -1208,6 +1208,26 @@ export function updateAdminBranding(payload, options = {}) {
   return requestJson(path, "PUT", payload || {}, options);
 }
 
+// G3 — workspace role assignment (admin only).
+export function fetchAdminRoles(options = {}) {
+  return request("/admin/roles", { signal: options.signal });
+}
+
+export function updateAdminRole(email, role, options = {}) {
+  return requestJson("/admin/roles", "PUT", { email, role }, options);
+}
+
+// G2 — export the current selection as a visibility-redacted CSV. Returns the
+// raw CSV text (the endpoint responds with text/csv under OBO auth).
+export function exportAssets(assetFqns, options = {}) {
+  return requestJson(
+    "/export/assets",
+    "POST",
+    { assetFqns: Array.isArray(assetFqns) ? assetFqns : [] },
+    options,
+  );
+}
+
 export function fetchAdminCoverageDrilldown(options = {}) {
   const params = new URLSearchParams();
   appendList(params, "requiredFields", options.requiredFields);

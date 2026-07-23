@@ -38,6 +38,16 @@ class BrandingPatch(BaseModel):
     orgDisplayName: str = ""
 
 
+class RolePatch(BaseModel):
+    email: str = ""
+    role: str = ""
+
+
+# Roles a workspace admin may assign (G3). Matches the store's role vocabulary
+# (MUTATION_ROLES/APPROVAL_ROLES ⊂ this set); "reader" is the floor.
+ASSIGNABLE_ROLES = ("reader", "writer", "steward", "admin")
+
+
 def _background_status_payload() -> Dict[str, Any]:
     # Lazy import to avoid circular dependency with runtime_app, which
     # mounts this router during its own module-load phase.
@@ -761,5 +771,89 @@ def build_admin_router() -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return JSONResponse({"ok": True, "branding": branding})
+
+    @router.get("/roles")
+    def api_admin_roles_get(request: Request) -> JSONResponse:
+        """List every explicitly-assigned workspace role (G3). Admin only."""
+        from runtime_app import (
+            _config,
+            _ensure_can_mutate,
+            _ensure_governance_store,
+            _ensure_live_runtime,
+            _store,
+            _user_role_slug,
+        )
+        from atlas.services.assets import normalize_str as _normalize_str
+
+        _ensure_live_runtime()
+        _ensure_can_mutate(request)
+        if _user_role_slug(request) != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required.")
+        _ensure_governance_store()
+        try:
+            roles_df = _store().list_roles()
+        except Exception:
+            roles_df = pd.DataFrame()
+        roles: List[Dict[str, Any]] = []
+        if roles_df is not None and not roles_df.empty:
+            for _, row in roles_df.iterrows():
+                email = _normalize_str(row.get("email")).lower()
+                if not email:
+                    continue
+                roles.append(
+                    {
+                        "email": email,
+                        "role": _normalize_str(row.get("role")).lower() or "reader",
+                        "updatedAt": _normalize_str(row.get("updated_at")),
+                        "updatedBy": _normalize_str(row.get("updated_by")),
+                    }
+                )
+        # Bootstrap admins (from env) are admins even without an explicit row —
+        # surface them so the roster is truthful, not silently missing them.
+        bootstrap_admins = {
+            item.strip().lower() for item in _config().admin_emails if item and item.strip()
+        }
+        known = {entry["email"] for entry in roles}
+        for admin_email in sorted(bootstrap_admins - known):
+            roles.append(
+                {"email": admin_email, "role": "admin", "updatedAt": "", "updatedBy": "bootstrap"}
+            )
+        return JSONResponse(
+            {"ok": True, "roles": roles, "assignableRoles": list(ASSIGNABLE_ROLES)}
+        )
+
+    @router.put("/roles")
+    def api_admin_roles_put(payload: RolePatch, request: Request) -> JSONResponse:
+        """Assign a workspace user a role (G3). Admin only."""
+        from runtime_app import (
+            _ensure_can_mutate,
+            _ensure_governance_store,
+            _ensure_live_runtime,
+            _store,
+            _user_role_slug,
+        )
+        from atlas.services.assets import normalize_str as _normalize_str
+
+        _ensure_live_runtime()
+        actor_email = _ensure_can_mutate(request)
+        if _user_role_slug(request) != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required.")
+        email = _normalize_str(payload.email).lower()
+        role = _normalize_str(payload.role).lower()
+        if not email or "@" not in email:
+            raise HTTPException(status_code=400, detail="A valid user email is required.")
+        if role not in ASSIGNABLE_ROLES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Role must be one of: {', '.join(ASSIGNABLE_ROLES)}.",
+            )
+        _ensure_governance_store()
+        try:
+            _store().upsert_role(email=email, role=role, updated_by=actor_email)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502, detail=f"Could not assign the role: {exc.__class__.__name__}: {exc}"
+            ) from exc
+        return JSONResponse({"ok": True, "email": email, "role": role})
 
     return router

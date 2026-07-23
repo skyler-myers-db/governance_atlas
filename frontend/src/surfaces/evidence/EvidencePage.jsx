@@ -4,6 +4,7 @@ import { PageShell, TabStrip } from "../../components/system";
 import { useSurfaceParams } from "../../nav/useSurfaceParams";
 import { EventsTab } from "./EventsTab.jsx";
 import { QualityTab } from "./QualityTab.jsx";
+import { ClassificationQueueTab } from "./ClassificationQueueTab.jsx";
 
 /*
  * surfaces/evidence/EvidencePage.jsx — the unified Evidence surface
@@ -37,11 +38,22 @@ const PARAMS_SCHEMA = {
   outcome: { type: "string" },
   run: { type: "string" },
   finding: { type: "string" },
+  // A9.4 — classification / PII review queue status filter.
+  cstatus: { type: "string" },
 };
 
 export function EvidencePage({ shell = null }) {
   const [params, setParams] = useSurfaceParams(PARAMS_SCHEMA);
-  const tab = params.tab === "quality" ? "quality" : "events";
+  const tab =
+    params.tab === "quality"
+      ? "quality"
+      : params.tab === "classification"
+        ? "classification"
+        : "events";
+  // The /api/classification-recommendations/*/review action is steward/admin
+  // gated; mirror that client-side so a reader shell never sees the decision
+  // buttons (the list itself stays browsable).
+  const canReview = ["steward", "admin"].includes(String(shell?.role || "").toLowerCase());
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -66,20 +78,30 @@ export function EvidencePage({ shell = null }) {
             // Default tab keeps the URL clean; switching tabs drops the other
             // tab's selection params so a stale ?event= never rides into the
             // quality view (and vice versa).
-            set: (key) =>
-              setParams(
-                key === "quality" ? { tab: "quality", event: "" } : { tab: "", finding: "", run: "" },
-              ),
+            set: (key) => {
+              // Switching tabs drops the other tabs' selection params so a
+              // stale ?event=/?finding=/?cstatus= never rides across views.
+              if (key === "quality") {
+                setParams({ tab: "quality", event: "", cstatus: "" });
+              } else if (key === "classification") {
+                setParams({ tab: "classification", event: "", finding: "", run: "" });
+              } else {
+                setParams({ tab: "", finding: "", run: "", cstatus: "" });
+              }
+            },
           }}
           tabs={[
             { key: "events", label: "Audit events" },
             { key: "quality", label: "Quality findings" },
+            { key: "classification", label: "Classification" },
           ]}
         />
       }
     >
       {tab === "quality" ? (
         <QualityTab params={params} setParams={setParams} />
+      ) : tab === "classification" ? (
+        <ClassificationQueueTab params={params} setParams={setParams} canReview={canReview} />
       ) : (
         <EventsTab params={params} setParams={setParams} shell={shell} />
       )}

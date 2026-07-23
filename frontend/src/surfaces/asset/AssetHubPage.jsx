@@ -299,7 +299,7 @@ export function AssetHubPage() {
         <ColumnsTab asset={asset} loading={detail.loading} highlightCol={params.col} />
       ) : null}
       {tab === "quality" ? <QualityTab fqn={fqn} quality={a360.data?.quality || null} /> : null}
-      {tab === "access" ? <AccessTab access={a360.data?.access || null} /> : null}
+      {tab === "access" ? <AccessTab access={a360.data?.access || null} fqn={fqn} /> : null}
       {tab === "activity" ? <ActivityTab a360={a360.data} a360Loading={a360.loading} /> : null}
       {tab === "lineage" ? (
         <LineageTab

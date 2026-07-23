@@ -1,5 +1,8 @@
 import "../asset.css";
-import { Badge, LoadingState, SectionCard, UnavailableState } from "../../../components/system";
+import { useState } from "react";
+import { createGovernanceRequest } from "../../../lib/api";
+import { Badge, Button, LoadingState, SectionCard, UnavailableState, toast } from "../../../components/system";
+import { useAtlasMutation } from "../../../hooks/useAtlasQuery";
 
 /*
  * Access tab = access content ONLY (teardown P1-8 killed the "Composite
@@ -7,9 +10,44 @@ import { Badge, LoadingState, SectionCard, UnavailableState } from "../../../com
  * from the /360 access block, which shares its core with /access-explain so
  * the two can never disagree: auth mode, visibility scope, honest grants
  * unavailability WITH the reason, remediation steps, and real deep links.
+ *
+ * The "Request access" card files a real governance change request (the same
+ * create-request API the header's Request-change flow uses) so an operator who
+ * hits a grants wall can act in-app instead of chasing a steward out-of-band.
  */
 
-export function AccessTab({ access }) {
+export function AccessTab({ access, fqn }) {
+  // Hooks run on EVERY render — declared before any early return (repo rule:
+  // never a useState/useMutation after a conditional `return`).
+  const [formOpen, setFormOpen] = useState(false);
+  const [note, setNote] = useState("");
+  // Single mutation contract; createGovernanceRequest is the same api-lib call
+  // the header Request-change / Certify-stage flows use.
+  const requestAccess = useAtlasMutation({
+    mutate: (payload) => createGovernanceRequest(payload, { fast: true }),
+  });
+
+  const assetFqn = String(fqn || access?.fqn || "").trim();
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const trimmedNote = note.trim();
+    if (!trimmedNote || !assetFqn || requestAccess.submitting) return;
+    try {
+      await requestAccess.mutate({
+        assetFqn,
+        title: "Access request",
+        note: trimmedNote,
+      });
+      toast("Access request submitted", { tone: "success" });
+      setNote("");
+      setFormOpen(false);
+    } catch {
+      // Failure surfaces inline via requestAccess.errorMessage below — the
+      // mutateAsync rejection is intentionally swallowed here.
+    }
+  };
+
   const state = String(access?.state || "").toLowerCase();
   if (!access || state === "loading") {
     return (
@@ -94,6 +132,61 @@ export function AccessTab({ access }) {
           </ul>
         </SectionCard>
       ) : null}
+
+      <SectionCard
+        title="Request access"
+        subtitle="File a governance request for a steward to widen your access to this asset."
+      >
+        {formOpen ? (
+          <form className="ga-asset-dialog-form" onSubmit={handleSubmit}>
+            <label className="ga-asset-field">
+              <span>Why do you need access?</span>
+              <textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Describe the work that needs this asset — context helps the steward triage."
+                rows={4}
+                autoFocus
+              />
+            </label>
+            {requestAccess.errorMessage ? (
+              <p className="ga-asset-form-error" role="alert">
+                {requestAccess.errorMessage}
+              </p>
+            ) : null}
+            <div className="ga-asset-dialog-footer">
+              <Button
+                variant="tertiary"
+                type="button"
+                onClick={() => {
+                  setFormOpen(false);
+                  setNote("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                tone="accent"
+                type="submit"
+                loading={requestAccess.submitting}
+                disabled={!note.trim() || !assetFqn}
+              >
+                Submit request
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <Button
+            variant="secondary"
+            disabled={!assetFqn}
+            title={assetFqn ? undefined : "Asset identity unavailable — cannot file a request."}
+            onClick={() => setFormOpen(true)}
+          >
+            Request access
+          </Button>
+        )}
+      </SectionCard>
     </div>
   );
 }

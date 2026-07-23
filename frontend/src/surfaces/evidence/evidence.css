@@ -349,3 +349,77 @@
 @media (max-width: 900px) {
   .ga-evid-datapact-link { margin-left: 0; }
 }
+
+/* ── Classification / PII review queue (A9.4) ────────────────────────── */
+.ga-clsq {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ga-clsq-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+}
+.ga-clsq-lede {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 13px;
+}
+.ga-clsq-gate-note {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--ga-border);
+  border-left: 3px solid var(--ga-warning);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface-soft);
+  color: var(--ga-text-muted);
+  font-size: 13px;
+}
+/* The recommendation table can outgrow the surface; keep it scrolling in its
+   own lane so the page body never scrolls sideways. */
+.ga-clsq .ga-sys-table-scroll,
+.ga-clsq .ga-sys-datatable {
+  overflow-x: auto;
+}
+.ga-clsq-column {
+  font-family: var(--ga-font-mono, ui-monospace, monospace);
+  color: var(--ga-text-strong);
+  font-size: 13px;
+}
+.ga-clsq-suggested {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ga-clsq-evidence {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+}
+.ga-clsq-evidence-first {
+  color: var(--ga-text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ga-clsq-evidence-more {
+  color: var(--ga-text-muted);
+  font-size: 11px;
+}
+.ga-clsq-muted {
+  color: var(--ga-text-muted);
+  font-size: 13px;
+}
+.ga-clsq-reviewed {
+  color: var(--ga-text-muted);
+  font-size: 12px;
+}
+.ga-clsq-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

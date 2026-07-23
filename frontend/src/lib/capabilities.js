@@ -88,6 +88,25 @@ export function datapactReason(bootstrap, fallback = "") {
   return capability?.reason || fallback;
 }
 
+export function exportCapability(bootstrap) {
+  return bootstrap?.capabilities?.exportAllowed || null;
+}
+
+export function exportAvailable(bootstrap) {
+  // G2: export runs under OBO; the backend flag is available exactly when
+  // per-user authorization is active (see capabilities.py exportAllowed).
+  const capability = exportCapability(bootstrap);
+  return capability?.available === true || capability?.state === "available";
+}
+
+export function exportReason(bootstrap, fallback = "") {
+  return (
+    exportCapability(bootstrap)?.reason ||
+    fallback ||
+    "Export runs under your Databricks identity and stays disabled until per-user authorization is active."
+  );
+}
+
 export function workloadVisibilityCapability(bootstrap) {
   return bootstrap?.capabilities?.workloadVisibility || null;
 }
