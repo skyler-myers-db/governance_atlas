@@ -67,7 +67,10 @@ REQUIRED_BRANCH_STATE_PATHS = (
     "frontend/package.json",
     "frontend/eslint.config.js",
     "frontend/src/App.jsx",
-    "frontend/src/components/EntityWorkspace.jsx",
+    # The entity/asset workspace was consolidated into the asset surfaces + the
+    # useAssetDetail hook during the cohesive-architecture rebuild (#7/#8); the
+    # availability-prefetch + link-openability proof now lives in this hook.
+    "frontend/src/hooks/useAssetDetail.js",
     "frontend/src/lib/api.js",
     "frontend/src/main.jsx",
     "atlas/runtime_contract.py",
@@ -118,7 +121,9 @@ REQUIRED_ESLINT_TOKENS = (
     '"react-hooks/exhaustive-deps": "warn"',
 )
 
-REQUIRED_ENTITY_WORKSPACE_TOKENS = (
+# Availability-prefetch + link-openability proof. This behavior moved from the
+# retired EntityWorkspace.jsx into the useAssetDetail hook (#7/#8 rebuild).
+REQUIRED_ASSET_DETAIL_TOKENS = (
     "prefetchAssetAvailability",
     "canOpenLinkedAssetRecord",
 )
@@ -271,13 +276,13 @@ def _validate_required_branch_state(
                     f"frontend/eslint.config.js is missing required lint rule token `{token}`."
                 )
 
-    entity_workspace_path = root / "frontend/src/components/EntityWorkspace.jsx"
-    if entity_workspace_path.exists():
-        content = entity_workspace_path.read_text(encoding="utf-8")
-        for token in REQUIRED_ENTITY_WORKSPACE_TOKENS:
+    asset_detail_path = root / "frontend/src/hooks/useAssetDetail.js"
+    if asset_detail_path.exists():
+        content = asset_detail_path.read_text(encoding="utf-8")
+        for token in REQUIRED_ASSET_DETAIL_TOKENS:
             if token not in content:
                 failures.append(
-                    "EntityWorkspace branch-state hotfix proof is missing "
+                    "useAssetDetail branch-state hotfix proof is missing "
                     f"`{token}`."
                 )
 
