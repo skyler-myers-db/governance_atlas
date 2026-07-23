@@ -125,15 +125,19 @@ const AI_ROUTE_COPY = {
     emptyLive: "Ask about lineage hops, impact, provenance, and column completeness using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about upstream, downstream, or impact...",
     // Lineage OVERVIEW (no asset opened). "the selected table" / "a schema
-    // change" had no referent here, so Genie chose an arbitrary asset. These
-    // resolve deterministically from the graph instead (blast-radius = the
-    // asset with the widest downstream fan-out). Open an asset and the
+    // change" had no referent here, so Genie chose an arbitrary asset. Each
+    // prompt below is a one-shot aggregate over atlas_ai_lineage_edges
+    // (source/target/lineage_source/event_time/availability_state) — every one
+    // was live-verified to resolve deterministically in a single Genie pass.
+    // Superlative/anti-join phrasings ("widest impact", "no consumers") made
+    // Genie loop and time out, and column-completeness/restricted-node data
+    // isn't in this table — so those were dropped. Open an asset and the
     // per-asset prompts below name it explicitly.
     prompts: [
       "Which assets have the most downstream consumers?",
-      "Which schema change would have the widest downstream impact?",
-      "Where is column lineage incomplete?",
-      "Which restricted nodes affect revenue consumers?",
+      "Which assets have the most upstream sources?",
+      "What are the most recent lineage changes?",
+      "Which lineage relationships are restricted or unavailable?",
     ],
   },
   evidence: {
