@@ -130,6 +130,12 @@ CLIENT_ROUTE_PREFIXES = {
     "evidence",
     "exec",
     "sk",
+    # DataPact Control Center (nav/routes.js surface "datapact") + its aliases,
+    # so hard-loads / deep links to the surface get the SPA shell, not a 404.
+    "datapact",
+    "data-pact",
+    "data-quality",
+    "quality-gate",
 }
 MUTATION_ROLES = {"writer", "steward", "admin"}
 APPROVAL_ROLES = {"steward", "admin"}

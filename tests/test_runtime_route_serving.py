@@ -113,6 +113,11 @@ class RuntimeRouteServingTests(unittest.TestCase):
             "lineage-atlas/finance_prod.curated.revenue_daily",
             "audit-evidence",
             "control-center",
+            # DataPact Control Center + its aliases must hard-load to the SPA
+            # shell (regression: /datapact 404'd server-side on first deploy).
+            "datapact",
+            "datapact?tab=jobs",
+            "data-quality",
         ]
 
         with patch.object(runtime_app, "_spa_shell_response", return_value="shell-response") as shell_response:
