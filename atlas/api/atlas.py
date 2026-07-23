@@ -1842,7 +1842,8 @@ _AGGREGATE_TOKENS = ("how many", "how much", "number of", "count", "total", "are
 # subset question with the estate-wide number).
 _FACET_SCOPE_NOUNS = (
     "domain", "tier", "catalog", "schema", "sensitivity", "classification",
-    "data product", "dataproduct", "sensitive",
+    "data product", "dataproduct", "sensitive", "pii", "gdpr", "phi",
+    "personally identifiable",
 )
 # Collection/plural signals that mean a question is NOT about one focused asset
 # (so per-asset ownership grounding must not hijack it to the current page).
@@ -2086,6 +2087,11 @@ _UNCERTIFIED_PHRASES = (
 )
 
 
+# Classification concepts users ask about that may NOT exist as a literal
+# sensitivity value in a given estate (which might tag Confidential/Restricted).
+_CLASSIFICATION_TOKENS = ("pii", "gdpr", "phi", "personally identifiable", "sensitive", "classified")
+
+
 def _value_in_text(text: str, value: str) -> bool:
     name = _normalize_str(value)
     if not name:
@@ -2111,6 +2117,12 @@ def _scoped_count_grounding(question: str, request, ai_context, *, visible_asset
     domains = [d for d in facets["domains"] if _value_in_text(text, d)]
     tiers = [t for t in facets["tiers"] if _value_in_text(text, t)]
     sensitivities = [s for s in facets["sensitivities"] if _value_in_text(text, s)]
+    # A classification qualifier we can't map to a real sensitivity value in this
+    # estate (e.g. "PII" when the estate tags Confidential/Restricted) must NOT be
+    # silently dropped from the count — decline so Genie answers it honestly,
+    # rather than returning "N Finance assets" (ignoring PII) or the estate total.
+    if not sensitivities and any(t in text for t in _CLASSIFICATION_TOKENS):
+        return None
     # Trigger only on a real subset scope estate metrics can't express.
     if not (domains or tiers or sensitivities):
         return None

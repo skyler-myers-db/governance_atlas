@@ -979,6 +979,30 @@ class AtlasApiTests(unittest.TestCase):
             "How many certified assets without an owner in the Finance domain?", self._scoped_frame())
         self.assertNotEqual(payload.get("intent"), "governed-grounding")
 
+    def test_unmappable_classification_declines_not_dropped(self) -> None:
+        # Live-caught: the estate tags Confidential/Restricted, not "PII". A PII
+        # question must NOT return the estate total (no-domain) or drop PII and
+        # count all domain assets — it must decline to Genie.
+        frame = pd.DataFrame([
+            {"fqn": "a", "domain": "Finance", "sensitivity": "Confidential"},
+            {"fqn": "b", "domain": "Finance", "sensitivity": "Restricted"},
+            {"fqn": "c", "domain": "Customer", "sensitivity": "Confidential"},
+        ])
+        for q in ("How many PII assets do we have?", "How many PII assets in the Finance domain?"):
+            payload, _ = self._ask_with_frame(q, frame)
+            self.assertNotEqual(payload.get("intent"), "governed-grounding", q)
+
+    def test_real_sensitivity_value_still_grounds(self) -> None:
+        # A sensitivity value that DOES exist still grounds (Confidential → 2).
+        frame = pd.DataFrame([
+            {"fqn": "a", "domain": "Finance", "sensitivity": "Confidential"},
+            {"fqn": "b", "domain": "Finance", "sensitivity": "Restricted"},
+            {"fqn": "c", "domain": "Customer", "sensitivity": "Confidential"},
+        ])
+        payload, _ = self._ask_with_frame("How many Confidential assets are there?", frame)
+        self.assertEqual(payload["evidence"][0]["metric"], "scopedAssetCount")
+        self.assertIn("2", payload["answer"])
+
     def test_common_sensitivity_word_does_not_false_trigger(self) -> None:
         # Review F2: a question that merely contains "internal" must not be
         # answered as an Internal-sensitivity subset stamped canonical.
