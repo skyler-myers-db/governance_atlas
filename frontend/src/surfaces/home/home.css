@@ -891,19 +891,22 @@
   text-decoration: none;
 }
 
-.ga-home-riskmap-row .tone-critical {
+/* [role="cell"] in the selector so these out-specify the base
+   `.ga-home-riskmap-row a[role="cell"]` rule (0,2,1) — otherwise a populated
+   (colored) cell, which is now an <a>, loses its tone to the muted base. */
+.ga-home-riskmap-row [role="cell"].tone-critical {
   background: color-mix(in srgb, var(--ga-danger) 55%, transparent);
 }
 
-.ga-home-riskmap-row .tone-high {
+.ga-home-riskmap-row [role="cell"].tone-high {
   background: color-mix(in srgb, var(--ga-danger) 32%, transparent);
 }
 
-.ga-home-riskmap-row .tone-medium {
+.ga-home-riskmap-row [role="cell"].tone-medium {
   background: color-mix(in srgb, var(--ga-warning) 32%, transparent);
 }
 
-.ga-home-riskmap-row .tone-low {
+.ga-home-riskmap-row [role="cell"].tone-low {
   background: color-mix(in srgb, var(--ga-light-blue) 26%, transparent);
 }
 

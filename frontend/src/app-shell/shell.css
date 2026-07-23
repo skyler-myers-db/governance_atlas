@@ -868,6 +868,44 @@ a.ga-icon-button {
   white-space: pre-wrap;
 }
 
+/* Inline generated-SQL block shown with the answer (open by default). */
+.ga-ai-dock-inline-sql {
+  margin-top: 8px;
+}
+
+.ga-ai-dock-inline-sql > summary {
+  cursor: pointer;
+  color: var(--ga-text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  list-style: none;
+  padding: 2px 0;
+  user-select: none;
+}
+
+.ga-ai-dock-inline-sql > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ga-ai-dock-inline-sql > summary::before {
+  content: "▾ ";
+  color: var(--ga-text-faint);
+}
+
+.ga-ai-dock-inline-sql:not([open]) > summary::before {
+  content: "▸ ";
+}
+
+.ga-ai-dock-inline-sql > summary:hover {
+  color: var(--ga-bright-blue);
+}
+
+.ga-ai-dock-inline-sql .ga-ai-dock-evidence-sql {
+  margin-top: 6px;
+  max-height: 200px;
+}
+
 .ga-ai-dock-evidence-empty {
   color: var(--ga-text-muted);
   font-size: 0.68rem;

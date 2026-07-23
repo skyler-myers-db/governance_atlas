@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { atlasQueryClient } from "../../../lib/queryClient";
 import { toast, ToastHost } from "../../../components/system";
 import HomePage from "../HomePage.jsx";
+import { __resetCommandCenterRetention } from "../../../hooks/useCommandCenter";
 
 /* ------------------------------------------------------------------ mocks */
 
@@ -190,6 +191,7 @@ beforeEach(() => {
   api.fetchCommandCenter.mockReset();
   api.fetchInsightsDashboard.mockReset();
   atlasQueryClient.clear();
+  __resetCommandCenterRetention();
   toast.clear();
 });
 

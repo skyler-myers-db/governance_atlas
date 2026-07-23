@@ -344,6 +344,31 @@ function AtlasAiEvidenceDetail({ evidence, onClose }) {
   );
 }
 
+// The generated SQL, shown INLINE with the answer (open by default) so the
+// user sees how Genie derived it without hunting for a toggle — "more
+// information, not less". Collapsible for when they want it out of the way.
+function AtlasAiInlineSql({ evidence = [] }) {
+  const query = (Array.isArray(evidence) ? evidence : []).find(
+    (item) => item && (item.sql || item.generatedSql),
+  );
+  const sql = String(query?.sql || query?.generatedSql || "").trim();
+  if (!sql) return null;
+  const statementId = String(query?.statementId || query?.statement_id || "").trim();
+  const rowCount = Number(query?.rowCount ?? query?.totalRowCount);
+  return (
+    <details className="ga-ai-dock-inline-sql" open>
+      <summary>
+        Generated SQL
+        {Number.isFinite(rowCount) ? ` · ${rowCount.toLocaleString()} row${rowCount === 1 ? "" : "s"}` : ""}
+        {statementId ? ` · ${statementId.slice(0, 10)}…` : ""}
+      </summary>
+      <pre className="ga-ai-dock-evidence-sql" data-testid="atlas-ai-inline-sql">
+        <code>{sql}</code>
+      </pre>
+    </details>
+  );
+}
+
 function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
   const items = evidence
     .map((item, index) => normalizeAiEvidenceItem(item, index))
@@ -433,6 +458,7 @@ function AtlasAiMessageList({ messages = [], onOpenEvidence, emptyMessage }) {
       {item.role === "assistant" && !item.pending && !item.error ? (
         <>
           <AtlasAiEvidenceList evidence={item.response?.evidence || []} onOpenEvidence={onOpenEvidence} />
+          <AtlasAiInlineSql evidence={item.response?.evidence || []} />
           <em>
             {item.evidenceCount
               ? `${item.evidenceCount} evidence record${item.evidenceCount === 1 ? "" : "s"} returned.`
