@@ -172,13 +172,41 @@ def _lifecycle_active(dashboard: Any) -> bool:
     return state.upper().endswith("ACTIVE")
 
 
+def _app_principal_client() -> Any:
+    """A fresh app-principal (M2M) WorkspaceClient. In the deployed app this
+    authenticates as the Atlas service principal, which is NOT limited to the
+    OBO user-api-scopes — so it can call Lakeview list even when the forwarded
+    user token lacks the scope."""
+
+    try:
+        from databricks.sdk import WorkspaceClient
+
+        return WorkspaceClient()
+    except Exception:
+        return None
+
+
+def _resolution_clients(uc: Any) -> List[Any]:
+    """The clients to try, in order: the request's (OBO) client first, then the
+    app principal. Dashboard resolution needs the app principal (no OBO
+    Lakeview scope); Genie resolution works on either."""
+
+    clients = []
+    primary = getattr(uc, "w", None)
+    if primary is not None:
+        clients.append(primary)
+    fallback = _app_principal_client()
+    if fallback is not None and fallback is not primary:
+        clients.append(fallback)
+    return clients
+
+
 def resolve_dashboard_id(uc: Any, manifest_id: str = "") -> str:
     """The LIVE 'DataPact Validation Intelligence' dashboard id, or the manifest
     id as a fallback. Prefers the live SDK resource because the manifest id can
     point at a deleted/re-created dashboard."""
 
-    client = getattr(uc, "w", None)
-    if client is not None:
+    for client in _resolution_clients(uc):
         try:
             count = 0
             for dashboard in client.lakeview.list(page_size=100):
@@ -190,7 +218,7 @@ def resolve_dashboard_id(uc: Any, manifest_id: str = "") -> str:
                     if live:
                         return live
         except Exception:
-            pass
+            continue
     return _s(manifest_id)
 
 
@@ -198,8 +226,7 @@ def resolve_genie_space_id(uc: Any, manifest_id: str = "") -> str:
     """The LIVE 'DataPact Signal Room' Genie space id, or the manifest id as a
     fallback. Prefers the live SDK resource (the manifest id can be stale)."""
 
-    client = getattr(uc, "w", None)
-    if client is not None:
+    for client in _resolution_clients(uc):
         try:
             page_token = None
             pages = 0
@@ -216,7 +243,7 @@ def resolve_genie_space_id(uc: Any, manifest_id: str = "") -> str:
                 if not page_token:
                     break
         except Exception:
-            pass
+            continue
     return _s(manifest_id)
 
 

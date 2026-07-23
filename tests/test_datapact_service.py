@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import types
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -69,7 +70,18 @@ def _surface_row(**overrides):
     return pd.DataFrame([row])
 
 
-class DetectionTests(unittest.TestCase):
+class _NoAppPrincipal(unittest.TestCase):
+    """Stub the app-principal fallback client so resolver/status tests never
+    touch the network — resolution is exercised only through the FakeUC client
+    (or falls back to the manifest id when none is provided)."""
+
+    def setUp(self):
+        p = patch.object(d, "_app_principal_client", return_value=None)
+        p.start()
+        self.addCleanup(p.stop)
+
+
+class DetectionTests(_NoAppPrincipal):
     def test_disabled_config_reports_disabled(self):
         status = d.status(_cfg(datapact_enabled=False), FakeUC())
         self.assertEqual(status["state"], "disabled")
@@ -121,7 +133,7 @@ class DetectionTests(unittest.TestCase):
         self.assertEqual(status["surface"], "datapact")
 
 
-class LiveSurfaceResolutionTests(unittest.TestCase):
+class LiveSurfaceResolutionTests(_NoAppPrincipal):
     """The manifest's dashboard/genie ids can be stale; GA must resolve the LIVE
     resource by name and only fall back to the manifest id."""
 
