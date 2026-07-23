@@ -577,22 +577,24 @@ a.ga-icon-button {
 /* Edges */
 .ga-ai-dock-resize-n,
 .ga-ai-dock-resize-s {
-  left: 12px;
-  right: 12px;
-  height: 8px;
+  left: 16px;
+  right: 16px;
+  height: 7px;
   cursor: ns-resize;
 }
-.ga-ai-dock-resize-n { top: -3px; }
-.ga-ai-dock-resize-s { bottom: -3px; }
+/* Offsets sit the 7px strips mostly OUTSIDE the dock (only ~2px inside) so they
+   never create a dead click-zone over the transcript/input (review F7). */
+.ga-ai-dock-resize-n { top: -5px; }
+.ga-ai-dock-resize-s { bottom: -5px; }
 .ga-ai-dock-resize-e,
 .ga-ai-dock-resize-w {
-  top: 12px;
-  bottom: 12px;
-  width: 8px;
+  top: 16px;
+  bottom: 16px;
+  width: 7px;
   cursor: ew-resize;
 }
-.ga-ai-dock-resize-e { right: -3px; }
-.ga-ai-dock-resize-w { left: -3px; }
+.ga-ai-dock-resize-e { right: -5px; }
+.ga-ai-dock-resize-w { left: -5px; }
 
 /* Corners (win over edges via later paint + larger hit box) */
 .ga-ai-dock-resize-ne,

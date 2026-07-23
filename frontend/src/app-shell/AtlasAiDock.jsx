@@ -26,6 +26,10 @@ const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
 // to the viewport at drag time so the dock can never exceed the visible area.
 const AI_CHAT_MIN = { width: 320, height: 360 };
 const AI_CHAT_MAX = { width: 720, height: 960 };
+// Viewport gutters — SHARED by clampAiChatPosition (drag + ResizeObserver) and
+// the resize handler, so the two paths agree. A mismatch here made a south-edge
+// resize get yanked ~52px on the next ResizeObserver tick (review F5).
+const AI_DOCK_GUTTER = { side: 12, top: 12, bottom: 64 };
 // Resize grips: 4 edges + 4 corners, so a bottom-right-anchored dock can be
 // grown from its top/left toward screen centre (not just shrunk from the se).
 const RESIZE_HANDLES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
@@ -190,16 +194,16 @@ function defaultAiChatPosition() {
 
 function clampAiChatPosition(position) {
   if (typeof window === "undefined") return position;
-  const padding = 12;
-  const footerReserve = 64;
+  const padding = AI_DOCK_GUTTER.side;
+  const footerReserve = AI_DOCK_GUTTER.bottom;
   const defaultSize = window.innerWidth >= 2200 ? AI_CHAT_WIDE_SIZE : AI_CHAT_SIZE;
   const width = Number(position.width) || defaultSize.width;
   const height = Number(position.height) || defaultSize.height;
   const maxLeft = Math.max(padding, window.innerWidth - width - padding);
-  const maxTop = Math.max(padding, window.innerHeight - height - footerReserve);
+  const maxTop = Math.max(AI_DOCK_GUTTER.top, window.innerHeight - height - footerReserve);
   return {
     left: Math.min(Math.max(position.left, padding), maxLeft),
-    top: Math.min(Math.max(position.top, padding), maxTop),
+    top: Math.min(Math.max(position.top, AI_DOCK_GUTTER.top), maxTop),
   };
 }
 
@@ -646,18 +650,21 @@ export function AtlasAiDock({
       if (dir.includes("n")) height = start.height - dy;
       width = Math.min(AI_CHAT_MAX.width, Math.max(AI_CHAT_MIN.width, width));
       height = Math.min(AI_CHAT_MAX.height, Math.max(AI_CHAT_MIN.height, height));
-      // Anchor the opposite edge, then clamp to the viewport gutters.
+      // Anchor the opposite edge, then clamp to the SAME viewport gutters
+      // clampAiChatPosition uses, so the ResizeObserver never re-clamps and
+      // yanks the dock after a drag (review F5).
+      const { side, top: topGutter, bottom: bottomGutter } = AI_DOCK_GUTTER;
       if (dir.includes("w")) {
         left = rightEdge - width;
-        if (left < 12) { left = 12; width = rightEdge - 12; }
-      } else if (dir.includes("e") && left + width > innerW - 12) {
-        width = innerW - 12 - left;
+        if (left < side) { left = side; width = rightEdge - side; }
+      } else if (dir.includes("e") && left + width > innerW - side) {
+        width = innerW - side - left;
       }
       if (dir.includes("n")) {
         top = bottomEdge - height;
-        if (top < 82) { top = 82; height = bottomEdge - 82; }
-      } else if (dir.includes("s") && top + height > innerH - 12) {
-        height = innerH - 12 - top;
+        if (top < topGutter) { top = topGutter; height = bottomEdge - topGutter; }
+      } else if (dir.includes("s") && top + height > innerH - bottomGutter) {
+        height = innerH - bottomGutter - top;
       }
       width = Math.max(AI_CHAT_MIN.width, width);
       height = Math.max(AI_CHAT_MIN.height, height);

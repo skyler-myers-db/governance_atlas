@@ -324,7 +324,14 @@ def known_scope_values(visible_assets: pd.DataFrame) -> List[str]:
 # Words too generic to safely treat as a scoping qualifier (they collide with
 # coverage/quality phrasing in otherwise-global questions).
 _GENERIC_SCOPE_WORDS = frozenset(
-    {"none", "low", "medium", "high", "moderate", "other", "unknown", "n/a", "na", "general"}
+    {
+        "none", "low", "medium", "high", "moderate", "other", "unknown", "n/a", "na", "general",
+        # Common sensitivity/domain labels that collide with everyday phrasing
+        # ("for internal use", "how much data") — too ambiguous to treat as a
+        # scoping trigger. Distinctive labels (Confidential, Restricted, PII,
+        # Finance) are kept so real scoped questions still ground. (review F2)
+        "internal", "public", "external", "data",
+    }
 )
 
 
@@ -335,10 +342,17 @@ def known_facet_values(visible_assets: pd.DataFrame) -> Dict[str, List[str]]:
     predicates (is_critical / is_certified), not value matches.
     """
     df = _safe_df(visible_assets)
+
+    def _distinct_nongeneric(*keys: str) -> List[str]:
+        # Drop generic quality/coverage adjectives ("low", "none", …) that
+        # double as facet labels — they'd false-trigger scoped-count on an
+        # otherwise-global question (e.g. "how many assets have low coverage").
+        return [v for v in _distinct_values(df, *keys) if v.lower() not in _GENERIC_SCOPE_WORDS]
+
     return {
-        "domains": _distinct_values(df, "domain"),
-        "tiers": _distinct_values(df, "tier"),
-        "sensitivities": _distinct_values(df, "sensitivity"),
+        "domains": _distinct_nongeneric("domain"),
+        "tiers": _distinct_nongeneric("tier"),
+        "sensitivities": _distinct_nongeneric("sensitivity"),
     }
 
 

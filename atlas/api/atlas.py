@@ -1938,6 +1938,19 @@ def _ownership_gap_evidence(value: int) -> dict:
     }
 
 
+def _has_nonowner_facet_qualifier(text: str) -> bool:
+    """True when the question carries a certification/criticality/tier/
+    sensitivity/CDE qualifier beyond owner+domain — i.e. a compound question the
+    ownerless-count branches would answer while silently dropping that facet."""
+    if "certif" in text:  # certified / uncertified / certification
+        return True
+    if "critical data element" in text or _value_in_text(text, "cde"):
+        return True
+    if _value_in_text(text, "critical"):
+        return True
+    return any(w in text for w in ("tier", "sensitivity", "classification", "classified", "pii", "confidential"))
+
+
 def _ownership_grounding(question: str, request, ai_context, *, visible_assets_fn) -> dict | None:
     text = _normalize_str(question).lower()
     if not text or not any(token in text for token in _OWNER_INTENT_TOKENS):
@@ -1950,6 +1963,12 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
         return None
 
     gap = _mentions_owner_gap(text)
+    # A compound owner+facet question ("how many CERTIFIED assets without an
+    # owner in Finance?") can't be answered by the ownerless-count branches
+    # without ignoring the facet (→ over-count). `compound_facet` suppresses the
+    # gap branches (B/C/D) so it declines to Genie instead of answering wrong
+    # (review F4). Per-asset ownership (branch A) is unaffected.
+    compound_facet = _has_nonowner_facet_qualifier(text)
     mentions_domain_word = "domain" in text
     superlative_most = any(w in text for w in _SUPERLATIVE_MOST)
     superlative_least = any(w in text for w in _SUPERLATIVE_LEAST)
@@ -1965,7 +1984,7 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
 
     # (B) Superlative across domains: "which domain has the most/fewest assets
     #     without an owner?"
-    if mentions_domain_word and superlative and (gap or "owner" in text or "steward" in text):
+    if mentions_domain_word and superlative and not compound_facet and (gap or "owner" in text or "steward" in text):
         metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
         candidates = [
             (name, vals["ownerless"], vals["total"])
@@ -1998,7 +2017,7 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
         return {"answer": answer, "evidence": _ownership_gap_evidence(pick[1]), "warnings": []}
 
     # (C) Domain-scoped ownerless count: "how many Finance assets have no owner?"
-    if named_domain and (gap or ("owner" in text and any(a in text for a in _AGGREGATE_TOKENS))):
+    if named_domain and not compound_facet and (gap or ("owner" in text and any(a in text for a in _AGGREGATE_TOKENS))):
         metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
         bucket = metrics["byDomain"].get(named_domain, {"total": 0, "ownerless": 0})
         if bucket["ownerless"] == 0:
@@ -2014,7 +2033,7 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
         return {"answer": answer, "evidence": _ownership_gap_evidence(bucket["ownerless"]), "warnings": []}
 
     # (D) Global ownerless count: "how many assets have no owner?"
-    if gap and any(a in text for a in _AGGREGATE_TOKENS):
+    if gap and not compound_facet and any(a in text for a in _AGGREGATE_TOKENS):
         metrics = atlas_metrics.ownership_gap_metrics(visible_assets=visible)
         total_gap = metrics["totalOwnerless"]
         answer = (
@@ -2057,9 +2076,13 @@ def _ownership_grounding(question: str, request, ai_context, *, visible_assets_f
 # subset dimensions estate can't express), and the answer states exactly which
 # filters it applied so the number is never a mislabelled global count.
 _UNCERTIFIED_PHRASES = (
-    "uncertified", "un-certified", "not certified", "without certification",
-    "aren't certified", "arent certified", "isn't certified", "isnt certified",
-    "lacking certification", "no certification", "not been certified",
+    "uncertified", "un-certified", "not certified", "not yet certified",
+    "without certification", "aren't certified", "arent certified",
+    "isn't certified", "isnt certified", "lacking certification", "no certification",
+    "not been certified", "decertified", "de-certified", "pending certification",
+    "awaiting certification", "need certification", "needs certification",
+    "needing certification", "require certification", "requires certification",
+    "requiring certification", "recertification", "re-certification", "needs to be certified",
 )
 
 
@@ -2091,14 +2114,20 @@ def _scoped_count_grounding(question: str, request, ai_context, *, visible_asset
     # Trigger only on a real subset scope estate metrics can't express.
     if not (domains or tiers or sensitivities):
         return None
-    cde = ("cde" in text) or ("critical data element" in text)
+    cde = _value_in_text(text, "cde") or ("critical data element" in text)
     certified: bool | None = None
+    # Check the negation/pending phrasings FIRST; only then the positive. The
+    # word-boundary match for "certified" won't fire on "uncertified"/
+    # "decertified" (preceded by letters), so an uncertified question can never
+    # fall through to the certified count (review F1).
     if any(p in text for p in _UNCERTIFIED_PHRASES):
         certified = False
-    elif "certif" in text:
+    elif _value_in_text(text, "certified"):
         certified = True
     critical: bool | None = None
-    if not cde and ("critical" in text or "business-critical" in text or "business critical" in text):
+    # Word-boundary so "criticality"/"critically" don't set the is_critical
+    # filter on unrelated questions (review F3).
+    if not cde and (_value_in_text(text, "critical") or "business critical" in text or "business-critical" in text):
         critical = True
     matched = atlas_metrics.scoped_asset_count(
         visible_assets=visible, domains=domains, tiers=tiers, sensitivities=sensitivities,

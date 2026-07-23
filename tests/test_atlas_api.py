@@ -951,6 +951,44 @@ class AtlasApiTests(unittest.TestCase):
         payload, _ = self._ask_with_frame("How many certified assets are there?", self._scoped_frame())
         self.assertEqual(payload["evidence"][0]["metric"], "certifiedAssets")
 
+    def test_scoped_count_uncertified_phrasings_not_inverted(self) -> None:
+        # Review F1: negation/pending phrasings must count UNCERTIFIED (1), never
+        # fall through to the certified count. Answer must say "uncertified".
+        for q in (
+            "How many not yet certified assets in the Finance domain?",
+            "How many Finance domain assets need certification?",
+            "How many pending certification assets in the Finance domain?",
+            "How many decertified assets in the Finance domain?",
+        ):
+            payload, _ = self._ask_with_frame(q, self._scoped_frame())
+            self.assertIn("uncertified", payload["answer"].lower(), q)
+            self.assertIn("1", payload["answer"], q)
+
+    def test_scoped_count_criticality_word_does_not_filter_critical(self) -> None:
+        # Review F3: "critically"/"criticality" must NOT set the is_critical
+        # filter (word-boundary). The answer must not claim "business-critical".
+        payload, _ = self._ask_with_frame(
+            "How many critically important assets in the Finance domain?", self._scoped_frame())
+        self.assertNotIn("business-critical", payload["answer"].lower())
+
+    def test_compound_owner_facet_question_declines(self) -> None:
+        # Review F4: "certified assets without an owner in Finance" must NOT be
+        # answered as a plain ownerless count (which drops "certified"). With
+        # Genie unconfigured it declines — key: not a governed-grounding answer.
+        payload, _ = self._ask_with_frame(
+            "How many certified assets without an owner in the Finance domain?", self._scoped_frame())
+        self.assertNotEqual(payload.get("intent"), "governed-grounding")
+
+    def test_common_sensitivity_word_does_not_false_trigger(self) -> None:
+        # Review F2: a question that merely contains "internal" must not be
+        # answered as an Internal-sensitivity subset stamped canonical.
+        frame = pd.DataFrame([
+            {"fqn": "a", "domain": "Ops", "sensitivity": "Internal"},
+            {"fqn": "b", "domain": "Ops", "sensitivity": "Confidential"},
+        ])
+        payload, _ = self._ask_with_frame("How many assets are for internal use?", frame)
+        self.assertNotEqual(payload.get("evidence", [{}])[0].get("metric"), "scopedAssetCount")
+
     def _ask_grounded(self, question, context=None):
         """Call the endpoint with ownership grounding active (Genie unconfigured
         is fine — grounding short-circuits before the Genie branch)."""
