@@ -291,7 +291,7 @@ function FixFirst({ items, onOpenRun }) {
 
 /* ── jobs table ─────────────────────────────────────────────────────── */
 
-function JobRow({ job, canTrigger, onTrigger, onOpenRun, triggeringId }) {
+function JobRow({ job, canTrigger, onTrigger, onOpenRun, triggeringId, host }) {
   const [confirming, setConfirming] = useState(false);
   const isTriggering = triggeringId === job.executionJobId;
   const trust = num(job.trustScore);
@@ -329,6 +329,17 @@ function JobRow({ job, canTrigger, onTrigger, onOpenRun, triggeringId }) {
         {job.runId ? (
           <button type="button" className="ga-dp-linkbtn" onClick={() => onOpenRun(job.runId)}>View</button>
         ) : null}
+        {host && job.executionJobId ? (
+          <a
+            className="ga-dp-linkbtn"
+            href={job.runId ? `${host}/jobs/${job.executionJobId}/runs/${job.runId}` : `${host}/jobs/${job.executionJobId}`}
+            target="_blank"
+            rel="noreferrer"
+            title={job.runId ? "Open this run in Databricks" : "Open this job in Databricks"}
+          >
+            Databricks ↗
+          </a>
+        ) : null}
         {confirming ? (
           <span className="ga-dp-confirm">
             <Button size="sm" variant="primary" tone="warning" loading={isTriggering}
@@ -349,7 +360,7 @@ function JobRow({ job, canTrigger, onTrigger, onOpenRun, triggeringId }) {
   );
 }
 
-function JobsTable({ jobs, canTrigger, onTrigger, onOpenRun, triggeringId }) {
+function JobsTable({ jobs, canTrigger, onTrigger, onOpenRun, triggeringId, host }) {
   if (!jobs.length) {
     return <EmptyState title="No active validation jobs" body="DataPact is installed but no active jobs were found in the registry." />;
   }
@@ -363,7 +374,7 @@ function JobsTable({ jobs, canTrigger, onTrigger, onOpenRun, triggeringId }) {
         </thead>
         <tbody>
           {jobs.map((job) => (
-            <JobRow key={job.normalizedJobName || job.jobName} job={job}
+            <JobRow key={job.normalizedJobName || job.jobName} job={job} host={host}
               canTrigger={canTrigger} onTrigger={onTrigger} onOpenRun={onOpenRun} triggeringId={triggeringId} />
           ))}
         </tbody>
@@ -421,7 +432,7 @@ function LiveRunMonitor({ liveRun, host, onDone, onClose }) {
 
 /* ── run detail drawer ──────────────────────────────────────────────── */
 
-function RunDrawer({ runId, open, onClose }) {
+function RunDrawer({ runId, open, onClose, host }) {
   const [state, setState] = useState({ loading: false, detail: null, error: "" });
 
   useEffect(() => {
@@ -446,6 +457,12 @@ function RunDrawer({ runId, open, onClose }) {
       {state.error ? <p className="ga-dp-fail">{state.error}</p> : null}
       {detail ? (
         <div className="ga-dp-run">
+          {host && header.jobId ? (
+            <div className="ga-dp-run-links">
+              <a className="ga-dp-link" href={`${host}/jobs/${header.jobId}/runs/${runId}`} target="_blank" rel="noreferrer">Open run in Databricks ↗</a>
+              <a className="ga-dp-link" href={`${host}/jobs/${header.jobId}`} target="_blank" rel="noreferrer">Open job ↗</a>
+            </div>
+          ) : null}
           <div className="ga-dp-run-kpis">
             <div><span>Trust</span><strong className={`tone-${trustTone(header.trustScore)}`}>{num(header.trustScore) === null ? "—" : header.trustScore.toFixed(1)}</strong></div>
             <div><span>Validations</span><strong>{formatInt(header.successfulValidations)}/{formatInt(header.totalValidations)}</strong></div>
@@ -727,7 +744,7 @@ export default function DataPactPage({ shell = null }) {
           </SectionCard>
           <SectionCard title="Validation jobs" eyebrow="Portfolio" subtitle="Every active job with its latest-run trust and trend."
             status={overview.loading ? "loading" : undefined}>
-            <JobsTable jobs={overview.jobs} canTrigger={canTrigger} onTrigger={onTrigger} onOpenRun={openRun} triggeringId={triggeringId} />
+            <JobsTable jobs={overview.jobs} host={host} canTrigger={canTrigger} onTrigger={onTrigger} onOpenRun={openRun} triggeringId={triggeringId} />
           </SectionCard>
         </>
       ) : null}
@@ -736,7 +753,7 @@ export default function DataPactPage({ shell = null }) {
         <SectionCard title="Jobs & runs" eyebrow="Command"
           subtitle={canTrigger ? "Trigger validation runs and monitor them live." : "Read-only — triggering runs requires steward or admin permissions."}
           status={overview.loading ? "loading" : undefined}>
-          <JobsTable jobs={overview.jobs} canTrigger={canTrigger} onTrigger={onTrigger} onOpenRun={openRun} triggeringId={triggeringId} />
+          <JobsTable jobs={overview.jobs} host={host} canTrigger={canTrigger} onTrigger={onTrigger} onOpenRun={openRun} triggeringId={triggeringId} />
         </SectionCard>
       ) : null}
 
@@ -752,7 +769,7 @@ export default function DataPactPage({ shell = null }) {
         </SectionCard>
       ) : null}
 
-      <RunDrawer runId={params.run} open={Boolean(params.run)} onClose={closeRun} />
+      <RunDrawer runId={params.run} open={Boolean(params.run)} onClose={closeRun} host={host} />
     </PageShell>
   );
 }

@@ -121,6 +121,52 @@ class DetectionTests(unittest.TestCase):
         self.assertEqual(status["surface"], "datapact")
 
 
+class LiveSurfaceResolutionTests(unittest.TestCase):
+    """The manifest's dashboard/genie ids can be stale; GA must resolve the LIVE
+    resource by name and only fall back to the manifest id."""
+
+    def _client_with_live_surfaces(self):
+        dash = types.SimpleNamespace(
+            dashboard_id="live-dash", display_name=d.DASHBOARD_NAME, lifecycle_state="LifecycleState.ACTIVE"
+        )
+        trashed = types.SimpleNamespace(
+            dashboard_id="dead-dash", display_name=d.DASHBOARD_NAME, lifecycle_state="LifecycleState.TRASHED"
+        )
+        space = types.SimpleNamespace(space_id="live-space", title=d.GENIE_ROOM_NAME)
+
+        class FakeLakeview:
+            def list(self, page_size=100):
+                return iter([trashed, dash])
+
+        class FakeGenie:
+            def list_spaces(self, page_token=None):
+                return types.SimpleNamespace(spaces=[space], next_page_token="")
+
+        return types.SimpleNamespace(lakeview=FakeLakeview(), genie=FakeGenie())
+
+    def test_prefers_live_active_dashboard_over_stale_manifest(self):
+        uc = FakeUC(w=self._client_with_live_surfaces())
+        self.assertEqual(d.resolve_dashboard_id(uc, "stale-manifest-id"), "live-dash")
+
+    def test_prefers_live_genie_space_over_stale_manifest(self):
+        uc = FakeUC(w=self._client_with_live_surfaces())
+        self.assertEqual(d.resolve_genie_space_id(uc, "stale-manifest-id"), "live-space")
+
+    def test_falls_back_to_manifest_when_no_client(self):
+        uc = FakeUC(w=None)
+        self.assertEqual(d.resolve_dashboard_id(uc, "manifest-dash"), "manifest-dash")
+        self.assertEqual(d.resolve_genie_space_id(uc, "manifest-space"), "manifest-space")
+
+    def test_status_urls_built_from_resolved_ids(self):
+        client = self._client_with_live_surfaces()
+        uc = FakeUC({"portfolio_surface_status": _surface_row(dashboard_id="stale", genie_space_id="stale")}, w=client)
+        status = d.status(_cfg(), uc)
+        self.assertEqual(status["dashboardId"], "live-dash")
+        self.assertEqual(status["dashboardUrl"], "/dashboardsv3/live-dash/published")
+        self.assertEqual(status["genieSpaceId"], "live-space")
+        self.assertEqual(status["genieUrl"], "/genie/rooms/live-space")
+
+
 class InstallResolutionTests(unittest.TestCase):
     def test_config_catalog_wins(self):
         install = d.resolve_install(_cfg(datapact_catalog="prod", datapact_schema="datapact"), FakeUC())

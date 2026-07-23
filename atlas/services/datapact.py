@@ -49,6 +49,14 @@ MANAGED_SCHEMA = "datapact"
 POINTER_PATH = "/Shared/DataPact/_metadata/workspace_manifest_pointer.json"
 SOURCE = "datapact-control-plane"
 
+# DataPact's managed human-facing names (control_plane constants). The
+# workspace_manifest records the dashboard/genie ids, but that record can go
+# STALE when DataPact re-creates the shared surfaces (the manifest is only
+# refreshed on maintenance actions) — so GA resolves the LIVE resource by name
+# via the SDK and only falls back to the manifest id when resolution fails.
+DASHBOARD_NAME = "DataPact Validation Intelligence"
+GENIE_ROOM_NAME = "DataPact Signal Room"
+
 # Only bare Unity Catalog identifiers may reach an FQN — the catalog/schema come
 # from config or a workspace pointer file, so validate before interpolating.
 _IDENT_RE = re.compile(r"^[A-Za-z0-9_]+$")
@@ -157,6 +165,61 @@ def resolve_install(config: AppConfig, uc: Any) -> Optional[Install]:
     return None
 
 
+# ── live shared-surface resolution (manifest ids can be stale) ─────────────
+
+def _lifecycle_active(dashboard: Any) -> bool:
+    state = _s(getattr(dashboard, "lifecycle_state", ""))
+    return state.upper().endswith("ACTIVE")
+
+
+def resolve_dashboard_id(uc: Any, manifest_id: str = "") -> str:
+    """The LIVE 'DataPact Validation Intelligence' dashboard id, or the manifest
+    id as a fallback. Prefers the live SDK resource because the manifest id can
+    point at a deleted/re-created dashboard."""
+
+    client = getattr(uc, "w", None)
+    if client is not None:
+        try:
+            count = 0
+            for dashboard in client.lakeview.list(page_size=100):
+                count += 1
+                if count > 500:
+                    break
+                if _s(getattr(dashboard, "display_name", "")) == DASHBOARD_NAME and _lifecycle_active(dashboard):
+                    live = _s(getattr(dashboard, "dashboard_id", ""))
+                    if live:
+                        return live
+        except Exception:
+            pass
+    return _s(manifest_id)
+
+
+def resolve_genie_space_id(uc: Any, manifest_id: str = "") -> str:
+    """The LIVE 'DataPact Signal Room' Genie space id, or the manifest id as a
+    fallback. Prefers the live SDK resource (the manifest id can be stale)."""
+
+    client = getattr(uc, "w", None)
+    if client is not None:
+        try:
+            page_token = None
+            pages = 0
+            while pages < 10:
+                pages += 1
+                resp = client.genie.list_spaces(page_token=page_token) if page_token else client.genie.list_spaces()
+                spaces = getattr(resp, "spaces", None) or []
+                for space in spaces:
+                    if _s(getattr(space, "title", "")) == GENIE_ROOM_NAME:
+                        live = _s(getattr(space, "space_id", ""))
+                        if live:
+                            return live
+                page_token = _s(getattr(resp, "next_page_token", ""))
+                if not page_token:
+                    break
+        except Exception:
+            pass
+    return _s(manifest_id)
+
+
 # ── detection + health ─────────────────────────────────────────────────────
 
 def _disabled_status() -> Dict[str, Any]:
@@ -260,6 +323,14 @@ def status(config: AppConfig, uc: Any, *, timeout_s: int = 20) -> Dict[str, Any]
         state = "degraded"
         message = _s(row.get("shared_surface_reason")) or f"Shared DataPact surfaces are {shared_surface}."
 
+    # Resolve the LIVE dashboard + Genie ids (the manifest ids can be stale, which
+    # made every Dashboard/Signal Room link 404). Build URLs from the resolved ids
+    # rather than trusting the manifest's url strings.
+    dashboard_id = resolve_dashboard_id(uc, _s(row.get("dashboard_id")))
+    genie_id = resolve_genie_space_id(uc, _s(row.get("genie_space_id")))
+    dashboard_url = f"/dashboardsv3/{dashboard_id}/published" if dashboard_id else ""
+    genie_url = f"/genie/rooms/{genie_id}" if genie_id else ""
+
     return {
         "state": state,
         "detected": True,
@@ -270,11 +341,11 @@ def status(config: AppConfig, uc: Any, *, timeout_s: int = 20) -> Dict[str, Any]
         "installationId": _s(row.get("installation_id")),
         "workspaceState": workspace_state,
         "version": _s(row.get("installed_version")),
-        "dashboardId": _s(row.get("dashboard_id")),
-        "dashboardUrl": _s(row.get("dashboard_url")),
+        "dashboardId": dashboard_id,
+        "dashboardUrl": dashboard_url,
         "dashboardRegistered": dashboard_registered,
-        "genieSpaceId": _s(row.get("genie_space_id")),
-        "genieUrl": _s(row.get("genie_url")),
+        "genieSpaceId": genie_id,
+        "genieUrl": genie_url,
         "genieStatus": _s(row.get("genie_status")),
         "genieReady": genie_ready,
         "activeJobCount": _i(row.get("active_job_count")) or 0,
@@ -760,21 +831,24 @@ def run_live_status(config: AppConfig, uc: Any, run_id: int) -> Dict[str, Any]:
 
 
 def genie_space_id(config: AppConfig, uc: Any) -> str:
-    """The DataPact Signal Room space id (from the manifest), or ''."""
+    """The LIVE DataPact Signal Room space id, or '' — resolved by name via the
+    SDK (the manifest's genie_space_id can be stale), falling back to the
+    manifest id only if live resolution finds nothing."""
 
     install = resolve_install(config, uc)
     if install is None:
         return ""
+    manifest_id = ""
     manifest = install.fqn("workspace_manifest")
     try:
         df = uc.query_df(
             f"SELECT genie_space_id FROM {manifest} WHERE manifest_key = 'primary' LIMIT 1"
         )
+        if df is not None and not df.empty:
+            manifest_id = _s(df.iloc[0].get("genie_space_id"))
     except Exception:
-        return ""
-    if df is None or df.empty:
-        return ""
-    return _s(df.iloc[0].get("genie_space_id"))
+        manifest_id = ""
+    return resolve_genie_space_id(uc, manifest_id)
 
 
 __all__ = [

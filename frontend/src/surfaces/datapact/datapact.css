@@ -187,3 +187,5 @@
   .ga-dp-liverun .ga-dp-link,
   .ga-dp-liverun .ga-sys-button { margin-left: 0; }
 }
+
+.ga-dp-run-links { display: flex; gap: 18px; flex-wrap: wrap; }
