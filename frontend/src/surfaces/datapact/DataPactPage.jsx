@@ -332,12 +332,12 @@ function JobRow({ job, canTrigger, onTrigger, onOpenRun, triggeringId, host }) {
         {host && job.executionJobId ? (
           <a
             className="ga-dp-linkbtn"
-            href={job.runId ? `${host}/jobs/${job.executionJobId}/runs/${job.runId}` : `${host}/jobs/${job.executionJobId}`}
+            href={`${host}/jobs/${job.executionJobId}`}
             target="_blank"
             rel="noreferrer"
-            title={job.runId ? "Open this run in Databricks" : "Open this job in Databricks"}
+            title="Open this job in Databricks"
           >
-            Databricks ↗
+            Job ↗
           </a>
         ) : null}
         {confirming ? (
@@ -459,8 +459,7 @@ function RunDrawer({ runId, open, onClose, host }) {
         <div className="ga-dp-run">
           {host && header.jobId ? (
             <div className="ga-dp-run-links">
-              <a className="ga-dp-link" href={`${host}/jobs/${header.jobId}/runs/${runId}`} target="_blank" rel="noreferrer">Open run in Databricks ↗</a>
-              <a className="ga-dp-link" href={`${host}/jobs/${header.jobId}`} target="_blank" rel="noreferrer">Open job ↗</a>
+              <a className="ga-dp-link" href={`${host}/jobs/${header.jobId}`} target="_blank" rel="noreferrer">Open job in Databricks ↗</a>
             </div>
           ) : null}
           <div className="ga-dp-run-kpis">
