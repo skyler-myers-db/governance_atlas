@@ -18,6 +18,9 @@ import "./styles/lineage-v2.css";
 // New-shell chrome (Wave B1): loads AFTER the legacy sheets so ga-shell-*
 // rules win where both target the same element during the migration.
 import "./app-shell/shell.css";
+// Narrow-viewport hardening (mini-rail inner chrome). Imported last so its
+// ga-* rail rules win by source order without !important.
+import "./styles/responsive.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

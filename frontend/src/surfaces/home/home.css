@@ -1272,4 +1272,20 @@
   .ga-home-catalog-row span:nth-child(n + 4) {
     display: none;
   }
+
+  /* The reduced 3-column table still has a ~288px intrinsic floor. On a phone
+     that is wider than the content box, so let it scroll inside its own box
+     rather than pushing the whole page sideways (guardrail: the page body
+     must never scroll horizontally). */
+  .ga-home-catalog-table {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Recommendation cards otherwise hold a 280px minimum track that can exceed
+     a narrow phone content column — let them shrink to one card per row. */
+  .ga-home-rec-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

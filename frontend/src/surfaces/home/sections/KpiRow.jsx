@@ -49,14 +49,18 @@ export function KpiRow({ kpis }) {
     },
     {
       key: "stewardship",
-      label: "Open stewardship items",
+      // Audit B1/B5: this counts open change requests ESTATE-WIDE (not just the
+      // visible estate, and NOT the full Stewardship work queue, which also
+      // includes glossary term reviews). Named distinctly so it no longer
+      // collides with the "N work items" queue count / nav badge.
+      label: "Open change requests",
       value: formatKpiValue(stewardship),
       delta: stewardship?.deltaText || stewardship?.reason || "",
       deltaTone: kpiState(stewardship) === "unavailable" ? "neutral" : "warn",
       trend: Array.isArray(stewardship?.sparkline) ? stewardship.sparkline : [],
       hint:
         stewardship?.formula ||
-        "Open governance change requests targeting assets in the visible estate.",
+        "All open governance change requests across the estate. The Stewardship queue also folds in glossary term reviews and shows the visible-estate split.",
       target: { surface: "stewardship" },
     },
     risk.available

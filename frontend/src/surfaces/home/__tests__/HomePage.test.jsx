@@ -221,7 +221,7 @@ describe("Command Center (surfaces/home)", () => {
     expect(within(kpiRow).getByText("Certified critical assets").closest("a").getAttribute("href")).toBe(
       "/discovery?views=Certified",
     );
-    expect(within(kpiRow).getByText("Open stewardship items").closest("a").getAttribute("href")).toBe(
+    expect(within(kpiRow).getByText("Open change requests").closest("a").getAttribute("href")).toBe(
       "/stewardship",
     );
     // Risk drills land on the Evidence quality tab (C5 route contract),

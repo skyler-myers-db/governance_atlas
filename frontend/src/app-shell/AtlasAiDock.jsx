@@ -950,7 +950,11 @@ export function AtlasAiDock({
               title="Atlas AI answers are grounded in available governance metadata and should be reviewed for accuracy."
               type="button"
             >
-              i
+              <svg aria-hidden="true" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="6.25" />
+                <path d="M8 7.25v4" />
+                <path d="M8 5.1h.01" />
+              </svg>
             </button>
           </p>
           {infoOpen ? (

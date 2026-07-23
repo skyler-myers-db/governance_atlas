@@ -167,10 +167,13 @@ export function DiscoveryResultsTable({
     { key: "owner", header: "Owner", render: ownerCell },
     { key: "certification", header: "Certification", render: certificationCell },
     { key: "domain", header: "Domain", render: domainCell },
-    // Coverage is what the metric measures — never relabeled "Trust".
+    // Audit B3: this is the weighted per-asset governance_score (coverageScore),
+    // the SAME field AssetTrustHero labels "Governance score" — NOT the
+    // equal-weight estate "Metadata coverage" KPI (a different formula). Label
+    // it "Gov. score" so the two distinct metrics never share the word.
     {
       key: "coverage",
-      header: "Coverage",
+      header: "Gov. score",
       render: (asset) => coverageCell(asset, sourceAuthoritative),
     },
     { key: "sensitivity", header: "Sensitivity", render: sensitivityCell },
@@ -290,8 +293,8 @@ export function DiscoveryResultsGrid({
                 <span className="ga-disc-card-usage ga-disc-muted">No recent usage</span>
               ) : null}
               {coverage !== null && sourceAuthoritative ? (
-                <span className="ga-disc-card-coverage" title={`Metadata coverage: ${coverage}%`}>
-                  Coverage {coverage}%
+                <span className="ga-disc-card-coverage" title={`Governance score: ${coverage}% (weighted metadata completeness + certification + glossary)`}>
+                  Gov. score {coverage}%
                 </span>
               ) : null}
             </footer>

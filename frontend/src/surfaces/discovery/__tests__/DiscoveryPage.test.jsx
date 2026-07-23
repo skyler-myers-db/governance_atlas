@@ -224,10 +224,14 @@ describe("DiscoveryPage — results and preview", () => {
     expect(screen.getAllByText("Unscored").length).toBeGreaterThan(0);
   });
 
-  it("labels coverage as Coverage, never Trust", () => {
+  it("labels the per-asset governance_score as Gov. score, never Trust or Metadata coverage", () => {
+    // Audit B3: this per-asset field is the weighted governance_score
+    // (AssetTrustHero calls it "Governance score"); it must NOT reuse the
+    // estate "Metadata coverage" label (a different formula) or "Trust".
     renderPage();
-    expect(screen.getByRole("columnheader", { name: "Coverage" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Gov. score" })).toBeTruthy();
     expect(screen.queryByRole("columnheader", { name: /Trust/i })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: /Metadata coverage/i })).toBeNull();
   });
 
   it("never claims No recent usage when the payload carries no usage fields", () => {

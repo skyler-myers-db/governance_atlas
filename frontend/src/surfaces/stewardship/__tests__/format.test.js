@@ -68,7 +68,7 @@ describe("stewardship format helpers", () => {
   it("summarizes the openRequestScope split", () => {
     expect(
       scopeSummary({ visibleOpenCount: 1, outOfScopeOpenCount: 2, caption: "2 outside" }),
-    ).toBe("1 in the visible estate · 2 on out-of-scope assets (2 outside)");
+    ).toBe("3 open change requests: 1 in the visible estate · 2 on out-of-scope assets (2 outside)");
     expect(scopeSummary(null)).toBe("");
   });
 

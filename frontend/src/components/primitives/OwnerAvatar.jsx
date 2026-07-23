@@ -5,18 +5,24 @@
  * a blob of text.
  */
 
-const PALETTE = [
-  { bg: "#eef2ff", fg: "#4f46e5" },
-  { bg: "#ecfeff", fg: "#0891b2" },
-  { bg: "#f0fdfa", fg: "#0f766e" },
-  { bg: "#fffbeb", fg: "#b45309" },
-  { bg: "#fdf4ff", fg: "#a21caf" },
-  { bg: "#fef3c7", fg: "#92400e" },
-  { bg: "#fff7ed", fg: "#c2410c" },
-  { bg: "#f0f9ff", fg: "#0369a1" },
-  { bg: "#fef2f2", fg: "#b91c1c" },
-  { bg: "#f5f3ff", fg: "#6d28d9" },
+// Deterministic per-owner hue, chosen from --ga-* accent tokens. The circle is
+// a low-alpha tint of the accent (color-mix → transparent) with the initials in
+// the full accent — distinct color per owner, but on the dark theme rather than
+// the old light pastels. No hard-coded hex, no light surfaces (repo rule).
+const ACCENTS = [
+  "var(--ga-bright-blue)",
+  "var(--ga-teal)",
+  "var(--ga-success)",
+  "var(--ga-warning)",
+  "var(--ga-purple)",
+  "var(--ga-danger)",
+  "var(--ga-light-blue)",
+  "var(--ga-gray)",
 ];
+
+// Slightly stronger tint than the type icons: the circle carries text, so it
+// needs a touch more presence to read against the dark surface behind it.
+const tint = (accent) => `color-mix(in srgb, ${accent} 18%, transparent)`;
 
 function hashString(s) {
   let h = 0;
@@ -39,7 +45,7 @@ function ownerInitials(label) {
 }
 
 export function OwnerAvatar({ owner = "", size = 22, className = "", imageUrl = "" }) {
-  const profile = PALETTE[hashString(owner) % PALETTE.length];
+  const accent = ACCENTS[hashString(owner) % ACCENTS.length];
   const initials = ownerInitials(owner);
   const normalizedImageUrl = String(imageUrl || "").trim();
   return (
@@ -49,9 +55,9 @@ export function OwnerAvatar({ owner = "", size = 22, className = "", imageUrl = 
       role="img"
       style={{
         alignItems: "center",
-        background: profile.bg,
+        background: tint(accent),
         borderRadius: "50%",
-        color: profile.fg,
+        color: accent,
         display: "inline-flex",
         flex: "0 0 auto",
         fontSize: Math.round(size * 0.38),

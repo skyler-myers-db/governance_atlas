@@ -1,6 +1,16 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
+import { atlasQueryClient } from "../../../lib/queryClient";
 import { WorkItemPanel } from "../WorkItemPanel.jsx";
+
+// The panel now mounts AssignToControl, which calls useWorkspaceRoster
+// (react-query) — so every render needs a QueryClientProvider, mirroring the
+// StewardshipPage test harness. renderPanel wraps render + rerender for us.
+const Providers = ({ children }) => (
+  <QueryClientProvider client={atlasQueryClient}>{children}</QueryClientProvider>
+);
+const renderPanel = (ui, options) => render(ui, { wrapper: Providers, ...options });
 
 /*
  * surfaces/stewardship/__tests__/WorkItemPanel.test.jsx — the request
@@ -27,7 +37,7 @@ const baseItem = {
 
 describe("WorkItemPanel evidence trail", () => {
   it("renders auditTrail rows as Evidence event anchors with humanized actions and UTC times", () => {
-    render(
+    renderPanel(
       <WorkItemPanel
         detailStatus="available"
         item={{
@@ -60,7 +70,7 @@ describe("WorkItemPanel evidence trail", () => {
   });
 
   it("format-checks trail ids: malformed displayAuditId rows never link", () => {
-    render(
+    renderPanel(
       <WorkItemPanel
         detailStatus="available"
         item={{
@@ -76,7 +86,7 @@ describe("WorkItemPanel evidence trail", () => {
   });
 
   it("shows the honest empty state when auditTrail is absent or empty", () => {
-    const { rerender } = render(<WorkItemPanel detailStatus="available" item={baseItem} />);
+    const { rerender } = renderPanel(<WorkItemPanel detailStatus="available" item={baseItem} />);
     expect(screen.getByText("No audit events recorded for this item yet.")).toBeTruthy();
 
     rerender(<WorkItemPanel detailStatus="available" item={{ ...baseItem, auditTrail: [] }} />);
@@ -84,7 +94,7 @@ describe("WorkItemPanel evidence trail", () => {
   });
 
   it("never shows a definitive empty trail while the detail query is loading", () => {
-    render(<WorkItemPanel detailStatus="loading" item={baseItem} />);
+    renderPanel(<WorkItemPanel detailStatus="loading" item={baseItem} />);
     expect(screen.getByText("Loading the audit trail…")).toBeTruthy();
     expect(screen.queryByText("No audit events recorded for this item yet.")).toBeNull();
     // Comments keep their own hydration-honest placeholder too.
@@ -92,7 +102,7 @@ describe("WorkItemPanel evidence trail", () => {
   });
 
   it("renders a per-comment AUD chip from the backend-mapped displayAuditId", () => {
-    render(
+    renderPanel(
       <WorkItemPanel
         detailStatus="available"
         item={{
@@ -117,5 +127,75 @@ describe("WorkItemPanel evidence trail", () => {
     expect(
       screen.getAllByRole("link").filter((a) => /\/evidence\?event=/.test(a.getAttribute("href") || "")),
     ).toHaveLength(1);
+  });
+});
+
+describe("WorkItemPanel suggested actions (M1)", () => {
+  it("renders suggested actions as non-actionable planned-change items, never executable buttons", () => {
+    renderPanel(
+      <WorkItemPanel
+        canMutate
+        detailStatus="available"
+        item={{
+          ...baseItem,
+          suggestedActions: [
+            { label: "Assign a business owner", detail: "No business owner is recorded." },
+            { label: "Confirm sensitivity classification" },
+          ],
+        }}
+      />,
+    );
+    // The labels render as plain text inside a "planned changes" list…
+    const planned = screen.getByLabelText("Planned changes — not yet applied");
+    expect(within(planned).getByText("Assign a business owner")).toBeTruthy();
+    expect(within(planned).getByText("Confirm sensitivity classification")).toBeTruthy();
+    // …and NOT as buttons the user could click expecting an effect.
+    expect(screen.queryByRole("button", { name: /Assign a business owner/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Confirm sensitivity classification/ })).toBeNull();
+    // The honest "not yet applied" framing is present.
+    expect(within(planned).getAllByText("Planned")).toHaveLength(2);
+  });
+});
+
+describe("WorkItemPanel assign to another steward (G7)", () => {
+  it("reveals a roster typeahead and calls onAssignTo with the picked email, closing on success", async () => {
+    const onAssignTo = vi.fn().mockResolvedValue(true);
+    renderPanel(
+      <WorkItemPanel
+        canMutate
+        detailStatus="available"
+        item={baseItem}
+        onAssignTo={onAssignTo}
+      />,
+    );
+
+    // Collapsed by default: a single "Assign to…" trigger, no input yet.
+    const trigger = screen.getByRole("button", { name: "Assign to…" });
+    expect(screen.queryByLabelText("Assignee email")).toBeNull();
+    fireEvent.click(trigger);
+
+    const input = screen.getByLabelText("Assignee email");
+    fireEvent.change(input, { target: { value: "steward@entrada.ai" } });
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+
+    expect(onAssignTo).toHaveBeenCalledWith("steward@entrada.ai");
+    // A successful (truthy) write collapses the picker back to the trigger.
+    await waitFor(() => expect(screen.queryByLabelText("Assignee email")).toBeNull());
+    expect(screen.getByRole("button", { name: "Assign to…" })).toBeTruthy();
+  });
+
+  it("keeps the picker open when the assign write is rejected (resolves falsy)", async () => {
+    const onAssignTo = vi.fn().mockResolvedValue(false);
+    renderPanel(
+      <WorkItemPanel canMutate detailStatus="available" item={baseItem} onAssignTo={onAssignTo} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Assign to…" }));
+    fireEvent.change(screen.getByLabelText("Assignee email"), {
+      target: { value: "ghost@entrada.ai" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    await waitFor(() => expect(onAssignTo).toHaveBeenCalledWith("ghost@entrada.ai"));
+    // Rejected write leaves the input in place so the steward can correct it.
+    expect(screen.getByLabelText("Assignee email")).toBeTruthy();
   });
 });

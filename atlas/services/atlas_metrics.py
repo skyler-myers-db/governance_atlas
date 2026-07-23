@@ -1754,7 +1754,9 @@ def command_center_payload(
             },
             {
                 "key": "openStewardship",
-                "label": "Open Stewardship Actions",
+                # Audit B1/B5: estate-wide open change requests (NOT the full
+                # stewardship work queue, which also includes term reviews).
+                "label": "Open change requests",
                 "value": open_requests,
                 "format": "number",
                 "state": "available" if requests_available else "unavailable",

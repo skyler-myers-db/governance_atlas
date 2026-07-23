@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
-import { Badge, Button, EmptyState, EntityChip, StatusBanner, toast } from "../../components/system";
+import { useEffect, useRef, useState } from "react";
+import { Badge, Button, EmptyState, EntityChip, StatusBanner, SuggestInput, toast } from "../../components/system";
+import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
 import {
   auditChipId,
   formatShortDate,
@@ -141,6 +142,73 @@ function AuditTrail({ trail, evidenceResolvable = true }) {
   );
 }
 
+/*
+ * Assign this work item to ANOTHER steward (not just "me"). The backend triage
+ * PATCH accepts an `assignee` email validated against the workspace roster
+ * (atlas/api/governance.py → identity_roster.validate_principal), so this is a
+ * real, backed write — same roster + SuggestInput typeahead used for reviewer /
+ * owner autofill elsewhere. `onAssignTo(email)` returns a promise that resolves
+ * truthy on a successful write so the control closes; the roster only loads
+ * once the picker is opened (enabled: open) to avoid a fetch on every render.
+ */
+function AssignToControl({ disabled = false, disabledReason = "", busy = false, onAssignTo }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const roster = useWorkspaceRoster({ enabled: open });
+
+  if (!open) {
+    return (
+      <Button
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        size="sm"
+        title={disabledReason || "Assign this work item to another steward."}
+        variant="secondary"
+      >
+        Assign to…
+      </Button>
+    );
+  }
+
+  const close = () => {
+    setOpen(false);
+    setEmail("");
+  };
+  const submit = (event) => {
+    event.preventDefault();
+    const value = email.trim();
+    if (!value || busy) return;
+    // The server does authoritative roster validation; on a rejected write the
+    // parent keeps the picker open (resolves falsy) and surfaces the reason in
+    // the triage error banner, so a failed reassignment never masquerades as saved.
+    Promise.resolve(onAssignTo?.(value)).then((ok) => {
+      if (ok) close();
+    });
+  };
+
+  return (
+    <form className="ga-stew-assign-form" onSubmit={submit}>
+      <SuggestInput
+        aria-label="Assignee email"
+        className="ga-stew-assign-input"
+        disabled={busy}
+        onChange={(event) => setEmail(event.target.value)}
+        options={roster.emails}
+        placeholder="name@company.com"
+        type="email"
+        value={email}
+        autoFocus
+      />
+      <Button size="sm" type="submit" variant="secondary" loading={busy} disabled={!email.trim()}>
+        Assign
+      </Button>
+      <Button size="sm" type="button" variant="tertiary" onClick={close} disabled={busy}>
+        Cancel
+      </Button>
+    </form>
+  );
+}
+
 export function WorkItemPanel({
   item = null,
   detailStatus = "available",
@@ -149,6 +217,7 @@ export function WorkItemPanel({
   triageBusy = false,
   triageError = "",
   onAssignToMe,
+  onAssignTo,
   onSetPriority,
   onComment,
   onResolve,
@@ -271,6 +340,12 @@ export function WorkItemPanel({
           >
             Assign to me
           </Button>
+          <AssignToControl
+            busy={triageBusy}
+            disabled={!canTriage || Boolean(disabledReason)}
+            disabledReason={disabledReason}
+            onAssignTo={onAssignTo}
+          />
           <label className="ga-stew-priority-picker">
             <span>Priority</span>
             <select
@@ -358,25 +433,36 @@ export function WorkItemPanel({
         {suggestedActions.length ? (
           <>
             <h3>Suggested actions</h3>
-            <div className="ga-stew-suggestions">
+            {/* These are recommendations derived from the request evidence, NOT
+                wired write actions — there is no "apply suggestion" endpoint in
+                the backend. They were previously primary-looking <Button>s whose
+                only effect was a toast, which reads as an executable control that
+                changes nothing (CLAUDE.md "never wire a no-op button"). Render
+                them as de-emphasized, non-actionable planned-change items so a
+                click can never imply a metadata write happened. Stewards act via
+                the triage controls (Assign / Priority / Comment / Resolve) or by
+                filing a metadata change on the asset page. */}
+            <ul className="ga-stew-suggestions" aria-label="Planned changes — not yet applied">
               {suggestedActions.map((action, index) => (
-                <Button
+                <li
+                  className="ga-stew-suggestion"
                   key={`${action.label || "action"}-${index}`}
-                  onClick={() =>
-                    // Visible staged intent (CLAUDE.md "no dead buttons"):
-                    // the backed write lands with the workflow tranche.
-                    toast(
-                      `${textValue(action.label, "Suggested action")} staged for review — no metadata was changed.`,
-                    )
-                  }
-                  size="sm"
-                  title={textValue(action.detail) || "Review the work item evidence before making a metadata change."}
-                  variant="tertiary"
+                  title={textValue(action.detail) || undefined}
                 >
-                  {textValue(action.label, "Review suggested action")}
-                </Button>
+                  <span className="ga-stew-suggestion-tag">Planned</span>
+                  <span className="ga-stew-suggestion-label">
+                    {textValue(action.label, "Suggested action")}
+                  </span>
+                  {textValue(action.detail) ? (
+                    <span className="ga-stew-suggestion-detail">{textValue(action.detail)}</span>
+                  ) : null}
+                </li>
               ))}
-            </div>
+            </ul>
+            <p className="ga-stew-panel-muted">
+              Recommendations from the request evidence — not yet applied. Act on this item with the
+              triage controls above.
+            </p>
           </>
         ) : null}
 

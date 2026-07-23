@@ -20,6 +20,8 @@ const api = vi.hoisted(() => ({
   updateAssetMetadata: vi.fn(),
   upsertGovernanceGlossaryTerm: vi.fn(),
   upsertGovernanceOwner: vi.fn(),
+  updateGovernanceRequest: vi.fn(),
+  fetchBootstrap: vi.fn(),
 }));
 
 vi.mock("../../../lib/api", () => api);
@@ -143,6 +145,12 @@ beforeEach(() => {
   api.updateAssetMetadata.mockReset().mockResolvedValue({ ok: true });
   api.upsertGovernanceGlossaryTerm.mockReset().mockResolvedValue({ ok: true, termId: "net-revenue" });
   api.upsertGovernanceOwner.mockReset().mockResolvedValue({ ok: true });
+  api.updateGovernanceRequest.mockReset().mockResolvedValue({ ok: true });
+  // Default: the viewer is a steward/admin — governanceApproval available, so
+  // the decision controls render. Tests that assert the gated state override it.
+  api.fetchBootstrap.mockReset().mockResolvedValue({
+    capabilities: { governanceApproval: { available: true, state: "available" } },
+  });
 });
 
 /* ------------------------------------------------------------------ tests */
@@ -305,6 +313,92 @@ describe("GlossaryPage — term mini-hub", () => {
         }),
       );
     });
+  });
+
+  it("a steward approves and rejects a pending change request through the request PATCH endpoint", async () => {
+    api.fetchTaxonomyOverview.mockResolvedValue(
+      overviewPayload([
+        term("net-revenue", "Net Revenue", {
+          status: "proposed",
+          recentRequests: [
+            {
+              requestId: "GOV-77ee88ff",
+              title: "Approve Net Revenue definition",
+              status: "pending",
+              createdAt: "2026-07-10T00:00:00Z",
+            },
+          ],
+        }),
+      ]),
+    );
+    renderGlossary("/glossary/net-revenue");
+    const detail = await screen.findByLabelText("Net Revenue detail");
+
+    // Reject is gated on a decision note; Approve is not.
+    const rejectButton = await within(detail).findByRole("button", { name: "Reject" });
+    expect(rejectButton.disabled).toBe(true);
+
+    fireEvent.click(within(detail).getByRole("button", { name: "Approve" }));
+    await waitFor(() => {
+      expect(api.updateGovernanceRequest).toHaveBeenCalledWith(
+        "GOV-77ee88ff",
+        { status: "approved", reviewNote: "" },
+        { fast: false },
+      );
+    });
+
+    // A recorded reason enables Reject and rides the PATCH as reviewNote.
+    fireEvent.change(within(detail).getByPlaceholderText(/Why is this change/), {
+      target: { value: "Definition conflicts with the finance close." },
+    });
+    fireEvent.click(within(detail).getByRole("button", { name: "Reject" }));
+    await waitFor(() => {
+      expect(api.updateGovernanceRequest).toHaveBeenCalledWith(
+        "GOV-77ee88ff",
+        { status: "rejected", reviewNote: "Definition conflicts with the finance close." },
+        { fast: false },
+      );
+    });
+  });
+
+  it("hides the decision controls and explains the gate when the actor cannot decide", async () => {
+    api.fetchBootstrap.mockResolvedValue({
+      capabilities: {
+        governanceApproval: {
+          available: false,
+          state: "unavailable",
+          reason: "This action requires steward or admin permissions.",
+        },
+      },
+    });
+    api.fetchTaxonomyOverview.mockResolvedValue(
+      overviewPayload([
+        term("net-revenue", "Net Revenue", {
+          status: "proposed",
+          recentRequests: [
+            {
+              requestId: "GOV-77ee88ff",
+              title: "Approve Net Revenue definition",
+              status: "pending",
+              createdAt: "2026-07-10T00:00:00Z",
+            },
+          ],
+        }),
+      ]),
+    );
+    renderGlossary("/glossary/net-revenue");
+    const detail = await screen.findByLabelText("Net Revenue detail");
+
+    // The pending request still links to its work item, but no dead buttons.
+    expect(await within(detail).findByRole("link", { name: /GOV-77ee88ff/ })).toBeDefined();
+    await waitFor(() => {
+      expect(
+        within(detail).getByText("This action requires steward or admin permissions."),
+      ).toBeDefined();
+    });
+    expect(within(detail).queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(within(detail).queryByRole("button", { name: "Reject" })).toBeNull();
+    expect(api.updateGovernanceRequest).not.toHaveBeenCalled();
   });
 
   it("closing the detail returns to the bare glossary route", async () => {

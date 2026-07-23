@@ -532,7 +532,21 @@ export function DiscoveryPage({
   };
 
   const chips = appliedChips(filters, params, results.queryState);
-  const savedViewCounts = useMemo(() => savedViewCountsFor(allAssets), [allAssets]);
+  // Audit B2/B4: prefer the SERVER `facets.views` counts (authoritative
+  // `view_matches` over the full matched estate) so each "Governance Views"
+  // number equals what clicking the view actually returns. The client
+  // recompute is a degraded-only fallback for when the facet is absent.
+  const savedViewCounts = useMemo(() => {
+    const serverViews = Array.isArray(results.facets?.views) ? results.facets.views : null;
+    if (serverViews && serverViews.length) {
+      const map = {};
+      for (const item of serverViews) {
+        if (item && item.value != null) map[item.value] = Number(item.count) || 0;
+      }
+      return map;
+    }
+    return savedViewCountsFor(allAssets);
+  }, [results.facets, allAssets]);
   const favoriteChipAssets = [...favorites]
     .map((fqn) => ({ fqn, name: assetsByFqn.get(fqn)?.name }))
     .slice(0, 6);
