@@ -2688,13 +2688,20 @@ def api_atlas_ai_autofill(request: Request, body: AtlasAiAutofill | None = Body(
     )
     if status["state"] != "available":
         return unavailable(status["message"])
+    # Call the serving endpoint with the app's service principal, NOT OBO: the
+    # forwarded user token doesn't carry the `model-serving` scope, and drafting
+    # a definition from a foundation model touches no user-specific governed
+    # data (unlike Genie, which must stay OBO). Fall back to OBO if present.
     forwarded_token = _request_obo_token(request)
-    if not forwarded_token:
-        return unavailable("AI autofill requires the forwarded Databricks user token.")
     try:
-        result = ai_generation.generate_fields(
-            config=cfg, kind=kind, context=context or {}, user_access_token=forwarded_token,
-        )
+        try:
+            result = ai_generation.generate_fields(config=cfg, kind=kind, context=context or {})
+        except Exception:
+            if not forwarded_token:
+                raise
+            result = ai_generation.generate_fields(
+                config=cfg, kind=kind, context=context or {}, user_access_token=forwarded_token,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:

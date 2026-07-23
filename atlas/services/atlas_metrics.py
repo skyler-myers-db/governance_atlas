@@ -257,16 +257,6 @@ def owner_count_for_row(row: Mapping[str, Any]) -> int:
     return len(owners)
 
 
-def _has_any_owner(row: Mapping[str, Any]) -> bool:
-    """Ownership for the COVERAGE lens: an asset with a Unity Catalog owner has
-    an owner recorded, even if no business owner/steward is assigned yet. Counting
-    only governance owners reported 0% ownership coverage for an estate where
-    every asset has a UC owner — understating coverage and rendering the matrix
-    column empty. (The stewardship GAP still uses owner_count_for_row, which is
-    governance-only, so 'assets without an owner' is unchanged.)"""
-    if owner_count_for_row(row) > 0:
-        return True
-    return _has_value(_row_value(row, "uc_owner", "ucOwner", "table_owner"))
 
 
 def _split_principals(raw: Any) -> List[str]:
@@ -481,7 +471,7 @@ def metadata_coverage_for_row(row: Mapping[str, Any] | pd.Series) -> float:
             present += 1
 
     total += 1
-    if _has_any_owner(row_map):
+    if owner_count_for_row(row_map):
         present += 1
 
     return round((present / total) * 100, 1) if total else 0.0
@@ -490,7 +480,7 @@ def metadata_coverage_for_row(row: Mapping[str, Any] | pd.Series) -> float:
 def _metadata_dimensions_for_row(row: Mapping[str, Any]) -> Dict[str, bool]:
     return {
         "Discoverability": _has_value(_row_value(row, "comment", "description")),
-        "Ownership": _has_any_owner(row),
+        "Ownership": owner_count_for_row(row) > 0,
         "Classification": any(
             _has_value(_row_value(row, key))
             for key in ("certification", "sensitivity", "tier")

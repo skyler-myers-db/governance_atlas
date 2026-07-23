@@ -1071,6 +1071,14 @@
   background: color-mix(in srgb, var(--ga-bright-blue) 14%, transparent);
 }
 
+/* 0% coverage is a real gap, not a broken cell — render it as a visible
+   "needs attention" state (faint dashed danger tint) so a fully-uncovered
+   dimension like Ownership reads intentionally instead of as an empty blank. */
+.ga-home-matrix-row span[role="cell"].tone-empty {
+  background: color-mix(in srgb, var(--ga-danger) 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--ga-danger) 38%, transparent);
+}
+
 .ga-home-matrix-scale {
   display: flex;
   align-items: center;

@@ -222,9 +222,9 @@ export default function GlossaryPage() {
   const [aiAutofilling, setAiAutofilling] = useState(false);
 
   // Agentic AI autofill: draft the definition (and suggest a domain) from the
-  // term name via the foundation-model endpoint. It only FILLS the form for the
-  // steward to review/edit — it never saves. Empty fields fill; a definition the
-  // user already typed is preserved unless empty.
+  // term name via the foundation-model endpoint. It only FILLS EMPTY fields for
+  // the steward to review/edit — it never overwrites text they already typed and
+  // never saves. To re-draft, clear the field first.
   const handleAiAutofillTerm = async () => {
     const name = text(termForm?.draft?.name);
     if (!name) {
@@ -242,11 +242,20 @@ export default function GlossaryPage() {
         toast(warnings[0] || "AI autofill didn't return a draft. Try a more specific name.", { tone: "warning" });
         return;
       }
+      // Decide from the CURRENT draft (not inside the async state updater) so
+      // the toast reflects what actually filled. Only fill empty fields.
+      const draftNow = termForm?.draft || {};
+      const willFillDef = Boolean(fields.definition) && !text(draftNow.definition);
+      const willFillDomain = Boolean(fields.domain) && !text(draftNow.domain);
+      if (!willFillDef && !willFillDomain) {
+        toast("Definition and domain are already filled; clear a field to re-draft it.", { tone: "info" });
+        return;
+      }
       setTermForm((current) => {
         if (!current) return current;
         const draft = { ...current.draft };
-        if (fields.definition) draft.definition = fields.definition; // draft replaces the placeholder
-        if (fields.domain && !text(draft.domain)) draft.domain = fields.domain; // don't override a chosen domain
+        if (willFillDef) draft.definition = fields.definition;
+        if (willFillDomain) draft.domain = fields.domain;
         return { ...current, draft };
       });
       toast("AI drafted this term — review and edit before saving.", { tone: "success" });
