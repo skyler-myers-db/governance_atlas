@@ -29,6 +29,17 @@ import {
  * only, with internal taxonomy ids humanized, never raw.
  */
 
+// The governed glossary upsert only accepts these statuses; a replayed write
+// (reviewer assignment, edit) must map any legacy/display status (e.g. the
+// seeded "proposed") onto a valid one instead of 422-ing.
+const BACKEND_TERM_STATUSES = new Set(["draft", "in_review", "approved", "rejected", "deprecated"]);
+function replayStatus(value) {
+  const key = String(value || "draft").toLowerCase();
+  if (BACKEND_TERM_STATUSES.has(key)) return key;
+  if (["proposed", "pending", "review"].includes(key)) return "in_review";
+  return "draft";
+}
+
 function OwnerLine({ label, email }) {
   return (
     <div className="ga-glos-owner-line">
@@ -52,6 +63,13 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
   // the assign form is open); the server validates against the same roster.
   const roster = useWorkspaceRoster({ enabled: reviewerFormOpen });
 
+  // The owner defaults to the display string "Unassigned" (and domain likewise).
+  // Never replay a non-email as ownerEmail — the governed upsert validates it as
+  // an email and 422s on "Unassigned", which blocked approving unowned terms.
+  const ownerEmailValue =
+    term.ownerEmail && term.ownerEmail.includes("@") ? term.ownerEmail : "";
+  const domainValue = term.domain === "Unassigned" ? "" : term.domain || "";
+
   // G6 — Approve/Reject a proposed term. A glossary term's review IS its own
   // status workflow (draft/proposed/in_review → approved | rejected), not an
   // asset-linked change request (that model left the decision UI empty on live
@@ -63,8 +81,8 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
         termId: term.termId,
         name: term.term,
         definition: term.definition || "",
-        domain: term.domain === "Unassigned" ? "" : term.domain || "",
-        ownerEmail: term.ownerEmail || "",
+        domain: domainValue,
+        ownerEmail: ownerEmailValue,
         status,
         reviewers: term.reviewers.map((reviewer) => ({
           email: reviewer.email,
@@ -98,9 +116,12 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], canD
         termId: term.termId,
         name: term.term,
         definition: term.definition || "",
-        domain: term.domain === "Unassigned" ? "" : term.domain || "",
-        ownerEmail: term.ownerEmail || "",
-        status: term.status || "draft",
+        domain: domainValue,
+        ownerEmail: ownerEmailValue,
+        // "proposed" is a legacy/seeded display status the backend upsert
+        // doesn't accept ({draft,in_review,approved,rejected,deprecated}); a
+        // reviewer assignment must not fail on it — map it to in_review.
+        status: replayStatus(term.status),
         reviewers: [
           ...term.reviewers.map((reviewer) => ({
             email: reviewer.email,
