@@ -31,6 +31,7 @@ from atlas.api import (
     build_catalog_router,
     build_cde_router,
     build_classification_router,
+    build_datapact_router,
     build_discovery_router,
     build_export_router,
     build_governance_router,
@@ -69,6 +70,7 @@ from atlas.runtime_contract import validate_frontend_bundle
 from atlas.services import approvals as approval_service
 from atlas.services import assets as asset_service
 from atlas.services import capabilities as capability_service
+from atlas.services import datapact as datapact_service
 from atlas.services import genie as genie_service
 from atlas.services import governance as governance_service
 from atlas.services import lakebase as lakebase_service
@@ -2254,6 +2256,33 @@ def _shell_payload(
         else 0
     )
 
+    # DataPact detection is a best-effort app-principal probe, run only once the
+    # runtime is live (never on cold boot) and cached 60s so it can't slow the
+    # bootstrap hot path. It decorates the nav + rail tile; the Control Center
+    # surface performs the authoritative OBO detection on load.
+    def _load_datapact_status() -> Dict[str, Any]:
+        try:
+            return datapact_service.shell_integration_status(_config(), _uc())
+        except Exception as exc:
+            return {
+                "state": "unknown",
+                "detected": False,
+                "message": f"{exc.__class__.__name__}: {exc}",
+                "surface": "datapact",
+            }
+
+    if state == "live":
+        datapact_status = _ttl_value(
+            "runtime_shell_datapact_status", 60, _load_datapact_status
+        )
+    else:
+        datapact_status = {
+            "state": "unknown",
+            "detected": False,
+            "message": "DataPact detection runs once the runtime is live.",
+            "surface": "datapact",
+        }
+
     capabilities = capability_service.bootstrap_capabilities(
         actor_role=_lightweight_user_role_slug(request),
         authenticated=_user_email(request) != "unknown"
@@ -2269,6 +2298,8 @@ def _shell_payload(
         observed_catalog_count=int(bootstrap_summary.get("observedCatalogCount") or 0),
         boot_message=message,
         per_user_authorization=bool(_request_obo_token(request)),
+        datapact_state=_normalize_str(datapact_status.get("state")),
+        datapact_reason=_normalize_str(datapact_status.get("message")),
     )
 
     cfg = _config()
@@ -2360,6 +2391,9 @@ def _shell_payload(
             "ai": atlas_ai_status,
             "storage": {
                 "lakebase": lakebase_status,
+            },
+            "integrations": {
+                "datapact": datapact_status,
             },
             "workspaceHost": cfg.workspace_host,
             "product": {
@@ -2616,6 +2650,7 @@ app.include_router(build_insights_router())
 app.include_router(build_atlas_router())
 app.include_router(build_atlas_ai_router())
 app.include_router(build_cde_router())
+app.include_router(build_datapact_router())
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)

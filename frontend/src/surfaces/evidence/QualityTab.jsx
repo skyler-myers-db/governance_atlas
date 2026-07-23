@@ -11,6 +11,7 @@ import {
   UnavailableState,
 } from "../../components/system";
 import { auditRangeSinceIso } from "../../hooks/useAuditEvents";
+import { DataPactQualityBand } from "./DataPactQualityBand.jsx";
 import { useAssetSuggestions } from "../../hooks/useAssetSuggestions";
 import { useQualityFindings } from "../../hooks/useQualityFindings";
 import {
@@ -254,6 +255,7 @@ export function QualityTab({ params, setParams }) {
   /* ------------------------------------------------------------ render */
   return (
     <div className="ga-evid-quality">
+      <DataPactQualityBand />
       {findings.status === "degraded" ? (
         <StatusBanner
           tone="warning"

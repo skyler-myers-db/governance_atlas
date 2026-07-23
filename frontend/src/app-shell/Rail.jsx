@@ -44,6 +44,7 @@ const RAIL_ICONS = {
   listChecks: <Icon><path d="m4 7 1.5 1.5L8.5 5" /><path d="M11 7h9" /><path d="m4 13 1.5 1.5 3-3.5" /><path d="M11 13h9" /><path d="m4 19 1.5 1.5 3-3.5" /><path d="M11 19h9" /></Icon>,
   book: <Icon><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3Z" /><path d="M5 4v13" /><path d="M9 8h6" /><path d="M9 12h6" /></Icon>,
   shieldCheck: <Icon><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-5" /></Icon>,
+  datapact: <Icon><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6l-7-3Z" /><path d="M9 11.5h6" /><path d="M9 14.5h4" /></Icon>,
   sliders: <Icon><path d="M4 6h10" /><path d="M18 6h2" /><path d="M4 12h2" /><path d="M10 12h10" /><path d="M4 18h8" /><path d="M16 18h4" /><circle cx="16" cy="6" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="14" cy="18" r="2" /></Icon>,
   help: <Icon><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.7 2.7 0 0 1 5 1.4c0 1.8-2.5 2.1-2.5 4" /><path d="M12 17.5h.01" /></Icon>,
 };

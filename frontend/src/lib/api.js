@@ -1022,6 +1022,42 @@ export function fetchInsightsDashboard(options = {}) {
   return request(path, { signal: options.signal });
 }
 
+// ── DataPact Control Center ──────────────────────────────────────────────
+
+export function fetchDataPactStatus(options = {}) {
+  return request("/datapact/status", { signal: options.signal });
+}
+
+export function fetchDataPactOverview(options = {}) {
+  const query = options.refresh ? "?refresh=1" : "";
+  return request(`/datapact/overview${query}`, { signal: options.signal });
+}
+
+export function fetchDataPactRun(runId, options = {}) {
+  return request(`/datapact/runs/${encodeURIComponent(runId)}`, { signal: options.signal });
+}
+
+export function fetchDataPactRunLive(runId, options = {}) {
+  return request(`/datapact/runs/${encodeURIComponent(runId)}/live`, { signal: options.signal });
+}
+
+export function triggerDataPactRun(jobId, body = {}, options = {}) {
+  return requestJson(`/datapact/jobs/${encodeURIComponent(jobId)}/run`, "POST", body, options);
+}
+
+export function startDataPactGenie(question, options = {}) {
+  return requestJson("/datapact/genie/start", "POST", { question }, options);
+}
+
+export function pollDataPactGenie(conversationId, messageId, options = {}) {
+  return requestJson(
+    "/datapact/genie/poll",
+    "POST",
+    { conversationId, messageId },
+    options,
+  );
+}
+
 export function fetchTaxonomyOverview(options = {}) {
   const path = contractPath("taxonomyOverview") || "/atlas/taxonomy/overview";
   const params = new URLSearchParams();

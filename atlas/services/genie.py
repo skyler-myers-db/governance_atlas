@@ -442,17 +442,29 @@ def start_genie(
     question: str,
     client: Any | None = None,
     user_access_token: str = "",
+    space_id: str = "",
 ) -> Dict[str, Any]:
     """Start a Genie conversation WITHOUT waiting, so the caller can poll for
-    progress. Returns the ids + the initial stage. No answer yet."""
+    progress. Returns the ids + the initial stage. No answer yet.
+
+    ``space_id`` overrides GA's own configured Genie space. This lets the
+    DataPact Control Center drive a conversation against DataPact's managed
+    Signal Room (discovered from its manifest) without requiring GA's own
+    Atlas AI Genie provider to be configured. When overridden, the GA
+    provider-availability gate is skipped — the caller vouches for the space.
+    """
     prompt = normalize_str(question)
     if not prompt:
         raise ValueError("Question is required.")
     status = provider_status(config)
-    if status.get("state") != "available":
+    override = normalize_str(space_id)
+    effective_space = override or normalize_str(status.get("spaceId"))
+    if not override and status.get("state") != "available":
         raise RuntimeError(status.get("message") or "Genie is not configured.")
+    if not effective_space:
+        raise RuntimeError("No Genie space id is available for this conversation.")
     w = client or _workspace_client(config, user_access_token=user_access_token)
-    started = w.genie.start_conversation(space_id=status["spaceId"], content=prompt)
+    started = w.genie.start_conversation(space_id=effective_space, content=prompt)
     # `start_conversation` returns an SDK Wait whose ids live in a private bind
     # dict reached via a KeyError-raising __getattr__; its `.response`
     # (GenieStartConversationResponse) is a real attribute carrying the ids +
@@ -493,19 +505,29 @@ def poll_genie(
     message_id: str,
     client: Any | None = None,
     user_access_token: str = "",
+    space_id: str = "",
 ) -> Dict[str, Any]:
     """Poll a running Genie message. Returns {status, stage, done} while
-    in-flight; when COMPLETED, also returns the finalized `payload`."""
+    in-flight; when COMPLETED, also returns the finalized `payload`.
+
+    ``space_id`` overrides GA's configured Genie space (see ``start_genie``)
+    so the DataPact Control Center can poll a conversation it started against
+    DataPact's Signal Room.
+    """
     conversation_id = normalize_str(conversation_id)
     message_id = normalize_str(message_id)
     if not conversation_id or not message_id:
         raise ValueError("conversationId and messageId are required.")
     status = provider_status(config)
-    if status.get("state") != "available":
+    override = normalize_str(space_id)
+    effective_space = override or normalize_str(status.get("spaceId"))
+    if not override and status.get("state") != "available":
         raise RuntimeError(status.get("message") or "Genie is not configured.")
+    if not effective_space:
+        raise RuntimeError("No Genie space id is available for this conversation.")
     w = client or _workspace_client(config, user_access_token=user_access_token)
     message = w.genie.get_message(
-        space_id=status["spaceId"], conversation_id=conversation_id, message_id=message_id
+        space_id=effective_space, conversation_id=conversation_id, message_id=message_id
     )
     message_status = _status_value(_obj_get(message, "status"))
     if message_status in _GENIE_FAIL_STATES:

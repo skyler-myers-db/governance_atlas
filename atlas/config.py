@@ -78,6 +78,15 @@ class AppConfig:
     lakebase_endpoint_name: str = ""
     lakebase_schema: str = ""
     lakebase_uc_catalog: str = ""
+    # DataPact integration (see atlas/services/datapact.py). The catalog is the
+    # one thing GA cannot know a priori — DataPact records it in a shared
+    # workspace pointer file, but a baked env var makes detection deterministic
+    # and skips a workspace-file read on the bootstrap hot path. Empty catalog
+    # means "auto-discover from the pointer file at request time". The schema is
+    # the DataPact managed-schema constant ("datapact") unless overridden.
+    datapact_enabled: bool = True
+    datapact_catalog: str = ""
+    datapact_schema: str = "datapact"
 
     @staticmethod
     def from_env() -> "AppConfig":
@@ -128,4 +137,7 @@ class AppConfig:
             or _env_optional("ENDPOINT_NAME"),
             lakebase_schema=_env_optional("GOVAT_LAKEBASE_SCHEMA") or "atlas_app",
             lakebase_uc_catalog=_env_optional("GOVAT_LAKEBASE_UC_CATALOG"),
+            datapact_enabled=_env_bool("GOVAT_DATAPACT_ENABLED", True),
+            datapact_catalog=_env_optional("GOVAT_DATAPACT_CATALOG"),
+            datapact_schema=_env_optional("GOVAT_DATAPACT_SCHEMA") or "datapact",
         )
