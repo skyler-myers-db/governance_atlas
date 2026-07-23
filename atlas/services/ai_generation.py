@@ -36,21 +36,32 @@ def _workspace_client(config: AppConfig | None = None, user_access_token: str = 
 
     token = normalize_str(user_access_token)
     host = normalize_str(_cfg(config, "workspace_host")) if config is not None else ""
+    if not host:
+        # In the Databricks App runtime config.workspace_host can be empty; the
+        # SDK env still carries the host. Without it the M2M branch below was
+        # skipped and we fell back to the app's PAT (no model-serving scope).
+        host = os.environ.get("DATABRICKS_HOST", "").strip()
+        if host and not host.startswith("http"):
+            host = "https://" + host
     if token and host:
         return WorkspaceClient(
             host=host, token=token, auth_type="pat",
             product="governance-atlas", product_version="atlas-ai-generation-obo",
         )
     # App service principal: the serving-endpoint CAN_QUERY grant is on the SP,
-    # so force OAuth M2M (client_id/secret) — the app's default DATABRICKS_TOKEN
-    # is a PAT that lacks the model-serving scope.
+    # so force OAuth M2M (client_id/secret). The app's default DATABRICKS_TOKEN
+    # is a PAT that lacks the model-serving scope, so we must NOT fall through to
+    # the default WorkspaceClient() (which would pick up that PAT).
     client_id = os.environ.get("DATABRICKS_CLIENT_ID", "").strip()
     client_secret = os.environ.get("DATABRICKS_CLIENT_SECRET", "").strip()
-    if client_id and client_secret and host:
-        return WorkspaceClient(
-            host=host, client_id=client_id, client_secret=client_secret, auth_type="oauth-m2m",
+    if client_id and client_secret:
+        kwargs = dict(
+            client_id=client_id, client_secret=client_secret, auth_type="oauth-m2m",
             product="governance-atlas", product_version="atlas-ai-generation-m2m",
         )
+        if host:
+            kwargs["host"] = host
+        return WorkspaceClient(**kwargs)
     return WorkspaceClient()
 
 
