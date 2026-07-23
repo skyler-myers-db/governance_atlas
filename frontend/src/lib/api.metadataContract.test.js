@@ -7,6 +7,7 @@ import {
   fetchCdeDashboard,
   fetchCdeDetail,
   fetchClassificationRecommendations,
+  fetchDiscoverySearch,
   fetchAuditEvidence,
   fetchGovernanceAuditTimeline,
   fetchInsightsDashboard,
@@ -340,6 +341,44 @@ describe("insights API contract", () => {
       "/api/atlas/insights",
       expect.objectContaining({ method: "GET" }),
     );
+  });
+});
+
+describe("discovery + retired-endpoint contract guards", () => {
+  // Regression guard for a live-observed stale-bundle class of bug: an older
+  // client POSTed to /api/discovery/search (→ 405) and called removed endpoints
+  // /api/discovery/facets and /api/insights/dashboard (→ 404). The current
+  // contract consolidated all three — search is GET (facets ride inside its
+  // payload) and insights moved to /atlas/insights. These lock the migration so
+  // a stale endpoint call can't silently creep back in.
+  afterEach(() => {
+    delete window.__GOVAT_BOOTSTRAP__;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("searches over GET /api/discovery/search (never POST → 405)", async () => {
+    stubJsonResponse({ assets: [], count: 0, facets: {}, meta: {} });
+    await fetchDiscoverySearch({ query: "revenue" });
+    const [url, init] = globalThis.fetch.mock.calls[0];
+    expect(String(url)).toContain("/api/discovery/search");
+    expect(String(url)).toContain("query=revenue");
+    // request() omits `method`, defaulting to GET; anything else means a 405.
+    expect((init?.method || "GET").toUpperCase()).toBe("GET");
+  });
+
+  it("never targets the retired facets or insights-dashboard endpoints", async () => {
+    stubJsonResponse({ assets: [], count: 0, facets: {}, meta: {} });
+    await fetchDiscoverySearch({ query: "x", domains: ["Finance"] });
+    await fetchInsightsDashboard();
+    const calledUrls = globalThis.fetch.mock.calls.map((call) => String(call[0]));
+    expect(calledUrls.length).toBeGreaterThan(0);
+    for (const url of calledUrls) {
+      expect(url).not.toContain("/api/discovery/facets");
+      expect(url).not.toContain("/api/insights/dashboard");
+    }
+    // Insights resolves to the consolidated route, not the retired one.
+    expect(calledUrls.some((url) => url.includes("/api/atlas/insights"))).toBe(true);
   });
 });
 

@@ -80,11 +80,15 @@ const AI_ROUTE_COPY = {
   home: {
     emptyLive: "Ask about executive-facing dashboards, owner risk, freshness, and certification using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about a dashboard, owner, or risk signal...",
+    // Overview surface — no single dashboard/metric is selected here, so every
+    // prompt must be answerable from the estate as a whole. (Prompts that named
+    // "the selected X" made Genie pick an arbitrary asset — see the per-asset
+    // copy below for when a concrete asset IS in scope.)
     prompts: [
-      "What's powering a selected executive dashboard, and is anything at risk this week?",
+      "Which executive dashboards have at-risk or stale sources this week?",
       "Which uncertified tables are queried by executives?",
-      "Summarize PII coverage for a selected customer domain.",
-      "Who owns the selected critical metric and when was it last certified?",
+      "Summarize PII coverage across customer domains.",
+      "Which critical metrics are overdue for certification?",
     ],
   },
   discovery: {
@@ -94,7 +98,7 @@ const AI_ROUTE_COPY = {
       "Which visible assets have the strongest trust signal?",
       "Show customer assets without a certified owner.",
       "Explain why a deleted or inaccessible result appears.",
-      "Which upstream tables should I inspect before using the selected asset?",
+      "Which assets in these results have incomplete lineage?",
     ],
   },
   stewardship: {
@@ -103,7 +107,7 @@ const AI_ROUTE_COPY = {
     prompts: [
       "Which stewardship items need attention first?",
       "Summarize overdue owner or certification work.",
-      "What evidence supports the selected request?",
+      "What evidence backs the highest-priority open request?",
       "Which lineage gaps should a steward review?",
     ],
   },
@@ -112,7 +116,7 @@ const AI_ROUTE_COPY = {
     placeholder: "Ask about a term, CDE, reviewer, or linked asset...",
     prompts: [
       "Which CDEs are due for review?",
-      "What assets are linked to the selected glossary term?",
+      "Which glossary terms have no linked assets?",
       "Summarize reviewer status for critical CDEs.",
       "Which glossary term has the most asset coverage?",
     ],
@@ -120,20 +124,29 @@ const AI_ROUTE_COPY = {
   lineage: {
     emptyLive: "Ask about lineage hops, impact, provenance, and column completeness using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about upstream, downstream, or impact...",
+    // Lineage OVERVIEW (no asset opened). "the selected table" / "a schema
+    // change" had no referent here, so Genie chose an arbitrary asset. Each
+    // prompt below is a one-shot aggregate over atlas_ai_lineage_edges
+    // (source/target/lineage_source/event_time/availability_state) — every one
+    // was live-verified to resolve deterministically in a single Genie pass.
+    // Superlative/anti-join phrasings ("widest impact", "no consumers") made
+    // Genie loop and time out, and column-completeness/restricted-node data
+    // isn't in this table — so those were dropped. Open an asset and the
+    // per-asset prompts below name it explicitly.
     prompts: [
-      "Which upstream assets feed the selected table?",
-      "Summarize downstream impact for a schema change.",
-      "Where is column lineage incomplete?",
-      "Which restricted node affects revenue consumers?",
+      "Which assets have the most downstream consumers?",
+      "Which assets have the most upstream sources?",
+      "What are the most recent lineage changes?",
+      "Which lineage relationships are restricted or unavailable?",
     ],
   },
   evidence: {
     emptyLive: "Ask about audit events, control evidence, grants, notebook activity, and export context using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about audit evidence, grants, or exports...",
     prompts: [
-      "Summarize audit evidence for the selected window.",
+      "Summarize audit evidence for the recent activity window.",
       "Which high-severity events need review?",
-      "What provenance backs the audit export?",
+      "What provenance backs recent audit exports?",
       "Show recent permission or grant activity.",
     ],
   },
