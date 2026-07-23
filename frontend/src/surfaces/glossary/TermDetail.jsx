@@ -8,9 +8,8 @@ import {
   toast,
 } from "../../components/system";
 import { useAtlasMutation } from "../../hooks/useAtlasQuery";
-import { useBootstrap } from "../../hooks/useBootstrap";
 import { useWorkspaceRoster } from "../../hooks/useWorkspaceRoster";
-import { updateGovernanceRequest, upsertGovernanceGlossaryTerm } from "../../lib/api";
+import { upsertGovernanceGlossaryTerm } from "../../lib/api";
 import {
   compactDate,
   humanizeTaxonomyRef,
@@ -53,37 +52,6 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
   // the assign form is open); the server validates against the same roster.
   const roster = useWorkspaceRoster({ enabled: reviewerFormOpen });
 
-  // Approve/Reject on a pending change request (G6). The steward's decision
-  // gate is the SAME signal the backend enforces: capabilities.governanceApproval
-  // is available ONLY when the actor is a steward/admin AND the runtime/store are
-  // live and authenticated (atlas/services/capabilities.py — role in APPROVAL_ROLES).
-  // Trusting this bootstrap flag means we never render an enabled button the
-  // backend's role_can_decide() would 403; when it's unavailable we surface the
-  // capability's own reason instead of a dead control.
-  const bootstrap = useBootstrap({ surface: "governance" });
-  const approvalCapability = bootstrap.data?.capabilities?.governanceApproval || null;
-  const canDecide = approvalCapability?.available === true;
-  const approvalDisabledReason =
-    approvalCapability?.reason ||
-    "Approving or rejecting a change request requires steward or admin permissions.";
-  // The reason rides the decision as reviewNote. Reject requires one (an audit
-  // trail must record WHY a proposal was declined); Approve may proceed without.
-  const [decisionReason, setDecisionReason] = useState("");
-  // Which (requestId, status) is in flight — drives the per-button spinner so
-  // only the clicked control shows loading, not every button in the card.
-  const [activeDecision, setActiveDecision] = useState(null);
-
-  const decideRequest = useAtlasMutation({
-    mutate: ({ requestId, status, reviewNote }) =>
-      // Existing decision endpoint: PATCH /governance/requests/:id with the
-      // request status. fast:false so the store refreshes its projection and
-      // our invalidation re-reads the term with the settled status.
-      updateGovernanceRequest(requestId, { status, reviewNote }, { fast: false }),
-    // Re-sync the same caches the reviewer-assign write invalidates so the term
-    // (and its pending-request list) refreshes from persisted truth on success.
-    invalidates: [["atlas", "taxonomy-overview"], ["governance", "glossary"]],
-  });
-
   const assignReviewer = useAtlasMutation({
     mutate: (email) =>
       upsertGovernanceGlossaryTerm({
@@ -110,36 +78,10 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
   useEffect(() => {
     setReviewerFormOpen(false);
     setReviewerEmail("");
-    setDecisionReason("");
-    setActiveDecision(null);
     assignReviewer.reset();
-    decideRequest.reset();
     // reset is stable (react-query); keying on the term id only is intended.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term.termId]);
-
-  const handleDecision = async (requestId, status) => {
-    if (!requestId || !canDecide || decideRequest.submitting) return;
-    const reviewNote = decisionReason.trim();
-    // Reject must carry a reason (guarded by the button's disabled state too).
-    if (status === "rejected" && !reviewNote) return;
-    setActiveDecision({ requestId, status });
-    try {
-      await decideRequest.mutate({ requestId, status, reviewNote });
-      toast(
-        status === "approved"
-          ? `Request ${requestId} approved.`
-          : `Request ${requestId} rejected.`,
-        { tone: status === "approved" ? "success" : "warning" },
-      );
-      setDecisionReason("");
-    } catch {
-      /* decideRequest.errorMessage renders inline; nothing was mutated locally,
-         so there is no optimistic state to roll back. */
-    } finally {
-      setActiveDecision(null);
-    }
-  };
 
   const handleAssignReviewer = async (event) => {
     event.preventDefault();
@@ -319,73 +261,18 @@ export function TermDetail({ term, termLookup, terms = [], childTerms = [], onEd
         <SectionCard className="ga-glos-detail-card" title="Pending review">
           {pendingRequests.length ? (
             <div className="ga-glos-review-list">
-              {pendingRequests.map((request) => {
-                const approving =
-                  activeDecision?.requestId === request.id && activeDecision?.status === "approved";
-                const rejecting =
-                  activeDecision?.requestId === request.id && activeDecision?.status === "rejected";
-                return (
-                  <div className="ga-glos-review-item" key={request.id}>
-                    <EntityChip
-                      appearance="row"
-                      entity={{
-                        kind: "request",
-                        id: request.id,
-                        label: `${request.id} · ${request.title}`,
-                        meta: request.createdAt ? `Filed ${compactDate(request.createdAt)}` : "",
-                      }}
-                    />
-                    {canDecide ? (
-                      <div className="ga-glos-detail-head-actions">
-                        <Button
-                          disabled={decideRequest.submitting}
-                          loading={approving}
-                          onClick={() => handleDecision(request.id, "approved")}
-                          size="sm"
-                          variant="primary"
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          // Reject stays disabled until a reason is recorded so a
-                          // decline always leaves an auditable rationale.
-                          disabled={decideRequest.submitting || !decisionReason.trim()}
-                          loading={rejecting}
-                          onClick={() => handleDecision(request.id, "rejected")}
-                          size="sm"
-                          tone="danger"
-                          variant="secondary"
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-              {canDecide ? (
-                <div className="ga-glos-inline-form">
-                  <label className="ga-glos-field">
-                    <span>Decision note {`(required to reject)`}</span>
-                    <textarea
-                      disabled={decideRequest.submitting}
-                      onChange={(event) => setDecisionReason(event.target.value)}
-                      placeholder="Why is this change approved or rejected?"
-                      rows={2}
-                      value={decisionReason}
-                    />
-                  </label>
-                  {decideRequest.errorMessage ? (
-                    <p className="ga-glos-form-error" role="alert">
-                      {decideRequest.errorMessage}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                // No dead buttons for non-deciders: surface the capability's own
-                // reason so the steward gate is explained, not hidden.
-                <p className="ga-glos-muted">{approvalDisabledReason}</p>
-              )}
+              {pendingRequests.map((request) => (
+                <EntityChip
+                  appearance="row"
+                  entity={{
+                    kind: "request",
+                    id: request.id,
+                    label: `${request.id} · ${request.title}`,
+                    meta: request.createdAt ? `Filed ${compactDate(request.createdAt)}` : "",
+                  }}
+                  key={request.id}
+                />
+              ))}
             </div>
           ) : awaitingReview ? (
             <p className="ga-glos-muted">
