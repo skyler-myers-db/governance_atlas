@@ -4,6 +4,7 @@ from .assets import build_assets_router
 from .catalog import build_catalog_router
 from .cde import build_cde_router
 from .classification import build_classification_router
+from .datapact import build_datapact_router
 from .discovery import build_discovery_router
 from .export import build_export_router
 from .governance import build_governance_router
@@ -19,6 +20,7 @@ __all__ = [
     "build_catalog_router",
     "build_cde_router",
     "build_classification_router",
+    "build_datapact_router",
     "build_discovery_router",
     "build_export_router",
     "build_governance_router",

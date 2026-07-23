@@ -78,6 +78,9 @@ variables:
   lakebase_uc_catalog:
     description: "Optional UC catalog registered for Lakebase synced/foreign tables"
     default: "not-configured"
+  datapact_catalog:
+    description: "UC catalog hosting the DataPact control plane (<catalog>.datapact). Empty/not-configured = auto-discover from DataPact's /Shared/DataPact pointer file."
+    default: "not-configured"
 
 # ── App resource ────────────────────────────────────────────
 resources:
@@ -123,6 +126,8 @@ resources:
             value: ${var.lakebase_schema}
           - name: GOVAT_LAKEBASE_UC_CATALOG
             value: ${var.lakebase_uc_catalog}
+          - name: GOVAT_DATAPACT_CATALOG
+            value: ${var.datapact_catalog}
       # OBO (on-behalf-of-user) scopes. Without these declared here, every
       # `bundle deploy` wipes scopes the operator set in the Databricks UI,
       # which silently demotes user reads to app-principal fallback and makes
@@ -176,6 +181,8 @@ targets:
       lakebase_branch: "projects/governance-atlas-state/branches/production"
       lakebase_database_resource: "projects/governance-atlas-state/branches/production/databases/db-y68x-6gpq0zhrl4"
       lakebase_schema: "atlas_app"
+      # DataPact control plane lives in main.datapact on this workspace.
+      datapact_catalog: "main"
     resources:
       apps:
         atlas:

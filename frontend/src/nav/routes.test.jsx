@@ -216,6 +216,7 @@ describe("route table: shape", () => {
         "/admin",
         "/assets",
         "/assets/:fqn",
+        "/datapact",
         "/discovery",
         "/evidence",
         "/glossary",
@@ -236,6 +237,7 @@ describe("route table: shape", () => {
       "Command Center",
       "Discover",
       "Stewardship",
+      "DataPact",
     ]);
     expect(sections[1].items.map((item) => item.label)).toEqual([
       "Glossary & CDEs",

@@ -21,6 +21,7 @@ const AssetHubPage = lazy(() => import("../surfaces/asset/AssetHubPage.jsx"));
 const AssetPickerPage = lazy(() => import("../surfaces/asset/AssetPickerPage.jsx"));
 const LineagePage = lazy(() => import("../surfaces/lineage/LineagePage.jsx"));
 const StewardshipPage = lazy(() => import("../surfaces/stewardship/StewardshipPage.jsx"));
+const DataPactPage = lazy(() => import("../surfaces/datapact/DataPactPage.jsx"));
 const EvidencePage = lazy(() => import("../surfaces/evidence/EvidencePage.jsx"));
 const GlossaryPage = lazy(() => import("../surfaces/glossary/GlossaryPage.jsx"));
 const HomePage = lazy(() => import("../surfaces/home/HomePage.jsx"));
@@ -205,6 +206,31 @@ function StewardshipRoute() {
 }
 
 /* ------------------------------------------------------------------ */
+/* DataPact Control Center                                              */
+/* ------------------------------------------------------------------ */
+
+function DataPactRoute() {
+  const shellCtx = useShellContext();
+  // Router-self-sufficient: the surface reads ?tab/?run/?job via
+  // useSurfaceParams and performs its own authoritative OBO detection. Only
+  // shell-owned signals ride in: identity (steward gate for triggering runs),
+  // the workspace host (for the embedded AI/BI dashboard iframe), and the
+  // bootstrap capability snapshot.
+  return (
+    <Suspense
+      fallback={
+        <RouteFallback
+          eyebrow="Loading DataPact"
+          message="Detecting the DataPact control plane and loading validation results."
+        />
+      }
+    >
+      <DataPactPage shell={shellCtx.shell} />
+    </Suspense>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Glossary & CDEs                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -339,6 +365,7 @@ export function SurfaceRoutes() {
       <Route element={<AssetPickerRoute />} path="/assets" />
       <Route element={<AssetHubRoute />} path="/assets/*" />
       <Route element={<StewardshipRoute />} path="/stewardship" />
+      <Route element={<DataPactRoute />} path="/datapact" />
       <Route element={<GlossaryRoute />} path="/glossary/*" />
       <Route element={<GlossaryRoute />} path="/glossary" />
       <Route element={<LineageRoute />} path="/lineage/*" />

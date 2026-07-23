@@ -165,6 +165,23 @@ export const ROUTES = [
     },
   },
   {
+    surface: "datapact",
+    path: "/datapact",
+    // WHY: /data-pact and /data-quality are the natural spellings; the Control
+    // Center is where DataPact validation results live inside Atlas.
+    aliases: ["/data-pact", "/data-quality", "/quality-gate"],
+    nav: { section: "govern", label: "DataPact", icon: "datapact" },
+    paramsSchema: {
+      // overview | jobs | ask | dashboard
+      tab: str(),
+      // ?run=<runId> opens the run-detail drawer (addressable + shareable).
+      run: str(),
+      // ?job=<normalizedJobName> focuses a job in the Jobs tab.
+      job: str(),
+      ...PEEK,
+    },
+  },
+  {
     surface: "glossary",
     path: "/glossary/:termId",
     // Term detail is path-addressable (COHESION: "/glossary/<termId>"). Listed

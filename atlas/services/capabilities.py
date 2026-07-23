@@ -143,6 +143,8 @@ def bootstrap_capabilities(
     boot_message: str = "",
     per_user_authorization: bool = False,
     claim_actor_scoped_reads: bool = False,
+    datapact_state: str = "",
+    datapact_reason: str = "",
 ) -> Dict[str, Dict[str, Any]]:
     role = _normalize_role(actor_role)
     auth_mode = runtime_auth_mode(
@@ -524,6 +526,43 @@ def bootstrap_capabilities(
             product_mode=auth_mode,
         )
 
+    # DataPact detection is independent of GA's own runtime/store liveness — it
+    # reflects whether the sibling DataPact control plane is installed and
+    # reachable. Detection is best-effort at bootstrap (app-principal probe);
+    # the Control Center surface performs the authoritative OBO detection on
+    # load, so this flag decorates the nav rather than gating the surface.
+    _datapact_state = (datapact_state or "").strip().lower()
+    if _datapact_state in {"available", "degraded"}:
+        datapact = _flag(
+            available=True,
+            state=_datapact_state,
+            reason=datapact_reason,
+            actor_scoped=False,
+            workspace_scoped=True,
+            source="datapact-control-plane",
+            product_mode=auth_mode,
+        )
+    elif _datapact_state in {"absent", "disabled", "unavailable"}:
+        datapact = _flag(
+            available=False,
+            state="unavailable",
+            reason=datapact_reason,
+            actor_scoped=False,
+            workspace_scoped=True,
+            source="datapact-control-plane",
+            product_mode=auth_mode,
+        )
+    else:
+        datapact = _flag(
+            available=False,
+            state="unknown",
+            reason=datapact_reason or "DataPact detection has not run yet.",
+            actor_scoped=False,
+            workspace_scoped=True,
+            source="datapact-control-plane",
+            product_mode=auth_mode,
+        )
+
     return {
         "governanceWrite": governance_write,
         "governanceApproval": governance_approval,
@@ -534,4 +573,5 @@ def bootstrap_capabilities(
         "qualityRunEligibility": quality_run,
         "exportAllowed": export_allowed,
         "manualLineageOverrides": manual_lineage_overrides,
+        "datapact": datapact,
     }
