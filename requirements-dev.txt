@@ -1,0 +1,7 @@
+# Test-only dependencies (NOT installed into the deployed app — the runtime
+# uses requirements.txt only). CI installs this in addition so the backend
+# unittest suite can import every test module:
+#   - httpx: required by fastapi/starlette TestClient (test_classification_api)
+#   - pytest: imported by pytest-style test modules (test_store_roles)
+httpx
+pytest
