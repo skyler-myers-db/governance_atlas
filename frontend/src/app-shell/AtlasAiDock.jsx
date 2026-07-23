@@ -34,6 +34,16 @@ const AI_DOCK_GUTTER = { side: 12, top: 12, bottom: 64 };
 // grown from its top/left toward screen centre (not just shrunk from the se).
 const RESIZE_HANDLES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 
+// setPointerCapture throws NotFoundError if the pointer is no longer active
+// (e.g. released between events). Never let that surface as an unhandled error.
+function capturePointer(event) {
+  try {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  } catch {
+    /* pointer already released — capture is a best-effort nicety */
+  }
+}
+
 // Active facet scope from the Discover URL (the URL is the source of truth for
 // Discover state). Only present filters are included, so an unfiltered page
 // sends no scope. Kept small + string-only for the backend's sanitizer.
@@ -772,7 +782,7 @@ export function AtlasAiDock({
                 width: box?.width,
                 height: box?.height,
               };
-              event.currentTarget.setPointerCapture?.(event.pointerId);
+              capturePointer(event);
             }}
           >
             <div>
@@ -922,7 +932,7 @@ export function AtlasAiDock({
                       top: dockBox.top,
                       dir,
                     };
-                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                    capturePointer(event);
                   }}
                   title="Drag to resize"
                 >
