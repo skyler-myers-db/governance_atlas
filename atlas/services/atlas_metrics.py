@@ -1468,6 +1468,121 @@ def _trend_fields(history: Sequence[Mapping[str, Any]], column: str, *, suffix: 
     }
 
 
+# ── G9: per-category (per-domain / per-tier) trend history ─────────────────
+
+def _category_snapshot_rows(
+    domains: Sequence[Mapping[str, Any]],
+    tiers: Sequence[Mapping[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Flatten the live per-domain and per-tier breakdowns into snapshot rows.
+    Values are the same ones the dashboard shows — never fabricated."""
+    rows: List[Dict[str, Any]] = []
+    for domain in domains or []:
+        key = _text(domain.get("domain"))
+        if not key:
+            continue
+        rows.append(
+            {
+                "category_kind": "domain",
+                "category_key": key,
+                "category_label": _text(domain.get("label")) or key,
+                "asset_count": _number(domain.get("assetCount")),
+                "coverage": _number(domain.get("score")),
+                "certification_pct": None,
+                "score": _number(domain.get("score")),
+            }
+        )
+    for tier in tiers or []:
+        key = _text(tier.get("tier"))
+        if not key:
+            continue
+        rows.append(
+            {
+                "category_kind": "tier",
+                "category_key": key,
+                "category_label": _text(tier.get("label")) or key,
+                "asset_count": _number(tier.get("total")),
+                "coverage": None,
+                "certification_pct": _number(tier.get("value")),
+                "score": _number(tier.get("value")),
+            }
+        )
+    return rows
+
+
+def _record_daily_category_snapshot(
+    store: Any, scope_key: str, rows: Sequence[Mapping[str, Any]]
+) -> None:
+    if not hasattr(store, "upsert_governance_category_snapshots") or not rows:
+        return
+    today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    marker = f"category:{scope_key}"
+    if _SNAPSHOT_WRITTEN.get(marker) == today:
+        return
+    try:
+        store.upsert_governance_category_snapshots(
+            scope_key=scope_key, snapshot_date=today, rows=list(rows)
+        )
+        _SNAPSHOT_WRITTEN[marker] = today
+    except Exception:
+        # Trend persistence must never break the live payload.
+        pass
+
+
+def _category_trend_series(
+    store: Any, scope_key: str, kind: str, value_column: str
+) -> List[Dict[str, Any]]:
+    """Per-category trend series for a kind (domain|tier). Each category is
+    honestly marked "collecting" until ≥7 daily points exist — a young series
+    is never dressed as a multi-week trend (same rule as the aggregate trends)."""
+    frame = _call_store(
+        store, "list_governance_category_snapshots", scope_key=scope_key, category_kind=kind
+    )
+    rows = _rows_or_empty(frame)
+    by_cat: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        ts = _timestamp(row.get("snapshot_date"))
+        if ts is None:
+            continue
+        key = _text(row.get("category_key"))
+        if not key:
+            continue
+        value = _number(row.get(value_column))
+        if value is None:
+            continue
+        entry = by_cat.setdefault(
+            key,
+            {"label": _text(row.get("category_label")) or key, "assetCount": _number(row.get("asset_count")), "points": []},
+        )
+        entry["points"].append((ts, value))
+        entry["assetCount"] = _number(row.get("asset_count"))
+    series: List[Dict[str, Any]] = []
+    for key, info in by_cat.items():
+        ordered = sorted(info["points"], key=lambda item: item[0])
+        points = [{"date": ts.strftime("%Y-%m-%d"), "value": value} for ts, value in ordered]
+        if not points:
+            continue
+        latest = points[-1]["value"]
+        previous = points[0]["value"]
+        collecting = len(points) < 7
+        series.append(
+            {
+                "key": key,
+                "label": info["label"],
+                "assetCount": info["assetCount"],
+                "points": points,
+                "latest": latest,
+                "collecting": collecting,
+                "collectedSnapshots": len(points),
+                "collectingSince": points[0]["date"] if collecting else "",
+                "delta": round(latest - previous, 1) if len(points) > 1 else 0.0,
+                "deltaTone": "good" if latest - previous >= 0 else "bad",
+            }
+        )
+    series.sort(key=lambda item: (item["latest"] if item["latest"] is not None else 0.0))
+    return series
+
+
 def _number(value: Any) -> float | None:
     try:
         if value is None or (isinstance(value, float) and math.isnan(value)):
@@ -1704,6 +1819,21 @@ def command_center_payload(
     posture_trend_fields = _trend_fields(history, "posture_score")
     quality_trend = _trend_fields(history, "quality_sla")
     lineage_trend = _trend_fields(history, "lineage_coverage")
+
+    # G9 — per-category (per-domain governance score + per-tier certification)
+    # daily snapshots + trend series. `domains` is already computed above; tiers
+    # are cheap to derive. History accumulates from the first write forward.
+    _record_daily_category_snapshot(
+        store, scope_key, _category_snapshot_rows(domains, _certification_coverage_by_tier(assets_df))
+    )
+    category_trends = {
+        "kinds": [
+            {"key": "domain", "label": "Governance score by domain", "unit": "score", "valueColumn": "score"},
+            {"key": "tier", "label": "Certification by tier", "unit": "percent", "valueColumn": "certification_pct"},
+        ],
+        "domain": _category_trend_series(store, scope_key, "domain", "score"),
+        "tier": _category_trend_series(store, scope_key, "tier", "certification_pct"),
+    }
     source_warnings = [
         warning
         for warning in (request_reason if not requests_available else "", audit_reason if not audit_available else "")
@@ -1801,6 +1931,7 @@ def command_center_payload(
             ),
             "heatmap": _coverage_heatmap(domains),
         },
+        "categoryTrends": category_trends,
         "topDomains": domains[:5],
         # ALL catalogs, worst-first (see _catalog_health_summary). No slice:
         # dropping catalogs here is how `datapact` vanished from the panel.

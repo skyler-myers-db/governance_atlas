@@ -490,3 +490,61 @@
   padding: 10px 12px; color: var(--ga-text);
   border-bottom: 1px solid color-mix(in srgb, var(--ga-border) 60%, transparent);
 }
+
+/* "Controls in action" — governance-decisions log (review decisions, not
+   access enforcement; the caveat below the table states this honestly). */
+.ga-admin-decisions-scroll { overflow-x: auto; width: 100%; }
+.ga-admin-decisions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 640px;
+}
+.ga-admin-decisions-table thead th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--ga-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--ga-border);
+  white-space: nowrap;
+}
+.ga-admin-decisions-table tbody td {
+  padding: 10px 12px;
+  color: var(--ga-text);
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--ga-border) 60%, transparent);
+}
+.ga-admin-decisions-asset {
+  font-family: var(--ga-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--ga-text-strong);
+  word-break: break-word;
+}
+.ga-admin-decisions-actor { display: block; color: var(--ga-text); }
+.ga-admin-decisions-role {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ga-text-muted);
+}
+.ga-admin-decisions-change { color: var(--ga-text); white-space: nowrap; }
+.ga-admin-decisions-change i { color: var(--ga-text-muted); font-style: normal; }
+.ga-admin-decisions-note {
+  color: var(--ga-text-muted);
+  max-width: 280px;
+}
+.ga-admin-decisions-when { color: var(--ga-text-muted); white-space: nowrap; }
+.ga-admin-decisions-caveat {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: 8px;
+  background: var(--ga-surface-muted);
+  color: var(--ga-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}

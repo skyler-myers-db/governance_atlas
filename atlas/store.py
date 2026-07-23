@@ -14,6 +14,10 @@ from .uc import UCSQLClient
 from .util import quote_ident, sql_literal
 
 
+def _norm_str(value: Any) -> str:
+    return str(value or "").strip()
+
+
 def _utc_now_ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -403,6 +407,28 @@ LIMIT {int(limit)}"""
     action, source, status, before_json, after_json, request_id,
     actor_email, actor_role, detail, created_at, created_by, updated_at, updated_by
 FROM {self._fq('metadata_audit_log')} {where}
+ORDER BY created_at DESC, audit_id DESC
+LIMIT {int(limit)}"""
+        )
+
+    # Governance DECISION actions — the audit rows that evidence a control being
+    # exercised (a steward/admin approving or rejecting a change). NOT access
+    # enforcement (GA never touches the access path); this is review activity.
+    _DECISION_ACTIONS = (
+        "change-request-status-updated",
+        "change-request-approved",
+    )
+
+    def list_governance_decisions(self, *, limit: int = 100) -> pd.DataFrame:
+        """G4 — real governance decisions from the audit log: who approved/
+        rejected which change request, when, with the before/after status diff
+        and review note. Row-level asset visibility is applied by the caller."""
+        actions = ", ".join(sql_literal(action) for action in self._DECISION_ACTIONS)
+        return self.uc.query_df(
+            f"""SELECT audit_id, entity_type, entity_id, entity_fqn, action, status,
+    before_json, after_json, actor_email, actor_role, detail, created_at
+FROM {self._fq('metadata_audit_log')}
+WHERE action IN ({actions})
 ORDER BY created_at DESC, audit_id DESC
 LIMIT {int(limit)}"""
         )
@@ -3664,6 +3690,90 @@ WHERE c.case_id IN ({id_list})"""
     open_requests, policy_exceptions, quality_sla, lineage_coverage, cde_count
 FROM {self._fq('governance_metrics_snapshots')}
 WHERE scope_key = {sql_literal(scope_key)}
+ORDER BY snapshot_date DESC
+LIMIT {int(limit)}"""
+        )
+
+    def upsert_governance_category_snapshots(
+        self,
+        *,
+        scope_key: str,
+        snapshot_date: str,
+        rows: Sequence[Mapping[str, Any]],
+        created_by: str = "atlas-metrics",
+    ) -> None:
+        """Record (or replace) today's per-category governance snapshots (G9).
+
+        One row per (scope_key, snapshot_date, category_kind, category_key).
+        Delete-then-insert for the whole (scope, day) set — same idempotency as
+        the aggregate snapshot. Rows carry: category_kind (domain|tier),
+        category_key, category_label, asset_count, coverage, certification_pct,
+        score. Absent values persist as NULL, never fabricated.
+        """
+        table = self._fq("governance_category_metrics_snapshots")
+        self.uc.execute(
+            f"DELETE FROM {table} WHERE scope_key = {sql_literal(scope_key)} "
+            f"AND snapshot_date = date({sql_literal(snapshot_date)})"
+        )
+        materialized = [row for row in rows if _norm_str(row.get("category_key"))]
+        if not materialized:
+            return
+
+        def _num(value: Any) -> str:
+            if value is None:
+                return "NULL"
+            try:
+                return repr(float(value)) if isinstance(value, float) else repr(int(value))
+            except (TypeError, ValueError):
+                return "NULL"
+
+        ts = _utc_now_ts()
+        values = []
+        for row in materialized:
+            kind = _norm_str(row.get("category_kind"))
+            key = _norm_str(row.get("category_key"))
+            label = _norm_str(row.get("category_label")) or key
+            values.append(
+                "("
+                + ", ".join(
+                    [
+                        sql_literal(f"{scope_key}:{snapshot_date}:{kind}:{key}"),
+                        sql_literal(scope_key),
+                        f"date({sql_literal(snapshot_date)})",
+                        sql_literal(kind),
+                        sql_literal(key),
+                        sql_literal(label),
+                        _num(row.get("asset_count")),
+                        _num(row.get("coverage")),
+                        _num(row.get("certification_pct")),
+                        _num(row.get("score")),
+                        f"timestamp({sql_literal(ts)})",
+                        sql_literal(created_by),
+                    ]
+                )
+                + ")"
+            )
+        self.uc.execute(
+            f"""INSERT INTO {table} (
+    snapshot_id, scope_key, snapshot_date, category_kind, category_key,
+    category_label, asset_count, coverage, certification_pct, score,
+    created_at, created_by
+) VALUES {', '.join(values)}"""
+        )
+
+    def list_governance_category_snapshots(
+        self,
+        *,
+        scope_key: str,
+        category_kind: str,
+        limit: int = 400,
+    ) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT snapshot_date, category_kind, category_key, category_label,
+    asset_count, coverage, certification_pct, score
+FROM {self._fq('governance_category_metrics_snapshots')}
+WHERE scope_key = {sql_literal(scope_key)}
+    AND category_kind = {sql_literal(category_kind)}
 ORDER BY snapshot_date DESC
 LIMIT {int(limit)}"""
         )

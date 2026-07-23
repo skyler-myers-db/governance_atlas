@@ -1,6 +1,7 @@
 import "./home.css";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, LoadingState, PageShell, UnavailableState, toast } from "../../components/system";
+import { fetchBoardReportHtml } from "../../lib/api";
 import { useCommandCenter } from "../../hooks/useCommandCenter";
 import { useInsightsDashboard } from "../../hooks/useInsightsDashboard";
 import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
@@ -18,6 +19,7 @@ import {
 import { PostureHero } from "./sections/PostureHero.jsx";
 import { KpiRow } from "./sections/KpiRow.jsx";
 import { TrendCard } from "./sections/TrendCard.jsx";
+import { CategoryTrendCard } from "./sections/CategoryTrendCard.jsx";
 import { CatalogHealthCard, DomainPostureCard, RiskFindingsCard } from "./sections/EstateCards.jsx";
 import { ActivityCard, CdeCard, RequestsCard } from "./sections/GovernanceCards.jsx";
 import { InsightsBand } from "./sections/InsightsBand.jsx";
@@ -43,6 +45,8 @@ function kpiByKey(kpis, key) {
 export function HomePage() {
   const commandCenter = useCommandCenter();
   const insights = useInsightsDashboard();
+  // Board-report generation is a network round-trip; guard against double-fire.
+  const [boardReportBusy, setBoardReportBusy] = useState(false);
   // Stable reference so the useMemo derivations below only recompute when
   // the hook actually returns new data (react-hooks/exhaustive-deps).
   const commandCenterData = commandCenter.data;
@@ -151,6 +155,38 @@ export function HomePage() {
     toast("Command Center brief export started.", { tone: "success" });
   }, [catalogs, commandCenter.warnings, data, domains, events, liveEvidence]);
 
+  // G8 — board report: the backend renders print-ready HTML; we download it
+  // as a Blob using the same anchor pattern as the brief export above.
+  const exportBoardReport = useCallback(async () => {
+    if (boardReportBusy) return;
+    if (typeof document === "undefined" || typeof Blob === "undefined" || typeof URL?.createObjectURL !== "function") {
+      toast("Export is unavailable in this browser context.", { tone: "warning" });
+      return;
+    }
+    setBoardReportBusy(true);
+    try {
+      const html = await fetchBoardReportHtml();
+      if (!html || typeof html !== "string") {
+        throw new Error("Empty board report");
+      }
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `atlas-board-report-${new Date().toISOString().slice(0, 10)}.html`;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      toast("Board report downloaded.", { tone: "success" });
+    } catch (error) {
+      toast(`Board report failed: ${error?.message || "unavailable"}`, { tone: "danger" });
+    } finally {
+      setBoardReportBusy(false);
+    }
+  }, [boardReportBusy]);
+
   return (
     <PageShell
       className="ga-home-page"
@@ -173,6 +209,14 @@ export function HomePage() {
           <Button variant="secondary" size="sm" onClick={exportBrief}>
             Export brief
           </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={exportBoardReport}
+            loading={boardReportBusy}
+          >
+            Board report
+          </Button>
         </div>
       }
     >
@@ -194,6 +238,7 @@ export function HomePage() {
           <KpiRow kpis={kpis} />
           <div className="ga-home-grid">
             <TrendCard posture={data.posture || {}} />
+            <CategoryTrendCard categoryTrends={data.categoryTrends} />
             <DomainPostureCard
               domains={domains}
               postureAvailable={numericValue(data.posture?.overall) !== null}
